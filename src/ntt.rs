@@ -34,6 +34,21 @@
 #![allow(non_camel_case_types)]
 #![allow(non_upper_case_globals)]
 
+// FIXME: using a range-based iterator involves a remarkable amount of traits, including advanced
+// features like associated types; for the quality of the C code, we instead rely on a custom macro
+// that expands to a while-loop, to be later peephole-optimized into a C for loop
+
+macro_rules! c_for {
+    ($decl:stmt; $test:expr; $incr:expr; $body:block) => {
+        $decl
+        while ($test) {
+            $body;
+            $incr
+        }
+    }
+}
+
+
 const MLWE_POLYNOMIAL_COEFFICIENTS: usize = 256;
 
 //=====================================================
@@ -327,7 +342,9 @@ fn SymCryptMlKemMontMul(a: u32, b: u32, bMont: u32) -> u32 {
 }
 
 fn SymCryptMlKemPolyElementNTTLayerC(peSrc: &mut POLYELEMENT, mut k: usize, len: usize) {
-    for start in (0usize..256).step_by(2*len) {
+    // FIXME (see comments in eurydice/lib/Builtin.ml)
+    // WAS: for start in (0usize..256).step_by(2*len) {
+    c_for!(let mut start = 0usize; start < 256; start += 2*len; {
         let twiddleFactor: u32 = MlKemZetaBitRevTimesR[k].into();
         let twiddleFactorMont: u32 = MlKemZetaBitRevTimesRTimesNegQInvModR[k].into();
         k += 1;
@@ -344,11 +361,13 @@ fn SymCryptMlKemPolyElementNTTLayerC(peSrc: &mut POLYELEMENT, mut k: usize, len:
             peSrc[start+j]      = c0 as u16;
             peSrc[start+j+len]  = c1 as u16;
         }
-    }
+    });
 }
 
 fn SymCryptMlKemPolyElementINTTLayerC(peSrc: &mut POLYELEMENT, mut k: usize, len: usize) {
-    for start in (0..256).step_by(2*len) {
+    // FIXME
+    // for start in (0..256).step_by(2*len) {
+    c_for!(let mut start = 0usize; start < 256; start += 2*len; {
         let twiddleFactor: u32 = MlKemZetaBitRevTimesR[k].into();
         let twiddleFactorMont: u32 = MlKemZetaBitRevTimesRTimesNegQInvModR[k].into();
         k -= 1;
@@ -365,7 +384,7 @@ fn SymCryptMlKemPolyElementINTTLayerC(peSrc: &mut POLYELEMENT, mut k: usize, len
             peSrc[start+j]      = tmp as u16;
             peSrc[start+j+len]  = c1 as u16;
         }
-    }
+    });
 }
 
 fn SymCryptMlKemPolyElementNTTLayer(peSrc: &mut POLYELEMENT, k: usize, len: usize) {
@@ -545,7 +564,9 @@ fn SymCryptMlKemPolyElementINTTAndMulR(
 const COMPRESS_MULCONSTANT: u32 = 0x9d7dbb;
 const COMPRESS_SHIFTCONSTANT: u32 = 35;
 
-use std::cmp::min;
+// FIXME: can't use std::cmp::min due to required vs provided methods, tracked via https://github.com/AeneasVerif/charon/issues/180
+// use std::cmp::min;
+fn min(x: u32, y: u32) -> u32 { if x <= y { x } else { y } }
 
 fn
 SymCryptMlKemPolyElementCompressAndEncode(
