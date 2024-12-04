@@ -736,7 +736,8 @@ fn SymCryptMlKemPolyElementSampleNTTFromShake128(
         assert!(currBufIndex <= shakeOutputBuf.len());
         if currBufIndex == shakeOutputBuf.len()
         {
-            SymCryptShake128Extract(pState, &mut shakeOutputBuf[..], false);
+            // Note (Rust): shakeOutputBuf[..] seems unnecessary and trips Eurydice (FIXME)
+            SymCryptShake128Extract(pState, &mut shakeOutputBuf, false);
             currBufIndex = 0;
         }
 
