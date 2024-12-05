@@ -1101,85 +1101,8 @@ axiom ntt.SymCryptShake128Extract
   Array U8 0#usize → Slice U8 → Bool → Result ((Array U8 0#usize) ×
     (Slice U8))
 
-/- [core::ops::range::RangeFull]
-   Source: '/rustc/library/core/src/ops/range.rs', lines 43:0-43:20
-   Name pattern: core::ops::range::RangeFull -/
-@[reducible] def core.ops.range.RangeFull := Unit
-
-/- Trait implementation: [core::slice::index::private_slice_index::{core::slice::index::private_slice_index::Sealed for core::ops::range::RangeFull}#4]
-   Source: '/rustc/library/core/src/slice/index.rs', lines 164:4-164:34
-   Name pattern: core::slice::index::private_slice_index::Sealed<core::ops::range::RangeFull> -/
-@[reducible]
-def core.slice.index.private_slice_index.SealedcoreopsrangeRangeFull :
-  core.slice.index.private_slice_index.Sealed core.ops.range.RangeFull := {
-}
-
-/- [core::slice::index::{core::slice::index::SliceIndex<@Slice<T>> for core::ops::range::RangeFull}#9::get]:
-   Source: '/rustc/library/core/src/slice/index.rs', lines 647:4-647:45
-   Name pattern: core::slice::index::{core::slice::index::SliceIndex<core::ops::range::RangeFull, [@T]>}::get -/
-axiom core.slice.index.SliceIndexcoreopsrangeRangeFullSlice.get
-  {T : Type} :
-  core.ops.range.RangeFull → Slice T → Result (Option (Slice T))
-
-/- [core::slice::index::{core::slice::index::SliceIndex<@Slice<T>> for core::ops::range::RangeFull}#9::get_mut]:
-   Source: '/rustc/library/core/src/slice/index.rs', lines 652:4-652:57
-   Name pattern: core::slice::index::{core::slice::index::SliceIndex<core::ops::range::RangeFull, [@T]>}::get_mut -/
-axiom core.slice.index.SliceIndexcoreopsrangeRangeFullSlice.get_mut
-  {T : Type} :
-  core.ops.range.RangeFull → Slice T → Result ((Option (Slice T)) ×
-    (Option (Slice T) → Slice T))
-
-/- [core::slice::index::{core::slice::index::SliceIndex<@Slice<T>> for core::ops::range::RangeFull}#9::get_unchecked]:
-   Source: '/rustc/library/core/src/slice/index.rs', lines 657:4-657:66
-   Name pattern: core::slice::index::{core::slice::index::SliceIndex<core::ops::range::RangeFull, [@T]>}::get_unchecked -/
-axiom core.slice.index.SliceIndexcoreopsrangeRangeFullSlice.get_unchecked
-  {T : Type} :
-  core.ops.range.RangeFull → ConstRawPtr (Slice T) → Result (ConstRawPtr
-    (Slice T))
-
-/- [core::slice::index::{core::slice::index::SliceIndex<@Slice<T>> for core::ops::range::RangeFull}#9::get_unchecked_mut]:
-   Source: '/rustc/library/core/src/slice/index.rs', lines 662:4-662:66
-   Name pattern: core::slice::index::{core::slice::index::SliceIndex<core::ops::range::RangeFull, [@T]>}::get_unchecked_mut -/
-axiom core.slice.index.SliceIndexcoreopsrangeRangeFullSlice.get_unchecked_mut
-  {T : Type} :
-  core.ops.range.RangeFull → MutRawPtr (Slice T) → Result (MutRawPtr (Slice
-    T))
-
-/- [core::slice::index::{core::slice::index::SliceIndex<@Slice<T>> for core::ops::range::RangeFull}#9::index]:
-   Source: '/rustc/library/core/src/slice/index.rs', lines 667:4-667:39
-   Name pattern: core::slice::index::{core::slice::index::SliceIndex<core::ops::range::RangeFull, [@T]>}::index -/
-axiom core.slice.index.SliceIndexcoreopsrangeRangeFullSlice.index
-  {T : Type} : core.ops.range.RangeFull → Slice T → Result (Slice T)
-
-/- [core::slice::index::{core::slice::index::SliceIndex<@Slice<T>> for core::ops::range::RangeFull}#9::index_mut]:
-   Source: '/rustc/library/core/src/slice/index.rs', lines 672:4-672:51
-   Name pattern: core::slice::index::{core::slice::index::SliceIndex<core::ops::range::RangeFull, [@T]>}::index_mut -/
-axiom core.slice.index.SliceIndexcoreopsrangeRangeFullSlice.index_mut
-  {T : Type} :
-  core.ops.range.RangeFull → Slice T → Result ((Slice T) × (Slice T →
-    Slice T))
-
-/- Trait implementation: [core::slice::index::{core::slice::index::SliceIndex<@Slice<T>> for core::ops::range::RangeFull}#9]
-   Source: '/rustc/library/core/src/slice/index.rs', lines 643:0-643:49
-   Name pattern: core::slice::index::SliceIndex<core::ops::range::RangeFull, [@Self]> -/
-@[reducible]
-def core.slice.index.SliceIndexcoreopsrangeRangeFullSlice (T : Type) :
-  core.slice.index.SliceIndex core.ops.range.RangeFull (Slice T) := {
-  Output := Slice T
-  sealedInst :=
-    core.slice.index.private_slice_index.SealedcoreopsrangeRangeFull
-  get := core.slice.index.SliceIndexcoreopsrangeRangeFullSlice.get
-  get_mut := core.slice.index.SliceIndexcoreopsrangeRangeFullSlice.get_mut
-  get_unchecked :=
-    core.slice.index.SliceIndexcoreopsrangeRangeFullSlice.get_unchecked
-  get_unchecked_mut :=
-    core.slice.index.SliceIndexcoreopsrangeRangeFullSlice.get_unchecked_mut
-  index := core.slice.index.SliceIndexcoreopsrangeRangeFullSlice.index
-  index_mut := core.slice.index.SliceIndexcoreopsrangeRangeFullSlice.index_mut
-}
-
 /- [symcrust::ntt::SymCryptMlKemPolyElementSampleNTTFromShake128]: loop 0:
-   Source: 'src/ntt.rs', lines 777:4-799:5 -/
+   Source: 'src/ntt.rs', lines 777:4-800:5 -/
 divergent def ntt.SymCryptMlKemPolyElementSampleNTTFromShake128_loop
   (pState : Array U8 0#usize) (peDst : Array U16 256#usize) (i : Usize)
   (shakeOutputBuf : Array U8 24#usize) (currBufIndex : Usize) :
@@ -1196,12 +1119,9 @@ divergent def ntt.SymCryptMlKemPolyElementSampleNTTFromShake128_loop
     if currBufIndex = i2
     then
       do
-      let (s2, index_mut_back) ←
-        core.array.Array.index_mut (core.ops.index.IndexMutSliceTIInst
-          (core.slice.index.SliceIndexcoreopsrangeRangeFullSlice U8))
-          shakeOutputBuf ()
+      let (s2, to_slice_mut_back) ← Array.to_slice_mut shakeOutputBuf
       let (pState1, s3) ← ntt.SymCryptShake128Extract pState s2 false
-      let shakeOutputBuf1 := index_mut_back s3
+      let shakeOutputBuf1 := to_slice_mut_back s3
       let s4 ← Array.to_slice shakeOutputBuf1
       let a ← ntt.slice_to_sub_array 2#usize s4 0#usize
       let i3 := core.num.U16.from_le_bytes a
@@ -1211,23 +1131,23 @@ divergent def ntt.SymCryptMlKemPolyElementSampleNTTFromShake128_loop
       let i5 := core.num.U16.from_le_bytes a1
       let sample1 ← i5 >>> 4#i32
       let currBufIndex1 ← 0#usize + 3#usize
-      let (_, index_mut_back1) ← Array.index_mut_usize peDst i
+      let (_, index_mut_back) ← Array.index_mut_usize peDst i
       let i6 ← Scalar.cast .U32 (i3 &&& 4095#u16)
       let i7 ← Scalar.cast_bool .Usize (i6 < ntt.Q)
       let i8 ← i + i7
       if i8 < ntt.MLWE_POLYNOMIAL_COEFFICIENTS
       then
         do
-        let peDst1 := index_mut_back1 (i3 &&& 4095#u16)
-        let (_, index_mut_back2) ← Array.index_mut_usize peDst1 i8
+        let peDst1 := index_mut_back (i3 &&& 4095#u16)
+        let (_, index_mut_back1) ← Array.index_mut_usize peDst1 i8
         let i9 ← Scalar.cast .U32 sample1
         let i10 ← Scalar.cast_bool .Usize (i9 < ntt.Q)
         let i11 ← i8 + i10
-        let peDst2 := index_mut_back2 sample1
+        let peDst2 := index_mut_back1 sample1
         ntt.SymCryptMlKemPolyElementSampleNTTFromShake128_loop pState1 peDst2
           i11 shakeOutputBuf1 currBufIndex1
       else
-        let peDst1 := index_mut_back1 (i3 &&& 4095#u16)
+        let peDst1 := index_mut_back (i3 &&& 4095#u16)
         ntt.SymCryptMlKemPolyElementSampleNTTFromShake128_loop pState1 peDst1
           i8 shakeOutputBuf1 currBufIndex1
     else
@@ -1263,7 +1183,7 @@ divergent def ntt.SymCryptMlKemPolyElementSampleNTTFromShake128_loop
   else Result.ok (pState, peDst)
 
 /- [symcrust::ntt::SymCryptMlKemPolyElementSampleNTTFromShake128]:
-   Source: 'src/ntt.rs', lines 769:0-800:1 -/
+   Source: 'src/ntt.rs', lines 769:0-801:1 -/
 def ntt.SymCryptMlKemPolyElementSampleNTTFromShake128
   (pState : Array U8 0#usize) (peDst : Array U16 256#usize) :
   Result ((Array U8 0#usize) × (Array U16 256#usize))
@@ -1276,7 +1196,7 @@ def ntt.SymCryptMlKemPolyElementSampleNTTFromShake128
     shakeOutputBuf currBufIndex
 
 /- [symcrust::ntt::SymCryptMlKemPolyElementSampleCBDFromBytes::then_inner_loop]: loop 0:
-   Source: 'src/ntt.rs', lines 44:8-838:24 -/
+   Source: 'src/ntt.rs', lines 44:8-839:24 -/
 divergent def
   ntt.SymCryptMlKemPolyElementSampleCBDFromBytes.then_inner_loop_loop
   (peDst : Array U16 256#usize) (i : Usize) (sampleBits : U32) (j : Usize) :
@@ -1318,7 +1238,7 @@ divergent def
   else Result.ok (peDst, sampleBits)
 
 /- [symcrust::ntt::SymCryptMlKemPolyElementSampleCBDFromBytes::then_inner_loop]:
-   Source: 'src/ntt.rs', lines 824:12-839:13 -/
+   Source: 'src/ntt.rs', lines 825:12-840:13 -/
 def ntt.SymCryptMlKemPolyElementSampleCBDFromBytes.then_inner_loop
   (peDst : Array U16 256#usize) (i : Usize) (sampleBits : U32) :
   Result ((Array U16 256#usize) × U32)
@@ -1327,7 +1247,7 @@ def ntt.SymCryptMlKemPolyElementSampleCBDFromBytes.then_inner_loop
     sampleBits 0#usize
 
 /- [symcrust::ntt::SymCryptMlKemPolyElementSampleCBDFromBytes::else_inner_loop]: loop 0:
-   Source: 'src/ntt.rs', lines 44:8-869:24 -/
+   Source: 'src/ntt.rs', lines 44:8-870:24 -/
 divergent def
   ntt.SymCryptMlKemPolyElementSampleCBDFromBytes.else_inner_loop_loop
   (peDst : Array U16 256#usize) (i : Usize) (sampleBits : U32) (j : Usize) :
@@ -1369,7 +1289,7 @@ divergent def
   else Result.ok (peDst, sampleBits)
 
 /- [symcrust::ntt::SymCryptMlKemPolyElementSampleCBDFromBytes::else_inner_loop]:
-   Source: 'src/ntt.rs', lines 855:12-870:13 -/
+   Source: 'src/ntt.rs', lines 856:12-871:13 -/
 def ntt.SymCryptMlKemPolyElementSampleCBDFromBytes.else_inner_loop
   (peDst : Array U16 256#usize) (i : Usize) (sampleBits : U32) :
   Result ((Array U16 256#usize) × U32)
@@ -1378,7 +1298,7 @@ def ntt.SymCryptMlKemPolyElementSampleCBDFromBytes.else_inner_loop
     sampleBits 0#usize
 
 /- [symcrust::ntt::SymCryptMlKemPolyElementSampleCBDFromBytes]: loop 0:
-   Source: 'src/ntt.rs', lines 44:8-841:9 -/
+   Source: 'src/ntt.rs', lines 44:8-842:9 -/
 divergent def ntt.SymCryptMlKemPolyElementSampleCBDFromBytes_loop0
   (pbSrc : Slice U8) (peDst : Array U16 256#usize) (src_i : Usize) (i : Usize)
   :
@@ -1402,7 +1322,7 @@ divergent def ntt.SymCryptMlKemPolyElementSampleCBDFromBytes_loop0
   else Result.ok peDst
 
 /- [symcrust::ntt::SymCryptMlKemPolyElementSampleCBDFromBytes]: loop 1:
-   Source: 'src/ntt.rs', lines 44:8-872:9 -/
+   Source: 'src/ntt.rs', lines 44:8-873:9 -/
 divergent def ntt.SymCryptMlKemPolyElementSampleCBDFromBytes_loop1
   (pbSrc : Slice U8) (peDst : Array U16 256#usize) (src_i : Usize) (i : Usize)
   :
@@ -1424,7 +1344,7 @@ divergent def ntt.SymCryptMlKemPolyElementSampleCBDFromBytes_loop1
   else Result.ok peDst
 
 /- [symcrust::ntt::SymCryptMlKemPolyElementSampleCBDFromBytes]: loop 2:
-   Source: 'src/ntt.rs', lines 44:8-841:9 -/
+   Source: 'src/ntt.rs', lines 44:8-842:9 -/
 divergent def ntt.SymCryptMlKemPolyElementSampleCBDFromBytes_loop2
   (pbSrc : Slice U8) (peDst : Array U16 256#usize) (src_i : Usize) (i : Usize)
   :
@@ -1448,7 +1368,7 @@ divergent def ntt.SymCryptMlKemPolyElementSampleCBDFromBytes_loop2
   else Result.ok peDst
 
 /- [symcrust::ntt::SymCryptMlKemPolyElementSampleCBDFromBytes]: loop 3:
-   Source: 'src/ntt.rs', lines 44:8-872:9 -/
+   Source: 'src/ntt.rs', lines 44:8-873:9 -/
 divergent def ntt.SymCryptMlKemPolyElementSampleCBDFromBytes_loop3
   (pbSrc : Slice U8) (peDst : Array U16 256#usize) (src_i : Usize) (i : Usize)
   :
@@ -1470,7 +1390,7 @@ divergent def ntt.SymCryptMlKemPolyElementSampleCBDFromBytes_loop3
   else Result.ok peDst
 
 /- [symcrust::ntt::SymCryptMlKemPolyElementSampleCBDFromBytes]:
-   Source: 'src/ntt.rs', lines 802:0-874:1 -/
+   Source: 'src/ntt.rs', lines 803:0-875:1 -/
 def ntt.SymCryptMlKemPolyElementSampleCBDFromBytes
   (pbSrc : Slice U8) (eta : U32) (peDst : Array U16 256#usize) :
   Result (Array U16 256#usize)
