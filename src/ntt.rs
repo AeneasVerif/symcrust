@@ -163,12 +163,13 @@ type shake256State = [u8; 0];
 type sha3_256State = [u8; 0];
 type sha3_512State = [u8; 0];
 
-union HashStateUnion {
+// TODO:
+/*union HashStateUnion {
     shake128State: shake128State,
     shake256State: shake256State,
     sha3_256State: sha3_256State,
     sha3_512State: sha3_512State,
-}
+}*/
 
 // Note (Rust): caller allocates these temporaries whichever way they want, and passes us a mutable
 // reference to such a struct. If we need to use several fields at once, we can use a `ref mut`
@@ -179,8 +180,8 @@ struct INTERNAL_COMPUTATION_TEMPORARIES {
     abPolyElementBuffer0: POLYELEMENT,
     abPolyElementBuffer1: POLYELEMENT,
     abPolyElementAccumulatorBuffer: POLYELEMENT_ACCUMULATOR,
-    hashState0: HashStateUnion,
-    hashState1: HashStateUnion,
+    //hashState0: HashStateUnion, // TODO
+    //hashState1: HashStateUnion, // TODO
 }
 
 
@@ -348,19 +349,25 @@ fn SymCryptMlKemPolyElementNTTLayerC(peSrc: &mut POLYELEMENT, mut k: usize, len:
         let twiddleFactor: u32 = MlKemZetaBitRevTimesR[k].into();
         let twiddleFactorMont: u32 = MlKemZetaBitRevTimesRTimesNegQInvModR[k].into();
         k += 1;
-        for j in 0usize..len {
-            let mut c0: u32 = peSrc[start+j].into();
-            assert!( c0 < Q );
-            let mut c1: u32 = peSrc[start+j+len].into();
-            assert!( c1 < Q );
 
-            let c1TimesTwiddle: u32 = SymCryptMlKemMontMul( c1, twiddleFactor, twiddleFactorMont );
-            c1 = SymCryptMlKemModSub( c0, c1TimesTwiddle );
-            c0 = SymCryptMlKemModAdd( c0, c1TimesTwiddle );
+        #[inline]
+        fn inner_loop(peSrc: &mut POLYELEMENT, len: usize,
+                      start: usize, twiddleFactor: u32, twiddleFactorMont: u32) {
+            c_for!(let mut j = 0usize; j < len; j += 1; {
+                let mut c0: u32 = peSrc[start+j].into();
+                assert!( c0 < Q );
+                let mut c1: u32 = peSrc[start+j+len].into();
+                assert!( c1 < Q );
 
-            peSrc[start+j]      = c0 as u16;
-            peSrc[start+j+len]  = c1 as u16;
+                let c1TimesTwiddle: u32 = SymCryptMlKemMontMul( c1, twiddleFactor, twiddleFactorMont );
+                c1 = SymCryptMlKemModSub( c0, c1TimesTwiddle );
+                c0 = SymCryptMlKemModAdd( c0, c1TimesTwiddle );
+
+                peSrc[start+j]      = c0 as u16;
+                peSrc[start+j+len]  = c1 as u16;
+            });
         }
+        inner_loop(peSrc, len, start, twiddleFactor, twiddleFactorMont);
     });
 }
 
@@ -371,18 +378,24 @@ fn SymCryptMlKemPolyElementINTTLayerC(peSrc: &mut POLYELEMENT, mut k: usize, len
         let twiddleFactor: u32 = MlKemZetaBitRevTimesR[k].into();
         let twiddleFactorMont: u32 = MlKemZetaBitRevTimesRTimesNegQInvModR[k].into();
         k -= 1;
-        for j in 0..len {
-            let c0: u32 = peSrc[start+j].into();
-            assert!( c0 < Q );
-            let mut c1: u32 = peSrc[start+j+len].into();
-            assert!( c1 < Q );
 
-            let tmp = SymCryptMlKemModAdd( c0, c1 );
-            c1 = SymCryptMlKemModSub( c1, c0 );
-            c1 = SymCryptMlKemMontMul( c1, twiddleFactor, twiddleFactorMont );
+        inner_loop(peSrc, len, start, twiddleFactor, twiddleFactorMont);
+        #[inline]
+        fn inner_loop(peSrc: &mut POLYELEMENT, len: usize,
+                      start: usize, twiddleFactor: u32, twiddleFactorMont: u32) {
+            c_for!(let mut j = 0; j < len; j += 1; {
+                let c0: u32 = peSrc[start+j].into();
+                assert!( c0 < Q );
+                let mut c1: u32 = peSrc[start+j+len].into();
+                assert!( c1 < Q );
 
-            peSrc[start+j]      = tmp as u16;
-            peSrc[start+j+len]  = c1 as u16;
+                let tmp = SymCryptMlKemModAdd( c0, c1 );
+                c1 = SymCryptMlKemModSub( c1, c0 );
+                c1 = SymCryptMlKemMontMul( c1, twiddleFactor, twiddleFactorMont );
+
+                peSrc[start+j]      = tmp as u16;
+                peSrc[start+j+len]  = c1 as u16;
+            });
         }
     });
 }
@@ -400,7 +413,8 @@ fn SymCryptMlKemPolyElementMulAndAccumulate(
     peSrc2: & POLYELEMENT,
     paDst: &mut POLYELEMENT_ACCUMULATOR )
 {
-    for i in 0..(MLWE_POLYNOMIAL_COEFFICIENTS / 2) {
+    // FIXME
+    c_for!(let mut i = 0; i < MLWE_POLYNOMIAL_COEFFICIENTS / 2; i += 1; {
         let a0: u32 = peSrc1[2*i].into();
         assert!( (a0 as u32) < Q );
         let a1: u32 = peSrc1[2*i+1].into();
@@ -449,7 +463,7 @@ fn SymCryptMlKemPolyElementMulAndAccumulate(
 
         paDst[2*i  ] = c0;
         paDst[2*i+1] = c1;
-    }
+    });
 }
 
 fn
@@ -457,7 +471,8 @@ SymCryptMlKemMontgomeryReduceAndAddPolyElementAccumulatorToPolyElement(
     paSrc: &mut POLYELEMENT_ACCUMULATOR,
     peDst: &mut POLYELEMENT)
 {
-    for i in 0..MLWE_POLYNOMIAL_COEFFICIENTS {
+    // FIXME
+    c_for!(let mut i = 0; i < MLWE_POLYNOMIAL_COEFFICIENTS; i += 1; {
         let mut a = paSrc[i];
         assert!( a <= 4*((3328*3328) + (3494*3312)) );
         paSrc[i] = 0;
@@ -483,18 +498,19 @@ SymCryptMlKemMontgomeryReduceAndAddPolyElementAccumulatorToPolyElement(
         assert!( c < Q );
 
         peDst[i] = c as u16;
-    }
+    });
 }
 
 fn SymCryptMlKemPolyElementMulR(
     peSrc: & POLYELEMENT,
     peDst: &mut POLYELEMENT)
 {
-    for i in 0..MLWE_POLYNOMIAL_COEFFICIENTS
+    // FIXME
+    c_for!(let mut i = 0; i < MLWE_POLYNOMIAL_COEFFICIENTS; i += 1;
     {
         peDst[i] = SymCryptMlKemMontMul(
             peSrc[i].into(), Rsqr, RsqrTimesNegQInvModR ) as u16;
-    }
+    });
 }
 
 fn SymCryptMlKemPolyElementAdd(
@@ -502,10 +518,11 @@ fn SymCryptMlKemPolyElementAdd(
     peSrc2: & POLYELEMENT,
     peDst: & mut POLYELEMENT )
 {
-    for i in 0..MLWE_POLYNOMIAL_COEFFICIENTS
+    // FIXME
+    c_for!(let mut i = 0; i < MLWE_POLYNOMIAL_COEFFICIENTS; i += 1;
     {
         peDst[i] = SymCryptMlKemModAdd( peSrc1[i].into(), peSrc2[i].into() ) as u16;
-    }
+    });
 }
 
 fn SymCryptMlKemPolyElementSub(
@@ -513,10 +530,10 @@ fn SymCryptMlKemPolyElementSub(
     peSrc2: & POLYELEMENT,
     peDst : & mut POLYELEMENT)
 {
-    for i in 0..MLWE_POLYNOMIAL_COEFFICIENTS
+    c_for!(let mut i = 0; i < MLWE_POLYNOMIAL_COEFFICIENTS; i += 1;
     {
         peDst[i] = SymCryptMlKemModSub( peSrc1[i].into(), peSrc2[i].into() ) as u16;
-    }
+    });
 }
 
 fn SymCryptMlKemPolyElementNTT(
@@ -548,11 +565,11 @@ fn SymCryptMlKemPolyElementINTTAndMulR(
     SymCryptMlKemPolyElementINTTLayer( peSrc,   3,  64 );
     SymCryptMlKemPolyElementINTTLayer( peSrc,   1, 128 );
 
-    for i in 0..MLWE_POLYNOMIAL_COEFFICIENTS
+    c_for!(let mut i = 0; i < MLWE_POLYNOMIAL_COEFFICIENTS; i += 1;
     {
         peSrc[i] = SymCryptMlKemMontMul(
             peSrc[i].into(), INTTFixupTimesRsqr, INTTFixupTimesRsqrTimesNegQInvModR ) as u16;
-    }
+    });
 }
 
 // ((1<<35) / Q)
@@ -571,9 +588,9 @@ fn min(x: u32, y: u32) -> u32 { if x <= y { x } else { y } }
 fn
 SymCryptMlKemPolyElementCompressAndEncode(
     peSrc: & POLYELEMENT,
-            nBitsPerCoefficient: u32,
+    nBitsPerCoefficient: u32,
     // _Out_writes_bytes_(nBitsPerCoefficient*(MLWE_POLYNOMIAL_COEFFICIENTS / 8))
-            pbDst: &mut [u8] )
+    pbDst: &mut [u8] )
 {
     let mut cbDstWritten: usize = 0;
     let mut accumulator: u32 = 0;
@@ -582,7 +599,7 @@ SymCryptMlKemPolyElementCompressAndEncode(
     assert!( nBitsPerCoefficient >  0  );
     assert!( nBitsPerCoefficient <= 12 );
 
-    for i in 0..MLWE_POLYNOMIAL_COEFFICIENTS
+    c_for!(let mut i = 0; i < MLWE_POLYNOMIAL_COEFFICIENTS; i += 1;
     {
         let mut nBitsInCoefficient = nBitsPerCoefficient;
         let mut coefficient: u32 = peSrc[i].into(); // in range [0, Q-1]
@@ -610,25 +627,31 @@ SymCryptMlKemPolyElementCompressAndEncode(
 
         // encode the coefficient
         // simple loop to add bits to accumulator and write accumulator to output
-        while {
-            let nBitsToEncode = min(nBitsInCoefficient, 32-nBitsInAccumulator);
+        #[inline]
+        fn inner_loop(pbDst: &mut [u8], cbDstWritten: &mut usize, accumulator: &mut u32,
+                      nBitsInAccumulator: &mut u32, nBitsInCoefficient: &mut u32, coefficient: &mut u32,
+        ) {
+            while {
+                let nBitsToEncode = min(*nBitsInCoefficient, 32-*nBitsInAccumulator);
 
-            let bitsToEncode = coefficient & ((1<<nBitsToEncode)-1);
-            coefficient >>= nBitsToEncode;
-            nBitsInCoefficient -= nBitsToEncode;
+                let bitsToEncode = *coefficient & ((1<<nBitsToEncode)-1);
+                *coefficient >>= nBitsToEncode;
+                *nBitsInCoefficient -= nBitsToEncode;
 
-            accumulator |= bitsToEncode << nBitsInAccumulator;
-            nBitsInAccumulator += nBitsToEncode;
-            if nBitsInAccumulator == 32
-            {
-                pbDst[cbDstWritten..cbDstWritten+4].copy_from_slice(&u32::to_le_bytes(accumulator));
-                cbDstWritten += 4;
-                accumulator = 0;
-                nBitsInAccumulator = 0;
-            };
-            nBitsInCoefficient > 0
-        } {}
-    }
+                *accumulator |= bitsToEncode << *nBitsInAccumulator;
+                *nBitsInAccumulator += nBitsToEncode;
+                if *nBitsInAccumulator == 32
+                {
+                    pbDst[*cbDstWritten..*cbDstWritten+4].copy_from_slice(&u32::to_le_bytes(*accumulator));
+                    *cbDstWritten += 4;
+                    *accumulator = 0;
+                    *nBitsInAccumulator = 0;
+                };
+                *nBitsInCoefficient > 0
+            } {}
+        }
+        inner_loop(pbDst, &mut cbDstWritten, &mut accumulator, &mut nBitsInAccumulator, &mut nBitsInCoefficient, &mut coefficient);
+    });
 
     assert!(nBitsInAccumulator == 0);
     assert!(cbDstWritten == (nBitsPerCoefficient*(MLWE_POLYNOMIAL_COEFFICIENTS as u32 / 8)) as usize);
@@ -636,11 +659,19 @@ SymCryptMlKemPolyElementCompressAndEncode(
 
 enum MLKEM_ERROR { NO_ERROR, INVALID_BLOB }
 
+// FIXME:
+#[inline]
+#[charon::opaque]
+fn slice_to_sub_array<const N : usize>(s: &[u8], i: usize) -> [u8; N] {
+    s[i..i+N].try_into().unwrap()
+}
+
+
 fn
 SymCryptMlKemPolyElementDecodeAndDecompress(
     // _In_reads_bytes_(nBitsPerCoefficient*(MLWE_POLYNOMIAL_COEFFICIENTS / 8))
-            pbSrc: &[u8],
-            nBitsPerCoefficient: u32,
+    pbSrc: &[u8],
+    nBitsPerCoefficient: u32,
     peDst: &mut POLYELEMENT ) -> MLKEM_ERROR
 {
     let mut cbSrcRead: usize = 0;
@@ -650,32 +681,43 @@ SymCryptMlKemPolyElementDecodeAndDecompress(
     assert!( nBitsPerCoefficient >  0  );
     assert!( nBitsPerCoefficient <= 12 );
 
-    for i in 0..MLWE_POLYNOMIAL_COEFFICIENTS
+    // FIXME
+    c_for!(let mut i = 0; i < MLWE_POLYNOMIAL_COEFFICIENTS; i += 1;
     {
         let mut coefficient = 0;
         let mut nBitsInCoefficient = 0;
 
         // first gather and decode bits from pbSrc
-        while
-        {
-            if nBitsInAccumulator == 0
+        #[inline]
+        fn inner_loop(pbSrc: &[u8], nBitsPerCoefficient: u32,
+                      cbSrcRead: &mut usize, accumulator: &mut u32,
+                      nBitsInAccumulator: &mut u32, coefficient: &mut u32,
+                      nBitsInCoefficient: &mut u32) {
+            while
             {
-                accumulator = u32::from_le_bytes(pbSrc[cbSrcRead..cbSrcRead+4].try_into().unwrap());
-                cbSrcRead += 4;
-                nBitsInAccumulator = 32;
-            }
+                if *nBitsInAccumulator == 0
+                {
+                    // FIXME
+                    //*accumulator = u32::from_le_bytes(&pbSrc[*cbSrcRead..*cbSrcRead+4]).try_into().unwrap());
+                    *accumulator = u32::from_le_bytes(slice_to_sub_array::<4>(pbSrc, *cbSrcRead));
+                    *cbSrcRead += 4;
+                    *nBitsInAccumulator = 32;
+                }
 
-            let nBitsToDecode = min(nBitsPerCoefficient-nBitsInCoefficient, nBitsInAccumulator);
-            assert!(nBitsToDecode <= nBitsInAccumulator);
+                let nBitsToDecode = min(nBitsPerCoefficient-*nBitsInCoefficient, *nBitsInAccumulator);
+                assert!(nBitsToDecode <= *nBitsInAccumulator);
 
-            let bitsToDecode = accumulator & ((1<<nBitsToDecode)-1);
-            accumulator >>= nBitsToDecode;
-            nBitsInAccumulator -= nBitsToDecode;
+                let bitsToDecode = *accumulator & ((1<<nBitsToDecode)-1);
+                *accumulator >>= nBitsToDecode;
+                *nBitsInAccumulator -= nBitsToDecode;
 
-            coefficient |= bitsToDecode << nBitsInCoefficient;
-            nBitsInCoefficient += nBitsToDecode;
-            nBitsPerCoefficient > nBitsInCoefficient
-        } {}
+                *coefficient |= bitsToDecode << *nBitsInCoefficient;
+                *nBitsInCoefficient += nBitsToDecode;
+                nBitsPerCoefficient > *nBitsInCoefficient
+            } {}
+        }
+        inner_loop(pbSrc, nBitsPerCoefficient, &mut cbSrcRead, &mut accumulator,
+                   &mut nBitsInAccumulator, &mut coefficient, &mut nBitsInCoefficient);
         assert!(nBitsInCoefficient == nBitsPerCoefficient);
 
         // decompress the coefficient
@@ -706,7 +748,7 @@ SymCryptMlKemPolyElementDecodeAndDecompress(
         }
 
         peDst[i] = coefficient as u16;
-    }
+    });
 
     assert!(nBitsInAccumulator == 0);
     assert!(cbSrcRead == (nBitsPerCoefficient*(MLWE_POLYNOMIAL_COEFFICIENTS as u32 / 8)) as usize);
@@ -714,6 +756,7 @@ SymCryptMlKemPolyElementDecodeAndDecompress(
     MLKEM_ERROR::NO_ERROR
 }
 
+#[charon::opaque]
 fn
 SymCryptShake128Extract(
     _pState: &mut shake128State,
@@ -741,8 +784,9 @@ fn SymCryptMlKemPolyElementSampleNTTFromShake128(
             currBufIndex = 0;
         }
 
-        let sample0 = u16::from_le_bytes(shakeOutputBuf[currBufIndex..currBufIndex+2].try_into().unwrap()) & 0xfff;
-        let sample1 = u16::from_le_bytes(shakeOutputBuf[currBufIndex+1..currBufIndex+1+2].try_into().unwrap()) >> 4;
+        let sample0 = u16::from_le_bytes(slice_to_sub_array::<2>(&shakeOutputBuf, currBufIndex)) & 0xfff;
+        // TODO: Aeneas crashes if we comment the code below this line
+        let sample1 = u16::from_le_bytes(slice_to_sub_array::<2>(&shakeOutputBuf, currBufIndex+1)) >> 4;
         currBufIndex += 3;
 
         peDst[i] = sample0;
@@ -766,62 +810,73 @@ fn SymCryptMlKemPolyElementSampleCBDFromBytes(
     assert!((eta == 2) || (eta == 3));
     if eta == 3
     {
-        for i in 0..MLWE_POLYNOMIAL_COEFFICIENTS
+        c_for!(let mut i = 0; i < MLWE_POLYNOMIAL_COEFFICIENTS; i += 1;
         {
             // unconditionally load 4 bytes into sampleBits, but only treat the load
             // as being 3 bytes (24-bits -> 4 coefficients) for eta==3 to align to
             // byte boundaries. Source buffer must be 1 byte larger than shake output
-            let mut sampleBits = u32::from_le_bytes(pbSrc[src_i..src_i+4].try_into().unwrap());
+            let mut sampleBits = u32::from_le_bytes(slice_to_sub_array::<4>(pbSrc, src_i));
             src_i += 3;
 
             // sum bit samples - each consecutive slice of eta bits is summed together
             sampleBits = (sampleBits&0x249249) + ((sampleBits>>1)&0x249249) + ((sampleBits>>2)&0x249249);
 
-            for j in 0..4
-            {
-                // each coefficient is formed by taking the difference of two consecutive slices of eta bits
-                // the first eta bits are positive, the second eta bits are negative
-                let mut coefficient = sampleBits & 0x3f;
-                sampleBits >>= 6;
-                coefficient = (coefficient&3) - (coefficient>>3);
-                assert!((coefficient >= ((-3i32) as u32)) || (coefficient <= 3));
+            #[inline]
+            fn then_inner_loop(peDst: &mut POLYELEMENT, i: usize, sampleBits: &mut u32) {
+                c_for!(let mut j = 0; j < 4; j += 1;
+                       {
+                           // each coefficient is formed by taking the difference of two consecutive slices of eta bits
+                           // the first eta bits are positive, the second eta bits are negative
+                           let mut coefficient = *sampleBits & 0x3f;
+                           *sampleBits >>= 6;
+                           coefficient = (coefficient&3) - (coefficient>>3);
+                           assert!((coefficient >= ((-3i32) as u32)) || (coefficient <= 3));
 
-                coefficient = coefficient + (Q & (coefficient >> 16));     // in range [0, Q-1]
-                assert!( coefficient < Q );
+                           coefficient = coefficient + (Q & (coefficient >> 16));     // in range [0, Q-1]
+                           assert!( coefficient < Q );
 
-                peDst[i+j] = coefficient as u16;
+                           peDst[i+j] = coefficient as u16;
+                       });
             }
-        }
+            then_inner_loop(peDst, i, &mut sampleBits);
+        });
     }
     else
     {
-        for i in 0..MLWE_POLYNOMIAL_COEFFICIENTS
+        c_for!(let mut i = 0; i < MLWE_POLYNOMIAL_COEFFICIENTS; i += 1;
         {
             // unconditionally load 4 bytes (32-bits -> 8 coefficients) into sampleBits
-            let mut sampleBits = u32::from_le_bytes(pbSrc[src_i..src_i+4].try_into().unwrap());
+            let mut sampleBits = u32::from_le_bytes(slice_to_sub_array::<4>(pbSrc, src_i));
             src_i += 4;
 
             // sum bit samples - each consecutive slice of eta bits is summed together
             sampleBits = (sampleBits&0x55555555) + ((sampleBits>>1)&0x55555555);
 
-            for j in 0..8
-            {
-                // each coefficient is formed by taking the difference of two consecutive slices of eta bits
-                // the first eta bits are positive, the second eta bits are negative
-                let mut coefficient = sampleBits & 0xf;
-                sampleBits >>= 4;
-                coefficient = (coefficient&3) - (coefficient>>2);
-                assert!((coefficient >= (-2i32 as u32)) || (coefficient <= 2));
+            #[inline]
+            fn else_inner_loop(peDst: &mut POLYELEMENT, i: usize, sampleBits: &mut u32) {
+                c_for!(let mut j = 0; j < 8; j += 1;
+                       {
+                           // each coefficient is formed by taking the difference of two consecutive slices of eta bits
+                           // the first eta bits are positive, the second eta bits are negative
+                           let mut coefficient = *sampleBits & 0xf;
+                           *sampleBits >>= 4;
+                           coefficient = (coefficient&3) - (coefficient>>2);
+                           assert!((coefficient >= (-2i32 as u32)) || (coefficient <= 2));
 
-                coefficient = coefficient + (Q & (coefficient >> 16));     // in range [0, Q-1]
-                assert!( coefficient < Q );
+                           coefficient = coefficient + (Q & (coefficient >> 16));     // in range [0, Q-1]
+                           assert!( coefficient < Q );
 
-                peDst[i+j] = coefficient as u16;
+                           peDst[i+j] = coefficient as u16;
+                       });
             }
-        }
+            else_inner_loop(peDst, i, &mut sampleBits);
+        });
     }
 }
 
+
+/*
+// TODO: nested borrows
 fn SymCryptMlKemMatrixTranspose(
     pmSrc: &mut MATRIX )
 {
@@ -830,15 +885,51 @@ fn SymCryptMlKemMatrixTranspose(
     assert!( nRows >  0 );
     assert!( nRows <= MATRIX_MAX_NROWS );
 
-    for i in 0..nRows
+    c_for!(let mut i = 0; i < nRows; i += 1;
     {
-        for j in i+1..nRows
-        {
-            pmSrc.apPolyElements.swap((i*nRows) + j, (j*nRows) + i);
+        #[inline]
+        fn inner_loop(pmSrc: &mut MATRIX, nRows: usize, i:usize) {
+            c_for!(let mut j = i+1; j < nRows; j += 1;
+            {
+                pmSrc.apPolyElements.swap((i*nRows) + j, (j*nRows) + i);
+            });
         }
-    }
-}
+        inner_loop(pmSrc, nRows, i);
+    });
+}*/
 
+/*
+// Alternative definition.
+// Doesn't work because the symbolic execution currently attemps to greedily
+// expand the symbolic values containing borrows, and we can't expand an array
+// because it may have an arbitrary size (or be big).
+fn SymCryptMlKemMatrixTranspose_move(
+    mut pmSrc: MATRIX ) -> MATRIX
+{
+    let nRows = pmSrc.nRows;
+
+    assert!( nRows >  0 );
+    assert!( nRows <= MATRIX_MAX_NROWS );
+
+    c_for!(let mut i = 0; i < nRows; i += 1;
+    {
+        #[inline]
+        fn inner_loop(mut pmSrc: MATRIX, nRows: usize, i:usize) -> MATRIX {
+            c_for!(let mut j = i+1; j < nRows; j += 1;
+            {
+                pmSrc.apPolyElements.swap((i*nRows) + j, (j*nRows) + i);
+            });
+            pmSrc
+        }
+        pmSrc = inner_loop(pmSrc, nRows, i);
+    });
+
+    pmSrc
+}
+*/
+
+/*
+// TODO: nested borrows
 fn
 SymCryptMlKemMatrixVectorMontMulAndAdd(
     pmSrc1: &MATRIX,
@@ -1042,3 +1133,4 @@ SymCryptMlKemVectorDecodeAndDecompress(
     }
     MLKEM_ERROR::NO_ERROR
 }
+*/
