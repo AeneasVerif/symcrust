@@ -674,60 +674,49 @@ symcrust_ntt_SymCryptMlKemPolyElementSampleNTTFromShake128(uint8_t *pState, uint
   currBufIndex =
     Eurydice_slice_len(Eurydice_array_to_slice((size_t)24U, shakeOutputBuf, uint8_t),
       uint8_t);
-  while (true)
+  while (i < SYMCRUST_NTT_MLWE_POLYNOMIAL_COEFFICIENTS)
   {
+    size_t uu____0 = currBufIndex;
+    EURYDICE_ASSERT(uu____0
+      <= Eurydice_slice_len(Eurydice_array_to_slice((size_t)24U, shakeOutputBuf, uint8_t), uint8_t),
+      "panic!");
+    size_t uu____1 = currBufIndex;
+    if
+    (
+      uu____1
+      == Eurydice_slice_len(Eurydice_array_to_slice((size_t)24U, shakeOutputBuf, uint8_t), uint8_t)
+    )
+    {
+      symcrust_ntt_SymCryptShake128Extract(/* Note (Rust): shakeOutputBuf[..] seems unnecessary and trips Eurydice (FIXME, see #14) */
+          pState
+        ,
+        Eurydice_array_to_slice((size_t)24U, shakeOutputBuf, uint8_t),
+        false);
+      currBufIndex = (size_t)0U;
+    }
+    uint8_t ret0[2U];
+    symcrust_ntt_slice_to_sub_array((size_t)2U,
+      Eurydice_array_to_slice((size_t)24U, shakeOutputBuf, uint8_t),
+      currBufIndex,
+      ret0,
+      void *);
+    uint16_t sample0 = (uint32_t)core_num__u16_7__from_le_bytes(ret0) & 4095U;
+    uint8_t ret[2U];
+    symcrust_ntt_slice_to_sub_array((size_t)2U,
+      Eurydice_array_to_slice((size_t)24U,
+        /* TODO: Aeneas crashes if we comment the code below this line */ shakeOutputBuf ,
+        uint8_t),
+      currBufIndex + (size_t)1U,
+      ret,
+      void *);
+    uint16_t sample1 = (uint32_t)core_num__u16_7__from_le_bytes(ret) >> 4U;
+    currBufIndex = currBufIndex + (size_t)3U;
+    peDst[i] = sample0;
+    i = i + (size_t)((uint32_t)sample0 < SYMCRUST_NTT_Q);
     if (i < SYMCRUST_NTT_MLWE_POLYNOMIAL_COEFFICIENTS)
     {
-      size_t uu____0 = currBufIndex;
-      EURYDICE_ASSERT(uu____0
-        <=
-          Eurydice_slice_len(Eurydice_array_to_slice((size_t)24U, shakeOutputBuf, uint8_t),
-            uint8_t),
-        "panic!");
-      size_t uu____1 = currBufIndex;
-      if
-      (
-        uu____1
-        ==
-          Eurydice_slice_len(Eurydice_array_to_slice((size_t)24U, shakeOutputBuf, uint8_t),
-            uint8_t)
-      )
-      {
-        symcrust_ntt_SymCryptShake128Extract(/* Note (Rust): shakeOutputBuf[..] seems unnecessary and trips Eurydice (FIXME, see #14) */
-            pState
-          ,
-          Eurydice_array_to_slice((size_t)24U, shakeOutputBuf, uint8_t),
-          false);
-        currBufIndex = (size_t)0U;
-      }
-      uint8_t ret0[2U];
-      symcrust_ntt_slice_to_sub_array((size_t)2U,
-        Eurydice_array_to_slice((size_t)24U, shakeOutputBuf, uint8_t),
-        currBufIndex,
-        ret0,
-        void *);
-      uint16_t sample0 = (uint32_t)core_num__u16_7__from_le_bytes(ret0) & 4095U;
-      uint8_t ret[2U];
-      symcrust_ntt_slice_to_sub_array((size_t)2U,
-        Eurydice_array_to_slice((size_t)24U,
-          /* TODO: Aeneas crashes if we comment the code below this line */ shakeOutputBuf ,
-          uint8_t),
-        currBufIndex + (size_t)1U,
-        ret,
-        void *);
-      uint16_t sample1 = (uint32_t)core_num__u16_7__from_le_bytes(ret) >> 4U;
-      currBufIndex = currBufIndex + (size_t)3U;
-      peDst[i] = sample0;
-      i = i + (size_t)((uint32_t)sample0 < SYMCRUST_NTT_Q);
-      if (i < SYMCRUST_NTT_MLWE_POLYNOMIAL_COEFFICIENTS)
-      {
-        peDst[i] = sample1;
-        i = i + (size_t)((uint32_t)sample1 < SYMCRUST_NTT_Q);
-      }
-    }
-    else
-    {
-      break;
+      peDst[i] = sample1;
+      i = i + (size_t)((uint32_t)sample1 < SYMCRUST_NTT_Q);
     }
   }
 }
