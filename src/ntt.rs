@@ -879,11 +879,12 @@ impl<'a> MATRIX<'a> {
     #[charon::opaque]
     fn
         swap(
-            self,
-            _i:usize,
-            _j:usize) -> Self
+            mut self,
+            i:usize,
+            j:usize) -> Self
     {
-        panic!("TODO: stub");
+        self.apPolyElements.swap(i, j);
+        self
     }
 }
 

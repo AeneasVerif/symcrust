@@ -1416,14 +1416,14 @@ def ntt.SymCryptMlKemPolyElementSampleCBDFromBytes
         0#usize
 
 /- [symcrust::ntt::{symcrust::ntt::MATRIX<'a>}::swap]:
-   Source: 'src/ntt.rs', lines 880:4-887:5 -/
+   Source: 'src/ntt.rs', lines 880:4-888:5 -/
 axiom ntt.MATRIX.swap
   :
   ntt.MATRIX → Usize → Usize → Result (ntt.MATRIX × (ntt.MATRIX →
     ntt.MATRIX))
 
 /- [symcrust::ntt::SymCryptMlKemMatrixTranspose::inner_loop]: loop 0:
-   Source: 'src/ntt.rs', lines 44:8-906:13 -/
+   Source: 'src/ntt.rs', lines 44:8-907:13 -/
 divergent def ntt.SymCryptMlKemMatrixTranspose.inner_loop_loop
   (i : Usize) (a : Array (Array U16 256#usize) 16#usize) (nRows : Usize)
   (i1 : Usize) (j : Usize) :
@@ -1452,7 +1452,7 @@ divergent def ntt.SymCryptMlKemMatrixTranspose.inner_loop_loop
     Result.ok ({ nRows := i, apPolyElements := a }, back)
 
 /- [symcrust::ntt::SymCryptMlKemMatrixTranspose::inner_loop]:
-   Source: 'src/ntt.rs', lines 902:8-908:9 -/
+   Source: 'src/ntt.rs', lines 903:8-909:9 -/
 def ntt.SymCryptMlKemMatrixTranspose.inner_loop
   (pmSrc : ntt.MATRIX) (nRows : Usize) (i : Usize) :
   Result (ntt.MATRIX × (ntt.MATRIX → ntt.MATRIX))
@@ -1467,7 +1467,7 @@ def ntt.SymCryptMlKemMatrixTranspose.inner_loop
   Result.ok (m, back1)
 
 /- [symcrust::ntt::SymCryptMlKemMatrixTranspose]: loop 0:
-   Source: 'src/ntt.rs', lines 44:8-910:5 -/
+   Source: 'src/ntt.rs', lines 44:8-911:5 -/
 divergent def ntt.SymCryptMlKemMatrixTranspose_loop
   (nRows : Usize) (a : Array (Array U16 256#usize) 16#usize) (nRows1 : Usize)
   (i : Usize) :
@@ -1492,7 +1492,7 @@ divergent def ntt.SymCryptMlKemMatrixTranspose_loop
     Result.ok ({ nRows, apPolyElements := a }, back)
 
 /- [symcrust::ntt::SymCryptMlKemMatrixTranspose]:
-   Source: 'src/ntt.rs', lines 890:0-912:1 -/
+   Source: 'src/ntt.rs', lines 891:0-913:1 -/
 def ntt.SymCryptMlKemMatrixTranspose
   (pmSrc : ntt.MATRIX) : Result (ntt.MATRIX × (ntt.MATRIX → ntt.MATRIX)) :=
   do
@@ -1506,7 +1506,7 @@ def ntt.SymCryptMlKemMatrixTranspose
   Result.ok (m, back1)
 
 /- [symcrust::ntt::SymCryptMlKemPolyElementMulAndAccumulate_aux]:
-   Source: 'src/ntt.rs', lines 917:0-927:1 -/
+   Source: 'src/ntt.rs', lines 918:0-928:1 -/
 axiom ntt.SymCryptMlKemPolyElementMulAndAccumulate_aux
   :
   ntt.MATRIX → Usize → Usize → Usize → Array U16 256#usize → Array
@@ -1514,7 +1514,7 @@ axiom ntt.SymCryptMlKemPolyElementMulAndAccumulate_aux
     (Array U32 256#usize))
 
 /- [symcrust::ntt::SymCryptMlKemMatrixVectorMontMulAndAdd::inner_loop]: loop 0:
-   Source: 'src/ntt.rs', lines 44:8-962:13 -/
+   Source: 'src/ntt.rs', lines 44:8-963:13 -/
 divergent def ntt.SymCryptMlKemMatrixVectorMontMulAndAdd.inner_loop_loop
   (i : Usize) (a : Array (Array U16 256#usize) 16#usize)
   (pvSrc2 : Slice (Array U16 256#usize)) (paTmp : Array U32 256#usize)
@@ -1544,7 +1544,7 @@ divergent def ntt.SymCryptMlKemMatrixVectorMontMulAndAdd.inner_loop_loop
     Result.ok ({ nRows := i, apPolyElements := a }, back'a, paTmp)
 
 /- [symcrust::ntt::SymCryptMlKemMatrixVectorMontMulAndAdd::inner_loop]:
-   Source: 'src/ntt.rs', lines 953:8-964:9 -/
+   Source: 'src/ntt.rs', lines 954:8-965:9 -/
 def ntt.SymCryptMlKemMatrixVectorMontMulAndAdd.inner_loop
   (pmSrc1 : ntt.MATRIX) (pvSrc2 : Slice (Array U16 256#usize))
   (paTmp : Array U32 256#usize) (nRows : Usize) (i : Usize) :
@@ -1560,7 +1560,7 @@ def ntt.SymCryptMlKemMatrixVectorMontMulAndAdd.inner_loop
   Result.ok (m, back'a1, paTmp1)
 
 /- [symcrust::ntt::SymCryptMlKemMatrixVectorMontMulAndAdd]: loop 0:
-   Source: 'src/ntt.rs', lines 44:8-969:5 -/
+   Source: 'src/ntt.rs', lines 44:8-970:5 -/
 divergent def ntt.SymCryptMlKemMatrixVectorMontMulAndAdd_loop
   (nRows : Usize) (a : Array (Array U16 256#usize) 16#usize)
   (pvSrc2 : Slice (Array U16 256#usize)) (pvDst : Slice (Array U16 256#usize))
@@ -1593,7 +1593,7 @@ divergent def ntt.SymCryptMlKemMatrixVectorMontMulAndAdd_loop
     Result.ok ({ nRows, apPolyElements := a }, back'a, pvDst, paTmp)
 
 /- [symcrust::ntt::SymCryptMlKemMatrixVectorMontMulAndAdd]:
-   Source: 'src/ntt.rs', lines 931:0-971:1 -/
+   Source: 'src/ntt.rs', lines 932:0-972:1 -/
 def ntt.SymCryptMlKemMatrixVectorMontMulAndAdd
   (pmSrc1 : ntt.MATRIX) (pvSrc2 : Slice (Array U16 256#usize))
   (pvDst : Slice (Array U16 256#usize)) (paTmp : Array U32 256#usize) :
@@ -1616,7 +1616,7 @@ def ntt.SymCryptMlKemMatrixVectorMontMulAndAdd
   Result.ok (m, back'a1, pvDst1, paTmp1)
 
 /- [symcrust::ntt::SymCryptMlKemVectorMontDotProduct]: loop 0:
-   Source: 'src/ntt.rs', lines 44:8-995:5 -/
+   Source: 'src/ntt.rs', lines 44:8-996:5 -/
 divergent def ntt.SymCryptMlKemVectorMontDotProduct_loop
   (pvSrc1 : Slice (Array U16 256#usize)) (pvSrc2 : Slice (Array U16 256#usize))
   (peDst : Array U16 256#usize) (paTmp : Array U32 256#usize) (nRows : Usize)
@@ -1640,7 +1640,7 @@ divergent def ntt.SymCryptMlKemVectorMontDotProduct_loop
     Result.ok paTmp1
 
 /- [symcrust::ntt::SymCryptMlKemVectorMontDotProduct]:
-   Source: 'src/ntt.rs', lines 974:0-999:1 -/
+   Source: 'src/ntt.rs', lines 975:0-1000:1 -/
 def ntt.SymCryptMlKemVectorMontDotProduct
   (pvSrc1 : Slice (Array U16 256#usize)) (pvSrc2 : Slice (Array U16 256#usize))
   (peDst : Array U16 256#usize) (paTmp : Array U32 256#usize) :
@@ -1659,7 +1659,7 @@ def ntt.SymCryptMlKemVectorMontDotProduct
   Result.ok (pvSrc1, pvSrc2, peDst, paTmp1)
 
 /- [symcrust::ntt::SymCryptMlKemVectorSetZero]:
-   Source: 'src/ntt.rs', lines 1001:0-1013:1 -/
+   Source: 'src/ntt.rs', lines 1002:0-1014:1 -/
 def ntt.SymCryptMlKemVectorSetZero
   (pvSrc : Slice (Array U16 256#usize)) :
   Result (Slice (Array U16 256#usize))
@@ -1671,7 +1671,7 @@ def ntt.SymCryptMlKemVectorSetZero
   Result.ok pvSrc
 
 /- [symcrust::ntt::SymCryptMlKemVectorMulR]: loop 0:
-   Source: 'src/ntt.rs', lines 44:8-1029:5 -/
+   Source: 'src/ntt.rs', lines 44:8-1030:5 -/
 divergent def ntt.SymCryptMlKemVectorMulR_loop
   (pvSrc : Slice (Array U16 256#usize)) (pvDst : Slice (Array U16 256#usize))
   (nRows : Usize) (i : Usize) :
@@ -1689,7 +1689,7 @@ divergent def ntt.SymCryptMlKemVectorMulR_loop
   else Result.ok pvDst
 
 /- [symcrust::ntt::SymCryptMlKemVectorMulR]:
-   Source: 'src/ntt.rs', lines 1015:0-1030:1 -/
+   Source: 'src/ntt.rs', lines 1016:0-1031:1 -/
 def ntt.SymCryptMlKemVectorMulR
   (pvSrc : Slice (Array U16 256#usize)) (pvDst : Slice (Array U16 256#usize)) :
   Result (Slice (Array U16 256#usize))
@@ -1703,7 +1703,7 @@ def ntt.SymCryptMlKemVectorMulR
   ntt.SymCryptMlKemVectorMulR_loop pvSrc pvDst nRows 0#usize
 
 /- [symcrust::ntt::SymCryptMlKemVectorAdd]: loop 0:
-   Source: 'src/ntt.rs', lines 44:8-1048:5 -/
+   Source: 'src/ntt.rs', lines 44:8-1049:5 -/
 divergent def ntt.SymCryptMlKemVectorAdd_loop
   (pvSrc1 : Slice (Array U16 256#usize)) (pvSrc2 : Slice (Array U16 256#usize))
   (pvDst : Slice (Array U16 256#usize)) (nRows : Usize) (i : Usize) :
@@ -1722,7 +1722,7 @@ divergent def ntt.SymCryptMlKemVectorAdd_loop
   else Result.ok pvDst
 
 /- [symcrust::ntt::SymCryptMlKemVectorAdd]:
-   Source: 'src/ntt.rs', lines 1032:0-1049:1 -/
+   Source: 'src/ntt.rs', lines 1033:0-1050:1 -/
 def ntt.SymCryptMlKemVectorAdd
   (pvSrc1 : Slice (Array U16 256#usize)) (pvSrc2 : Slice (Array U16 256#usize))
   (pvDst : Slice (Array U16 256#usize)) :
@@ -1739,7 +1739,7 @@ def ntt.SymCryptMlKemVectorAdd
   ntt.SymCryptMlKemVectorAdd_loop pvSrc1 pvSrc2 pvDst nRows 0#usize
 
 /- [symcrust::ntt::SymCryptMlKemVectorSub]: loop 0:
-   Source: 'src/ntt.rs', lines 44:8-1067:5 -/
+   Source: 'src/ntt.rs', lines 44:8-1068:5 -/
 divergent def ntt.SymCryptMlKemVectorSub_loop
   (pvSrc1 : Slice (Array U16 256#usize)) (pvSrc2 : Slice (Array U16 256#usize))
   (pvDst : Slice (Array U16 256#usize)) (nRows : Usize) (i : Usize) :
@@ -1758,7 +1758,7 @@ divergent def ntt.SymCryptMlKemVectorSub_loop
   else Result.ok pvDst
 
 /- [symcrust::ntt::SymCryptMlKemVectorSub]:
-   Source: 'src/ntt.rs', lines 1051:0-1068:1 -/
+   Source: 'src/ntt.rs', lines 1052:0-1069:1 -/
 def ntt.SymCryptMlKemVectorSub
   (pvSrc1 : Slice (Array U16 256#usize)) (pvSrc2 : Slice (Array U16 256#usize))
   (pvDst : Slice (Array U16 256#usize)) :
@@ -1775,7 +1775,7 @@ def ntt.SymCryptMlKemVectorSub
   ntt.SymCryptMlKemVectorSub_loop pvSrc1 pvSrc2 pvDst nRows 0#usize
 
 /- [symcrust::ntt::SymCryptMlKemVectorNTT]: loop 0:
-   Source: 'src/ntt.rs', lines 44:8-1082:5 -/
+   Source: 'src/ntt.rs', lines 44:8-1083:5 -/
 divergent def ntt.SymCryptMlKemVectorNTT_loop
   (pvSrc : Slice (Array U16 256#usize)) (nRows : Usize) (i : Usize) :
   Result (Slice (Array U16 256#usize))
@@ -1791,7 +1791,7 @@ divergent def ntt.SymCryptMlKemVectorNTT_loop
   else Result.ok pvSrc
 
 /- [symcrust::ntt::SymCryptMlKemVectorNTT]:
-   Source: 'src/ntt.rs', lines 1070:0-1083:1 -/
+   Source: 'src/ntt.rs', lines 1071:0-1084:1 -/
 def ntt.SymCryptMlKemVectorNTT
   (pvSrc : Slice (Array U16 256#usize)) :
   Result (Slice (Array U16 256#usize))
@@ -1803,7 +1803,7 @@ def ntt.SymCryptMlKemVectorNTT
   ntt.SymCryptMlKemVectorNTT_loop pvSrc nRows 0#usize
 
 /- [symcrust::ntt::SymCryptMlKemVectorINTTAndMulR]: loop 0:
-   Source: 'src/ntt.rs', lines 44:8-1097:5 -/
+   Source: 'src/ntt.rs', lines 44:8-1098:5 -/
 divergent def ntt.SymCryptMlKemVectorINTTAndMulR_loop
   (pvSrc : Slice (Array U16 256#usize)) (nRows : Usize) (i : Usize) :
   Result (Slice (Array U16 256#usize))
@@ -1819,7 +1819,7 @@ divergent def ntt.SymCryptMlKemVectorINTTAndMulR_loop
   else Result.ok pvSrc
 
 /- [symcrust::ntt::SymCryptMlKemVectorINTTAndMulR]:
-   Source: 'src/ntt.rs', lines 1085:0-1098:1 -/
+   Source: 'src/ntt.rs', lines 1086:0-1099:1 -/
 def ntt.SymCryptMlKemVectorINTTAndMulR
   (pvSrc : Slice (Array U16 256#usize)) :
   Result (Slice (Array U16 256#usize))
@@ -1912,7 +1912,7 @@ def core.slice.index.SliceIndexcoreopsrangeRangeFromUsizeSlice (T : Type) :
 }
 
 /- [symcrust::ntt::SymCryptMlKemVectorCompressAndEncode]: loop 0:
-   Source: 'src/ntt.rs', lines 44:8-1121:5 -/
+   Source: 'src/ntt.rs', lines 44:8-1122:5 -/
 divergent def ntt.SymCryptMlKemVectorCompressAndEncode_loop
   (pvSrc : Slice (Array U16 256#usize)) (nBitsPerCoefficient : U32)
   (pbDst : Slice U8) (nRows : Usize) (i : Usize) :
@@ -1939,7 +1939,7 @@ divergent def ntt.SymCryptMlKemVectorCompressAndEncode_loop
   else Result.ok pbDst
 
 /- [symcrust::ntt::SymCryptMlKemVectorCompressAndEncode]:
-   Source: 'src/ntt.rs', lines 1100:0-1122:1 -/
+   Source: 'src/ntt.rs', lines 1101:0-1123:1 -/
 def ntt.SymCryptMlKemVectorCompressAndEncode
   (pvSrc : Slice (Array U16 256#usize)) (nBitsPerCoefficient : U32)
   (pbDst : Slice U8) (cbDst : Usize) :
@@ -1961,7 +1961,7 @@ def ntt.SymCryptMlKemVectorCompressAndEncode
     nRows 0#usize
 
 /- [symcrust::ntt::SymCryptMlKemVectorDecodeAndDecompress]: loop 0:
-   Source: 'src/ntt.rs', lines 44:8-1146:1 -/
+   Source: 'src/ntt.rs', lines 44:8-1147:1 -/
 divergent def ntt.SymCryptMlKemVectorDecodeAndDecompress_loop
   (pbSrc : Slice U8) (nBitsPerCoefficient : U32)
   (pvDst : Slice (Array U16 256#usize)) (nRows : Usize) (i : Usize) :
@@ -1994,7 +1994,7 @@ divergent def ntt.SymCryptMlKemVectorDecodeAndDecompress_loop
   else Result.ok (ntt.MLKEM_ERROR.NO_ERROR, pvDst)
 
 /- [symcrust::ntt::SymCryptMlKemVectorDecodeAndDecompress]:
-   Source: 'src/ntt.rs', lines 1124:0-1146:1 -/
+   Source: 'src/ntt.rs', lines 1125:0-1147:1 -/
 def ntt.SymCryptMlKemVectorDecodeAndDecompress
   (pbSrc : Slice U8) (cbSrc : Usize) (nBitsPerCoefficient : U32)
   (pvDst : Slice (Array U16 256#usize)) :
