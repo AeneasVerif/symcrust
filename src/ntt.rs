@@ -67,7 +67,7 @@ const MATRIX_MAX_NROWS: usize = 4;
 // Note (Rust): unlike the original C code, we de-couple what we pass around (this type) vs. the
 // underlying allocation (handled by the caller).
 // Note (Rust): this already keeps the length -- no need for an additional field.
-type VECTOR<'a> = &'a mut [POLYELEMENT];
+type VECTOR = [POLYELEMENT];
 
 // Array of pointers to PolyElements in row-major order
 // Note: the extra indirection is intentional to make transposing the matrix cheap,
@@ -130,9 +130,9 @@ struct KEY<'a> {
 
     // A o s + e = t
     pmAtranspose: MATRIX<'a>,   // public matrix in NTT form (derived from publicSeed)
-    pvt: VECTOR<'a>,            // public vector in NTT form
+    pvt: &'a mut VECTOR,        // public vector in NTT form
 
-    pvs: VECTOR<'a>,            // private vector in NTT form
+    pvs: &'a mut VECTOR,        // private vector in NTT form
 
     // misc fields
     encodedT: [u8; KEY_MAX_SIZEOF_ENCODED_T], // byte-encoding of public vector
@@ -874,37 +874,23 @@ fn SymCryptMlKemPolyElementSampleCBDFromBytes(
     }
 }
 
-
-/*
-// TODO: nested borrows
-fn SymCryptMlKemMatrixTranspose(
-    pmSrc: &mut MATRIX )
-{
-    let nRows = pmSrc.nRows;
-
-    assert!( nRows >  0 );
-    assert!( nRows <= MATRIX_MAX_NROWS );
-
-    c_for!(let mut i = 0; i < nRows; i += 1;
+impl<'a> MATRIX<'a> {
+    // Making this opaque because it uses nested borrows
+    #[charon::opaque]
+    fn
+        swap(
+            mut self,
+            i:usize,
+            j:usize) -> Self
     {
-        #[inline]
-        fn inner_loop(pmSrc: &mut MATRIX, nRows: usize, i:usize) {
-            c_for!(let mut j = i+1; j < nRows; j += 1;
-            {
-                pmSrc.apPolyElements.swap((i*nRows) + j, (j*nRows) + i);
-            });
-        }
-        inner_loop(pmSrc, nRows, i);
-    });
-}*/
+        self.apPolyElements.swap(i, j);
+        self
+    }
+}
 
-/*
-// Alternative definition.
-// Doesn't work because the symbolic execution currently attemps to greedily
-// expand the symbolic values containing borrows, and we can't expand an array
-// because it may have an arbitrary size (or be big).
-fn SymCryptMlKemMatrixTranspose_move(
-    mut pmSrc: MATRIX ) -> MATRIX
+fn SymCryptMlKemMatrixTranspose(
+    mut pmSrc: MATRIX )
+    -> MATRIX
 {
     let nRows = pmSrc.nRows;
 
@@ -917,26 +903,39 @@ fn SymCryptMlKemMatrixTranspose_move(
         fn inner_loop(mut pmSrc: MATRIX, nRows: usize, i:usize) -> MATRIX {
             c_for!(let mut j = i+1; j < nRows; j += 1;
             {
-                pmSrc.apPolyElements.swap((i*nRows) + j, (j*nRows) + i);
+                pmSrc = pmSrc.swap((i*nRows) + j, (j*nRows) + i);
             });
             pmSrc
         }
         pmSrc = inner_loop(pmSrc, nRows, i);
     });
-
     pmSrc
 }
-*/
 
-/*
-// TODO: nested borrows
+// FIXME: this requires nested borrows
+#[charon::opaque]
+#[inline]
+fn SymCryptMlKemPolyElementMulAndAccumulate_aux<'a>(
+    pmSrc1: MATRIX<'a>,
+    nRows : usize,
+    i: usize,
+    j : usize,
+    peSrc2: &POLYELEMENT,
+    paTmp: &mut POLYELEMENT_ACCUMULATOR) -> MATRIX<'a> {
+    let src1 : &POLYELEMENT = &pmSrc1.apPolyElements[(i*nRows) + j]; // FIXME: this requires nested borrows
+    SymCryptMlKemPolyElementMulAndAccumulate(src1, peSrc2, paTmp );
+    pmSrc1
+}
+
+// FIXME: we don't support nested borrows yet, meaning we
+// have to move the matrix around
 fn
-SymCryptMlKemMatrixVectorMontMulAndAdd(
-    pmSrc1: &MATRIX,
+SymCryptMlKemMatrixVectorMontMulAndAdd<'a, 'b, 'c>(
+    mut pmSrc1: MATRIX<'a>, // TODO: &MATRIX
     pvSrc2: &VECTOR,
     pvDst: &mut VECTOR,
     paTmp: &mut POLYELEMENT_ACCUMULATOR
-)
+) -> MATRIX<'a>
 {
     let nRows = pmSrc1.nRows;
 
@@ -949,18 +948,30 @@ SymCryptMlKemMatrixVectorMontMulAndAdd(
     // FIXME
     // SymCryptWipeKnownSize( paTmp, INTERNAL_MLKEM_SIZEOF_POLYRINGELEMENT_ACCUMULATOR );
 
-    for i in 0..nRows
+    c_for!(let mut i = 0; i < nRows; i += 1;
     {
-        for j in 0..nRows
-        {
-            SymCryptMlKemPolyElementMulAndAccumulate(&pmSrc1.apPolyElements[(i*nRows) + j], &pvSrc2[i], paTmp );
+        #[inline]
+        fn inner_loop<'a>(mut pmSrc1: MATRIX<'a>, // TODO: &MATRIX
+                      pvSrc2: &VECTOR,
+                      paTmp: &mut POLYELEMENT_ACCUMULATOR,
+                      nRows : usize,
+                      i : usize,
+        ) -> MATRIX<'a> {
+            c_for!(let mut j = 0; j < nRows; j += 1;
+            {
+                pmSrc1 = SymCryptMlKemPolyElementMulAndAccumulate_aux(pmSrc1, nRows, i, j, &pvSrc2[i], paTmp );
+            });
+            pmSrc1
         }
+        pmSrc1 = inner_loop(pmSrc1, pvSrc2, paTmp, nRows, i);
 
         // write accumulator to dest and zero accumulator
         SymCryptMlKemMontgomeryReduceAndAddPolyElementAccumulatorToPolyElement( paTmp, &mut pvDst[i] );
-    }
+    });
+    pmSrc1
 }
 
+// FIXME: moving values around because we don't support nested borrows
 fn
 SymCryptMlKemVectorMontDotProduct(
     pvSrc1: &mut VECTOR,
@@ -979,10 +990,10 @@ SymCryptMlKemVectorMontDotProduct(
     // SymCryptWipeKnownSize( paTmp, INTERNAL_MLKEM_SIZEOF_POLYRINGELEMENT_ACCUMULATOR );
     // SymCryptWipeKnownSize( peDst, INTERNAL_MLKEM_SIZEOF_POLYRINGELEMENT );
 
-    for i in 0..nRows
+    c_for!(let mut i = 0; i < nRows; i += 1;
     {
-        SymCryptMlKemPolyElementMulAndAccumulate( &mut pvSrc1[i], &mut pvSrc2[i], paTmp );
-    }
+        SymCryptMlKemPolyElementMulAndAccumulate( &pvSrc1[i], &pvSrc2[i], paTmp );
+    });
 
     // write accumulator to dest and zero accumulator
     SymCryptMlKemMontgomeryReduceAndAddPolyElementAccumulatorToPolyElement( paTmp, peDst );
@@ -990,7 +1001,8 @@ SymCryptMlKemVectorMontDotProduct(
 
 fn
 SymCryptMlKemVectorSetZero(
-    pvSrc: &mut VECTOR )
+    pvSrc: &mut VECTOR
+)
 {
     let nRows = pvSrc.len();
 
@@ -1012,10 +1024,10 @@ SymCryptMlKemVectorMulR(
     assert!( nRows <= MATRIX_MAX_NROWS );
     assert!( pvDst.len() == nRows );
 
-    for i in 0..nRows
+    c_for!(let mut i = 0; i < nRows; i += 1;
     {
         SymCryptMlKemPolyElementMulR( & pvSrc[i], &mut pvDst[i] );
-    }
+    });
 }
 
 fn
@@ -1031,10 +1043,10 @@ SymCryptMlKemVectorAdd(
     assert!( pvSrc2.len() == nRows );
     assert!( pvDst.len() == nRows );
 
-    for i in 0..nRows
+    c_for!(let mut i = 0; i < nRows; i += 1;
     {
         SymCryptMlKemPolyElementAdd( &pvSrc1[i], &pvSrc2[i], &mut pvDst[i] );
-    }
+    });
 }
 
 fn
@@ -1050,10 +1062,10 @@ SymCryptMlKemVectorSub(
     assert!( pvSrc2.len() == nRows );
     assert!( pvDst.len() == nRows );
 
-    for i in 0..nRows
+    c_for!(let mut i = 0; i < nRows; i += 1;
     {
         SymCryptMlKemPolyElementSub( &pvSrc1[i], &pvSrc2[i], &mut pvDst[i] );
-    }
+    });
 }
 
 fn
@@ -1065,10 +1077,10 @@ SymCryptMlKemVectorNTT(
     assert!( nRows >  0 );
     assert!( nRows <= MATRIX_MAX_NROWS );
 
-    for i in 0..nRows
+    c_for!(let mut i = 0; i < nRows; i += 1;
     {
         SymCryptMlKemPolyElementNTT( & mut pvSrc[i] );
-    }
+    });
 }
 
 fn
@@ -1080,10 +1092,10 @@ SymCryptMlKemVectorINTTAndMulR(
     assert!( nRows >  0 );
     assert!( nRows <= MATRIX_MAX_NROWS );
 
-    for i in 0..nRows
+    c_for!(let mut i = 0; i < nRows; i += 1;
     {
         SymCryptMlKemPolyElementINTTAndMulR( &mut pvSrc[i] );
-    }
+    });
 }
 
 fn
@@ -1101,13 +1113,13 @@ SymCryptMlKemVectorCompressAndEncode(
     assert!( nBitsPerCoefficient <= 12 );
     assert!( cbDst == nRows*((nBitsPerCoefficient*(MLWE_POLYNOMIAL_COEFFICIENTS as u32 / 8)) as usize) );
 
-    for i in 0..nRows
+    c_for!(let mut i = 0; i < nRows; i += 1;
     {
         // Note (Rust): had to change this to do range computation as opposed to in-place pointer
         // increment
         let pbDst_index = i * (nBitsPerCoefficient as usize)*(MLWE_POLYNOMIAL_COEFFICIENTS / 8);
         SymCryptMlKemPolyElementCompressAndEncode( & pvSrc[i], nBitsPerCoefficient, &mut pbDst[pbDst_index..]);
-    }
+    });
 }
 
 fn
@@ -1125,12 +1137,11 @@ SymCryptMlKemVectorDecodeAndDecompress(
     assert!( nBitsPerCoefficient <= 12 );
     assert!( cbSrc == nRows*(nBitsPerCoefficient as usize)*(MLWE_POLYNOMIAL_COEFFICIENTS / 8) );
 
-    for i in 0..nRows
+    c_for!(let mut i = 0; i < nRows; i += 1;
     {
         let pbSrc_index = i * (nBitsPerCoefficient as usize)*(MLWE_POLYNOMIAL_COEFFICIENTS / 8); 
         let scError = SymCryptMlKemPolyElementDecodeAndDecompress( &pbSrc[pbSrc_index..], nBitsPerCoefficient, &mut pvDst[i] );
         match scError { MLKEM_ERROR::NO_ERROR => return scError, _ => () };
-    }
+    });
     MLKEM_ERROR::NO_ERROR
 }
-*/
