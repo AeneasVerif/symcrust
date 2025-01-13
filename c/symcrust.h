@@ -35,6 +35,12 @@ symcrust_misc_Temporaries;
 
 extern void symcrust_misc_main(void);
 
+#define symcrust_mlkem_PARAMS_MLKEM512 1
+#define symcrust_mlkem_PARAMS_MLKEM768 2
+#define symcrust_mlkem_PARAMS_MLKEM1024 3
+
+typedef uint8_t symcrust_mlkem_PARAMS;
+
 #define SYMCRUST_NTT_COMPRESS_MULCONSTANT (10321339U)
 
 #define SYMCRUST_NTT_COMPRESS_SHIFTCONSTANT (35U)

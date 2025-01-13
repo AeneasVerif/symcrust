@@ -3,4 +3,5 @@
 #![register_tool(charon)]
 
 pub mod ntt;
+pub mod mlkem;
 pub mod misc;
