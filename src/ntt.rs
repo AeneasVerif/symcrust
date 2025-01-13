@@ -90,22 +90,26 @@ struct MATRIX<'a> {
 
 const KEY_MAX_SIZEOF_ENCODED_T: usize = 1536;
 
-struct INTERNAL_PARAMS {
-    params: u32,         // parameter set of ML-KEM being used, takes a value from PARAMS
+pub(crate) enum PARAMS {
+    // Rust: unclear if needed
+    // PARAMS_NULL          = 0,
+    MLKEM512      = 1,
+    MLKEM768      = 2,
+    MLKEM1024     = 3,
+}
 
-    cbPolyElement: u32,  // size of one polynomial ring element
-    cbVector: u32,       // size of one vector
-    cbMatrix: u32,       // size of one matrix
+pub(crate) struct INTERNAL_PARAMS {
+    pub(crate) params: PARAMS,         // parameter set of ML-KEM being used, takes a value from PARAMS
 
-    nRows: u8,           // corresponds to k from FIPS 203; the number of rows and columns in the matrix A,
+    pub(crate) nRows: u8,           // corresponds to k from FIPS 203; the number of rows and columns in the matrix A,
                          // and the number of rows in column vectors s and t
-    nEta1: u8,           // corresponds to eta_1 from FIPS 203; number of coinflips used in generating s and e
+    pub(crate) nEta1: u8,           // corresponds to eta_1 from FIPS 203; number of coinflips used in generating s and e
                          // in keypair generation, and r in encapsulation
-    nEta2: u8,           // corresponds to eta_2 from FIPS 203; number of coinflips used in generating e_1 and
+    pub(crate) nEta2: u8,           // corresponds to eta_2 from FIPS 203; number of coinflips used in generating e_1 and
                          // e_2 in encapsulation
-    nBitsOfU: u8,        // corresponds to d_u from FIPS 203; number of bits that the coefficients of the polynomial
+    pub(crate) nBitsOfU: u8,        // corresponds to d_u from FIPS 203; number of bits that the coefficients of the polynomial
                          // ring elements of u are compressed to in encapsulation for encoding into ciphertext
-    nBitsOfV: u8,        // corresponds to d_v from FIPS 203; number of bits that the coefficients of the polynomial
+    pub(crate) nBitsOfV: u8,        // corresponds to d_v from FIPS 203; number of bits that the coefficients of the polynomial
                          // ring element v is compressed to in encapsulation for encoding into ciphertext
 }
 

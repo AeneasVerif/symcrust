@@ -2,6 +2,7 @@
 #![feature(register_tool)]
 #![register_tool(charon)]
 
+pub mod alloc;
 pub mod ntt;
 pub mod mlkem;
 pub mod misc;
