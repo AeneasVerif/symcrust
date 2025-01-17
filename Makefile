@@ -20,10 +20,9 @@ build:
 # 2. Extraction to Lean via aeneas
 # --------------------------------
 
-extract: Symcrust/Symcrust.lean
-
-Symcrust/Symcrust.lean: symcrust.llbc
-	$(AENEAS_EXE) -backend lean symcrust.llbc $(AENEAS_OPTIONS) -dest Symcrust/Extract
+.PHONY: extract
+extract: symcrust.llbc proofs/Symcrust/Funs.lean proofs/Symcrust/FunsExternal_Template.lean proofs/Symcrust/Types.lean
+	$(AENEAS_EXE) -backend lean symcrust.llbc $(AENEAS_OPTIONS) -dest proofs -split-files -no-gen-lib-entry
 
 # Alternatively, this could be marked as a phony target, since cargo (and hence
 # charon) can skip recompilations if the sources have not changed.
