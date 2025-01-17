@@ -23,7 +23,7 @@ build:
 extract: Symcrust/Symcrust.lean
 
 Symcrust/Symcrust.lean: symcrust.llbc
-	$(AENEAS_EXE) -backend lean symcrust.llbc $(AENEAS_OPTIONS) -dest Symcrust
+	$(AENEAS_EXE) -backend lean symcrust.llbc $(AENEAS_OPTIONS) -dest Symcrust/Extract
 
 # Alternatively, this could be marked as a phony target, since cargo (and hence
 # charon) can skip recompilations if the sources have not changed.

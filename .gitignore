@@ -1,1 +1,8 @@
+# Rust
 /target
+
+# Lean
+*.lake
+
+# Misc
+*~
