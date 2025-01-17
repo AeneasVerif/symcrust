@@ -338,12 +338,17 @@ theorem Nat.NeZero_pos (n : Nat) [NeZero n] : 0 < n := by
   cases h
   omega
 
-theorem Nat.pos_NeZero (n : Nat) (h : 0 < n) : NeZero n := by
+theorem Nat.pos_NeZero {n : Nat} (h : 0 < n) : NeZero n := by
   constructor
   omega
 
 /- Algorihm 6 from the thesis -/
-def mont_reduction
+def mont_reduction (q R a : Nat) (minus_q_minus_1 : Int) : Int :=
+  let f := (a * minus_q_minus_1) % R
+  let t := (a + f * q) / R
+  t
+
+def mont_reduction_spec
   (q: Nat)
   (R: Nat)
   (minus_q_minus_1: Int)
@@ -353,47 +358,29 @@ def mont_reduction
   (h_q: 0 < q)
   (h_a: a < q * R)
   (h_q_R: Nat.Coprime q R) :
-  { t: Int // t % (q : Int) = (a * (ZMod.inv q R).val) % q ∧ 0 ≤ t ∧ t < 2 * q }
-  :=
-  -- the algorithm itself, carefully crafted to minimize field operations and
-  -- rather operate on regular ints, since this is mostly an algorithm (and not
-  -- a math object)
+  let t := mont_reduction q R a minus_q_minus_1
+  t % (q : Int) = (a * (ZMod.inv q R).val) % q ∧ 0 ≤ t ∧ t < 2 * q
+  := by
   let f := (a * minus_q_minus_1) % R
   let t := (a + f * q) / R
 
-  -- main goal
-  have h_t: t % (q : Int) = (a * ((ZMod.inv q R).val : Int)) % q := by
-    -- step 1: get rid of the division by R by multiplying both sides with R
-    apply times_mod_imp_div_mod
-    . rw [Int.add_emod]
-      have h: ((a * minus_q_minus_1 % R) * ↑q) % ↑R = - a % ↑R := by
-        simp
-        rw [Int.mul_assoc]
-        rw [Int.mul_emod]
-        rw [h_q_minus_1]
-        rw [← Int.mul_emod]
-        simp
-      rw [h]
-      simp
-    . rw [Int.gcd_natCast_natCast, h_q_R]
-    . -- Simplify the rhs
-      have hinv : ((ZMod.inv q ↑R).val * ↑R) % q = (1 : ℤ) % q := by
-        apply ZMod_eq_imp_mod_eq
-        simp
-        -- Intermediate assertion
-        have hgcd : Int.gcd R q = 1 := by
-          rw [Nat.coprime_iff_gcd_eq_one] at h_q_R
-          rw [← Int.gcd_natCast_natCast] at h_q_R
-          rw [Int.gcd_comm] at h_q_R
-          apply h_q_R
-        have hinv := ZMod.inv_cancels_left hgcd
-        simp at hinv
-        rw [hinv]
-      conv => rhs; rw [Int.mul_assoc]; rw [Int.mul_emod]; rw [hinv]
-      rw [← Int.mul_emod]
-      simp
+  -- Having this is in the context is useful as it triggers simplifications
+  have _ := Nat.pos_NeZero h_q
 
-  -- secondary goals
+  -- Main goal
+  have h_t: t % (q : Int) = (a * ((ZMod.inv q R).val : Int)) % q := by
+    apply ZMod_eq_imp_mod_eq
+    simp [f, t]
+    rw [div_to_ZMod]
+    . simp
+    . have hZero : 0 = 0 % (R : Int) := by simp
+      rw [hZero]
+      apply ZMod_eq_imp_mod_eq
+      simp [← ZMod_int_cast_eq_int_cast_iff] at h_q_minus_1
+      simp [mul_assoc, h_q_minus_1]
+    . simp [Nat.coprime_iff_gcd_eq_one, *]
+
+  -- Secondary goals
   have h_t1 : 0 ≤ t := by scalar_tac
 
   have h_t2 : t < 2 * q := by
@@ -412,7 +399,7 @@ def mont_reduction
     . conv => rhs; rw [Int.mul_assoc]; rhs; rw [Int.mul_comm]
       scalar_tac
 
-  ⟨ t, ⟨ h_t, ⟨ h_t1, h_t2 ⟩ ⟩ ⟩
+  simp [mont_reduction, *]
 
 theorem bmod_eq_emod_eq_iff (n: ℕ) (a b: ℤ) :
   (a % n = b % n) ↔ (Int.bmod a n = Int.bmod b n) := by
