@@ -16,6 +16,8 @@ import Mathlib.Data.Rat.Floor
 
 import Aeneas
 
+namespace Symcrust
+
 set_option maxHeartbeats 500000
 
 -- We have to prove a few inequalities involving non-linear arithmetic
@@ -441,7 +443,10 @@ theorem ZMod_eq_imp_bmod_eq {n : ℕ} {a b : ℤ}
   Int.bmod a n = Int.bmod b n :=
   (@ZMod_int_cast_eq_int_cast_bmod_iff n a b).mp h
 
-def arr (n: ℚ) : Int := ⌊ n + 1/2 ⌋
+/-- The rounding of `x` to the nearest integer.
+    If `x = y + 1/2` for some `y ∈ ℤ` then `round(x) = y + 1`
+ -/
+def round (x: ℚ) : Int := ⌊ x + 1/2 ⌋
 
 theorem mul_cancel_eq_mul (a b c : ℚ) (h_a: 0 < a) (h: a * b = a * c) : b = c := by
   apply mul_eq_mul_left_iff.mp at h
@@ -470,16 +475,16 @@ theorem small_emod_inj {a b:ℤ} (n:ℤ) (h_mod: a % n = b % n) (h_a: 0 ≤ a) (
   We use the variable `x` and `m` instead of `R` and `N` in the writeup to match with
   the variables used in the definition of bmod
  -/
-theorem barrett_lemma9 (x: Int) (m: Nat) (h_m: 0 < m) : arr ((x : ℚ) / m) = (x - Int.bmod x m) / (m : ℚ) := by
+theorem barrett_lemma9 (x: Int) (m: Nat) (h_m: 0 < m) : round ((x : ℚ) / m) = (x - Int.bmod x m) / (m : ℚ) := by
   /- This lemma basically consists of reconciling the definition of bmod that is now in Lean's Stdlib
-     with the one from Goutam's writeup, which is based on arr above -/
+     with the one from Goutam's writeup, which is based on round above -/
 
   simp [Int.bmod]
   let r := x % m;
   if h: r < (m + 1) / 2 then
     simp [h]
-    have h': arr ((x:ℚ) / m) = x / m := by
-      simp [arr]
+    have h': round ((x:ℚ) / m) = x / m := by
+      simp [round]
       field_simp
 
       -- This is equivalent to a goal which only uses integers
@@ -531,8 +536,8 @@ theorem barrett_lemma9 (x: Int) (m: Nat) (h_m: 0 < m) : arr ((x : ℚ) / m) = (x
   else
     simp [h]
 
-    have h': arr ((x:ℚ) / m) = (x / m) + 1 := by
-      simp [arr]
+    have h': round ((x:ℚ) / m) = (x / m) + 1 := by
+      simp [round]
       field_simp
 
       have h_rw : (((x * 2 + m) : ℤ) : ℚ) / ((m * 2) : ℕ) = (↑x * 2 + ↑m) / (↑m * 2) := by simp
@@ -677,11 +682,11 @@ theorem barrett_bounds
   (R: ℕ)
   (h_R: exists b, R = 2 ^ b)
   (A: ℕ)
-  (h_A: A = arr (R / N))
+  (h_A: A = round (R / N))
   (v: ℤ)
   (h_v: |v| < R)
   (o: ℤ)
-  (h_o: o = (v - (N * arr ((v * A) / R))))
+  (h_o: o = (v - (N * round ((v * A) / R))))
   : |o| < N
   := by
   rw [h_o]
@@ -724,7 +729,7 @@ theorem barrett_bounds
 
   rw [h_simp2]
 
-  have h_le : |(↑v * ↑(Int.bmod (↑R) N) * (↑R)⁻¹ + ↑N * ↑(Int.bmod (v * arr (↑R * (↑N)⁻¹)) R) * (↑R)⁻¹ : ℚ)| ≤ |(↑v * ↑(Int.bmod (↑R) N) * (↑R)⁻¹ : ℚ)| + |(↑N * ↑(Int.bmod (v * arr (↑R * (↑N)⁻¹)) R) * (↑R)⁻¹ : ℚ)| := by apply abs_add
+  have h_le : |(↑v * ↑(Int.bmod (↑R) N) * (↑R)⁻¹ + ↑N * ↑(Int.bmod (v * round (↑R * (↑N)⁻¹)) R) * (↑R)⁻¹ : ℚ)| ≤ |(↑v * ↑(Int.bmod (↑R) N) * (↑R)⁻¹ : ℚ)| + |(↑N * ↑(Int.bmod (v * round (↑R * (↑N)⁻¹)) R) * (↑R)⁻¹ : ℚ)| := by apply abs_add
 
   apply lt_of_le_of_lt h_le
 
@@ -736,13 +741,13 @@ theorem barrett_bounds
     _ = |↑v| * (N:ℚ)/2 * |(↑R)⁻¹| := by ring
   )
 
-  have h_le3: ↑N * |↑(Int.bmod (v * arr (↑R * (↑N)⁻¹)) R)| * |(↑R)⁻¹| ≤ ↑N * (R:ℚ)/2 * |(↑R)⁻¹| := (calc
-    ↑N * |↑(Int.bmod (v * arr (↑R * (↑N)⁻¹)) R)| * |(↑R)⁻¹| = |↑(Int.bmod (v * arr (↑R * (↑N)⁻¹)) R)| * (↑N * |(↑R)⁻¹|) := by ring
+  have h_le3: ↑N * |↑(Int.bmod (v * round (↑R * (↑N)⁻¹)) R)| * |(↑R)⁻¹| ≤ ↑N * (R:ℚ)/2 * |(↑R)⁻¹| := (calc
+    ↑N * |↑(Int.bmod (v * round (↑R * (↑N)⁻¹)) R)| * |(↑R)⁻¹| = |↑(Int.bmod (v * round (↑R * (↑N)⁻¹)) R)| * (↑N * |(↑R)⁻¹|) := by ring
     _ ≤ (R:ℚ)/2 * (↑N * |(↑R)⁻¹|) := by apply mul_le_mul; apply bmod_bounds; apply Nat.pos_iff_ne_zero.mpr; exact h_Rne_zero; simp; simp [mul_nonneg]; linarith
     _ = ↑N * (R:ℚ)/2 * |(↑R)⁻¹| := by ring
   )
 
-  have h_le4:  |↑v| * |↑(Int.bmod (↑R) N)| * |(↑R)⁻¹| + ↑N * |↑(Int.bmod (v * arr (↑R * (↑N)⁻¹)) R)| * |(↑R)⁻¹| ≤ |↑v| * (N:ℚ)/2 * |(↑R)⁻¹| +  ↑N * (R:ℚ)/2 * |(↑R)⁻¹| := by
+  have h_le4:  |↑v| * |↑(Int.bmod (↑R) N)| * |(↑R)⁻¹| + ↑N * |↑(Int.bmod (v * round (↑R * (↑N)⁻¹)) R)| * |(↑R)⁻¹| ≤ |↑v| * (N:ℚ)/2 * |(↑R)⁻¹| +  ↑N * (R:ℚ)/2 * |(↑R)⁻¹| := by
     apply add_le_add h_le2 h_le3
 
   apply lt_of_le_of_lt h_le4
@@ -789,12 +794,12 @@ def barrett_reduction
   (R: Nat) -- = 2 ^ b
   (h_R: exists b, R = 2 ^ b)
   (A: Nat) -- Precomputed
-  (h_A: A = arr (R / N))
+  (h_A: A = round (R / N))
   (v: Int)
   (h_v: |v| < R) :
   { o: Int // o % N = v % N ∧ |o| < N }
 :=
-  let k := arr (((v * A) : ℚ) / R)
+  let k := round (((v * A) : ℚ) / R)
   let c := N * k
   let o := v - c
 
@@ -809,3 +814,5 @@ def barrett_reduction
     simp
 
   ⟨ o, ⟨ h_o, h1 ⟩ ⟩
+
+end Symcrust
