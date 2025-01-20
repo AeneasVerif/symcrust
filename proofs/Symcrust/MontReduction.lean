@@ -466,7 +466,6 @@ theorem small_emod_inj {a b:ℤ} (n:ℤ) (h_mod: a % n = b % n) (h_a: 0 ≤ a) (
   _ = n * (b / n) + b % n := by rw [←Int.ediv_eq_zero_of_lt h_b h_b']
   _ = b := by apply Int.ediv_add_emod
 
-
 /- Lemma 9 from Goutam's writeup.
   We use the variable `x` and `m` instead of `R` and `N` in the writeup to match with
   the variables used in the definition of bmod
@@ -482,36 +481,30 @@ theorem barrett_lemma9 (x: Int) (m: Nat) (h_m: 0 < m) : arr ((x : ℚ) / m) = (x
     have h': arr ((x:ℚ) / m) = x / m := by
       simp [arr]
       field_simp
-      have h_rw: (((x * 2 + m) : ℤ) : ℚ) / ((m * 2) : ℕ) = (↑x * 2 + ↑m) / (↑m * 2) := by simp
 
-      rw [← h_rw, Rat.floor_intCast_div_natCast]; clear h_rw
+      -- This is equivalent to a goal which only uses integers
+      suffices h : (x * 2 + ↑m) / ↑(m * 2) = x / ↑m by
+        conv => lhs; arg 1; lhs; norm_cast
+        conv => lhs; arg 1; rhs; norm_cast
+        rw [Rat.floor_intCast_div_natCast, h]
 
+      -- Continuing with integers
       have heq := Int.ediv_add_emod (x * 2 + m) (m * 2)
       rw [Int.add_emod] at heq
 
-      have h1 : (x * 2 % (↑m * 2) + ↑m % (↑m * 2)) % (↑m * 2) =
-                2 * (x % m) + m := (calc
-         (x * 2 % (↑m * 2) + ↑m % (↑m * 2)) % (↑m * 2) = (2 * (x % ↑m) + ↑m % (↑m * 2)) % (↑m * 2) := by
-           have h: x * 2 % (↑m * 2) = 2 * (x % ↑m) := by
+      -- We're going to use Euclide's division lemma which uniquely defines the quotient and the remainder
+      have h1 := calc
+        (x * 2 % (↑m * 2) + ↑m % (↑m * 2)) % (↑m * 2) = (2 * (x % ↑m) + ↑m % (↑m * 2)) % (↑m * 2) := by
+          have h: x * 2 % (↑m * 2) = 2 * (x % ↑m) := by
              rw [← Int.mul_emod_mul_of_pos]
              ring_nf
              simp
-           rw [h]
-
-         _ = 2 * (x % m) + m := by
-           simp
-           apply Int.emod_eq_of_lt
-           . have h: 0 ≤ x % ↑m := by apply Int.emod_nonneg; linarith
-             linarith
-           . have h: 2 * (x % ↑m) < ↑m := by
-               have h_bm : Int.bmod x m = x % m := by simp [Int.bmod, h]
-               have h_le := @Int.bmod_le x m (by simp [h_m])
-               rw [h_bm] at h_le
-               apply Int.mul_le_of_le_ediv at h_le <;> simp
-               linarith
-             linarith
-      )
-
+          rw [h]
+        _ = 2 * (x % m) + m := by
+          simp
+          apply Int.emod_eq_of_lt
+          . scalar_tac
+          . omega
 
       rw [h1] at heq; clear h1
       ring_nf at heq
@@ -544,6 +537,7 @@ theorem barrett_lemma9 (x: Int) (m: Nat) (h_m: 0 < m) : arr ((x : ℚ) / m) = (x
 
       have h_rw : (((x * 2 + m) : ℤ) : ℚ) / ((m * 2) : ℕ) = (↑x * 2 + ↑m) / (↑m * 2) := by simp
       rw [← h_rw, Rat.floor_intCast_div_natCast]; clear h_rw
+      -- (x * 2 + ↑m) / ↑(m * 2) = x / ↑m + 1
 
       have h_rw: x/m + 1 = (x + m) / m := by
         rw [Int.add_ediv_of_dvd_right]
