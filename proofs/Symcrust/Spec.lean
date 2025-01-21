@@ -4,6 +4,10 @@ import Mathlib.Data.List.Defs
 import Mathlib.Data.ZMod.Defs
 import Mathlib.Data.Nat.Bits
 
+/-!
+The spec of ML-KEM, based on: https://csrc.nist.gov/pubs/fips/203/final
+-/
+
 -- TODO: move
 namespace List
 
@@ -19,9 +23,7 @@ end List
 
 namespace Symcrust.Spec
 
-/-!
-This spec is based on: https://csrc.nist.gov/pubs/fips/203/final
--/
+-- TODO: List.index, update are not useful anymore
 
 @[reducible] def Byte := UInt8
 
@@ -75,6 +77,10 @@ def Polynomial.get! (x : Polynomial) (n : ℕ)  : Zq := x.val.get! n
 def Polynomial.set (x : Polynomial) (n : ℕ) (v : Zq) : Polynomial :=
   ⟨ x.val.set n v, by cases x; simp_all ⟩
 
+/-- This activates nice notations -/
+instance : GetElem Polynomial Nat Zq (fun _ _ => True) where
+  getElem p i _ := p.get! i
+
 def Polynomial.scalarMul (x : Polynomial) (k : Zq) : Polynomial :=
   ⟨ x.val.map fun v => v * k,
     by cases x; simp_all ⟩
@@ -113,34 +119,48 @@ def bitRev (n : Nat) (i : Nat) : Nat :=
 
 def ζ : ZMod Q := 17
 
+#check Lean.Meta.Simp.Config
+
+-- We need to update this macro rule to use a more complex solving procedure.
+-- We simply use the simplifier with the `zetaDelta` option to unfold the local definitions.
+local macro_rules
+  | `([ $start : $stop : $step ]) =>
+    `({ start := $start, stop := $stop, step := $step, step_pos := by simp +zetaDelta [] : Std.Range })
+
 /-- Algorithm 9 -/
 def ntt (f : Polynomial) : Polynomial := Id.run do
   let mut f := f
-  let mut i : Nat := 1
+  let mut i := 1 -- FIXME: `simp` takes a very long time because of this
   for k in [0:8] do
-    let len := 128 / (2 ^ k)
-    for start in [0:256:2*len] do
+    let len := 2 ^ (7 - k)
+    -- FIXME:
+    -- for start in [0:256:2*len] do
+    for l in [0:256/(2 * len)] do -- FIXME
+      let start := 2 * len * l -- FIXME
       let zeta := ζ ^ (bitRev 7 i)
       i := i + 1
       for j in [start:start+len] do
-        let t := zeta * f.get! (j + len)
-        f := f.set (j + len) (f.get! j - t)
-        f := f.set j (f.get! j + t)
+        let t := zeta * f[j + len]!
+        f := f.set (j + len) (f[j]! - t)
+        f := f.set j (f[j]! + t)
   pure f
 
 /-- Algorithm 10 -/
 def invNtt (f : Polynomial) : Polynomial := Id.run do
   let mut f := f
-  let mut i := 127
-  for k in [0:8] do
-    let len := 2 ^ (k + 1)
-    for start in [0:256:2*len] do
+  let i := 127 -- FIXME: `simp` takes a very long time because of this
+  for k in [1:8] do
+    let len := 2 ^ k
+    -- FIXME:
+    -- for start in [0:256:2*len] do
+    for l in [0:256/(2*len)] do -- FIXME
+      let start := 2 * len * l -- FIXME
       let zeta := ζ ^(bitRev 7 i)
-      i := i - 1
+      let i := i - 1
       for j in [start:start+len] do
-        let t := f.get! j
-        f := f.set j (t + f.get! (j + len))
-        f := f.set (j + len) (zeta * (f.get! (j + len) - t))
+        let t := f[j]!
+        f := f.set j (t + f[j + len]!)
+        f := f.set (j + len) (zeta * (f[j + len]! - t))
   f := f * (3303 : Zq)
   pure f
 
