@@ -128,16 +128,85 @@ def ntt (f : Polynomial) : Polynomial :=
   let f := nttLayer f 64 2 0
   f
 
-def nttLayerInner_eq (f : Polynomial) (k : Nat) (len : Nat) (start : Nat) (j : Nat) (l : Nat)
-  (hLen : len = 2 ^7 - k)
+#check Lean.Meta.Simp.Config
+
+-- TODO: this lemma should exist somewhere
+theorem fun_eq_arg_eq_imp_eq {α β : Type} (f g : α → β) (x y : α) :
+  f = g → x = y → f x = g y := by
+  simp +contextual
+
+#check List.set_set_perm
+
+-- TODO: move, also update the neq test
+theorem Polynomial.set_set_neq {i j : Nat} (h : i ≠ j)
+  (p : Polynomial) (x y : Zq) :
+  (p.set i x).set j y = (p.set j y).set i x := by sorry
+
+theorem Polynomial.get_set_neq {i j : Nat} (h : i ≠ j)
+  (p : Polynomial) (x : Zq) :
+  (p.set i x).get! j = p.get! j := by sorry
+
+def nttLayerInner_eq
+  (f : Polynomial) (k : Nat) (len : Nat)
+  (start : Nat) (j : Nat) (l : Nat)
+  (hLen : len = 2 ^ (7 - k))
   (hStart : start + j = 2 * len * l)
   :
-  nttLayerInner f k len start j = Target.nttLayerInner f k i l
+  nttLayerInner f i len start j = Target.nttLayerInner f k i l
   := by
-  unfold nttLayerInner Target.nttLayerInner
+  -- Unfold the definitions and simplify
+  unfold Target.nttLayerInner
   simp
-
-
-
+  -- Generalize the goal for the induction
+  simp only [← hLen, ← hStart]
+  clear hLen hStart
+  -- We do the induction on len - j
+  generalize hSteps : len - j = steps
+  -- We need this fact (we get it by doing a case disjunction - the case where
+  -- it is false is trivial)
+  dcases hLe : ¬ j ≤ len
+  . -- len < j
+    simp_all
+    -- Simplify the lhs
+    have h : ¬ j < len := by omega
+    simp only [h, nttLayerInner, ↓reduceIte]
+    -- Simplify the rhs
+    have hRange : List.range' (start + j) len 1 = [] := by sorry
+    simp only [Id.run, hRange, List.foldl_nil]
+  . -- The real proof: j ≤ len
+    revert f
+    revert len j hLe hSteps
+    induction steps <;> intro len j hLe hSteps f <;> unfold nttLayerInner
+    . -- zero
+      have : len = j := by omega
+      simp_all [Id.run]
+      have hRange : List.range' (start + j) j 1 = [] := by sorry
+      simp [hRange]
+    . -- succ
+      rename_i steps hInd
+      dcases hLe' : ¬ j < len
+      . -- Simple case
+        simp [hLe']
+        have hRange : List.range' (start + j) len 1 = [] := by sorry
+        simp [hRange, Id.run]
+      . -- Recursive case
+        simp [hLe']
+        replace hInd := hInd len (j + 1) (by omega) (by omega)
+        simp [hInd, Id.run]
+        -- Perform one step of computation on the right:
+        have hRange: List.range' (start + j) len 1 =
+                     (start + j) :: List.range' (start + (j + 1)) len 1 := by
+          sorry
+        simp [hRange]
+        -- Several `Polynomial.set` operations are inverted in the continutations
+        apply fun_eq_arg_eq_imp_eq <;> try rfl
+        apply fun_eq_arg_eq_imp_eq <;> try rfl
+        -- Working on the interesting part: we need to swap the two updates
+        have h1 := @Polynomial.set_set_neq (start + j) (start + j + len) (by omega)
+        simp [h1]
+        ring_nf
+        have h2 := @Polynomial.get_set_neq (start + j + len) (start + j) (by omega)
+        simp [h2, getElem!, getElem]
+        ring_nf
 
 end Symcrust.SpecAux
