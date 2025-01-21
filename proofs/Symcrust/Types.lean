@@ -54,7 +54,7 @@ structure ntt.INTERNAL_COMPUTATION_TEMPORARIES where
   abPolyElementAccumulatorBuffer : Array U32 256#usize
 
 /- [symcrust::ntt::MLKEM_ERROR]
-   Source: 'src/ntt.rs', lines 660:0-660:43 -/
+   Source: 'src/ntt.rs', lines 700:0-700:43 -/
 inductive ntt.MLKEM_ERROR where
 | NO_ERROR : ntt.MLKEM_ERROR
 | INVALID_BLOB : ntt.MLKEM_ERROR
