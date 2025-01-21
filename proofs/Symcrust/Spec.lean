@@ -2,6 +2,7 @@ import Aeneas
 import Aeneas.List
 import Mathlib.Data.List.Defs
 import Mathlib.Data.ZMod.Defs
+import Mathlib.Data.Nat.Bits
 
 -- TODO: move
 namespace List
@@ -46,7 +47,7 @@ def bytesToBits (B : List Byte) : List Bool := Id.run do
       C := C.set i (C.get! i / 2)
   pure b
 
-#eval let b := [false, true, false, true, false, false, false, false,
+#assert let b := [false, true, false, true, false, false, false, false,
                 true, false, false, false, false, false, false, false]
       bytesToBits (bitsToBytes b) = b
 
@@ -95,7 +96,20 @@ def sampleNTT (B : {l : List Byte // l.length = 34 }) : Polynomial := Id.run do
 
 -- TODO: algorithm 8
 
-def bitRev (n : Nat) [NeZero n] (i : Nat) : Nat := (Fin.ofNat' n i).rev
+def bitRev (n : Nat) (i : Nat) : Nat :=
+  -- Convert to bits
+  let bits := i.bits
+  -- Make sure we have n bits - note that the list of bits goes from bits
+  -- of lower weight to bits of heigher weights
+  let bits := bits.take n
+  let bits := bits ++ List.replicate (n - bits.length) false
+  -- Reverse
+  let bits := List.reverse bits
+  -- Convert
+  (bits.mapIdx (fun i b => b.toNat * 2 ^ i)).sum
+
+#assert List.map (bitRev 2) (List.enumerate 4) = [0, 2, 1, 3]
+#assert List.map (bitRev 3) (List.enumerate 8) = [0, 4, 2, 6, 1, 5, 3, 7]
 
 def ζ : ZMod Q := 17
 
