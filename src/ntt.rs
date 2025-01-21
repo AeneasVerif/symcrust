@@ -236,7 +236,7 @@ const RsqrTimesNegQInvModR: u32 = 44983;
 // Used in NTT and INTT
 // i.e. element 1 is Zeta^(BitRev(1)) * (2^16) mod Q == (17^64)*(2^16) mod 3329 == 2571
 //
-// MlKemZetaBitRevTimesR = [ (pow(17, bitRev(i), 3329) << 16) % 3329 for i in range(128) ]
+// MlKemZetaBitRevTimesR = [ (pow(17, bitRev(i)) << 16) % 3329 for i in range(128) ]
 const MlKemZetaBitRevTimesR: [u16; 128] = [
     2285, 2571, 2970, 1812, 1493, 1422,  287,  202,
     3158,  622, 1577,  182,  962, 2127, 1855, 1468,
@@ -259,7 +259,7 @@ const MlKemZetaBitRevTimesR: [u16; 128] = [
 // This table is a lookup for ((Zeta^(BitRev(index)) * R) mod Q) * -Q^(-1) mod R
 // Used in NTT and INTT
 //
-// MlKemZetaBitRevTimesRTimesNegQInvModR = [ (((pow(17, bitRev(i), Q) << 16) % Q) * 3327) & 0xffff for i in range(128) ]
+// MlKemZetaBitRevTimesRTimesNegQInvModR = [ (((pow(17, bitRev(i)) << 16) % Q) * 3327) & 0xffff for i in range(128) ]
 const MlKemZetaBitRevTimesRTimesNegQInvModR: [u16; 128] = [
        19, 34037, 50790, 64748, 52011, 12402, 37345, 16694,
     20906, 37778,  3799, 15690, 54846, 64177, 11201, 34372,
@@ -282,7 +282,7 @@ const MlKemZetaBitRevTimesRTimesNegQInvModR: [u16; 128] = [
 // This table is a lookup for ((Zeta^(2*BitRev(index) + 1) * R) mod Q)
 // Used in multiplication of 2 NTT-form polynomials
 //
-// zetaTwoTimesBitRevPlus1TimesR =  [ (pow(17, 2*bitRev(i)+1, 3329) << 16) % 3329 for i in range(128) ]
+// zetaTwoTimesBitRevPlus1TimesR =  [ (pow(17, 2*bitRev(i)+1) << 16) % 3329 for i in range(128) ]
 const zetaTwoTimesBitRevPlus1TimesR: [u16; 128] = [
     2226, 1103,  430, 2899,  555, 2774,  843, 2486,
     2078, 1251,  871, 2458, 1550, 1779,  105, 3224,
@@ -307,9 +307,13 @@ fn SymCryptMlKemModAdd(a: u32, b: u32) -> u32 {
     assert!( a < Q );
     assert!( b < Q );
 
-    let res = a + b - Q;
+    // In the comments below, we manipulate unbounded integers.
+    // res = (a + b) - Q
+    let res = (a + b).wrapping_sub(Q); // -Q <= res < Q
     assert!( ((res >> 16) == 0) || ((res >> 16) == 0xffff) );
-    let res = res + (Q & (res >> 16));
+    // If res < 0, then: Q & (res >> 16) = Q
+    // Otherwise: Q & (res >> 16) = 0
+    let res = res.wrapping_add(Q & (res >> 16));
     assert!( res < Q );
 
     return res;
@@ -319,14 +323,29 @@ fn SymCryptMlKemModSub(a: u32, b: u32) -> u32 {
     assert!( a < 2*Q );
     assert!( b <= Q );
 
-    let res = a - b;
+    // In the comments below, we manipulate unbounded integers.
+    // res = a - b
+    let res = a.wrapping_sub(b); // -Q <= res < 2 * Q
     assert!( ((res >> 16) == 0) || ((res >> 16) == 0xffff) );
-    let res = res + (Q & (res >> 16));
-    assert!( res < Q );
+    // If res < 0, then: Q & (res >> 16) = Q
+    // Otherwise: Q & (res >> 16) = 0
+    let res = res.wrapping_add(Q & (res >> 16));
+    // 0 <= res < 2 * Q
+    assert!( res < Q ); // SH: how do we justify this given the bound: a < 2*Q?
+    // SH: I believe it depends on the situation: we may have to prove several
+    // auxiliary lemmas for this (there are situations where we call this function
+    // with a < Q for instance).
 
     return res;
 }
 
+/// Computes: ((a * b) / R) % Q
+///
+/// This simply applies the montgomery reduction to: a * b
+///
+/// Pre:
+///  bMont = (b * NegQInvModR) % R
+///  bMont <= R
 fn SymCryptMlKemMontMul(a: u32, b: u32, bMont: u32) -> u32 {
     assert!( a < Q );
     assert!( b < Q );
@@ -339,7 +358,7 @@ fn SymCryptMlKemMontMul(a: u32, b: u32, bMont: u32) -> u32 {
     assert!( (res & Rmask) == 0 );
     res = res >> Rlog2;
 
-    return SymCryptMlKemModSub( res, Q );
+    return SymCryptMlKemModSub( res, Q ); // SH: why this?
 }
 
 fn SymCryptMlKemPolyElementNTTLayerC(peSrc: &mut POLYELEMENT, mut k: usize, len: usize) {
@@ -347,7 +366,9 @@ fn SymCryptMlKemPolyElementNTTLayerC(peSrc: &mut POLYELEMENT, mut k: usize, len:
     // WAS: for start in (0usize..256).step_by(2*len) {
     c_for!(let mut start = 0usize; start < 256; start += 2*len; {
         let twiddleFactor: u32 = MlKemZetaBitRevTimesR[k].into();
+        // twiddleFactor = (Zeta^BitRev(k) * R) mod Q
         let twiddleFactorMont: u32 = MlKemZetaBitRevTimesRTimesNegQInvModR[k].into();
+        // twiddleFactorMont = (((Zeta^BitRev(k) * R) mod Q) * -Q^(-1) mod R) mod Q
         k += 1;
 
         #[inline]
@@ -355,13 +376,21 @@ fn SymCryptMlKemPolyElementNTTLayerC(peSrc: &mut POLYELEMENT, mut k: usize, len:
                       start: usize, twiddleFactor: u32, twiddleFactorMont: u32) {
             c_for!(let mut j = 0usize; j < len; j += 1; {
                 let mut c0: u32 = peSrc[start+j].into();
+                // c0 = f(start + j);
                 assert!( c0 < Q );
                 let mut c1: u32 = peSrc[start+j+len].into();
+                // c1 = f(start + j + len);
                 assert!( c1 < Q );
 
                 let c1TimesTwiddle: u32 = SymCryptMlKemMontMul( c1, twiddleFactor, twiddleFactorMont );
+                // c1TimesTwiddle = ((c1 * (Zeta^BitRev(k) * R)) / R) % Q
+                //                = ((f(start + j + len) * (Zeta^BitRev(k) * R)) / R) mod Q
+                //                = (f(start + j + len) * Zeta^BitRev(k)) mod Q
+
                 c1 = SymCryptMlKemModSub( c0, c1TimesTwiddle );
+                // c1 = (f(start + j) - f(start + j + len) * Zeta^BitRev(k)) mod Q
                 c0 = SymCryptMlKemModAdd( c0, c1TimesTwiddle );
+                // c0 = (f(start + j) + f(start + j + len) * Zeta^BitRev(k)) mod Q
 
                 peSrc[start+j]      = c0 as u16;
                 peSrc[start+j+len]  = c1 as u16;
@@ -376,7 +405,9 @@ fn SymCryptMlKemPolyElementINTTLayerC(peSrc: &mut POLYELEMENT, mut k: usize, len
     // for start in (0..256).step_by(2*len) {
     c_for!(let mut start = 0usize; start < 256; start += 2*len; {
         let twiddleFactor: u32 = MlKemZetaBitRevTimesR[k].into();
+        // twiddleFactor = (Zeta^BitRev(k) * R) mod Q
         let twiddleFactorMont: u32 = MlKemZetaBitRevTimesRTimesNegQInvModR[k].into();
+        // twiddleFactorMont = (((Zeta^BitRev(k) * R) mod Q) * -Q^(-1) mod R) mod Q
         k -= 1;
 
         inner_loop(peSrc, len, start, twiddleFactor, twiddleFactorMont);
@@ -425,6 +456,9 @@ fn SymCryptMlKemPolyElementMulAndAccumulate(
         let b1: u32 = peSrc2[2*i+1].into();
         assert!( (b1 as u32) < Q );
 
+        // SH: We are doing a matrix multiplication (and the matrix has a maximum
+        // size of 4) which means we need to accumulate several products in the
+        // target (at most 4 products).
         let mut c0: u32 = paDst[2*i].into();
         assert!( c0 <= 3*((3328*3328) + (3494*3312)) );
         let mut c1: u32 = paDst[(2*i)+1].into();
@@ -441,12 +475,18 @@ fn SymCryptMlKemPolyElementMulAndAccumulate(
         // a1b1 = red(a1*b1) -> range [0,3494]
         //   (3494 is maximum result of first step of montgomery reduction of x*y for x,y in [0,3328])
         // we do not need to do final reduction yet
-        let inv : u32= (a1b1 * NegQInvModR) & Rmask;
+        // SH: how do we get the (very precise) bound 3494? Brute force.
+        let inv : u32 = (a1b1 * NegQInvModR) & Rmask;
+        // inv = (a1*b1 * (-Q^(-1) mod R)) % R
         let a1b1: u32 = (a1b1 + (inv * Q)) >> Rlog2; // in range [0, 3494]
+        // a1b1 = (a1*b1 + a1*b1 * (-Q^(-1) mod R) * Q) / R
+        //      = (a1*b1 * R^-1) mod Q
         assert!( a1b1 <= 3494 );
 
         // now multiply a1b1 by power of zeta
         let a1b1zetapow = a1b1 * (zetaTwoTimesBitRevPlus1TimesR[i] as u32);
+        // a1b1zetapow = (a1*b1 * R^-1) * (Zeta^(2*BitRev(i) + 1) * R) mod Q
+        //             = a1*b1 * Zeta^(2*BitRev(i) + 1) mod Q
 
         // sum pairs of products
         a0b0 += a1b1zetapow;    // a0*b0 + red(a1*b1)*zetapower in range [0, 3328*3328 + 3494*3312]

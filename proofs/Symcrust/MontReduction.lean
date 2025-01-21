@@ -361,7 +361,8 @@ def mont_reduction_spec
   (h_a: a < q * R)
   (h_q_R: Nat.Coprime q R) :
   let t := mont_reduction q R a minus_q_minus_1
-  t % (q : Int) = (a * (ZMod.inv q R).val) % q ∧ 0 ≤ t ∧ t < 2 * q
+  t % (q : Int) = (a * (ZMod.inv q R).val) % q ∧
+  0 ≤ t ∧ t < 2 * q
   := by
   let f := (a * minus_q_minus_1) % R
   let t := (a + f * q) / R
