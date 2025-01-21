@@ -49,6 +49,7 @@ macro_rules! c_for {
 }
 
 
+pub(crate)
 const MLWE_POLYNOMIAL_COEFFICIENTS: usize = 256;
 
 //=====================================================
@@ -56,6 +57,7 @@ const MLWE_POLYNOMIAL_COEFFICIENTS: usize = 256;
 //
 
 // PolyElements just store the coefficients without any header.
+pub(crate)
 type POLYELEMENT = [u16; MLWE_POLYNOMIAL_COEFFICIENTS ];
 
 type POLYELEMENT_ACCUMULATOR = [u32; MLWE_POLYNOMIAL_COEFFICIENTS ];
@@ -79,15 +81,16 @@ type VECTOR = [POLYELEMENT];
 //
 // Note (Rust): again, allocation to be handled by the caller or the owner.
 // Note (Rust): to avoid a const-generic, the array of pointers to elements is possibly oversized
-struct MATRIX<'a> {
-    nRows: usize,
-    apPolyElements: [&'a mut POLYELEMENT; MATRIX_MAX_NROWS * MATRIX_MAX_NROWS],
+pub(crate) struct MATRIX {
+    pub(crate) nRows: usize,
+    pub(crate) apPolyElements: Box<[POLYELEMENT]>,
 }
 
 //
 // MLKEMKEY type
 //
 
+pub(crate)
 const KEY_MAX_SIZEOF_ENCODED_T: usize = 1536;
 
 pub(crate) enum PARAMS {
@@ -113,34 +116,45 @@ pub(crate) struct INTERNAL_PARAMS {
                          // ring element v is compressed to in encapsulation for encoding into ciphertext
 }
 
-struct KEY<'a> {
+pub(crate)
+struct KEY {
+    pub(crate)
     fAlgorithmInfo: u32, // Tracks which algorithms the key can be used in
                                             // Also tracks which per-key selftests have been performed on this key
                                             // A bitwise OR of FLAG_KEY_*, FLAG_MLKEMKEY_*, and
                                             // SELFTEST_KEY_* values
 
+    pub(crate)
     params: INTERNAL_PARAMS,
 
-    cbTotalSize: u32,    // Total in-memory size of the ML-KEM key (this header and the following structs)
-
+    pub(crate)
     hasPrivateSeed: bool, // Set to true if key has the private seed (d)
+    pub(crate)
     hasPrivateKey: bool,  // Set to true if key has the private key (s and z)
 
     // seeds
+    pub(crate)
     privateSeed: [u8; 32],    // private seed (d) from which entire private PKE key can be derived
+    pub(crate)
     privateRandom: [u8; 32],  // private random (z) used in implicit rejection
 
+    pub(crate)
     publicSeed: [u8; 32],     // public seed (rho) from which A can be derived
 
     // A o s + e = t
-    pmAtranspose: MATRIX<'a>,   // public matrix in NTT form (derived from publicSeed)
-    pvt: &'a mut VECTOR,        // public vector in NTT form
+    pub(crate)
+    pmAtranspose: MATRIX,   // public matrix in NTT form (derived from publicSeed)
+    pub(crate)
+    pvt: Box<VECTOR>,        // public vector in NTT form
 
-    pvs: &'a mut VECTOR,        // private vector in NTT form
+    pub(crate)
+    pvs: Box<VECTOR>,        // private vector in NTT form
 
     // misc fields
+    pub(crate)
     encodedT: [u8; KEY_MAX_SIZEOF_ENCODED_T], // byte-encoding of public vector
                                                                               // may only use a prefix of this buffer
+    pub(crate)
     encapsKeyHash: [u8; 32],  // Precomputed value of hash of ML-KEM's byte-encoding of encapsulation key
 }
 
@@ -878,7 +892,7 @@ fn SymCryptMlKemPolyElementSampleCBDFromBytes(
     }
 }
 
-impl<'a> MATRIX<'a> {
+impl MATRIX {
     // Making this opaque because it uses nested borrows
     #[charon::opaque]
     fn
@@ -920,12 +934,12 @@ fn SymCryptMlKemMatrixTranspose(
 #[charon::opaque]
 #[inline]
 fn SymCryptMlKemPolyElementMulAndAccumulate_aux<'a>(
-    pmSrc1: MATRIX<'a>,
+    pmSrc1: MATRIX,
     nRows : usize,
     i: usize,
     j : usize,
     peSrc2: &POLYELEMENT,
-    paTmp: &mut POLYELEMENT_ACCUMULATOR) -> MATRIX<'a> {
+    paTmp: &mut POLYELEMENT_ACCUMULATOR) -> MATRIX {
     let src1 : &POLYELEMENT = &pmSrc1.apPolyElements[(i*nRows) + j]; // FIXME: this requires nested borrows
     SymCryptMlKemPolyElementMulAndAccumulate(src1, peSrc2, paTmp );
     pmSrc1
@@ -935,11 +949,11 @@ fn SymCryptMlKemPolyElementMulAndAccumulate_aux<'a>(
 // have to move the matrix around
 fn
 SymCryptMlKemMatrixVectorMontMulAndAdd<'a, 'b, 'c>(
-    mut pmSrc1: MATRIX<'a>, // TODO: &MATRIX
+    mut pmSrc1: MATRIX, // TODO: &MATRIX
     pvSrc2: &VECTOR,
     pvDst: &mut VECTOR,
     paTmp: &mut POLYELEMENT_ACCUMULATOR
-) -> MATRIX<'a>
+) -> MATRIX
 {
     let nRows = pmSrc1.nRows;
 
@@ -955,12 +969,12 @@ SymCryptMlKemMatrixVectorMontMulAndAdd<'a, 'b, 'c>(
     c_for!(let mut i = 0; i < nRows; i += 1;
     {
         #[inline]
-        fn inner_loop<'a>(mut pmSrc1: MATRIX<'a>, // TODO: &MATRIX
+        fn inner_loop<'a>(mut pmSrc1: MATRIX, // TODO: &MATRIX
                       pvSrc2: &VECTOR,
                       paTmp: &mut POLYELEMENT_ACCUMULATOR,
                       nRows : usize,
                       i : usize,
-        ) -> MATRIX<'a> {
+        ) -> MATRIX {
             c_for!(let mut j = 0; j < nRows; j += 1;
             {
                 pmSrc1 = SymCryptMlKemPolyElementMulAndAccumulate_aux(pmSrc1, nRows, i, j, &pvSrc2[i], paTmp );

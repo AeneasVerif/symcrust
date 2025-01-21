@@ -99,48 +99,39 @@ fn SymCryptMlKemkeyGetInternalParamsFromParams(
 //     return pRes;
 // }
 
-// PMLKEMKEY
-// CALL
-// SymCryptMlKemkeyAllocate(
-//     PARAMS   params )
-// {
-//     ERROR scError = NO_ERROR;
-//     PBYTE  pbKey = NULL;
-//     UINT32 cbKey;
-//     INTERNAL_PARAMS internalParams;
+const POLYELEMENT_ZERO: POLYELEMENT = [0; MLWE_POLYNOMIAL_COEFFICIENTS];
 
-//     PMLKEMKEY pKey = NULL;
-
-//     scError = SymCryptMlKemkeyGetInternalParamsFromParams(params, &internalParams);
-//     if( scError != NO_ERROR )
-//     {
-//         goto cleanup;
-//     }
-
-//     cbKey = sizeof(MLKEMKEY) + internalParams.cbMatrix + (2*internalParams.cbVector);
-
-//     pbKey = SymCryptCallbackAlloc( cbKey );
-//     if ( pbKey == NULL )
-//     {
-//         goto cleanup;
-//     }
-
-//     pKey = SymCryptMlKemkeyInitialize( &internalParams, pbKey, cbKey );
-//     if ( pKey == NULL )
-//     {
-//         goto cleanup;
-//     }
-
-//     pbKey = NULL;
-
-// cleanup:
-//     if ( pbKey != NULL )
-//     {
-//         SymCryptCallbackFree( pbKey );
-//     }
-
-//     return pKey;
-// }
+fn SymCryptMlKemkeyAllocate(params: PARAMS) -> Box<KEY>
+{
+    // Note (Rust): this function could previously fail. Now that we use an enum for the choice of
+    // algorithm, match exhaustiveness checks obviate the need for an error code.
+    let params = SymCryptMlKemkeyGetInternalParamsFromParams(params);
+    let nRows = params.nRows;
+    // Note (Rust): previously, returned a heap-allocated key. We create a Box here, but could also
+    // return a value if we wanted, relying on LLVM to optimize out the copies of a large value.
+    Box::new(KEY {
+        fAlgorithmInfo: 0u32,
+        params,
+        hasPrivateSeed: false,
+        hasPrivateKey: false,
+        privateSeed: [0; 32],
+        privateRandom: [0; 32],
+        publicSeed: [0; 32],
+        // Note (Rust): this generates four boxes, see ALLOCATION.md for discussion
+        // Note (Rust): the original C code performs null-checks to see if the allocations
+        // succeeded. We could presumably use an error monad (the ? operator), Box::try_new, and
+        // return a std::result::Result for this function (and others who need to perform
+        // comparable checks).
+        pmAtranspose: MATRIX {
+            nRows: nRows as usize,
+            apPolyElements: vec![POLYELEMENT_ZERO; (nRows * nRows) as usize].into()
+        },
+        pvt: vec![POLYELEMENT_ZERO; nRows as usize].into(),
+        pvs: vec![POLYELEMENT_ZERO; nRows as usize].into(),
+        encodedT: [0u8; KEY_MAX_SIZEOF_ENCODED_T],
+        encapsKeyHash: [0u8; 32]
+    })
+}
 
 // VOID
 // CALL
