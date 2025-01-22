@@ -4,6 +4,8 @@ import Mathlib.Data.List.Defs
 import Mathlib.Data.ZMod.Defs
 import Mathlib.Data.Nat.Bits
 
+import Symcrust.SRRange
+
 /-!
 The spec of ML-KEM, based on: https://csrc.nist.gov/pubs/fips/203/final
 -/
@@ -119,24 +121,15 @@ def bitRev (n : Nat) (i : Nat) : Nat :=
 
 def ζ : ZMod Q := 17
 
-#check Lean.Meta.Simp.Config
-
--- We need to update this macro rule to use a more complex solving procedure.
--- We simply use the simplifier with the `zetaDelta` option to unfold the local definitions.
-local macro_rules
-  | `([ $start : $stop : $step ]) =>
-    `({ start := $start, stop := $stop, step := $step, step_pos := by simp +zetaDelta [] : Std.Range })
+open Aeneas.SRRange.Notations
 
 /-- Algorithm 9 -/
 def ntt (f : Polynomial) : Polynomial := Id.run do
   let mut f := f
-  let mut i := 1 -- FIXME: `simp` takes a very long time because of this
+  let mut i := 1
   for k in [0:8] do
     let len := 2 ^ (7 - k)
-    -- FIXME:
-    -- for start in [0:256:2*len] do
-    for l in [0:256/(2 * len)] do -- FIXME
-      let start := 2 * len * l -- FIXME
+    for start in [0:256:2*len] do
       let zeta := ζ ^ (bitRev 7 i)
       i := i + 1
       for j in [start:start+len] do
