@@ -16,7 +16,7 @@ namespace Target
   open Aeneas.Notations.SRRange
   open Symcrust.Spec.Notations
 
-  def nttLayerInner (f : Polynomial) (k : Nat) (i : Nat) (start : Nat) : Polynomial := Id.run do
+  def nttLayerInner (f : Polynomial) (i k : Nat) (start : Nat) : Polynomial := Id.run do
     let mut f := f
     let mut i := i
     let len := 2 ^ (7 - k)
@@ -27,20 +27,20 @@ namespace Target
       f := f.set j (f[j]! + t)
     pure f
 
-  def nttLayer (f : Polynomial) (k : Nat) (i : Nat) : Polynomial × Nat := Id.run do
+  def nttLayer (f : Polynomial) (i k : Nat) : Polynomial × Nat := Id.run do
     let mut f := f
     let mut i := i
     let len := 2 ^ (7 - k)
     for start in [0:256:2*len] do
       let i0 := i
       i := i + 1
-      f := nttLayerInner f k i0 start
+      f := nttLayerInner f i0 k start
     pure (f, i)
 
   def ntt (f : Polynomial) : Polynomial := Id.run do
     let mut fi := (f, 1)
     for k in [0:7] do
-      fi := nttLayer fi.1 k fi.2
+      fi := nttLayer fi.1 fi.2 k
     pure fi.1
 
   theorem ntt_eq (f : Polynomial) : ntt f = Spec.ntt f := by
@@ -95,11 +95,11 @@ private theorem fun_eq_arg_eq_imp_eq {α β : Type} (f g : α → β) (x y : α)
   simp +contextual
 
 private theorem nttLayerInner_eq
-  (f : Polynomial) (k i : Nat) (len : Nat)
+  (f : Polynomial) (i k : Nat) (len : Nat)
   (start : Nat)
   (hLen : len = 2 ^ (7 - k))
   :
-  nttLayerInner f i len start 0 = Target.nttLayerInner f k i start
+  nttLayerInner f i len start 0 = Target.nttLayerInner f i k start
   := by
   -- Unfold the definitions and simplify
   unfold Target.nttLayerInner
@@ -199,16 +199,16 @@ private theorem nttLayer_eq_fst_aux (f : Polynomial) (k : Nat) (len : Nat) (i st
   (hk : k ≤ 7)
   (hLen : len = 2 ^ (7 - k))
   (hLenLt : 0 < len) :
-  let p : MProd _ _ := fold_while (fun b a => ⟨Target.nttLayerInner b.1 k b.2 a, b.2 + 1⟩) 256 (2 * len) (by omega) start ⟨f, i⟩
+  let p : MProd _ _ := fold_while (fun b a => ⟨Target.nttLayerInner b.1 b.2 k a, b.2 + 1⟩) 256 (2 * len) (by omega) start ⟨f, i⟩
   nttLayer f i len start hLenLt = p.fst := by
   simp only
   unfold nttLayer fold_while
   split
   . rename_i hLt
     simp only
-    have := nttLayerInner_eq f k i len start (hLen)
+    have := nttLayerInner_eq f i k len start (hLen)
     rw [this]; clear this
-    have := nttLayer_eq_fst_aux (Target.nttLayerInner f k i start) k len (i + 1) (start + 2 * len) hk hLen hLenLt
+    have := nttLayer_eq_fst_aux (Target.nttLayerInner f i k start) k len (i + 1) (start + 2 * len) hk hLen hLenLt
     simp only at this
     rw [this]
   . simp_all
@@ -221,7 +221,7 @@ private theorem nttLayer_eq_fst_arith {k : ℕ} (hk : k ≤ 7) :
 
 private theorem nttLayer_eq_fst (f : Polynomial) (i k : Nat) (len : Nat)
   (hk : k ≤ 7) (hLen : len = 2 ^ (7 - k)) :
-  nttLayer f i len 0 (by simp [hLen]) = (Target.nttLayer f k i).fst := by
+  nttLayer f i len 0 (by simp [hLen]) = (Target.nttLayer f i k).fst := by
   unfold Target.nttLayer
   simp only [Id.pure_eq, Id.bind_eq, Aeneas.SRRange.forIn_eq_forIn_range', Aeneas.SRRange.size,
     tsub_zero, Nat.succ_add_sub_one, Nat.ofNat_pos, mul_pos_iff_of_pos_left, pow_pos,
@@ -255,34 +255,34 @@ private theorem nttLayer_eq_snd_arith {k : ℕ} (hk : k ≤ 7) :
 
 private theorem nttLayer_eq_snd
   (f : Polynomial) (i k : Nat) (hk : k ≤ 7) :
-  (Target.nttLayer f k i).snd = i + 2 ^ k := by
+  (Target.nttLayer f i k).snd = i + 2 ^ k := by
   unfold Target.nttLayer
   simp only [Id.run, Id.pure_eq, Id.bind_eq, Aeneas.SRRange.forIn_eq_forIn_range',
     Aeneas.SRRange.size, tsub_zero, Nat.succ_add_sub_one, Nat.ofNat_pos, mul_pos_iff_of_pos_left,
     pow_pos, Nat.add_div_right, List.forIn_yield_eq_foldl]
-  have := nttLayer_eq_snd_aux f (fun x y => Target.nttLayerInner x k y) i
+  have := nttLayer_eq_snd_aux f (fun x y => Target.nttLayerInner x y k) i
   simp only [this, add_right_inj]
   apply nttLayer_eq_snd_arith hk
 
 private theorem nttLayer_eq_aux (f : Polynomial) (k : Nat) (len : Nat)
   (hk : k ≤ 7) (hLen : len = 2 ^ (7 - k)) :
-  (nttLayer f i len 0 (by simp [hLen]), i + 2 ^ k) = Target.nttLayer f k i := by
+  (nttLayer f i len 0 (by simp [hLen]), i + 2 ^ k) = Target.nttLayer f i k := by
   have := nttLayer_eq_fst f i k len hk hLen
   have := nttLayer_eq_snd f i k hk
-  cases h: Target.nttLayer f k i
+  cases h: Target.nttLayer f i k
   simp_all
 
 private theorem nttLayer_eq (f : Polynomial) (k : Nat)
   (hk : k ≤ 7) :
-  (nttLayer f i (2 ^ (7 - k)) 0 (by simp), i + 2 ^ k) = Target.nttLayer f k i := by
+  (nttLayer f i (2 ^ (7 - k)) 0 (by simp), i + 2 ^ k) = Target.nttLayer f i k := by
   rw [nttLayer_eq_aux] <;> simp [*]
 
 theorem nttEq (f : Polynomial) :
   ntt f = Target.ntt f := by
   unfold ntt Target.ntt
-  simp only [Id.run, Id.pure_eq, Id.bind_eq, Std.Range.forIn_eq_forIn_range', Std.Range.size,
-    tsub_zero, Nat.reduceAdd, Nat.add_one_sub_one, Nat.div_one, List.range', zero_add,
-    List.forIn_yield_eq_foldl, List.foldl_cons, List.foldl_nil]
+  simp only [Id.run, Id.pure_eq, Id.bind_eq, Aeneas.SRRange.forIn_eq_forIn_range',
+    Aeneas.SRRange.size, tsub_zero, Nat.reduceAdd, Nat.add_one_sub_one, Nat.div_one, List.range',
+    zero_add, List.forIn_yield_eq_foldl, List.foldl_cons, List.foldl_nil]
   repeat (rw [← nttLayer_eq] <;> simp)
 
 end Symcrust.SpecAux
