@@ -127,7 +127,7 @@ open Aeneas.SRRange.Notations -- the [0:256:2*len] notations desugars to an `SRR
 def ntt (f : Polynomial) : Polynomial := Id.run do
   let mut f := f
   let mut i := 1
-  for k in [0:8] do
+  for k in [0:7] do
     let len := 2 ^ (7 - k)
     for start in [0:256:2*len] do
       let zeta := ζ ^ (bitRev 7 i)

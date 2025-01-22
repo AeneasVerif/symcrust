@@ -39,7 +39,7 @@ namespace Target
 
   def ntt (f : Polynomial) : Polynomial := Id.run do
     let mut fi := (f, 1)
-    for k in [0:8] do
+    for k in [0:7] do
       fi := nttLayer fi.1 k fi.2
     pure fi.1
 
@@ -94,7 +94,7 @@ private theorem fun_eq_arg_eq_imp_eq {α β : Type} (f g : α → β) (x y : α)
   f = g → x = y → f x = g y := by
   simp +contextual
 
-def nttLayerInner_eq
+private theorem nttLayerInner_eq
   (f : Polynomial) (k i : Nat) (len : Nat)
   (start : Nat)
   (hLen : len = 2 ^ (7 - k))
@@ -181,56 +181,108 @@ decreasing_by omega
 private theorem foldl_range' (f : α → Nat → α) (start len step : Nat) (hStep : 0 < step) (init : α) :
   List.foldl f init (List.range' start len step) = fold_while f (start + len * step) step hStep start init := by
   cases len
-  . simp
+  . simp only [List.range'_zero, List.foldl_nil, zero_mul, add_zero]
     unfold fold_while
     simp
   . rename_i len
-    simp [List.range']
+    simp only [List.range', List.foldl_cons]
     have := foldl_range' f (start + step) len step hStep (f init start)
-    simp [this]
+    simp only [this]
     conv => rhs; unfold fold_while
     have : start < start + (len + 1) * step := by
       ring_nf
       omega
-    simp [this]
+    simp only [this, ↓reduceIte]
     ring_nf
 
-def nttLayer_eq_fst_aux (f : Polynomial) (k : Nat) (len : Nat) (i start : Nat)
+private theorem nttLayer_eq_fst_aux (f : Polynomial) (k : Nat) (len : Nat) (i start : Nat)
   (hk : k ≤ 7)
   (hLen : len = 2 ^ (7 - k))
   (hLenLt : 0 < len) :
   let p : MProd _ _ := fold_while (fun b a => ⟨Target.nttLayerInner b.1 k b.2 a, b.2 + 1⟩) 256 (2 * len) (by omega) start ⟨f, i⟩
   nttLayer f i len start hLenLt = p.fst := by
-  simp
+  simp only
   unfold nttLayer fold_while
   split
   . rename_i hLt
-    simp
+    simp only
     have := nttLayerInner_eq f k i len start (hLen)
     rw [this]; clear this
     have := nttLayer_eq_fst_aux (Target.nttLayerInner f k i start) k len (i + 1) (start + 2 * len) hk hLen hLenLt
-    simp at this
+    simp only at this
     rw [this]
   . simp_all
 
-private theorem nttLayer_eq_arith_aux {k : ℕ} (hk : k ≤ 7) :
+private theorem nttLayer_eq_fst_arith {k : ℕ} (hk : k ≤ 7) :
   (255 / (2 * 2 ^ (7 - k)) + 1) * (2 * 2 ^ (7 - k)) = 256 := by
   -- We simply brute force the proof by making a case disjunction on k
+  -- TODO: the proof is quite simple but the theorem must be generalized (and the proof is then induction)
   repeat (cases k <;> simp_all <;> rename_i k <;> try omega)
 
-def nttLayer_eq_fst (f : Polynomial) (k : Nat) (len : Nat)
-  (hk : k ≤ 7)
-  (hLen : len = 2 ^ (7 - k))
-  (hLenLt : 0 < len) -- we need this for `generalize` (because of dependent types)
-  :
-  nttLayer f i len 0 hLenLt = (Target.nttLayer f k i).fst := by
+private theorem nttLayer_eq_fst (f : Polynomial) (i k : Nat) (len : Nat)
+  (hk : k ≤ 7) (hLen : len = 2 ^ (7 - k)) :
+  nttLayer f i len 0 (by simp [hLen]) = (Target.nttLayer f k i).fst := by
   unfold Target.nttLayer
-  simp
-  simp [foldl_range', nttLayer_eq_arith_aux, hk]
-  have := nttLayer_eq_fst_aux f k len i 0 hk hLen hLenLt
+  simp only [Id.pure_eq, Id.bind_eq, Aeneas.SRRange.forIn_eq_forIn_range', Aeneas.SRRange.size,
+    tsub_zero, Nat.succ_add_sub_one, Nat.ofNat_pos, mul_pos_iff_of_pos_left, pow_pos,
+    Nat.add_div_right, List.forIn_yield_eq_foldl]
+  simp only [Nat.ofNat_pos, mul_pos_iff_of_pos_left, pow_pos, foldl_range', hk,
+    nttLayer_eq_fst_arith, zero_add]
+  have := nttLayer_eq_fst_aux f k len i 0 hk hLen (by simp[hLen])
   simp only at this
   simp only [this]
   simp [Id.run, hLen]
 
+private theorem  nttLayer_eq_snd_aux
+  (x : α) (f : α → Nat → Nat → α)
+  (i start len step : ℕ):
+  (List.foldl (fun (b : MProd _ _) a => ⟨f b.fst b.snd a, b.snd + 1⟩) ⟨x, i⟩
+    (List.range' start len step)).snd =
+  i + len
+  := by
+  revert x i start
+  induction len <;> intro x i start
+  . simp_all
+  . rename_i len hInd
+    simp_all [List.range']
+    ring_nf
+
+private theorem nttLayer_eq_snd_arith {k : ℕ} (hk : k ≤ 7) :
+  255 / (2 * 2 ^ (7 - k)) + 1 = 2 ^ k := by
+  -- We simply brute force the proof by making a case disjunction on k
+  -- TODO: the proof is quite simple but the theorem must be generalized (and the proof is then induction)
+  repeat (cases k <;> simp_all <;> rename_i k <;> try omega)
+
+private theorem nttLayer_eq_snd
+  (f : Polynomial) (i k : Nat) (hk : k ≤ 7) :
+  (Target.nttLayer f k i).snd = i + 2 ^ k := by
+  unfold Target.nttLayer
+  simp only [Id.run, Id.pure_eq, Id.bind_eq, Aeneas.SRRange.forIn_eq_forIn_range',
+    Aeneas.SRRange.size, tsub_zero, Nat.succ_add_sub_one, Nat.ofNat_pos, mul_pos_iff_of_pos_left,
+    pow_pos, Nat.add_div_right, List.forIn_yield_eq_foldl]
+  have := nttLayer_eq_snd_aux f (fun x y => Target.nttLayerInner x k y) i
+  simp only [this, add_right_inj]
+  apply nttLayer_eq_snd_arith hk
+
+private theorem nttLayer_eq_aux (f : Polynomial) (k : Nat) (len : Nat)
+  (hk : k ≤ 7) (hLen : len = 2 ^ (7 - k)) :
+  (nttLayer f i len 0 (by simp [hLen]), i + 2 ^ k) = Target.nttLayer f k i := by
+  have := nttLayer_eq_fst f i k len hk hLen
+  have := nttLayer_eq_snd f i k hk
+  cases h: Target.nttLayer f k i
+  simp_all
+
+private theorem nttLayer_eq (f : Polynomial) (k : Nat)
+  (hk : k ≤ 7) :
+  (nttLayer f i (2 ^ (7 - k)) 0 (by simp), i + 2 ^ k) = Target.nttLayer f k i := by
+  rw [nttLayer_eq_aux] <;> simp [*]
+
+theorem nttEq (f : Polynomial) :
+  ntt f = Target.ntt f := by
+  unfold ntt Target.ntt
+  simp only [Id.run, Id.pure_eq, Id.bind_eq, Std.Range.forIn_eq_forIn_range', Std.Range.size,
+    tsub_zero, Nat.reduceAdd, Nat.add_one_sub_one, Nat.div_one, List.range', zero_add,
+    List.forIn_yield_eq_foldl, List.foldl_cons, List.foldl_nil]
+  repeat (rw [← nttLayer_eq] <;> simp)
 
 end Symcrust.SpecAux
