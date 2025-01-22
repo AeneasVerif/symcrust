@@ -121,7 +121,7 @@ def bitRev (n : Nat) (i : Nat) : Nat :=
 
 def ζ : ZMod Q := 17
 
-open Aeneas.SRRange.Notations
+open Aeneas.SRRange.Notations -- the [0:256:2*len] notations desugars to an `SRRange` instead of a `Std.Range`
 
 /-- Algorithm 9 -/
 def ntt (f : Polynomial) : Polynomial := Id.run do
@@ -134,7 +134,7 @@ def ntt (f : Polynomial) : Polynomial := Id.run do
       i := i + 1
       for j in [start:start+len] do
         let t := zeta * f[j + len]!
-        f := f.set (j + len) (f[j]! - t) -- TODO: remove !
+        f := f.set (j + len) (f[j]! - t)
         f := f.set j (f[j]! + t)
   pure f
 
@@ -144,10 +144,7 @@ def invNtt (f : Polynomial) : Polynomial := Id.run do
   let i := 127 -- FIXME: `simp` takes a very long time because of this
   for k in [1:8] do
     let len := 2 ^ k
-    -- FIXME:
-    -- for start in [0:256:2*len] do
-    for l in [0:256/(2*len)] do -- FIXME
-      let start := 2 * len * l -- FIXME
+    for start in [0:256:2*len] do
       let zeta := ζ ^(bitRev 7 i)
       let i := i - 1
       for j in [start:start+len] do
