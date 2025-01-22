@@ -11,61 +11,15 @@ namespace Symcrust.SpecAux
 
 open Symcrust.Spec
 
--- Small test
-def replicate' (n : Nat) (x : α) : List α := Id.run do
-  let mut l := []
-  for _ in [0:n] do
-    l := x :: l
-  pure l
-
-theorem replicate'_eq n (x : α) : replicate' n x = List.replicate n x := by
-  suffices replicate' n x = [] ++ List.replicate n x by
-    simp_all
-  simp only [replicate', Id.run, Id.pure_eq, Id.bind_eq, Std.Range.forIn_eq_forIn_range',
-    Std.Range.size, tsub_zero, add_tsub_cancel_right, Nat.div_one, List.forIn_yield_eq_foldl]
-  generalize hi: 0 = i
-  generalize hl : [] = l
-  have hRepl : l = List.replicate i x := by simp_all
-  clear hi hl
-  revert i l
-  induction n <;> intro i l <;> simp_all [List.range']
-  rename_i n hInd
-  intro hRepl
-  replace hInd := hInd (i + 1)
-  simp [List.replicate] at hInd
-  simp [hInd]
-  omega
-
-/-
-def ntt (f : Polynomial) : Polynomial := Id.run do
-  let mut f := f
-  let mut i : Nat := 1
-  for k in [0:8] do
-    let len:Nat := 2 ^ (7 - k)
-    for start in [0:256:2*len] do
-      let zeta := ζ ^ (bitRev 7 i)
-      i := i + 1
-      for j in [start:start+len] do
-        let t := zeta * f[j + len]!
-        f := f.set (j + len) (f[j]! - t)
-        f := f.set j (f[j]! + t)
--/
-
-#print ntt
-
-local macro_rules
-| `([ $start : $stop : $step ]) =>
-  `({ start := $start, stop := $stop, step := $step, step_pos := by simp +zetaDelta [] : Std.Range })
-
+open Aeneas.SRRange.Notations
 
 /- Introduce auxiliary definitions to isolate the different loops inside the target specification -/
 namespace Target
 
-  def nttLayerInner (f : Polynomial) (k : Nat) (i : Nat) (l : Nat) : Polynomial := Id.run do
+  def nttLayerInner (f : Polynomial) (k : Nat) (i : Nat) (start : Nat) : Polynomial := Id.run do
     let mut f := f
     let mut i := i
     let len := 2 ^ (7 - k)
-    let start := 2 * len * l
     let zeta := ζ ^ (bitRev 7 i)
     for j in [start:start+len] do
       let t := zeta * f[j + len]!
@@ -77,10 +31,10 @@ namespace Target
     let mut f := f
     let mut i := i
     let len := 2 ^ (7 - k)
-    for l in [0:256/(2*len)] do -- FIXME
+    for start in [0:256:2*len] do
       let i0 := i
       i := i + 1
-      f := nttLayerInner f k i0 l
+      f := nttLayerInner f k i0 start
     pure (f, i)
 
   def ntt (f : Polynomial) : Polynomial := Id.run do
@@ -89,7 +43,6 @@ namespace Target
       fi := nttLayer fi.1 k fi.2
     pure fi.1
 
-  -- TODO: this takes a long time!
   theorem ntt_eq (f : Polynomial) : ntt f = Spec.ntt f := by
     rw [ntt, Spec.ntt]
     unfold nttLayer
@@ -128,14 +81,10 @@ def ntt (f : Polynomial) : Polynomial :=
   let f := nttLayer f 64 2 0
   f
 
-#check Lean.Meta.Simp.Config
-
 -- TODO: this lemma should exist somewhere
 theorem fun_eq_arg_eq_imp_eq {α β : Type} (f g : α → β) (x y : α) :
   f = g → x = y → f x = g y := by
   simp +contextual
-
-#check List.set_set_perm
 
 -- TODO: move, also update the neq test
 theorem Polynomial.set_set_neq {i j : Nat} (h : i ≠ j)
@@ -150,9 +99,9 @@ def nttLayerInner_eq
   (f : Polynomial) (k : Nat) (len : Nat)
   (start : Nat) (j : Nat) (l : Nat)
   (hLen : len = 2 ^ (7 - k))
-  (hStart : start + j = 2 * len * l)
+  (hStart : start + j = start')
   :
-  nttLayerInner f i len start j = Target.nttLayerInner f k i l
+  nttLayerInner f i len start j = Target.nttLayerInner f k i start'
   := by
   -- Unfold the definitions and simplify
   unfold Target.nttLayerInner
@@ -180,7 +129,8 @@ def nttLayerInner_eq
     . -- zero
       have : len = j := by omega
       simp_all [Id.run]
-      have hRange : List.range' (start + j) j 1 = [] := by sorry
+      have hRange : List.range' (start + j) j 1 = [] := by
+        sorry
       simp [hRange]
     . -- succ
       rename_i steps hInd
