@@ -141,7 +141,7 @@ def ntt (f : Polynomial) : Polynomial := Id.run do
       i := i + 1
       for j in [start:start+len] do
         let t := zeta * f[j + len]!
-        f := f.set (j + len) (f[j]! - t)
+        f := f.set (j + len) (f[j]! - t) -- TODO: remove !
         f := f.set j (f[j]! + t)
   pure f
 
