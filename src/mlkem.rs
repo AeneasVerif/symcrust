@@ -50,55 +50,6 @@ fn SymCryptMlKemkeyGetInternalParamsFromParams(
     }
 }
 
-// fn SymCryptMlKemkeyInitialize<'a>(params: INTERNAL_PARAMS) -> KEY<'a> {
-// }
-//     _In_                        PCINTERNAL_PARAMS    pInternalParams,
-//     _Out_writes_bytes_(cbKey)   PBYTE                               pbKey,
-//                                 UINT32                              cbKey )
-// {
-//     PMLKEMKEY pRes = NULL;
-//     PMLKEMKEY pKey = (PMLKEMKEY)pbKey;
-//     PBYTE pbCurr = pbKey + sizeof(MLKEMKEY);
-
-//     SymCryptWipeKnownSize( pbKey, cbKey );
-
-//     pKey->fAlgorithmInfo = 0;
-//     pKey->params = *pInternalParams;
-//     pKey->cbTotalSize = cbKey;
-//     pKey->hasPrivateSeed = FALSE;
-//     pKey->hasPrivateKey = FALSE;
-
-//     pKey->pmAtranspose = SymCryptMlKemMatrixCreate( pbCurr, pInternalParams->cbMatrix, pInternalParams->nRows );
-//     if( pKey->pmAtranspose == NULL )
-//     {
-//         goto cleanup;
-//     }
-//     pbCurr += pInternalParams->cbMatrix;
-
-//     pKey->pvt = SymCryptMlKemVectorCreate( pbCurr, pInternalParams->cbVector, pInternalParams->nRows );
-//     if( pKey->pvt == NULL )
-//     {
-//         goto cleanup;
-//     }
-//     pbCurr += pInternalParams->cbVector;
-
-//     pKey->pvs = SymCryptMlKemVectorCreate( pbCurr, pInternalParams->cbVector, pInternalParams->nRows );
-//     if( pKey->pvs == NULL )
-//     {
-//         goto cleanup;
-//     }
-//     pbCurr += pInternalParams->cbVector;
-
-//     ASSERT( pbCurr == (pbKey + cbKey) );
-
-//     SET_MAGIC( pKey );
-
-//     pRes = pKey;
-
-// cleanup:
-//     return pRes;
-// }
-
 const POLYELEMENT_ZERO: POLYELEMENT = [0; MLWE_POLYNOMIAL_COEFFICIENTS];
 
 fn SymCryptMlKemkeyAllocate(params: PARAMS) -> Box<KEY>
