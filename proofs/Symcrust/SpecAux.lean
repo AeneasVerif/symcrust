@@ -52,23 +52,22 @@ namespace Target
 
 end Target
 
-def nttLayerInner (f : Polynomial) (k : Nat) (len : Nat)
+def nttLayerInner (f : Polynomial) (i : Nat) (len : Nat)
   (start : Nat) (j : Nat) : Polynomial :=
   if j < len then
     let c0 := f[start + j]!
     let c1 := f[start + j + len]!
-    let zeta := ζ ^ bitRev 7 k
+    let zeta := ζ ^ bitRev 7 i
     let f := f.set (start + j) (c0 + c1 * zeta)
     let f := f.set (start + j + len) (c0 - c1 * zeta)
-    nttLayerInner f k len start (j + 1)
+    nttLayerInner f i len start (j + 1)
   else f
 
-def nttLayer (f : Polynomial) (k : Nat) (len : Nat) (start : Nat) (hLen : 0 < len := by decide) :
+def nttLayer (f : Polynomial) (i : Nat) (len : Nat) (start : Nat) (hLen : 0 < len := by simp) :
   Polynomial :=
   if start < 256 then
-    let k := k + 1
-    let f := nttLayerInner f k len start 0
-    nttLayer f k len (start + 2 * len) hLen
+    let f := nttLayerInner f i len start 0
+    nttLayer f (i + 1) len (start + 2 * len) hLen
   else f
 
 def ntt (f : Polynomial) : Polynomial :=
@@ -96,7 +95,7 @@ private theorem fun_eq_arg_eq_imp_eq {α β : Type} (f g : α → β) (x y : α)
   simp +contextual
 
 def nttLayerInner_eq
-  (f : Polynomial) (k : Nat) (len : Nat)
+  (f : Polynomial) (k i : Nat) (len : Nat)
   (start : Nat)
   (hLen : len = 2 ^ (7 - k))
   :
@@ -172,5 +171,66 @@ def nttLayerInner_eq
         have h2 := @Polynomial.get_set_neq (start + j + len) (start + j) (by omega)
         simp only [getElem!, dite_true, getElem, h2]
         ring_nf
+
+private def fold_while {α : Type u} (f : α → Nat → α) (max step : Nat) (hStep : 0 < step) (i : Nat) (init : α) : α :=
+  if i < max then fold_while f max step hStep (i + step) (f init i)
+  else init
+termination_by max - i
+decreasing_by omega
+
+private theorem foldl_range' (f : α → Nat → α) (start len step : Nat) (hStep : 0 < step) (init : α) :
+  List.foldl f init (List.range' start len step) = fold_while f (start + len * step) step hStep start init := by
+  cases len
+  . simp
+    unfold fold_while
+    simp
+  . rename_i len
+    simp [List.range']
+    have := foldl_range' f (start + step) len step hStep (f init start)
+    simp [this]
+    conv => rhs; unfold fold_while
+    have : start < start + (len + 1) * step := by
+      ring_nf
+      omega
+    simp [this]
+    ring_nf
+
+def nttLayer_eq_fst_aux (f : Polynomial) (k : Nat) (len : Nat) (i start : Nat)
+  (hk : k ≤ 7)
+  (hLen : len = 2 ^ (7 - k))
+  (hLenLt : 0 < len) :
+  let p : MProd _ _ := fold_while (fun b a => ⟨Target.nttLayerInner b.1 k b.2 a, b.2 + 1⟩) 256 (2 * len) (by omega) start ⟨f, i⟩
+  nttLayer f i len start hLenLt = p.fst := by
+  simp
+  unfold nttLayer fold_while
+  split
+  . rename_i hLt
+    simp
+    have := nttLayerInner_eq f k i len start (hLen)
+    rw [this]; clear this
+    have := nttLayer_eq_fst_aux (Target.nttLayerInner f k i start) k len (i + 1) (start + 2 * len) hk hLen hLenLt
+    simp at this
+    rw [this]
+  . simp_all
+
+private theorem nttLayer_eq_arith_aux {k : ℕ} (hk : k ≤ 7) :
+  (255 / (2 * 2 ^ (7 - k)) + 1) * (2 * 2 ^ (7 - k)) = 256 := by
+  -- We simply brute force the proof by making a case disjunction on k
+  repeat (cases k <;> simp_all <;> rename_i k <;> try omega)
+
+def nttLayer_eq_fst (f : Polynomial) (k : Nat) (len : Nat)
+  (hk : k ≤ 7)
+  (hLen : len = 2 ^ (7 - k))
+  (hLenLt : 0 < len) -- we need this for `generalize` (because of dependent types)
+  :
+  nttLayer f i len 0 hLenLt = (Target.nttLayer f k i).fst := by
+  unfold Target.nttLayer
+  simp
+  simp [foldl_range', nttLayer_eq_arith_aux, hk]
+  have := nttLayer_eq_fst_aux f k len i 0 hk hLen hLenLt
+  simp only at this
+  simp only [this]
+  simp [Id.run, hLen]
+
 
 end Symcrust.SpecAux
