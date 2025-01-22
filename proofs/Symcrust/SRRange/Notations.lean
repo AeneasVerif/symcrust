@@ -1,26 +1,20 @@
+import Symcrust.RangeNotations
 import Symcrust.SRRange.Basic
 
-namespace Aeneas
+namespace Aeneas.Notations
 
 namespace SRRange
 
-namespace Notations
+open Range -- activates the aeneas_range_tactic notation
 
-  /-- We need to update this macro rule for two reasons:
-      - we need to use a more complex solving procedure.
-        We simply use the simplifier with the `zetaDelta` option to unfold
-        the local definitions.
-      - we use our own definition of `Range`, which uses structural recursion
-        rather than well-founded recursion. The use of well-founded recursion
-        causes issues in the Lean kernel.
-  -/
   scoped macro_rules
-    | `([ $start : $stop : $step ]) =>
-      `({ start := $start, stop := $stop, step := $step,
-          step_pos := by simp +zetaDelta [] : SRRange })
-
-end Notations
+  | `([ $start : $stop ]) =>
+    `({ start := $start, stop := $stop, step := 1,
+        step_pos := by aeneas_range_tactic : SRRange })
+  | `([ $start : $stop : $step ]) =>
+    `({ start := $start, stop := $stop, step := $step,
+        step_pos := by aeneas_range_tactic : SRRange })
 
 end SRRange
 
-end Aeneas
+end Aeneas.Notations

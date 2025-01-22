@@ -121,7 +121,18 @@ def bitRev (n : Nat) (i : Nat) : Nat :=
 
 def ζ : ZMod Q := 17
 
-open Aeneas.SRRange.Notations -- the [0:256:2*len] notations desugars to an `SRRange` instead of a `Std.Range`
+open Aeneas.Notations.SRRange -- allows the `[0:256:2*len]` notations to desugar to an `SRRange` instead of a `Std.Range`
+open Aeneas.Notations.Range -- activates the `aeneas_range_tactic`, so that we can overload it below
+
+namespace Notations
+
+  -- Overload the tactic to discharge the range proof obligations
+  scoped macro_rules
+  | `(tactic| aeneas_range_tactic) => `(tactic| simp +zetaDelta [])
+
+end Notations
+
+open Notations
 
 /-- Algorithm 9 -/
 def ntt (f : Polynomial) : Polynomial := Id.run do

@@ -1,5 +1,4 @@
 import Symcrust.Spec
-import Init.Data.Range
 
 /-!
 An auxiliary specification that we use to prove a refinement result.
@@ -11,10 +10,11 @@ namespace Symcrust.SpecAux
 
 open Symcrust.Spec
 
-open Aeneas.SRRange.Notations
-
 /- Introduce auxiliary definitions to isolate the different loops inside the target specification -/
 namespace Target
+
+  open Aeneas.Notations.SRRange
+  open Symcrust.Spec.Notations
 
   def nttLayerInner (f : Polynomial) (k : Nat) (i : Nat) (start : Nat) : Polynomial := Id.run do
     let mut f := f
@@ -103,7 +103,7 @@ private theorem nttLayerInner_eq
   := by
   -- Unfold the definitions and simplify
   unfold Target.nttLayerInner
-  simp only [Id.pure_eq, Id.bind_eq, Std.Range.forIn_eq_forIn_range', Std.Range.size,
+  simp only [Id.pure_eq, Id.bind_eq, Aeneas.SRRange.forIn_eq_forIn_range', Aeneas.SRRange.size,
     add_tsub_cancel_left, add_tsub_cancel_right, Nat.div_one, List.forIn_yield_eq_foldl]
   -- Generalize the goal for the induction
   simp only [← hLen]
