@@ -141,12 +141,12 @@ def ntt (f : Polynomial) : Polynomial := Id.run do
 /-- Algorithm 10 -/
 def invNtt (f : Polynomial) : Polynomial := Id.run do
   let mut f := f
-  let i := 127 -- FIXME: `simp` takes a very long time because of this
+  let mut i := 127
   for k in [1:8] do
     let len := 2 ^ k
     for start in [0:256:2*len] do
       let zeta := ζ ^(bitRev 7 i)
-      let i := i - 1
+      i := i - 1
       for j in [start:start+len] do
         let t := f[j]!
         f := f.set j (t + f[j + len]!)
