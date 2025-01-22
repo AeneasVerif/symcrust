@@ -81,11 +81,6 @@ def ntt (f : Polynomial) : Polynomial :=
   let f := nttLayer f 64 2 0
   f
 
--- TODO: this lemma should exist somewhere
-theorem fun_eq_arg_eq_imp_eq {α β : Type} (f g : α → β) (x y : α) :
-  f = g → x = y → f x = g y := by
-  simp +contextual
-
 -- TODO: move, also update the neq test
 theorem Polynomial.set_set_neq {i j : Nat} (h : i ≠ j)
   (p : Polynomial) (x y : Zq) :
@@ -94,6 +89,11 @@ theorem Polynomial.set_set_neq {i j : Nat} (h : i ≠ j)
 theorem Polynomial.get_set_neq {i j : Nat} (h : i ≠ j)
   (p : Polynomial) (x : Zq) :
   (p.set i x).get! j = p.get! j := by sorry
+
+-- TODO: this lemma should exist somewhere
+private theorem fun_eq_arg_eq_imp_eq {α β : Type} (f g : α → β) (x y : α) :
+  f = g → x = y → f x = g y := by
+  simp +contextual
 
 def nttLayerInner_eq
   (f : Polynomial) (k : Nat) (len : Nat)

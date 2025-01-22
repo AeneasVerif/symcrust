@@ -7,7 +7,8 @@ namespace SRRange
 /-!
 # Lemmas about `SRRange`
 
-We provide lemmas rewriting for loops over `Std.Range` in terms of `List.range'`.
+We provide lemmas rewriting for loops over `SRRange` in terms of `List.range'`.
+Remark: the lemmas below are adapted from `Std.Range`.
 -/
 
 /-- Generalization of `mem_of_mem_range'` used in `forIn'_loop_eq_forIn'_range'` below. -/
