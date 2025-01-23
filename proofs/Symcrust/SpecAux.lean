@@ -134,7 +134,7 @@ private theorem nttLayerInner_eq
         simp only [↓reduceIte, add_lt_add_iff_left, not_false_eq_true, Aeneas.SRRange.foldWhile_id,
           implies_true, hLe']
       . -- Recursive case
-        simp only [↓reduceIte, add_lt_add_iff_left, Aeneas.SRRange.foldhile_step, Subtype.forall,
+        simp only [↓reduceIte, add_lt_add_iff_left, Aeneas.SRRange.foldWhile_step, Subtype.forall,
           hLe']
         replace hInd := hInd len (j + 1) (by omega) (j' + 1) (by omega) (by omega)
         simp only [hInd]
@@ -179,16 +179,12 @@ private theorem nttLayer_eq_fst (f : Polynomial) (i len : Nat)
   (hLen : 0 < len) (hkLen : ∃ k, k ≤ 7 ∧ len = 2 ^ k) :
   nttLayer f i len 0 hLen = (Target.nttLayer f i len).fst := by
   unfold Target.nttLayer
-  simp only [Id.pure_eq, Id.bind_eq, Aeneas.SRRange.forIn_eq_forIn_range', Aeneas.SRRange.size,
-    tsub_zero, Nat.succ_add_sub_one, List.forIn_yield_eq_foldl]
-  simp only [Nat.ofNat_pos, mul_pos_iff_of_pos_left, hLen, Nat.add_div_right, foldl_range',
-    zero_add]
-  have : (255 / (2 * len) + 1) * (2 * len) = 256 := nttLayer_eq_fst_arith len hkLen
+  simp? [Id.run, hLen, -foldWhile_step]
+  have := nttLayer_eq_fst_arith len hkLen
   simp only [this]
   have := nttLayer_eq_fst_aux f i len 0 hLen
   simp only at this
   simp only [this]
-  simp [Id.run]
 
 private theorem  nttLayer_eq_snd_aux
   (x : α) (f : α → Nat → Nat → α)

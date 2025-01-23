@@ -76,6 +76,7 @@ private theorem forIn'_loop_eq_forIn'_range' [Monad m] (r : SRRange)
         rw [Nat.div_eq_iff] <;> omega
       simp [this]
 
+@[simp]
 theorem forIn'_eq_forIn'_range' [Monad m] (r : SRRange)
     (init : β) (f : (a : Nat) → a ∈ r → β → m (ForInStep β)) :
     forIn' r init f =
@@ -85,13 +86,14 @@ theorem forIn'_eq_forIn'_range' [Monad m] (r : SRRange)
   rw [forIn'_loop_eq_forIn'_range']
   simp [SRRange.sizeBound]
 
+@[simp]
 theorem forIn_eq_forIn_range' [Monad m] (r : SRRange)
     (init : β) (f : Nat → β → m (ForInStep β)) :
     forIn r init f = forIn (List.range' r.start r.size r.step) init f := by
   simp only [forIn, forIn'_eq_forIn'_range']
 
 @[simp]
-def foldhile_step {α : Type u} (max step : Nat) (hStep : 0 < step) (f : α → Nat → α) (i : Nat) (init : α)
+def foldWhile_step {α : Type u} (max step : Nat) (hStep : 0 < step) (f : α → Nat → α) (i : Nat) (init : α)
   (h : i < max) : foldWhile max step hStep f i init = foldWhile max step hStep f (i + step) (f init i) := by
   conv => lhs; unfold foldWhile
   simp [*]
