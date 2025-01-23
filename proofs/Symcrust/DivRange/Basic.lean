@@ -1,5 +1,6 @@
 import Mathlib.Data.Nat.Defs
 import Mathlib.Algebra.Group.Basic
+import Aeneas
 
 namespace Aeneas
 
@@ -74,5 +75,29 @@ def divRange (start stop div : Nat) : List Nat :=
         i :: loop fuel (i / div)
       else []
   loop (start + 1) start
+
+/-- A convenient utility for the proofs -/
+def foldWhile' {α : Type u} (r : DivRange) (f : α → (a : Nat) → (a ∈ r) → α) (i : Nat) (init : α)
+  (hi : i ≤ r.start ∧ ∃ k, i = r.start / r.divisor ^ k) : α :=
+  if h: r.stop < i then
+    foldWhile' r f (i / r.divisor)
+      (f init i (by simp [Membership.mem]; split_conjs <;> simp [*]))
+      (by split_conjs
+          . have := Nat.div_le_self i r.divisor; omega
+          . have ⟨ k, hk ⟩ := hi.right
+            exists k + 1
+            simp [hk, Nat.div_div_eq_div_mul, ← Nat.pow_add_one])
+  else init
+termination_by i
+decreasing_by apply Nat.div_lt_self; omega; apply r.divisor_pos
+
+/-- A convenient utility for the proofs -/
+def foldWhile {α : Type u} (stop divisor : Nat) (hDiv : 1 < divisor)
+  (f : α → (a : Nat) → α) (i : Nat) (init : α) : α :=
+if stop < i then
+    foldWhile stop divisor hDiv f (i / divisor) (f init i)
+  else init
+termination_by i
+decreasing_by apply Nat.div_lt_self; omega; apply hDiv
 
 end Aeneas

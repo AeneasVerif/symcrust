@@ -153,6 +153,83 @@ private theorem forIn'_loop_eq_forIn'_divRange [Monad m] (r : DivRange)
     have := @Nat.pow_le_pow_of_le_right r.divisor (by omega) _ _  h3
     omega
 
+@[simp]
+def foldWhile'_step {α : Type u} (r : DivRange) (f : α → (a : Nat) → a ∈ r → α) (i : Nat) (init : α)
+  (hi : i ≤ r.start ∧ ∃ k, i = r.start / r.divisor ^ k)
+  (h : r.stop < i) :
+  foldWhile' r f i init hi =
+  foldWhile' r f (i / r.divisor)
+    (f init i (by simp [Membership.mem]; split_conjs <;> simp [*]))
+      (by split_conjs
+          . have := Nat.div_le_self i r.divisor; omega
+          . have ⟨ k, hk ⟩ := hi.right
+            exists k + 1
+            simp [hk, Nat.div_div_eq_div_mul, ← Nat.pow_add_one])
+  := by
+  conv => lhs; unfold foldWhile'
+  simp [*]
+
+@[simp]
+def foldWhile'_id {α : Type u} (r : DivRange) (f : α → (a : Nat) → a ∈ r → α) (i : Nat) (init : α)
+  (hi : i ≤ r.start ∧ ∃ k, i = r.start / r.divisor ^ k)
+  (h : ¬ r.stop < i) :
+  foldWhile' r f i init hi = init
+  := by
+  conv => lhs; unfold foldWhile'
+  simp [*]
+
+@[simp]
+def foldWhile_step {α : Type u} (stop divisor : Nat) (hDiv : 1 < divisor)
+  (f : α → Nat → α) (i : Nat) (init : α) (h : stop < i) :
+  foldWhile stop divisor hDiv f i init = foldWhile stop divisor hDiv f (i / divisor) (f init i) := by
+  conv => lhs; unfold foldWhile
+  simp [*]
+
+@[simp]
+def foldWhile_id {α : Type u} (stop divisor : Nat) (hDiv : 1 < divisor)
+  (f : α → Nat → α) (i : Nat) (init : α) (h : ¬ stop < i) :
+  foldWhile stop divisor hDiv f i init = init := by
+  conv => lhs; unfold foldWhile
+  simp [*]
+
+private theorem divRange.loop_le_maxSteps_eq (stop div maxSteps start : Nat) (hDiv : 1 < div) (hMaxSteps : start + 1 ≤ maxSteps) :
+  divRange.loop stop div maxSteps start = divRange.loop stop div (start + 1) start := by
+  dcases maxSteps
+  . omega
+  . rename_i maxSteps
+    unfold divRange.loop
+    dcases h: stop < start
+    . simp [h]
+      have : start / div < start := by apply Nat.div_lt_self <;> omega
+      have h1 : start / div + 1 ≤ maxSteps := by omega
+      have := divRange.loop_le_maxSteps_eq stop div maxSteps (start / div) hDiv h1
+      rw [this]
+      have h2 : start / div + 1 ≤ start := by omega
+      have := divRange.loop_le_maxSteps_eq stop div start (start / div) hDiv h2
+      rw [this]
+    .simp [h]
+
+private theorem foldl_divRange_loop_foldWhile (start stop div maxSteps : Nat) (hMaxSteps : start + 1 ≤ maxSteps)
+  (hDiv : 1 < div) (f : α → Nat → α) (init : α) :
+  List.foldl f init (divRange.loop stop div maxSteps start) = foldWhile stop div hDiv f start init := by
+  dcases maxSteps
+  . omega
+  . rename_i maxSteps
+    unfold divRange.loop foldWhile
+    dcases h: stop < start
+    . simp [h]
+      rw [foldl_divRange_loop_foldWhile]
+      have : start / div < start := by apply Nat.div_lt_self <;> omega
+      omega
+    . simp [h]
+
+@[simp]
+theorem foldl_divRange_foldWhile (start stop div : Nat) (hDiv : 1 < div) (f : α → Nat → α) (init : α) :
+  List.foldl f init (divRange start stop div) = foldWhile stop div hDiv f start init := by
+  unfold divRange
+  rw [foldl_divRange_loop_foldWhile]
+  simp
+
 end DivRange
 
 end Aeneas

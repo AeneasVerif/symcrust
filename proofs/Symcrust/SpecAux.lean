@@ -46,7 +46,7 @@ namespace Target
     rw [ntt, Spec.ntt]
     unfold nttLayer
     unfold nttLayerInner
-    simp [Id.run]
+    simp only [Id.run]
     rfl
 
 end Target
@@ -179,7 +179,9 @@ private theorem nttLayer_eq_fst (f : Polynomial) (i len : Nat)
   (hLen : 0 < len) (hkLen : ∃ k, k ≤ 7 ∧ len = 2 ^ k) :
   nttLayer f i len 0 hLen = (Target.nttLayer f i len).fst := by
   unfold Target.nttLayer
-  simp? [Id.run, hLen, -foldWhile_step]
+  simp only [Id.run, Id.pure_eq, Id.bind_eq, forIn_eq_forIn_range', size, tsub_zero,
+    Nat.succ_add_sub_one, Nat.ofNat_pos, mul_pos_iff_of_pos_left, hLen, Nat.add_div_right,
+    List.forIn_yield_eq_foldl, foldl_range', zero_add]
   have := nttLayer_eq_fst_arith len hkLen
   simp only [this]
   have := nttLayer_eq_fst_aux f i len 0 hLen
