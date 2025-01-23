@@ -108,7 +108,6 @@ private theorem nttLayerInner_eq
   clear this
   -- We do the induction on len - j
   generalize hSteps : len - j = steps
-  have ⟨ j', hj' ⟩ : {n:Nat // n = start + j} := ⟨ start, by omega ⟩ -- TODO: remove j'
   clear hj
   -- We need this fact (we get it by doing a case disjunction - the case where
   -- it is false is trivial)
@@ -120,8 +119,8 @@ private theorem nttLayerInner_eq
     simp [h, nttLayerInner, ↓reduceIte, *]
   . -- Interesting case: j ≤ len
     revert f
-    revert len j j'
-    induction steps <;> intro len j hSteps j' hj' hLe f <;> unfold nttLayerInner
+    revert len j
+    induction steps <;> intro len j hSteps hLe f <;> unfold nttLayerInner
     . -- zero
       have : len = j := by omega
       simp_all only [tsub_self, le_refl, lt_self_iff_false, ite_false]
@@ -135,7 +134,7 @@ private theorem nttLayerInner_eq
       . -- Recursive case
         simp only [↓reduceIte, add_lt_add_iff_left, Aeneas.SRRange.foldWhile_step, Subtype.forall,
           hLe']
-        replace hInd := hInd len (j + 1) (by omega) (j' + 1) (by omega) (by omega)
+        replace hInd := hInd len (j + 1) (by omega) (by omega)
         simp only [hInd]
         -- Several `Polynomial.set` operations are inverted in the continutations
         -- We first zoom into the interesting terms
