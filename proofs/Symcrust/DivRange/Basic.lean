@@ -52,9 +52,7 @@ universe u v
       else
         pure b
   have := range.divisor_pos
-  if h: range.stop ≥ range.start then pure init
-  else
-    loop (range.start + 1) init range.start (by exists 0; simp) (by omega)
+  loop (range.start + 1) init range.start (by exists 0; simp) (by omega)
 
 instance : ForIn' m DivRange Nat inferInstance where
   forIn' := DivRange.forIn'

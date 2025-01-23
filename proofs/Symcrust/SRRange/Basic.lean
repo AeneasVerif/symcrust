@@ -2,7 +2,6 @@ import Mathlib.Data.Nat.Defs
 
 namespace Aeneas
 
--- TODO: PR for Lean.Std
 /-- A "structural recursion" range type, that we use to implement for
     loops with structural induction.
 
@@ -10,8 +9,9 @@ namespace Aeneas
     of the loop inside the `forIn'` function, for which we introduce a fuel parameter.
 
     We do this because of issues with the kernel reducing definitions eagerly, leading
-    to explosions in the presence of well-founded recursion. This this:
+    to explosions in the presence of well-founded recursion. See this:
     https://leanprover.zulipchat.com/#narrow/channel/270676-lean4/topic/simp.20taking.20a.20long.20time.20on.20a.20small.20definition/near/495050322
+    Also, we don't need to extract this code, meaning we are not concerned with its efficiency.
   -/
 structure SRRange where
   start : Nat := 0

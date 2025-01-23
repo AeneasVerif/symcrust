@@ -127,18 +127,15 @@ private theorem forIn'_loop_eq_forIn'_divRange [Monad m] (r : DivRange)
     (init : β) (f : Nat → β → m (ForInStep β)) :
     forIn r init f = forIn (divRange r.start r.stop r.divisor ) init f := by
   simp only [forIn, forIn', divRange, DivRange.forIn']
-  split
-  . have : ¬ r.stop < r.start := by omega
-    simp [divRange.loop, *]
-  . rw [forIn'_loop_eq_forIn'_divRange]
-    . simp
-    . have := r.divisor_pos
-      have h0 := Nat.log_le_self r.divisor r.start
-      have h1 : r.start < r.divisor ^ (Nat.log r.divisor r.start + 1) :=
-        Nat.lt_pow_succ_log_self r.divisor_pos r.start
-      have h3 : Nat.log r.divisor r.start + 1 ≤ r.start + 1 := by omega
-      have := @Nat.pow_le_pow_of_le_right r.divisor (by omega) _ _  h3
-      omega
+  rw [forIn'_loop_eq_forIn'_divRange]
+  . simp
+  . have := r.divisor_pos
+    have h0 := Nat.log_le_self r.divisor r.start
+    have h1 : r.start < r.divisor ^ (Nat.log r.divisor r.start + 1) :=
+      Nat.lt_pow_succ_log_self r.divisor_pos r.start
+    have h3 : Nat.log r.divisor r.start + 1 ≤ r.start + 1 := by omega
+    have := @Nat.pow_le_pow_of_le_right r.divisor (by omega) _ _  h3
+    omega
 
 @[simp] theorem forIn'_eq_forIn_divRange [Monad m] (r : DivRange)
     (init : β) (f : (a:Nat) → (a ∈ r) → β → m (ForInStep β)) :
@@ -146,18 +143,15 @@ private theorem forIn'_loop_eq_forIn'_divRange [Monad m] (r : DivRange)
       forIn' (divRange r.start r.stop r.divisor ) init
         (fun a h => f a (mem_of_mem_divRange r a h)) := by
   simp only [forIn, forIn', divRange, DivRange.forIn']
-  split
-  . have : ¬ r.stop < r.start := by omega
-    simp [divRange.loop, *]
-  . rw [forIn'_loop_eq_forIn'_divRange]
-    . simp
-    . have := r.divisor_pos
-      have h0 := Nat.log_le_self r.divisor r.start
-      have h1 : r.start < r.divisor ^ (Nat.log r.divisor r.start + 1) :=
-        Nat.lt_pow_succ_log_self r.divisor_pos r.start
-      have h3 : Nat.log r.divisor r.start + 1 ≤ r.start + 1 := by omega
-      have := @Nat.pow_le_pow_of_le_right r.divisor (by omega) _ _  h3
-      omega
+  rw [forIn'_loop_eq_forIn'_divRange]
+  . simp
+  . have := r.divisor_pos
+    have h0 := Nat.log_le_self r.divisor r.start
+    have h1 : r.start < r.divisor ^ (Nat.log r.divisor r.start + 1) :=
+      Nat.lt_pow_succ_log_self r.divisor_pos r.start
+    have h3 : Nat.log r.divisor r.start + 1 ≤ r.start + 1 := by omega
+    have := @Nat.pow_le_pow_of_le_right r.divisor (by omega) _ _  h3
+    omega
 
 end DivRange
 
