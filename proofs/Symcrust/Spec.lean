@@ -5,6 +5,7 @@ import Mathlib.Data.ZMod.Defs
 import Mathlib.Data.Nat.Bits
 
 import Symcrust.SRRange
+import Symcrust.DivRange
 
 /-!
 The spec of ML-KEM, based on: https://csrc.nist.gov/pubs/fips/203/final
@@ -122,6 +123,7 @@ def bitRev (n : Nat) (i : Nat) : Nat :=
 def ζ : ZMod Q := 17
 
 open Aeneas.Notations.SRRange -- allows the `[0:256:2*len]` notations to desugar to an `SRRange` instead of a `Std.Range`
+open Aeneas.Notations.DivRange -- activates the `[start : >stop : /divisor]` notation
 open Aeneas.Notations.Range -- activates the `aeneas_range_tactic`, so that we can overload it below
 
 namespace Notations
@@ -129,6 +131,9 @@ namespace Notations
   -- Overload the tactic to discharge the range proof obligations
   scoped macro_rules
   | `(tactic| aeneas_range_tactic) => `(tactic| simp +zetaDelta [])
+
+  scoped macro_rules
+  | `(tactic| aeneas_range_tactic) => `(tactic| simp [Membership.mem] at *; omega)
 
 end Notations
 
@@ -138,8 +143,7 @@ open Notations
 def ntt (f : Polynomial) : Polynomial := Id.run do
   let mut f := f
   let mut i := 1
-  for k in [0:7] do
-    let len := 2 ^ (7 - k)
+  for h: len in [128 : >1 : /2] do
     for start in [0:256:2*len] do
       let zeta := ζ ^ (bitRev 7 i)
       i := i + 1
