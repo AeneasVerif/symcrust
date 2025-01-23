@@ -100,18 +100,17 @@ private theorem nttLayerInner_eq
   := by
   -- Unfold the definitions and simplify
   unfold Target.nttLayerInner
-  simp only [Id.pure_eq, Id.bind_eq, Aeneas.SRRange.forIn_eq_forIn_range', Aeneas.SRRange.size,
-    add_tsub_cancel_left, add_tsub_cancel_right, Nat.div_one, List.forIn_yield_eq_foldl]
   generalize hj : 0 = j
+  simp only [Id.run, Id.pure_eq, Id.bind_eq, Aeneas.SRRange.forIn_eq_forIn_range',
+    Aeneas.SRRange.size, add_tsub_cancel_left, add_tsub_cancel_right, Nat.div_one,
+    List.forIn_yield_eq_foldl, zero_lt_one, Aeneas.SRRange.foldl_range', mul_one]
+  have : start = start + j := by simp only [self_eq_add_right, hj]
+  conv => rhs; arg 5; rw [this]
+  clear this
   -- We do the induction on len - j
   generalize hSteps : len - j = steps
   have ⟨ j', hj' ⟩ : {n:Nat // n = start + j} := ⟨ start, by omega ⟩
-  have hRange : List.range' start len 1 = List.range' j' (len + start- j') 1 := by
-    have h0 : start = j' := by omega
-    have h1 : len + start - j' = len := by omega
-    simp [h0, h1]
   clear hj
-  simp only [hRange]; clear hRange
   -- We need this fact (we get it by doing a case disjunction - the case where
   -- it is false is trivial)
   dcases hLe : ¬ j ≤ len
@@ -119,45 +118,30 @@ private theorem nttLayerInner_eq
     simp_all only [not_le]
     -- Simplify the lhs
     have h : ¬ j < len := by omega
-    simp only [h, nttLayerInner, ↓reduceIte]
-    -- Simplify the rhs
-    have hRange : List.range' (start + j) (len + start - (start + j)) 1 = [] := by
-      simp only [List.range'_eq_nil]; omega
-    simp [Id.run, hRange]
+    simp [h, nttLayerInner, ↓reduceIte, *]
   . -- Interesting case: j ≤ len
     revert f
     revert len j j'
     induction steps <;> intro len j hSteps j' hj' hLe f <;> unfold nttLayerInner
     . -- zero
       have : len = j := by omega
-      simp_all only [tsub_self, le_refl, lt_self_iff_false, ite_false, Id.run]
-      have hRange : List.range' (start + j) (j + start - (start + j)) = [] := by
-        simp; omega
-      simp [hRange]
+      simp_all only [tsub_self, le_refl, lt_self_iff_false, ite_false]
+      simp only [lt_self_iff_false, not_false_eq_true, Aeneas.SRRange.foldWhile_id, implies_true]
     . -- succ
       rename_i steps hInd
       dcases hLe' : ¬ j < len
       . -- Simple case
-        simp only [hLe', ↓reduceIte]
-        have hRange : List.range' j' (len + start - j') = [] := by
-          simp only [List.range'_eq_nil]; omega
-        simp [hRange, Id.run]
+        simp only [↓reduceIte, add_lt_add_iff_left, not_false_eq_true, Aeneas.SRRange.foldWhile_id,
+          implies_true, hLe']
       . -- Recursive case
-        simp only [hLe', ↓reduceIte]
+        simp only [↓reduceIte, add_lt_add_iff_left, Aeneas.SRRange.foldhile_step, Subtype.forall,
+          hLe']
         replace hInd := hInd len (j + 1) (by omega) (j' + 1) (by omega) (by omega)
-        simp only [hInd, Id.run]
-        -- Perform one step of computation on the right:
-        have : len + start - j' > 0 := by omega
-        have hRange: List.range' j' (len + start - j') =
-                     j' :: List.range' (j' + 1) (len + start - (j' + 1)) := by
-          simp only [List.range'_eq_cons_iff, tsub_pos_iff_lt, List.range'_inj, or_true, and_true,
-            true_and]
-          omega
-        simp only [hRange, List.foldl_cons]
+        simp only [hInd]
         -- Several `Polynomial.set` operations are inverted in the continutations
+        -- We first zoom into the interesting terms
         apply fun_eq_arg_eq_imp_eq <;> try rfl
-        apply fun_eq_arg_eq_imp_eq <;> try rfl
-        simp only [hj']
+        clear hInd
         -- Working on the interesting part: we need to swap the two updates
         have h1 := @Polynomial.set_set_neq (start + j) (start + j + len) (by omega)
         simp only [h1]
