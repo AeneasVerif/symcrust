@@ -1,4 +1,5 @@
 import Symcrust.SRRange.Basic
+import Mathlib.Tactic.Ring.RingNF
 
 namespace Aeneas
 
@@ -75,7 +76,7 @@ private theorem forIn'_loop_eq_forIn'_range' [Monad m] (r : SRRange)
         rw [Nat.div_eq_iff] <;> omega
       simp [this]
 
-@[simp] theorem forIn'_eq_forIn'_range' [Monad m] (r : SRRange)
+theorem forIn'_eq_forIn'_range' [Monad m] (r : SRRange)
     (init : β) (f : (a : Nat) → a ∈ r → β → m (ForInStep β)) :
     forIn' r init f =
       forIn' (List.range' r.start r.size r.step) init (fun a h => f a (mem_of_mem_range' h)) := by
@@ -84,10 +85,38 @@ private theorem forIn'_loop_eq_forIn'_range' [Monad m] (r : SRRange)
   rw [forIn'_loop_eq_forIn'_range']
   simp [SRRange.sizeBound]
 
-@[simp] theorem forIn_eq_forIn_range' [Monad m] (r : SRRange)
+theorem forIn_eq_forIn_range' [Monad m] (r : SRRange)
     (init : β) (f : Nat → β → m (ForInStep β)) :
     forIn r init f = forIn (List.range' r.start r.size r.step) init f := by
   simp only [forIn, forIn'_eq_forIn'_range']
+
+@[simp]
+def foldhile_step {α : Type u} (max step : Nat) (hStep : 0 < step) (f : α → Nat → α) (i : Nat) (init : α)
+  (h : i < max) : foldWhile max step hStep f i init = foldWhile max step hStep f (i + step) (f init i) := by
+  conv => lhs; unfold foldWhile
+  simp [*]
+
+@[simp]
+def foldWhile_id {α : Type u} (max step : Nat) (hStep : 0 < step) (f : α → Nat → α) (i : Nat) (init : α)
+  (h : ¬ i < max) : foldWhile max step hStep f i init = init := by
+  conv => lhs; unfold foldWhile
+  simp [*]
+
+@[simp]
+theorem foldl_range' (start len step : Nat) (hStep : 0 < step) (f : α → Nat → α) (init : α) :
+  List.foldl f init (List.range' start len step) = foldWhile (start + len * step) step hStep f start init := by
+  cases len
+  . simp only [List.range'_zero, List.foldl_nil, Nat.zero_mul, Nat.add_zero]
+    unfold foldWhile
+    simp
+  . rename_i len
+    simp only [List.range', List.foldl_cons]
+    have := foldl_range' (start + step) len step hStep f (f init start)
+    simp only [this]
+    conv => rhs; unfold foldWhile
+    have : start < start + (len + 1) * step := by simp [*]
+    simp only [this, ↓reduceIte]
+    ring_nf
 
 end SRRange
 

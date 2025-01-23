@@ -166,34 +166,13 @@ private theorem nttLayerInner_eq
         simp only [getElem!, dite_true, getElem, h2]
         ring_nf
 
-private def fold_while {α : Type u} (f : α → Nat → α) (max step : Nat) (hStep : 0 < step) (i : Nat) (init : α) : α :=
-  if i < max then fold_while f max step hStep (i + step) (f init i)
-  else init
-termination_by max - i
-decreasing_by omega
-
-private theorem foldl_range' (f : α → Nat → α) (start len step : Nat) (hStep : 0 < step) (init : α) :
-  List.foldl f init (List.range' start len step) = fold_while f (start + len * step) step hStep start init := by
-  cases len
-  . simp only [List.range'_zero, List.foldl_nil, zero_mul, add_zero]
-    unfold fold_while
-    simp
-  . rename_i len
-    simp only [List.range', List.foldl_cons]
-    have := foldl_range' f (start + step) len step hStep (f init start)
-    simp only [this]
-    conv => rhs; unfold fold_while
-    have : start < start + (len + 1) * step := by
-      ring_nf
-      omega
-    simp only [this, ↓reduceIte]
-    ring_nf
+open Aeneas.SRRange
 
 private theorem nttLayer_eq_fst_aux (f : Polynomial) (i len start : Nat) (hLenLt : 0 < len) :
-  let p : MProd _ _ := fold_while (fun b a => ⟨Target.nttLayerInner b.1 b.2 len a, b.2 + 1⟩) 256 (2 * len) (by omega) start ⟨f, i⟩
+  let p : MProd _ _ := foldWhile 256 (2 * len) (by omega) (fun b a => ⟨Target.nttLayerInner b.1 b.2 len a, b.2 + 1⟩) start ⟨f, i⟩
   nttLayer f i len start hLenLt = p.fst := by
   simp only
-  unfold nttLayer fold_while
+  unfold nttLayer foldWhile
   split
   . rename_i hLt
     simp only

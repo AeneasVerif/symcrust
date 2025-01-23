@@ -1,4 +1,5 @@
 import Mathlib.Data.Nat.Defs
+import Aeneas
 
 namespace Aeneas
 
@@ -54,6 +55,27 @@ instance : ForIn' m SRRange Nat inferInstance where
   forIn' := SRRange.forIn'
 
 -- No separate `ForIn` instance is required because it can be derived from `ForIn'`.
+
+/-- A convenient utility for the proofs, which uses well-founded recursion -/
+def foldWhile' {α : Type u} (r : SRRange) (f : α → (a : Nat) → (a ∈ r) → α) (i : Nat) (init : α) (hi : r.start ≤ i ∧ (i - r.start) % r.step = 0) : α :=
+  if h: i < r.stop then
+    foldWhile' r f (i + r.step)
+      (f init i (by simp [Membership.mem]; split_conjs <;> simp [*]))
+      (by split_conjs
+          . omega
+          . have := @Nat.add_mod_left r.step (i - r.start)
+            have : r.step + (i - r.start) = i + r.step - r.start := by omega
+            simp_all only)
+  else init
+termination_by r.stop - i
+decreasing_by have:= r.step_pos; omega
+
+/-- A convenient utility for the proofs, which uses well-founded recursion -/
+def foldWhile {α : Type u} (max step : Nat) (hStep : 0 < step) (f : α → Nat → α) (i : Nat) (init : α) : α :=
+  if i < max then foldWhile max step hStep f (i + step) (f init i)
+  else init
+termination_by max - i
+decreasing_by omega
 
 end SRRange
 
