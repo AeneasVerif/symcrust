@@ -1,5 +1,6 @@
 import Symcrust.SRRange.Basic
 import Mathlib.Tactic.Ring.RingNF
+import Aeneas
 
 namespace Aeneas
 
@@ -91,6 +92,31 @@ theorem forIn_eq_forIn_range' [Monad m] (r : SRRange)
     (init : β) (f : Nat → β → m (ForInStep β)) :
     forIn r init f = forIn (List.range' r.start r.size r.step) init f := by
   simp only [forIn, forIn'_eq_forIn'_range']
+
+@[simp]
+def foldWhile'_step {α : Type u} (r : SRRange) (f : α → (a : Nat) → a ∈ r → α) (i : Nat) (init : α)
+  (hi : r.start ≤ i ∧ (i - r.start) % r.step = 0)
+  (h : i < r.stop) :
+  foldWhile' r f i init hi =
+  foldWhile' r f (i + r.step)
+    (f init i (by simp [Membership.mem]; split_conjs <;> tauto))
+    (by split_conjs
+        . omega
+        . have := @Nat.add_mod_left r.step (i - r.start)
+          have : r.step + (i - r.start) = i + r.step - r.start := by omega
+          simp_all only)
+  := by
+  conv => lhs; unfold foldWhile'
+  simp [*]
+
+@[simp]
+def foldWhile'_id {α : Type u} (r : SRRange) (f : α → (a : Nat) → a ∈ r → α) (i : Nat) (init : α)
+  (hi : r.start ≤ i ∧ (i - r.start) % r.step = 0)
+  (h : ¬ i < r.stop) :
+  foldWhile' r f i init hi = init
+  := by
+  conv => lhs; unfold foldWhile'
+  simp [*]
 
 @[simp]
 def foldWhile_step {α : Type u} (max step : Nat) (hStep : 0 < step) (f : α → Nat → α) (i : Nat) (init : α)

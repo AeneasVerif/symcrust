@@ -57,7 +57,8 @@ instance : ForIn' m SRRange Nat inferInstance where
 -- No separate `ForIn` instance is required because it can be derived from `ForIn'`.
 
 /-- A convenient utility for the proofs, which uses well-founded recursion -/
-def foldWhile' {α : Type u} (r : SRRange) (f : α → (a : Nat) → (a ∈ r) → α) (i : Nat) (init : α) (hi : r.start ≤ i ∧ (i - r.start) % r.step = 0) : α :=
+def foldWhile' {α : Type u} (r : SRRange) (f : α → (a : Nat) → (a ∈ r) → α) (i : Nat) (init : α)
+  (hi : r.start ≤ i ∧ (i - r.start) % r.step = 0) : α :=
   if h: i < r.stop then
     foldWhile' r f (i + r.step)
       (f init i (by simp [Membership.mem]; split_conjs <;> simp [*]))
