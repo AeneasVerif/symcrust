@@ -52,7 +52,6 @@ universe u v
               omega)
       else
         pure b
-  have := range.divisor_pos
   loop (range.start + 1) init range.start (by exists 0; simp) (by omega)
 
 instance : ForIn' m DivRange Nat inferInstance where
@@ -66,6 +65,7 @@ end DivRange
 We now introduce a convenient `DivRange` definition
 -/
 
+-- TODO: don't use a fuel
 def divRange (start stop div : Nat) : List Nat :=
   let rec loop (fuel i : Nat) :=
     match fuel with
@@ -75,6 +75,8 @@ def divRange (start stop div : Nat) : List Nat :=
         i :: loop fuel (i / div)
       else []
   loop (start + 1) start
+
+namespace DivRange
 
 /-- A convenient utility for the proofs -/
 def foldWhile' {α : Type u} (r : DivRange) (f : α → (a : Nat) → (a ∈ r) → α) (i : Nat) (init : α)
@@ -99,5 +101,7 @@ if stop < i then
   else init
 termination_by i
 decreasing_by apply Nat.div_lt_self; omega; apply hDiv
+
+end DivRange
 
 end Aeneas

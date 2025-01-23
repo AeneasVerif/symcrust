@@ -4,8 +4,17 @@ import Aeneas
 
 namespace Aeneas
 
-namespace DivRange
+-- Auxiliary lemma - TODO: move?
+theorem pow_ineq (start divisor : Nat) (hDiv : 1 < divisor) :
+  start ≤ divisor ^ (start + 1) := by
+  have h0 := Nat.log_le_self divisor start
+  have h1 : start < divisor ^ (Nat.log divisor start + 1) :=
+    Nat.lt_pow_succ_log_self hDiv start
+  have h3 : Nat.log divisor start + 1 ≤ start + 1 := by omega
+  have := @Nat.pow_le_pow_of_le_right divisor (by omega) _ _  h3
+  omega
 
+namespace DivRange
 
 /-!
 # Lemmas about `DivRange`
@@ -123,19 +132,18 @@ private theorem forIn'_loop_eq_forIn'_divRange [Monad m] (r : DivRange)
       have hEq := forIn'_loop_eq_forIn'_divRange r fuel x f (i / r.divisor) hiDiv hiLe hiDivLe
       simp [hEq]
 
+-- Auxiliary lemma
+private theorem pow_ineq (r: DivRange) :
+  r.start ≤ r.divisor ^ (r.start + 1) := by
+  cases r; apply Aeneas.pow_ineq; simp; assumption
+
 @[simp] theorem forIn_eq_forIn_divRange [Monad m] (r : DivRange)
     (init : β) (f : Nat → β → m (ForInStep β)) :
     forIn r init f = forIn (divRange r.start r.stop r.divisor ) init f := by
   simp only [forIn, forIn', divRange, DivRange.forIn']
   rw [forIn'_loop_eq_forIn'_divRange]
   . simp
-  . have := r.divisor_pos
-    have h0 := Nat.log_le_self r.divisor r.start
-    have h1 : r.start < r.divisor ^ (Nat.log r.divisor r.start + 1) :=
-      Nat.lt_pow_succ_log_self r.divisor_pos r.start
-    have h3 : Nat.log r.divisor r.start + 1 ≤ r.start + 1 := by omega
-    have := @Nat.pow_le_pow_of_le_right r.divisor (by omega) _ _  h3
-    omega
+  . apply pow_ineq
 
 @[simp] theorem forIn'_eq_forIn_divRange [Monad m] (r : DivRange)
     (init : β) (f : (a:Nat) → (a ∈ r) → β → m (ForInStep β)) :
@@ -145,13 +153,7 @@ private theorem forIn'_loop_eq_forIn'_divRange [Monad m] (r : DivRange)
   simp only [forIn, forIn', divRange, DivRange.forIn']
   rw [forIn'_loop_eq_forIn'_divRange]
   . simp
-  . have := r.divisor_pos
-    have h0 := Nat.log_le_self r.divisor r.start
-    have h1 : r.start < r.divisor ^ (Nat.log r.divisor r.start + 1) :=
-      Nat.lt_pow_succ_log_self r.divisor_pos r.start
-    have h3 : Nat.log r.divisor r.start + 1 ≤ r.start + 1 := by omega
-    have := @Nat.pow_le_pow_of_le_right r.divisor (by omega) _ _  h3
-    omega
+  . apply pow_ineq
 
 @[simp]
 def foldWhile'_step {α : Type u} (r : DivRange) (f : α → (a : Nat) → a ∈ r → α) (i : Nat) (init : α)
@@ -159,7 +161,7 @@ def foldWhile'_step {α : Type u} (r : DivRange) (f : α → (a : Nat) → a ∈
   (h : r.stop < i) :
   foldWhile' r f i init hi =
   foldWhile' r f (i / r.divisor)
-    (f init i (by simp [Membership.mem]; split_conjs <;> simp [*]))
+    (f init i (by simp only [Membership.mem]; split_conjs <;> simp [*]))
       (by split_conjs
           . have := Nat.div_le_self i r.divisor; omega
           . have ⟨ k, hk ⟩ := hi.right
@@ -199,7 +201,7 @@ private theorem divRange.loop_le_maxSteps_eq (stop div maxSteps start : Nat) (hD
   . rename_i maxSteps
     unfold divRange.loop
     dcases h: stop < start
-    . simp [h]
+    . simp only [gt_iff_lt, h, ↓reduceIte, List.cons.injEq, true_and]
       have : start / div < start := by apply Nat.div_lt_self <;> omega
       have h1 : start / div + 1 ≤ maxSteps := by omega
       have := divRange.loop_le_maxSteps_eq stop div maxSteps (start / div) hDiv h1
@@ -217,7 +219,7 @@ private theorem foldl_divRange_loop_foldWhile (start stop div maxSteps : Nat) (h
   . rename_i maxSteps
     unfold divRange.loop foldWhile
     dcases h: stop < start
-    . simp [h]
+    . simp only [gt_iff_lt, h, ↓reduceIte, List.foldl_cons]
       rw [foldl_divRange_loop_foldWhile]
       have : start / div < start := by apply Nat.div_lt_self <;> omega
       omega

@@ -94,13 +94,12 @@ private theorem fun_eq_arg_eq_imp_eq {α β : Type} (f g : α → β) (x y : α)
   simp +contextual
 
 private theorem nttLayerInner_eq
-  (f : Polynomial) (i len start : Nat)
-  :
+  (f : Polynomial) (i len start : Nat) :
   nttLayerInner f i len start 0 = Target.nttLayerInner f i len start
   := by
   -- Unfold the definitions and simplify
-  unfold Target.nttLayerInner
   generalize hj : 0 = j
+  unfold Target.nttLayerInner
   simp only [Id.run, Id.pure_eq, Id.bind_eq, Aeneas.SRRange.forIn_eq_forIn_range',
     Aeneas.SRRange.size, add_tsub_cancel_left, add_tsub_cancel_right, Nat.div_one,
     List.forIn_yield_eq_foldl, zero_lt_one, Aeneas.SRRange.foldl_range', mul_one]
@@ -109,7 +108,7 @@ private theorem nttLayerInner_eq
   clear this
   -- We do the induction on len - j
   generalize hSteps : len - j = steps
-  have ⟨ j', hj' ⟩ : {n:Nat // n = start + j} := ⟨ start, by omega ⟩
+  have ⟨ j', hj' ⟩ : {n:Nat // n = start + j} := ⟨ start, by omega ⟩ -- TODO: remove j'
   clear hj
   -- We need this fact (we get it by doing a case disjunction - the case where
   -- it is false is trivial)
@@ -228,10 +227,14 @@ private theorem nttLayer_eq (f : Polynomial) (len : Nat) (hLen : 0 < len)
   exists len.log2
   tauto
 
-theorem nttEq (f : Polynomial) :
+theorem ntt_eq_target (f : Polynomial) :
   ntt f = Target.ntt f := by
   unfold ntt Target.ntt
   simp [Id.run, Aeneas.divRange, Aeneas.divRange.loop]
   repeat (rw [← nttLayer_eq] <;> simp [Nat.log2])
+
+theorem ntt_eq (f : Polynomial) :
+  ntt f = Spec.ntt f := by
+  rw [ntt_eq_target, Target.ntt_eq]
 
 end Symcrust.SpecAux
