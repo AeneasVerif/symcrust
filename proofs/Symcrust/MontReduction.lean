@@ -60,7 +60,7 @@ theorem Int.gcd_mod_same {a b : ℤ} :
     linarith
   have h2 := Int.gcd_add_mul_self b a (- (a / b))
   rw [h1]
-  simp at h2
+  simp only [neg_mul] at h2
   conv at h2 => lhs; rw [Int.gcd_comm]
   conv => rhs; rw [Int.gcd_comm]
   convert h2 using 2
@@ -71,7 +71,7 @@ theorem cancel_right_div_gcd_pos {m a b : ℤ}
   (h : (a * c) % m = (b * c) % m) :
   a % m = b % m := by
   have heq := Int.ModEq.cancel_right_div_gcd hm h
-  simp [hgcd] at heq
+  simp only [hgcd, Nat.cast_one, EuclideanDomain.div_one] at heq
   apply heq
 
 theorem cancel_right_div_gcd {m : ℤ} (a b c : Int) (hgcd : Int.gcd c m = 1)
@@ -79,23 +79,20 @@ theorem cancel_right_div_gcd {m : ℤ} (a b c : Int) (hgcd : Int.gcd c m = 1)
   a % m = b % m := by
   rw [Int.gcd_comm] at hgcd
   if hm : m = 0 then
-    simp_all
-    if hc : c = 0 then
-      simp_all
-    else
-      simp_all
+    simp_all only [Int.gcd_zero_left, EuclideanDomain.mod_zero, mul_eq_mul_right_iff]
+    dcases hc : c = 0 <;> simp_all
   else
     if m ≤ 0 then
       have hm' : 0 < -m := by int_tac
       have hgcd' : Int.gcd (-m) c = 1 := by simp [hgcd]
       have hf := @cancel_right_div_gcd_pos (-m) a b c hm' hgcd'
-      simp at hf
+      simp only [Int.emod_neg] at hf
       apply hf
       assumption
     else
       have hm : 0 < m := by simp_all
       have heq := Int.ModEq.cancel_right_div_gcd hm h
-      simp [hgcd] at heq
+      simp only [hgcd, Nat.cast_one, EuclideanDomain.div_one] at heq
       apply heq
 
 theorem cancel_left_div_gcd {m : ℤ} (a b c : Int) (hgcd : Int.gcd c m = 1)
@@ -146,18 +143,21 @@ theorem ZMod_val_injective {n : ℕ} [NeZero n] {a b : ZMod n} (h : a.val = b.va
 theorem ZMod.mul_inv_eq_int_gcd {n : ℕ} (a : ℤ) :
   (a : ZMod n) * (a : ZMod n)⁻¹ = Int.gcd a n := by
   if hn : n = 0 then
-    simp [hn]
+    simp only [hn, CharP.cast_eq_zero, Int.gcd_zero_right]
     rw [ZMod.mul_inv_eq_gcd]
-    simp [hn]
+    simp only [hn, Nat.gcd_zero_right]
 
     have h := @ZMod.intCast_eq_intCast_iff' (ZMod.val (a : ZMod n)) (Int.natAbs a) n
-    simp [hn] at h
+    simp only [Int.cast_natCast, Int.natCast_natAbs, hn, CharP.cast_eq_zero,
+      EuclideanDomain.mod_zero] at h
     unfold ZMod.val
     rw [hn]
-    simp
+    simp only [Nat.cast_inj]
     rfl
   else
-    have hn : 0 < n := by cases n <;> simp_all
+    have hn : 0 < n := by cases n <;> simp_all only [AddLeftCancelMonoid.add_eq_zero, one_ne_zero,
+      and_false, not_false_eq_true, Aeneas.Simp.neq_imp, lt_add_iff_pos_left, add_pos_iff,
+      zero_lt_one, or_true, not_true_eq_false]
     rw [ZMod.mul_inv_eq_gcd]
     rw [← Int.gcd_natCast_natCast]
     have hnz : NeZero n := by simp [neZero_iff, *]
@@ -174,7 +174,8 @@ theorem div_to_ZMod {n : ℕ} {a b : ℤ} [NeZero n] (hDiv : b ∣ a) (hgcd : In
     . rw [← Int.dvd_iff_emod_eq_zero]
       assumption
     . assumption
-    . apply ZMod_eq_imp_mod_eq; simp
+    . apply ZMod_eq_imp_mod_eq
+      simp only [Int.cast_mul, ZMod.intCast_mod, ZMod.intCast_cast, ZMod.cast_id', id_eq]
       rw [mul_assoc]
       have := @ZMod.mul_inv_eq_int_gcd n b
       rw [mul_comm] at this
@@ -185,7 +186,7 @@ theorem div_to_ZMod {n : ℕ} {a b : ℤ} [NeZero n] (hDiv : b ∣ a) (hgcd : In
   rw [h1]
   simp
 
-/- Algorihm 6 from the thesis -/
+/-- Montegomery reduction -/
 def mont_reduction (q R a : Nat) (minus_q_minus_1 : Int) : Int :=
   let f := (a * minus_q_minus_1) % R
   let t := (a + f * q) / R
@@ -214,14 +215,16 @@ def mont_reduction_spec
   -- Main goal
   have h_t: t % (q : Int) = (a * ((R : ZMod q)⁻¹.val : Int)) % q := by
     apply ZMod_eq_imp_mod_eq
-    simp [f, t]
+    simp only [ZMod.natCast_val, Int.cast_mul, Int.cast_natCast, ZMod.intCast_cast, ZMod.cast_id',
+      id_eq, t, f]
     rw [div_to_ZMod]
     . simp
     . rw [Int.dvd_iff_emod_eq_zero]
       have hZero : 0 = 0 % (R : Int) := by simp
       rw [hZero]
       apply ZMod_eq_imp_mod_eq
-      simp [← ZMod_int_cast_eq_int_cast_iff] at h_q_minus_1
+      simp only [Int.reduceNeg, ← ZMod_int_cast_eq_int_cast_iff, Int.cast_mul, Int.cast_natCast,
+        Int.cast_neg, Int.cast_one, t, f] at h_q_minus_1
       simp [mul_assoc, h_q_minus_1]
     . simp [← Nat.coprime_iff_gcd_eq_one, *]
 
@@ -229,11 +232,11 @@ def mont_reduction_spec
   have h_t1 : 0 ≤ t := by int_tac
 
   have h_t2 : t < 2 * q := by
-    simp [t, f] at *; clear t f
+    simp +zetaDelta only [gt_iff_lt, Int.reduceNeg, ZMod.natCast_val] at *; clear t f
     have h': (↑a + ↑a * minus_q_minus_1 % ↑R * ↑q) < R * q + R * q := by
       apply Int.add_lt_add
       have := @Int.ofNat_lt a (q * R)
-      . simp_all
+      . simp_all only [Nat.cast_mul, iff_true, gt_iff_lt]
         rw [Int.mul_comm]
         simp [*]
       . apply mul_lt_mul_of_pos_right
@@ -248,15 +251,15 @@ def mont_reduction_spec
 
 theorem bmod_eq_emod_eq_iff (n: ℕ) (a b: ℤ) :
   (a % n = b % n) ↔ (Int.bmod a n = Int.bmod b n) := by
-  simp [Int.bmod]
+  simp only [Int.bmod]
   apply Iff.intro <;> intro h
   . rw [h]
   . if h_a: a % n < (n + 1) / 2 then
       if h_b: b % n < (n + 1) / 2 then
-        simp [h_a, h_b] at h
+        simp only [h_a, ↓reduceIte, h_b] at h
         exact h
       else
-        simp [h_a, h_b] at h
+        simp only [h_a, ↓reduceIte, h_b] at h
         have ha' : 0 ≤ a % n := by apply Int.emod_nonneg; linarith
         have hb' : b % n - n < 0 := by
           have h : b % n < n := by apply Int.emod_lt_of_pos; linarith
@@ -264,14 +267,14 @@ theorem bmod_eq_emod_eq_iff (n: ℕ) (a b: ℤ) :
         linarith
     else
       if h_b: b % n < (n + 1) / 2 then
-        simp [h_a, h_b] at h
+        simp only [h_a, ↓reduceIte, h_b] at h
         have ha' : 0 ≤ b % n := by apply Int.emod_nonneg; linarith
         have hb' : a % n - n < 0 := by
           have h : a % n < n := by apply Int.emod_lt_of_pos; linarith
           linarith
         linarith
       else
-        simp [h_a, h_b] at h
+        simp only [h_a, ↓reduceIte, h_b, sub_left_inj] at h
         exact h
 
 theorem ZMod_int_cast_eq_int_cast_bmod_iff (n : ℕ) (a b : ℤ) :
@@ -314,13 +317,8 @@ theorem small_emod_inj {a b:ℤ} (n:ℤ) (h_mod: a % n = b % n) (h_a: 0 ≤ a) (
   _ = n * (b / n) + b % n := by rw [←Int.ediv_eq_zero_of_lt h_b h_b']
   _ = b := by apply Int.ediv_add_emod
 
-/- Lemma 9 from Goutam's writeup.
-  We use the variable `x` and `m` instead of `R` and `N` in the writeup to match with
-  the variables used in the definition of bmod
- -/
-theorem barrett_lemma9 (x: Int) (m: Nat) (h_m: 0 < m) : round ((x : ℚ) / m) = (x - Int.bmod x m) / (m : ℚ) := by
-  /- This lemma basically consists of reconciling the definition of bmod that is now in Lean's Stdlib
-     with the one from Goutam's writeup, which is based on round above -/
+theorem barrett_lemma (x: Int) (m: Nat) (h_m: 0 < m) :
+  round ((x : ℚ) / m) = (x - Int.bmod x m) / (m : ℚ) := by
 
   simp only [Int.bmod]
   let r := x % m;
@@ -328,7 +326,7 @@ theorem barrett_lemma9 (x: Int) (m: Nat) (h_m: 0 < m) : round ((x : ℚ) / m) = 
   . simp +zetaDelta only [h, ↓reduceIte]
 
     have h': round ((x:ℚ) / m) = x / m := by
-      simp [round]
+      simp only [round, one_div]
       field_simp
 
       -- This is equivalent to a goal which only uses integers
@@ -350,14 +348,14 @@ theorem barrett_lemma9 (x: Int) (m: Nat) (h_m: 0 < m) : round ((x : ℚ) / m) = 
              simp
           rw [h]
         _ = 2 * (x % m) + m := by
-          simp
+          simp only [Int.add_emod_emod]
           apply Int.emod_eq_of_lt
           . int_tac
           . omega
 
       rw [h1] at heq; clear h1
       ring_nf at heq
-      simp [add_assoc] at heq
+      simp only [add_assoc, add_right_inj] at heq
 
       have h2 : ↑m * ((↑m + x * 2) / (↑m * 2)) * 2 + x % ↑m * 2 =
                 (↑m * ((↑m + x * 2) / (↑m * 2)) + x % ↑m) * 2 := by ring_nf
@@ -365,13 +363,13 @@ theorem barrett_lemma9 (x: Int) (m: Nat) (h_m: 0 < m) : round ((x : ℚ) / m) = 
 
       have hu := @Int.ediv_emod_unique x m (x % m) ((x * 2 + m) / (m * 2)) (by simp [h_m])
       have hu := hu.mpr
-      simp at hu
+      simp only [and_true, and_imp] at hu
       apply Eq.symm
       apply hu
       conv => rhs; rw [← heq]
       ring_nf
       . apply Int.emod_nonneg; linarith
-      . apply Int.emod_lt_of_pos; simp; exact h_m
+      . apply Int.emod_lt_of_pos; simp only [Nat.cast_pos]; exact h_m
     rw [h']
     field_simp
     have h_rw: (x / m) * m = x - x % m := by rw [←def_ediv]; apply mul_comm
@@ -380,7 +378,7 @@ theorem barrett_lemma9 (x: Int) (m: Nat) (h_m: 0 < m) : round ((x : ℚ) / m) = 
   . simp +zetaDelta only [h, ↓reduceIte]
 
     have h': round ((x:ℚ) / m) = (x / m) + 1 := by
-      simp [round]
+      simp only [round, one_div]
       field_simp
 
       have h_rw : (((x * 2 + m) : ℤ) : ℚ) / ((m * 2) : ℕ) = (↑x * 2 + ↑m) / (↑m * 2) := by simp
@@ -389,7 +387,7 @@ theorem barrett_lemma9 (x: Int) (m: Nat) (h_m: 0 < m) : round ((x : ℚ) / m) = 
 
       have h_rw: x/m + 1 = (x + m) / m := by
         rw [Int.add_ediv_of_dvd_right]
-        simp
+        simp only [add_right_inj]
         rw [Int.ediv_self]
         linarith
         apply Int.dvd_refl
@@ -399,7 +397,7 @@ theorem barrett_lemma9 (x: Int) (m: Nat) (h_m: 0 < m) : round ((x : ℚ) / m) = 
 
       have hu := @Int.ediv_emod_unique (x + m) m (x % m) ((x * 2 + m) / (m * 2)) (by simp [h_m])
       have hu := hu.mpr
-      simp at hu
+      simp only [Int.add_emod_self, and_true, and_imp] at hu
       apply Eq.symm
       apply hu
 
@@ -430,8 +428,9 @@ theorem barrett_lemma9 (x: Int) (m: Nat) (h_m: 0 < m) : round ((x : ℚ) / m) = 
               if h: Even ((m:ℤ) + 1) then
                 rw [Int.two_mul_ediv_two_of_even h]; simp
               else
-                rw [Int.two_mul_ediv_two_of_odd] <;> try simp
-                simp at h
+                rw [Int.two_mul_ediv_two_of_odd] <;> try simp only [add_sub_cancel_right, sub_self,
+                  le_refl]
+                simp only [Int.not_even_iff_odd] at h
                 exact h
             apply le_trans h_le1 h_le2
           . have h: (x % m) < m := by apply Int.emod_lt_of_pos; omega
@@ -450,9 +449,11 @@ theorem barrett_lemma9 (x: Int) (m: Nat) (h_m: 0 < m) : round ((x : ℚ) / m) = 
 
         have h2 : ↑m * ((↑m + x * 2) / (↑m * 2)) * 2 + x % ↑m * 2 =
                   2 * (x % ↑m + ↑m * ((x * 2 + ↑m) / (↑m * 2))) := by ring_nf
-        simp [h2] at heq; clear h2
+        simp only [h2] at heq; clear h2
         have h2: ↑m * 2 + x * 2 = 2 * (x + ↑m) := by ring_nf
-        simp [h2] at heq; clear h2
+        simp only [h2] at heq; clear h2
+        simp only [mul_eq_mul_left_iff, OfNat.ofNat_ne_zero, not_false_eq_true, Aeneas.Simp.neq_imp,
+          or_false] at heq
         exact heq
 
       . exact h_goal
@@ -488,7 +489,7 @@ theorem bmod_bounds (a: ℤ) (b: ℕ) (h_b: 0 < b) : |(Int.bmod a b : ℚ)| ≤ 
     apply neg_le_neg
 
     apply mul_cancel_le_mul 2
-    simp
+    simp only [Nat.ofNat_pos]
     ring_nf
     have h2: (b/2) * 2 ≤ (b: ℤ) := by
       conv => rhs; rw [← (Int.ediv_add_emod b 2)]; rfl
@@ -508,7 +509,7 @@ theorem bmod_bounds (a: ℤ) (b: ℕ) (h_b: 0 < b) : |(Int.bmod a b : ℚ)| ≤ 
     qify at h
     apply le_trans h
     apply mul_cancel_le_mul 2
-    simp
+    simp only [Nat.ofNat_pos]
     ring_nf
     have h2: (b/2) * 2 ≤ (b: ℤ) := by
       conv => rhs; rw [← (Int.ediv_add_emod b 2)]; rfl
@@ -518,8 +519,7 @@ theorem bmod_bounds (a: ℤ) (b: ℕ) (h_b: 0 < b) : |(Int.bmod a b : ℚ)| ≤ 
       exact Int.le.intro_sub (b % Int.natAbs 2 + 0) rfl
     qify at h2; exact h2
 
-
-theorem barrett_bounds
+theorem barrett_reduction_bounds
   (N: ℕ)
   (h_N: 0 < N)
   (R: ℕ)
@@ -543,14 +543,14 @@ theorem barrett_bounds
   have h_rw1 : ((v * A) : ℚ) = (↑(v * ↑A)) := by simp
 
   qify
-  rw [h_rw1, barrett_lemma9]
-  swap; apply Nat.pos_iff_ne_zero.mpr; exact h_Rne_zero -- Why is this not handled by linarith?
+  rw [h_rw1, barrett_lemma]
+  swap; omega
   rw [h_A]
 
   have h_rw2 : ((R : ℤ) : ℚ) = (R : ℚ) := by simp
 
   qify
-  rw [← h_rw2, barrett_lemma9 (↑R) (↑N)]
+  rw [← h_rw2, barrett_lemma (↑R) (↑N)]
   swap; exact h_N
   qify
   ring_nf
@@ -558,16 +558,16 @@ theorem barrett_bounds
 
   have h_simp1 : (↑v * ↑N * ↑R * (↑N)⁻¹ * (↑R)⁻¹ : ℚ) = ↑v := (calc
       (↑v * ↑N * ↑R * (↑N)⁻¹ * (↑R)⁻¹ : ℚ) = (↑v * (↑N * (↑N)⁻¹) * (↑R * (↑R)⁻¹)) := by ring
-      _ = ↑v * (↑R * (↑R)⁻¹) := by rw [Rat.mul_inv_cancel]; simp; qify at h_N; linarith
-      _ = ↑v := by rw [Rat.mul_inv_cancel]; simp; qify at h_Rne_zero; exact h_Rne_zero
+      _ = ↑v * (↑R * (↑R)⁻¹) := by rw [Rat.mul_inv_cancel]; simp only [mul_one]; qify at h_N; linarith
+      _ = ↑v := by rw [Rat.mul_inv_cancel]; simp only [mul_one]; qify at h_Rne_zero; exact h_Rne_zero
   )
 
   rw [h_simp1]
-  simp
+  simp only [sub_self, zero_add, gt_iff_lt]
 
   have h_simp2 : (↑v * ↑N * ↑(Int.bmod (↑R) N) * (↑N)⁻¹ * (↑R)⁻¹ : ℚ) = (↑v * ↑(Int.bmod (↑R) N) * (↑R)⁻¹ : ℚ) := (calc
     (↑v * ↑N * ↑(Int.bmod (↑R) N) * (↑N)⁻¹ * (↑R)⁻¹ : ℚ) = ↑v * (↑N * (↑N)⁻¹) * ↑(Int.bmod (↑R) N) * (↑R)⁻¹ := by ring
-    _ = (↑v * ↑(Int.bmod (↑R) N) * (↑R)⁻¹ : ℚ) := by rw [Rat.mul_inv_cancel]; simp; qify at h_N; linarith
+    _ = (↑v * ↑(Int.bmod (↑R) N) * (↑R)⁻¹ : ℚ) := by rw [Rat.mul_inv_cancel]; simp only [mul_one]; qify at h_N; linarith
   )
 
   rw [h_simp2]
@@ -576,17 +576,29 @@ theorem barrett_bounds
 
   apply lt_of_le_of_lt h_le
 
-  simp [abs_mul]
+  simp only [abs_mul, Nat.abs_cast]
 
   have h_le2: |↑v| * |↑(Int.bmod (↑R) N)| * |(↑R)⁻¹| ≤ |↑v| * (N:ℚ)/2 * |(↑R)⁻¹| := (calc
     (|↑v| * |↑(Int.bmod (↑R) N)| * |(↑R)⁻¹| : ℚ) = |↑(Int.bmod (↑R) N)| * (|↑v| * |(↑R)⁻¹|) := by ring
-    _ ≤ (N:ℚ)/2 * (|↑v| * |(↑R)⁻¹|) := by apply mul_le_mul; apply bmod_bounds; exact h_N; simp; simp [mul_nonneg]; linarith
+    _ ≤ (N:ℚ)/2 * (|↑v| * |(↑R)⁻¹|) := by
+      apply mul_le_mul
+      apply bmod_bounds
+      exact h_N
+      simp only [le_refl]
+      simp only [abs_nonneg, mul_nonneg]; linarith
     _ = |↑v| * (N:ℚ)/2 * |(↑R)⁻¹| := by ring
   )
 
   have h_le3: ↑N * |↑(Int.bmod (v * round (↑R * (↑N)⁻¹)) R)| * |(↑R)⁻¹| ≤ ↑N * (R:ℚ)/2 * |(↑R)⁻¹| := (calc
     ↑N * |↑(Int.bmod (v * round (↑R * (↑N)⁻¹)) R)| * |(↑R)⁻¹| = |↑(Int.bmod (v * round (↑R * (↑N)⁻¹)) R)| * (↑N * |(↑R)⁻¹|) := by ring
-    _ ≤ (R:ℚ)/2 * (↑N * |(↑R)⁻¹|) := by apply mul_le_mul; apply bmod_bounds; apply Nat.pos_iff_ne_zero.mpr; exact h_Rne_zero; simp; simp [mul_nonneg]; linarith
+    _ ≤ (R:ℚ)/2 * (↑N * |(↑R)⁻¹|) := by
+      apply mul_le_mul
+      apply bmod_bounds
+      apply Nat.pos_iff_ne_zero.mpr
+      exact h_Rne_zero
+      simp only [le_refl]
+      simp only [Nat.cast_nonneg, abs_nonneg, mul_nonneg]
+      linarith
     _ = ↑N * (R:ℚ)/2 * |(↑R)⁻¹| := by ring
   )
 
@@ -600,14 +612,21 @@ theorem barrett_bounds
     apply Or.intro_left
     apply And.intro
     ring_nf
-    apply mul_pos <;> simp
+    apply mul_pos <;> simp only [Nat.cast_pos, one_div, inv_pos, Nat.ofNat_pos]
     exact h_N
-    simp
+    simp only [abs_pos, ne_eq, inv_eq_zero, Nat.cast_eq_zero]
     exact h_Rne_zero
 
   have h_aux : (|↑v| : ℚ) * ↑N / 2 * |(↑R)⁻¹| <  |↑R| * ↑N / 2 * |(↑R)⁻¹| := (calc
      (|↑v| : ℚ) * ↑N / 2 * |(↑R)⁻¹| =  (|↑v| : ℚ) * (↑N / 2 * |(↑R)⁻¹|) := by ring
-     _ <  |↑R| * (↑N / 2 * |(↑R)⁻¹|) := by apply mul_lt_mul; qify at h_v; apply lt_of_lt_of_le h_v; simp; simp; apply h_tmp; simp
+     _ <  |↑R| * (↑N / 2 * |(↑R)⁻¹|) := by
+      apply mul_lt_mul
+      qify at h_v
+      apply lt_of_lt_of_le h_v
+      . simp
+      . simp
+      . apply h_tmp
+      . simp
      _ = |↑R| * ↑N / 2 * |(↑R)⁻¹| := by ring
   )
 
@@ -621,7 +640,11 @@ theorem barrett_bounds
     (↑R * ↑N * |(↑R)⁻¹| : ℚ) = ↑N * (↑R * |(↑R)⁻¹|) := by ring
     _ =  ↑N * (|↑R| * |(↑R)⁻¹|) := by simp
     _ =  ↑N * |↑R * (↑R)⁻¹| := by rw [abs_mul]
-    _ = ↑N := by rw [Rat.mul_inv_cancel]; simp; qify at h_Rne_zero; exact h_Rne_zero
+    _ = ↑N := by
+      rw [Rat.mul_inv_cancel]
+      simp only [abs_one, mul_one]
+      qify at h_Rne_zero
+      exact h_Rne_zero
   )
 
   rw [h_simp3]
@@ -630,8 +653,17 @@ theorem qify_le (a b: Int) (h: (a: ℚ) < (b: ℚ)) : a < b := by
   qify
   apply h
 
+def barrett_reduction (N: Nat) -- odd modulus
+  (R: Nat) -- = 2 ^ b
+  (A: Nat) -- Precomputed
+  (v: Int) :=
+  let k := round (((v * A) : ℚ) / R)
+  let c := N * k
+  let o := v - c
+  o
+
 /- Inherited from Goutam's writeup -/
-def barrett_reduction
+def barrett_reduction_spec
   (N: Nat) -- odd modulus
   (h_N: 0 < N)
   (R: Nat) -- = 2 ^ b
@@ -640,22 +672,18 @@ def barrett_reduction
   (h_A: A = round (R / N))
   (v: Int)
   (h_v: |v| < R) :
-  { o: Int // o % N = v % N ∧ |o| < N }
-:=
+  let o := barrett_reduction N R A v
+  o % N = v % N ∧ |o| < N
+:= by
   let k := round (((v * A) : ℚ) / R)
   let c := N * k
   let o := v - c
 
-  have h_o : o % N = v % N := by
-    simp [o]
-    apply ZMod_eq_imp_mod_eq -- We move to ZMod to leverage many useful lemmas there
+  simp +zetaDelta only [barrett_reduction]; split_conjs
+  . apply ZMod_eq_imp_mod_eq -- We move to ZMod to leverage many useful lemmas there
     simp [k, c, o] -- Which are all conveniently annotated with @simp
 
-  /- We do this proof in the external barrett_bounds lemma -/
-  have h1: |o| < N := by
-    apply barrett_bounds N h_N R h_R A h_A v h_v o
+  . apply barrett_reduction_bounds N h_N R h_R A h_A v h_v o
     simp +zetaDelta
-
-  ⟨ o, ⟨ h_o, h1 ⟩ ⟩
 
 end Symcrust
