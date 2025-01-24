@@ -38,6 +38,7 @@
 // features like associated types; for the quality of the C code, we instead rely on a custom macro
 // that expands to a while-loop, to be later peephole-optimized into a C for loop
 
+#[macro_export]
 macro_rules! c_for {
     ($decl:stmt; $test:expr; $incr:expr; $body:block) => {
         $decl
@@ -77,33 +78,27 @@ const SIZEOF_MAX_CIPHERTEXT: usize = 1568;
 const SIZEOF_AGREED_SECRET: usize = 32;
 const SIZEOF_ENCAPS_RANDOM: usize = 32;
 
-// FIXME
-type shake128State = [u8; 0];
-type shake256State = [u8; 0];
-type sha3_256State = [u8; 0];
-type sha3_512State = [u8; 0];
-
-// TODO:
-/*union HashStateUnion {
-    shake128State: shake128State,
-    shake256State: shake256State,
-    sha3_256State: sha3_256State,
-    sha3_512State: sha3_512State,
-}*/
 
 // Note (Rust): caller allocates these temporaries whichever way they want, and passes us a mutable
 // reference to such a struct. If we need to use several fields at once, we can use a `ref mut`
 // pattern in Rust.
+pub(crate)
 struct INTERNAL_COMPUTATION_TEMPORARIES {
+pub(crate)
     abVectorBuffer0: [POLYELEMENT; MATRIX_MAX_NROWS],
+pub(crate)
     abVectorBuffer1: [POLYELEMENT; MATRIX_MAX_NROWS],
+pub(crate)
     abPolyElementBuffer0: POLYELEMENT,
+pub(crate)
     abPolyElementBuffer1: POLYELEMENT,
+pub(crate)
     abPolyElementAccumulatorBuffer: POLYELEMENT_ACCUMULATOR,
-    //hashState0: HashStateUnion, // TODO
-    //hashState1: HashStateUnion, // TODO
+pub(crate)
+    hashState0: crate::hash::HASH_STATE,
+pub(crate)
+    hashState1: crate::hash::HASH_STATE,
 }
-
 
 //
 // ML-KEM operations acting on individual polynomial ring elements (PolyElements)
@@ -674,18 +669,9 @@ SymCryptMlKemPolyElementDecodeAndDecompress(
     MLKEM_ERROR::NO_ERROR
 }
 
-#[charon::opaque]
-fn
-SymCryptShake128Extract(
-    _pState: &mut shake128State,
-    _pbResult: &mut[u8],
-    _bWipe: bool)
-{
-    panic!("TODO: stub");
-}
-
+pub(crate)
 fn SymCryptMlKemPolyElementSampleNTTFromShake128(
-    pState: &mut shake128State,
+    pState: &mut crate::hash::HASH_STATE,
     peDst: &mut POLYELEMENT )
 {
     let mut i: usize = 0;
@@ -698,7 +684,7 @@ fn SymCryptMlKemPolyElementSampleNTTFromShake128(
         if currBufIndex == shakeOutputBuf.len()
         {
             // Note (Rust): shakeOutputBuf[..] seems unnecessary and trips Eurydice (FIXME, see #14)
-            SymCryptShake128Extract(pState, &mut shakeOutputBuf, false);
+            crate::hash::shake128_extract(pState, &mut shakeOutputBuf, false);
             currBufIndex = 0;
         }
 

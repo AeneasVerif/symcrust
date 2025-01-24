@@ -9,6 +9,7 @@ use std::result::Result;
 pub(crate)
 enum MLKEM_ERROR { NO_ERROR, INVALID_BLOB, OUT_OF_MEMORY }
 
+#[derive(PartialEq)]
 pub(crate) enum PARAMS {
     // Rust: unclear if needed
     // PARAMS_NULL          = 0,
@@ -47,6 +48,7 @@ const SymCryptMlKemInternalParamsMlKem1024: INTERNAL_PARAMS = INTERNAL_PARAMS
     nBitsOfV       : 5,
 };
 
+pub(crate)
 const fn SymCryptMlKemkeyGetInternalParamsFromParams(
     params: PARAMS
 ) -> INTERNAL_PARAMS
@@ -90,6 +92,7 @@ pub(crate) struct INTERNAL_PARAMS {
     pub(crate) nRows: u8,           // corresponds to k from FIPS 203; the number of rows and columns in the matrix A,
                          // and the number of rows in column vectors s and t
     pub(crate) nEta1: u8,           // corresponds to eta_1 from FIPS 203; number of coinflips used in generating s and e
+                                    // pub(crate)
                          // in keypair generation, and r in encapsulation
     pub(crate) nEta2: u8,           // corresponds to eta_2 from FIPS 203; number of coinflips used in generating e_1 and
                          // e_2 in encapsulation

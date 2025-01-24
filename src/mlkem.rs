@@ -7,129 +7,106 @@
 use crate::ntt::*;
 use crate::key::*;
 
+use crate::c_for;
 
-const fn SIZEOF_ENCODED_UNCOMPRESSED_VECTOR(_nRows: usize) -> usize {  (384 * _nRows) }
+const fn SIZEOF_ENCODED_UNCOMPRESSED_VECTOR(_nRows: usize) -> usize { 384 * _nRows }
 
 // d and z are each 32 bytes
-const SIZEOF_FORMAT_PRIVATE_SEED: usize =               (2*32);
+const SIZEOF_FORMAT_PRIVATE_SEED: usize =               2*32;
 // s and t are encoded uncompressed vectors
 // public seed, H(encapsulation key) and z are each 32 bytes
 const fn SIZEOF_FORMAT_DECAPSULATION_KEY(_nRows: usize) -> usize {
-    ((2*SIZEOF_ENCODED_UNCOMPRESSED_VECTOR(_nRows)) + (3*32))
+    2*SIZEOF_ENCODED_UNCOMPRESSED_VECTOR(_nRows) + 3*32
 }
 // t is encoded uncompressed vector
 // public seed is 32 bytes
 const fn SIZEOF_FORMAT_ENCAPSULATION_KEY(_nRows: usize) -> usize {
-    (SIZEOF_ENCODED_UNCOMPRESSED_VECTOR(_nRows) + 32)
+    SIZEOF_ENCODED_UNCOMPRESSED_VECTOR(_nRows) + 32
 }
 
-// ERROR
-// CALL
-// SymCryptMlKemSizeofKeyFormatFromParams(
-//             PARAMS       params,
-//             MLKEMKEY_FORMAT    mlKemkeyFormat,
-//     _Out_   SIZE_T*                     pcbKeyFormat )
-// {
-//     ERROR scError = NO_ERROR;
-//     INTERNAL_PARAMS internalParams;
+const CIPHERTEXT_SIZE_MLKEM512  : usize = 768 ;
+const CIPHERTEXT_SIZE_MLKEM768  : usize = 1088;
+const CIPHERTEXT_SIZE_MLKEM1024 : usize = 1568;
 
-//     if( mlKemkeyFormat == MLKEMKEY_FORMAT_NULL )
-//     {
-//         scError = INCOMPATIBLE_FORMAT;
-//         goto cleanup;
-//     }
+// MLKEM key formats
+// ==================
+//  -   The below formats apply **only to external formats**: When somebody is
+//      importing a key (from test vectors, for example) or exporting a key.
+//      The internal format of the keys is not visible to the caller.
+enum MLKEMKEY_FORMAT {
+        // Note (Rust): skipping NULL case since these things are exhaustive, but keeping the
+        // values for ease of debug / differential testing
+    PRIVATE_SEED       = 1,    
+        // 64-byte concatenation of d || z from FIPS 203. Smallest representation of a full
+        // ML-KEM key.
+        // On its own it is ambiguous what type of ML-KEM key this represents; callers wanting to
+        // store this format must track the key type alongside the key.
+    DECAPSULATION_KEY  = 2,
+        // Standard byte encoding of an ML-KEM Decapsulation key, per FIPS 203.
+        // Size is 1632, 2400, or 3168 bytes for ML-KEM 512, 768, and 1024 respectively.
+    ENCAPSULATION_KEY  = 3,
+        // Standard byte encoding of an ML-KEM Encapsulation key, per FIPS 203.
+        // Size is 800, 1184, or 1568 bytes for ML-KEM 512, 768, and 1024 respectively.
+}
 
-//     scError = SymCryptMlKemkeyGetInternalParamsFromParams(params, &internalParams);
-//     if( scError != NO_ERROR )
-//     {
-//         goto cleanup;
-//     }
+fn SymCryptMlKemSizeofKeyFormatFromParams(params: PARAMS,
+            mlKemkeyFormat: MLKEMKEY_FORMAT) -> usize
+{
+    let internalParams = SymCryptMlKemkeyGetInternalParamsFromParams(params);
 
-//     switch( mlKemkeyFormat )
-//     {
-//         case MLKEMKEY_FORMAT_PRIVATE_SEED:
-//             *pcbKeyFormat = SIZEOF_FORMAT_PRIVATE_SEED;
-//             break;
+    match mlKemkeyFormat
+    {
+        MLKEMKEY_FORMAT::PRIVATE_SEED => SIZEOF_FORMAT_PRIVATE_SEED,
+        MLKEMKEY_FORMAT::DECAPSULATION_KEY => SIZEOF_FORMAT_DECAPSULATION_KEY(internalParams.nRows as usize),
+        MLKEMKEY_FORMAT::ENCAPSULATION_KEY => SIZEOF_FORMAT_ENCAPSULATION_KEY(internalParams.nRows as usize),
+    }
+}
 
-//         case MLKEMKEY_FORMAT_DECAPSULATION_KEY:
-//             *pcbKeyFormat = SIZEOF_FORMAT_DECAPSULATION_KEY(internalParams.nRows);
-//             break;
+fn SymCryptMlKemSizeofCiphertextFromParams(
+    params: PARAMS
+) -> usize
+{
+    let internalParams = SymCryptMlKemkeyGetInternalParamsFromParams(params);
 
-//         case MLKEMKEY_FORMAT_ENCAPSULATION_KEY:
-//             *pcbKeyFormat = SIZEOF_FORMAT_ENCAPSULATION_KEY(internalParams.nRows);
-//             break;
+    // u vector encoded with nBitsOfU * MLWE_POLYNOMIAL_COEFFICIENTS bits per polynomial
+    let cbU = (internalParams.nRows as usize) * (internalParams.nBitsOfU as usize) * (MLWE_POLYNOMIAL_COEFFICIENTS / 8);
+    // v polynomial encoded with nBitsOfV * MLWE_POLYNOMIAL_COEFFICIENTS bits
+    let cbV = (internalParams.nBitsOfV as usize) * (MLWE_POLYNOMIAL_COEFFICIENTS / 8);
 
-//         default:
-//             scError = INVALID_ARGUMENT;
-//             goto cleanup;
-//     }
+    assert!( (internalParams.params != PARAMS::MLKEM512)  || ((cbU + cbV) == CIPHERTEXT_SIZE_MLKEM512)  );
+    assert!( (internalParams.params != PARAMS::MLKEM768)  || ((cbU + cbV) == CIPHERTEXT_SIZE_MLKEM768)  );
+    assert!( (internalParams.params != PARAMS::MLKEM1024) || ((cbU + cbV) == CIPHERTEXT_SIZE_MLKEM1024) );
 
-// cleanup:
-//     return scError;
-// }
+    cbU + cbV
+}
 
-// ERROR
-// CALL
-// SymCryptMlKemSizeofCiphertextFromParams(
-//             PARAMS       params,
-//     _Out_   SIZE_T*                     pcbCiphertext )
-// {
-//     ERROR scError = NO_ERROR;
-//     INTERNAL_PARAMS internalParams;
-//     SIZE_T cbU, cbV;
+fn SymCryptMlKemkeyExpandPublicMatrixFromPublicSeed(
+    pkMlKemkey: & mut KEY,
+    pCompTemps: & mut INTERNAL_COMPUTATION_TEMPORARIES)
+{
+    let mut coordinates = [0u8; 2];
 
-//     scError = SymCryptMlKemkeyGetInternalParamsFromParams(params, &internalParams);
-//     if( scError != NO_ERROR )
-//     {
-//         goto cleanup;
-//     }
+    let pShakeStateBase = &mut pCompTemps.hashState0;
+    let pShakeStateWork = &mut pCompTemps.hashState1;
+    let nRows = pkMlKemkey.params.nRows;
 
-//     // u vector encoded with nBitsOfU * MLWE_POLYNOMIAL_COEFFICIENTS bits per polynomial
-//     cbU = ((SIZE_T)internalParams.nRows) * internalParams.nBitsOfU * (MLWE_POLYNOMIAL_COEFFICIENTS / 8);
-//     // v polynomial encoded with nBitsOfV * MLWE_POLYNOMIAL_COEFFICIENTS bits
-//     cbV = ((SIZE_T)internalParams.nBitsOfV) * (MLWE_POLYNOMIAL_COEFFICIENTS / 8);
-//     *pcbCiphertext = cbU + cbV;
+    crate::hash::shake128_init( pShakeStateBase );
+    crate::hash::shake128_append(pShakeStateBase, &pkMlKemkey.publicSeed);
 
-//     ASSERT( (internalParams.params != PARAMS_MLKEM512)  || ((cbU + cbV) == CIPHERTEXT_SIZE_MLKEM512)  );
-//     ASSERT( (internalParams.params != PARAMS_MLKEM768)  || ((cbU + cbV) == CIPHERTEXT_SIZE_MLKEM768)  );
-//     ASSERT( (internalParams.params != PARAMS_MLKEM1024) || ((cbU + cbV) == CIPHERTEXT_SIZE_MLKEM1024) );
+    c_for!(let mut i = 0u8; i<nRows; i += 1; {
+        coordinates[1] = i;
+        c_for!(let mut j=0u8; j<nRows; j += 1; {
+            coordinates[0] = j;
+            crate::hash::shake128_state_copy( pShakeStateBase, pShakeStateWork );
+            crate::hash::shake128_append( pShakeStateWork, &coordinates);
 
-// cleanup:
-//     return scError;
-// }
+            let a_transpose = pkMlKemkey.atranspose_mut();
+            SymCryptMlKemPolyElementSampleNTTFromShake128( pShakeStateWork, &mut a_transpose[(i*nRows+j) as usize] );
+        });
+    });
 
-// static
-// VOID
-// CALL
-// SymCryptMlKemkeyExpandPublicMatrixFromPublicSeed(
-//     _Inout_ PMLKEMKEY                                  pkMlKemkey,
-//     _Inout_ PINTERNAL_COMPUTATION_TEMPORARIES    pCompTemps )
-// {
-//     UINT32 i, j;
-//     BYTE coordinates[2];
-
-//     PSHAKE128_STATE pShakeStateBase = &pCompTemps->hashState0.shake128State;
-//     PSHAKE128_STATE pShakeStateWork = &pCompTemps->hashState1.shake128State;
-//     const UINT32 nRows = pkMlKemkey->params.nRows;
-
-//     SymCryptShake128Init( pShakeStateBase );
-//     SymCryptShake128Append( pShakeStateBase, pkMlKemkey->publicSeed, sizeof(pkMlKemkey->publicSeed) );
-
-//     for( i=0; i<nRows; i++ )
-//     {
-//         coordinates[1] = (BYTE)i;
-//         for( j=0; j<nRows; j++ )
-//         {
-//             coordinates[0] = (BYTE)j;
-//             SymCryptShake128StateCopy( pShakeStateBase, pShakeStateWork );
-//             SymCryptShake128Append( pShakeStateWork, coordinates, sizeof(coordinates) );
-
-//             SymCryptMlKemPolyElementSampleNTTFromShake128( pShakeStateWork, pkMlKemkey->pmAtranspose->apPolyElements[(i*nRows)+j] );
-//         }
-//     }
-
-//     // no need to wipe; everything computed here is always public
-// }
+    // no need to wipe; everything computed here is always public
+}
 
 // static
 // VOID
