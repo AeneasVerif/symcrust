@@ -36,6 +36,12 @@ const SYMCRYPT_SHAKE128_INPUT_BLOCK_SIZE: usize = 168;
 const SYMCRYPT_SHAKE256_RESULT_SIZE: usize = 64;
 const SYMCRYPT_SHAKE256_INPUT_BLOCK_SIZE: usize = 136;
 
+const SYMCRYPT_SHA3_256_RESULT_SIZE: usize =         32;
+const SYMCRYPT_SHA3_256_INPUT_BLOCK_SIZE: usize =    136;
+
+const SYMCRYPT_SHA3_512_RESULT_SIZE: usize =         64;
+const SYMCRYPT_SHA3_512_INPUT_BLOCK_SIZE: usize =    72;
+
 extern "C" {
     fn SymCryptShake128Default(pbData: *const u8, cbData: usize, pbResult: &mut [u8; SYMCRYPT_SHAKE128_RESULT_SIZE]);
     fn SymCryptShake128(pbData: *const u8, cbData: usize, pbResult: *mut u8, cbResult: usize);
@@ -52,7 +58,21 @@ extern "C" {
     fn SymCryptShake256Extract(pState: &mut HASH_STATE, pbResult: *mut u8, cbResult: usize, bWipe: bool);
     fn SymCryptShake256Result(pState: &mut HASH_STATE, pbResult: &mut [u8; SYMCRYPT_SHAKE256_RESULT_SIZE]);
     fn SymCryptShake256StateCopy(pSrc: & HASH_STATE, pDst: &mut HASH_STATE);
+
+    fn SymCryptSha3_256(pbData: *const u8, cbData: usize, pbResult: &mut [u8; SYMCRYPT_SHA3_256_RESULT_SIZE]);
+    fn SymCryptSha3_256Init(pState: &mut HASH_STATE);
+    fn SymCryptSha3_256Append(pState: &mut HASH_STATE, pbData: *const u8, cbData: usize);
+    fn SymCryptSha3_256Result(pState: &mut HASH_STATE, pbResult: &mut [u8; SYMCRYPT_SHA3_256_RESULT_SIZE]);
+    fn SymCryptSha3_256StateCopy(pSrc: & HASH_STATE, pDst: &mut HASH_STATE);
+
+    fn SymCryptSha3_512(pbData: *const u8, cbData: usize, pbResult: &mut [u8; SYMCRYPT_SHA3_512_RESULT_SIZE]);
+    fn SymCryptSha3_512Init(pState: &mut HASH_STATE);
+    fn SymCryptSha3_512Append(pState: &mut HASH_STATE, pbData: *const u8, cbData: usize);
+    fn SymCryptSha3_512Result(pState: &mut HASH_STATE, pbResult: &mut [u8; SYMCRYPT_SHA3_512_RESULT_SIZE]);
+    fn SymCryptSha3_512StateCopy(pSrc: & HASH_STATE, pDst: &mut HASH_STATE);
 }
+
+// SHAKE128
 
 pub(crate) fn shake128_default(data: &[u8], dst: &mut [u8; SYMCRYPT_SHAKE128_RESULT_SIZE]) {
     unsafe {
@@ -96,6 +116,8 @@ pub(crate) fn shake128_state_copy(pSrc: & HASH_STATE, pDst: &mut HASH_STATE) {
     }
 }
 
+// SHAKE256
+
 pub(crate) fn shake256_default(data: &[u8], dst: &mut [u8; SYMCRYPT_SHAKE256_RESULT_SIZE]) {
     unsafe {
         SymCryptShake256Default(data.as_ptr(), data.len(), dst);
@@ -135,5 +157,69 @@ pub(crate) fn shake256_result(pState: &mut HASH_STATE, pbResult: &mut [u8; SYMCR
 pub(crate) fn shake256_state_copy(pSrc: & HASH_STATE, pDst: &mut HASH_STATE) {
     unsafe {
         SymCryptShake256StateCopy(pSrc, pDst);
+    }
+}
+
+// SHA3_256
+
+pub(crate) fn sha3_256(pbData: &[u8], pbResult: &mut [u8; SYMCRYPT_SHA3_256_RESULT_SIZE]) {
+    unsafe {
+        SymCryptSha3_256(pbData.as_ptr(), pbData.len(), pbResult);
+    }
+}
+
+pub(crate) fn sha3_256_init(pState: &mut HASH_STATE) {
+    unsafe {
+        SymCryptSha3_256Init(pState)
+    }
+}
+
+pub(crate) fn sha3_256_append(pState: &mut HASH_STATE, pbData: &[u8]) {
+    unsafe {
+        SymCryptSha3_256Append(pState, pbData.as_ptr(), pbData.len());
+    }
+}
+
+pub(crate) fn sha3_256_result(pState: &mut HASH_STATE, pbResult: &mut [u8; SYMCRYPT_SHA3_256_RESULT_SIZE]) {
+    unsafe {
+        SymCryptSha3_256Result(pState, pbResult);
+    }
+}
+
+pub(crate) fn sha3_256_state_copy(pSrc: & HASH_STATE, pDst: &mut HASH_STATE) {
+    unsafe {
+        SymCryptSha3_256StateCopy(pSrc, pDst);
+    }
+}
+
+// SHA3_512
+
+pub(crate) fn sha3_512(pbData: &[u8], pbResult: &mut [u8; SYMCRYPT_SHA3_512_RESULT_SIZE]) {
+    unsafe {
+        SymCryptSha3_512(pbData.as_ptr(), pbData.len(), pbResult);
+    }
+}
+
+pub(crate) fn sha3_512_init(pState: &mut HASH_STATE) {
+    unsafe {
+        SymCryptSha3_512Init(pState)
+    }
+}
+
+pub(crate) fn sha3_512_append(pState: &mut HASH_STATE, pbData: &[u8]) {
+    unsafe {
+        SymCryptSha3_512Append(pState, pbData.as_ptr(), pbData.len());
+    }
+}
+
+pub(crate) fn sha3_512_result(pState: &mut HASH_STATE, pbResult: &mut [u8; SYMCRYPT_SHA3_512_RESULT_SIZE]) {
+    unsafe {
+        SymCryptSha3_512Result(pState, pbResult);
+    }
+}
+
+pub(crate) fn sha3_512_state_copy(pSrc: & HASH_STATE, pDst: &mut HASH_STATE) {
+    unsafe {
+        SymCryptSha3_512StateCopy(pSrc, pDst);
     }
 }

@@ -108,21 +108,19 @@ fn SymCryptMlKemkeyExpandPublicMatrixFromPublicSeed(
     // no need to wipe; everything computed here is always public
 }
 
-// static
-// VOID
-// CALL
-// SymCryptMlKemkeyComputeEncapsulationKeyHash(
-//     _Inout_ PMLKEMKEY                                  pkMlKemkey,
-//     _Inout_ PINTERNAL_COMPUTATION_TEMPORARIES    pCompTemps,
-//             SIZE_T                                              cbEncodedVector )
-// {
-//     PSHA3_256_STATE pState = &pCompTemps->hashState0.sha3_256State;
+fn
+SymCryptMlKemkeyComputeEncapsulationKeyHash(
+    pkMlKemkey: &mut KEY,
+    pCompTemps: &mut INTERNAL_COMPUTATION_TEMPORARIES,
+    cbEncodedVector: usize )
+{
+    let pState = &mut pCompTemps.hashState0;
 
-//     SymCryptSha3_256Init( pState );
-//     SymCryptSha3_256Append( pState, pkMlKemkey->encodedT, cbEncodedVector );
-//     SymCryptSha3_256Append( pState, pkMlKemkey->publicSeed, sizeof(pkMlKemkey->publicSeed) );
-//     SymCryptSha3_256Result( pState, pkMlKemkey->encapsKeyHash );
-// }
+    crate::hash::sha3_256_init( pState );
+    crate::hash::sha3_256_append( pState, &pkMlKemkey.encodedT);
+    crate::hash::sha3_256_append( pState, &pkMlKemkey.publicSeed);
+    crate::hash::sha3_256_result( pState, &mut pkMlKemkey.encapsKeyHash );
+}
 
 // static
 // VOID
