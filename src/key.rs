@@ -415,3 +415,7 @@ pub(crate)
 fn KeyAllocate(params: PARAMS) -> Result<Box<KEY>,MLKEM_ERROR> {
     KeyAllocate2(params) // EDIT HERE
 }
+
+// TODO: there is no free function, but it would presumably be needed by C callers -- can we figure
+// something out, e.g. manually calling the drop trait for Box<KEY> with the understanding that Rust
+// callers will not use this?

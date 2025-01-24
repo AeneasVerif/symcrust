@@ -577,8 +577,6 @@ SymCryptMlKemPolyElementCompressAndEncode(
     assert!(cbDstWritten == (nBitsPerCoefficient*(MLWE_POLYNOMIAL_COEFFICIENTS as u32 / 8)) as usize);
 }
 
-enum MLKEM_ERROR { NO_ERROR, INVALID_BLOB }
-
 // FIXME:
 #[inline]
 #[charon::opaque]

@@ -8,19 +8,20 @@ use crate::ntt::*;
 use crate::key::*;
 
 
-// TODO: there is no free function, but it would presumably be needed by C callers -- can we figure
-// something out, e.g. manually calling the drop trait for a box?
+const fn SIZEOF_ENCODED_UNCOMPRESSED_VECTOR(_nRows: usize) -> usize {  (384 * _nRows) }
 
-// #define SIZEOF_ENCODED_UNCOMPRESSED_VECTOR(_nRows)   (384UL * _nRows)
-
-// // d and z are each 32 bytes
-// #define SIZEOF_FORMAT_PRIVATE_SEED               (2*32)
-// // s and t are encoded uncompressed vectors
-// // public seed, H(encapsulation key) and z are each 32 bytes
-// #define SIZEOF_FORMAT_DECAPSULATION_KEY(_nRows)  ((2*SIZEOF_ENCODED_UNCOMPRESSED_VECTOR(_nRows)) + (3*32))
-// // t is encoded uncompressed vector
-// // public seed is 32 bytes
-// #define SIZEOF_FORMAT_ENCAPSULATION_KEY(_nRows)  (SIZEOF_ENCODED_UNCOMPRESSED_VECTOR(_nRows) + 32)
+// d and z are each 32 bytes
+const SIZEOF_FORMAT_PRIVATE_SEED: usize =               (2*32);
+// s and t are encoded uncompressed vectors
+// public seed, H(encapsulation key) and z are each 32 bytes
+const fn SIZEOF_FORMAT_DECAPSULATION_KEY(_nRows: usize) -> usize {
+    ((2*SIZEOF_ENCODED_UNCOMPRESSED_VECTOR(_nRows)) + (3*32))
+}
+// t is encoded uncompressed vector
+// public seed is 32 bytes
+const fn SIZEOF_FORMAT_ENCAPSULATION_KEY(_nRows: usize) -> usize {
+    (SIZEOF_ENCODED_UNCOMPRESSED_VECTOR(_nRows) + 32)
+}
 
 // ERROR
 // CALL
