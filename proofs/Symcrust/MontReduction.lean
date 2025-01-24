@@ -1,24 +1,22 @@
 import Lean
 import Mathlib.Algebra.Algebra.ZMod
---import Mathlib.Data.Polynomial.Basic
 import Mathlib.Data.Int.ModEq
 import Mathlib.Algebra.Order.GroupWithZero.WithZero
 import Mathlib.RingTheory.Int.Basic
---import Std.Data.Int.DivMod
---import Std.Data.Nat.Gcd
-import Aesop
 import Mathlib.Tactic.FieldSimp
 import Mathlib.Tactic.Qify
-
---import Mathlib.Data.Rat.Init
 import Mathlib.Data.Rat.Floor
---import Mathlib.Data.Int.Parity
 
 import Aeneas
 
 namespace Symcrust
 
 set_option maxHeartbeats 1000000
+
+/-!
+We need a few arithmetic facts that are not in Mathlib.
+TODO: PR for Mathlib?
+-/
 
 -- We have to prove a few inequalities involving non-linear arithmetic
 set_option scalarTac.nonLin true
@@ -68,11 +66,6 @@ theorem Int.gcd_mod_same {a b : ℤ} :
   convert h2 using 2
   ring_nf
 
--- TODO: which representation should we use for the inverse?
--- TODO: use the ⁻¹ notation and remove this theorem
-theorem ZMod.inv_inv_eq (n : ℕ) (a : ZMod n) :
-  ZMod.inv n a = a⁻¹ := by rfl
-
 theorem cancel_right_div_gcd_pos {m a b : ℤ}
   (c : Int) (hm : 0 < m) (hgcd : Int.gcd m c = 1)
   (h : (a * c) % m = (b * c) % m) :
@@ -93,13 +86,7 @@ theorem cancel_right_div_gcd {m : ℤ} (a b c : Int) (hgcd : Int.gcd c m = 1)
       simp_all
   else
     if m ≤ 0 then
-      have hm' : 0 < -m := by
-        -- TODO: this would be trivial with int_tac
-        simp_all
-        rw [lt_iff_not_ge]
-        intro
-        have h : m = 0 := by linarith
-        simp_all
+      have hm' : 0 < -m := by int_tac
       have hgcd' : Int.gcd (-m) c = 1 := by simp [hgcd]
       have hf := @cancel_right_div_gcd_pos (-m) a b c hm' hgcd'
       simp at hf
@@ -119,55 +106,6 @@ theorem cancel_left_div_gcd {m : ℤ} (a b c : Int) (hgcd : Int.gcd c m = 1)
   ring_nf at *
   apply h
 
-theorem mod_mul_left (c : Int) (h : a % m = b % m):
-  (c * a) % m = (c * b) % m :=
-  Int.ModEq.mul_left c h
-
-theorem mod_mul_right (c : Int) (h : a % m = b % m):
-  (a * c) % m = (b * c) % m :=
-  Int.ModEq.mul_right c h
-
-theorem mod_add_left (c : Int) (h : a % m = b % m):
-  (c + a) % m = (c + b) % m :=
-  Int.ModEq.add_left c h
-
-theorem mod_add_right (c : Int) (h : a % m = b % m):
-  (a + c) % m = (b + c) % m :=
-  Int.ModEq.add_right c h
-
-@[simp] theorem minus_mod_eq_iff (n a b : ℤ) :
-  (-a) % n = (-b) % n ↔ a % n = b % n := by
-  constructor <;> intro h
-  . have h := mod_add_left a h
-    have h := mod_add_left b h
-    ring_nf at h
-    simp [h]
-  . have h := mod_add_left (-a) h
-    have h := mod_add_left (-b) h
-    ring_nf at h
-    simp [h]
-
-@[simp] theorem minus_mod_eq_zero_iff (n a : ℤ) :
-  (-a) % n = 0 ↔ a % n = 0 := by
---  have h := minus_mod_eq_iff n a 0
-  simp_all
-
-@[simp] theorem zero_eq_minus_mod_iff (n a : ℤ) :
-  0 = (-a) % n ↔ 0 = a % n := by
-  have h := minus_mod_eq_iff n 0 a
-  simp_all
-
-/-@[simp] theorem minus_eq (a b : ℤ) :
-  - a = b ↔ a = - b := by
-  sorry-/
-
-@[simp] theorem mod_mul_mod_eq (n : ℕ) (a b : ℤ) :
-  ((a % n) * b) % n = (a * b) % n := by
-  simp [Int.mul_emod]
-
-attribute [local simp] NeZero.of_pos Int.emod_eq_of_lt
--- TODO: local reducible Int.ModEq
-
 theorem times_mod_imp_div_mod (n : ℕ) (a b c : ℤ)
   (hdiv : a % b = 0)
   (hgcd : Int.gcd b n = 1)
@@ -180,14 +118,17 @@ theorem times_mod_imp_div_mod (n : ℕ) (a b c : ℤ)
   -- End of the proof
   apply heq
 
-/-
-  Attempt at a different style of proofs: whenever we have to prove
-  an equality between modulus, we go into ZMod.
- -/
+/-!
+We need to prove equalities of the shape: `a % n = b % n`.
+
+When encoutering such an equality the proof strategy is to simply cast the integers into `ZMod` which,
+being a ring, is convenient to work in. Below, we list a few simp theorems which are necessary for this to work.
+-/
 theorem ZMod_int_cast_eq_int_cast_iff (n : ℕ) (a b : ℤ) :
   ((a : ZMod n) = (b : ZMod n)) ↔ (a % n = b % n) :=
   ZMod.intCast_eq_intCast_iff a b n
 
+/-- The important theorem to convert a goal about equality modulo into a goal about the equalit of two terms in `ZMod` -/
 theorem ZMod_eq_imp_mod_eq {n : ℕ} {a b : ℤ}
   (h : (a : ZMod n) = (b : ZMod n)) :
   a % n = b % n :=
@@ -225,6 +166,7 @@ theorem ZMod.mul_inv_eq_int_gcd {n : ℕ} (a : ℤ) :
     rw [ZMod.coe_intCast]
     rw [Int.gcd_mod_same]
 
+/-- A theorem to work with division when converting integers to elements of `ZMod` -/
 theorem div_to_ZMod {n : ℕ} {a b : ℤ} [NeZero n] (hDiv : b ∣ a) (hgcd : Int.gcd b n = 1) :
   ((a / b) : ZMod n) = (a : ZMod n) * (b : ZMod n)⁻¹ := by
   have h : (a / b) % (n : Int) = ((a % (n : Int)) * (b : ZMod n)⁻¹.cast) % (n : Int) := by
@@ -242,30 +184,6 @@ theorem div_to_ZMod {n : ℕ} {a b : ℤ} [NeZero n] (hDiv : b ∣ a) (hgcd : In
   have h1 := mod_eq_imp_ZMod_eq h
   rw [h1]
   simp
-
--- This rule is compatible with aesop (not the one above)
-theorem div_to_ZMod_impl (n : ℕ) [NeZero n] (a b : ℤ) (c : ZMod n)
-  (hdiv : b ∣ a) (hgcd : Int.gcd b n = 1)
-  (h : (a : ZMod n) = (b : ZMod n) * c) :
-  ((a / b) : ZMod n) = c := by
-  rw [div_to_ZMod] <;> try assumption
-  rw [h]
-  have heq : ((↑b * c * (b : ZMod n)⁻¹) : ZMod n) =
-         (c * (↑b * (b : ZMod n)⁻¹)) := by ring_nf
-  rw [heq]
-  rw [ZMod.mul_inv_eq_int_gcd]
-  simp [hgcd]
-
-theorem ZMod_inv_eq (n : ℕ) (a b c : ℤ)
-  (hgcd : Int.gcd a n = 1)
-  (h : (b : ZMod n) = (c : ZMod n) * (a : ZMod n)) :
-  (a : ZMod n)⁻¹ * (b : ZMod n)  = (c : ZMod n) := by
-  rw [h]
-  have heq: ↑(a : ZMod n)⁻¹ * (↑c * ↑a) =
-            ↑c * (↑a * (a : ZMod n)⁻¹) := by ring_nf
-  rw [heq]
-  rw [ZMod.mul_inv_eq_int_gcd]
-  simp [hgcd]
 
 /- Algorihm 6 from the thesis -/
 def mont_reduction (q R a : Nat) (minus_q_minus_1 : Int) : Int :=
@@ -308,7 +226,7 @@ def mont_reduction_spec
     . simp [← Nat.coprime_iff_gcd_eq_one, *]
 
   -- Secondary goals
-  have h_t1 : 0 ≤ t := by scalar_tac
+  have h_t1 : 0 ≤ t := by int_tac
 
   have h_t2 : t < 2 * q := by
     simp [t, f] at *; clear t f
@@ -319,12 +237,12 @@ def mont_reduction_spec
         rw [Int.mul_comm]
         simp [*]
       . apply mul_lt_mul_of_pos_right
-        . scalar_tac
+        . int_tac
         . simp [*]
     apply Int.ediv_lt_of_lt_mul
-    . scalar_tac
+    . int_tac
     . conv => rhs; rw [Int.mul_assoc]; rhs; rw [Int.mul_comm]
-      scalar_tac
+      int_tac
 
   simp +zetaDelta [mont_reduction, *]
 
@@ -434,7 +352,7 @@ theorem barrett_lemma9 (x: Int) (m: Nat) (h_m: 0 < m) : round ((x : ℚ) / m) = 
         _ = 2 * (x % m) + m := by
           simp
           apply Int.emod_eq_of_lt
-          . scalar_tac
+          . int_tac
           . omega
 
       rw [h1] at heq; clear h1
