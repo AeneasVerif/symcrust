@@ -5,96 +5,11 @@
 //
 
 use crate::ntt::*;
+use crate::key::*;
 
-const SymCryptMlKemInternalParamsMlKem512: INTERNAL_PARAMS = INTERNAL_PARAMS
-{
-    params         : PARAMS::MLKEM512,
-    nRows          : 2,
-    nEta1          : 3,
-    nEta2          : 2,
-    nBitsOfU       : 10,
-    nBitsOfV       : 4,
-};
 
-const SymCryptMlKemInternalParamsMlKem768: INTERNAL_PARAMS = INTERNAL_PARAMS
-{
-    params         : PARAMS::MLKEM768,
-    nRows          : 3,
-    nEta1          : 2,
-    nEta2          : 2,
-    nBitsOfU       : 10,
-    nBitsOfV       : 4,
-};
-
-const SymCryptMlKemInternalParamsMlKem1024: INTERNAL_PARAMS = INTERNAL_PARAMS
-{
-    params         : PARAMS::MLKEM1024,
-    nRows          : 4,
-    nEta1          : 2,
-    nEta2          : 2,
-    nBitsOfU       : 11,
-    nBitsOfV       : 5,
-};
-
-fn SymCryptMlKemkeyGetInternalParamsFromParams(
-    params: PARAMS
-) -> INTERNAL_PARAMS
-{
-    match params {
-        | PARAMS::MLKEM512 =>
-            SymCryptMlKemInternalParamsMlKem512,
-        | PARAMS::MLKEM768 =>
-            SymCryptMlKemInternalParamsMlKem768,
-        | PARAMS::MLKEM1024 =>
-            SymCryptMlKemInternalParamsMlKem1024
-    }
-}
-
-const POLYELEMENT_ZERO: POLYELEMENT = [0; MLWE_POLYNOMIAL_COEFFICIENTS];
-
-fn SymCryptMlKemkeyAllocate(params: PARAMS) -> Box<KEY>
-{
-    // Note (Rust): this function could previously fail. Now that we use an enum for the choice of
-    // algorithm, match exhaustiveness checks obviate the need for an error code.
-    let params = SymCryptMlKemkeyGetInternalParamsFromParams(params);
-    let nRows = params.nRows;
-    // Note (Rust): previously, returned a heap-allocated key. We create a Box here, but could also
-    // return a value if we wanted, relying on LLVM to optimize out the copies of a large value.
-    Box::new(KEY {
-        fAlgorithmInfo: 0u32,
-        params,
-        hasPrivateSeed: false,
-        hasPrivateKey: false,
-        privateSeed: [0; 32],
-        privateRandom: [0; 32],
-        publicSeed: [0; 32],
-        // Note (Rust): this generates four boxes, see ALLOCATION.md for discussion
-        // Note (Rust): the original C code performs null-checks to see if the allocations
-        // succeeded. We could presumably use an error monad (the ? operator), Box::try_new, and
-        // return a std::result::Result for this function (and others who need to perform
-        // comparable checks).
-        pmAtranspose: MATRIX {
-            nRows: nRows as usize,
-            apPolyElements: vec![POLYELEMENT_ZERO; (nRows * nRows) as usize].into()
-        },
-        pvt: vec![POLYELEMENT_ZERO; nRows as usize].into(),
-        pvs: vec![POLYELEMENT_ZERO; nRows as usize].into(),
-        encodedT: [0u8; KEY_MAX_SIZEOF_ENCODED_T],
-        encapsKeyHash: [0u8; 32]
-    })
-}
-
-// VOID
-// CALL
-// SymCryptMlKemkeyFree(
-//     _Inout_ PMLKEMKEY  pkMlKemkey )
-// {
-//     CHECK_MAGIC( pkMlKemkey );
-
-//     SymCryptWipe( (PBYTE) pkMlKemkey, pkMlKemkey->cbTotalSize );
-
-//     SymCryptCallbackFree( pkMlKemkey );
-// }
+// TODO: there is no free function, but it would presumably be needed by C callers -- can we figure
+// something out, e.g. manually calling the drop trait for a box?
 
 // #define SIZEOF_ENCODED_UNCOMPRESSED_VECTOR(_nRows)   (384UL * _nRows)
 

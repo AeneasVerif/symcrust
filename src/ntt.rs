@@ -48,115 +48,17 @@ macro_rules! c_for {
     }
 }
 
-
-pub(crate)
-const MLWE_POLYNOMIAL_COEFFICIENTS: usize = 256;
+use crate::key::*;
 
 //=====================================================
 //  ML-KEM internal high level types
 //
-
-// PolyElements just store the coefficients without any header.
-pub(crate)
-type POLYELEMENT = [u16; MLWE_POLYNOMIAL_COEFFICIENTS ];
 
 type POLYELEMENT_ACCUMULATOR = [u32; MLWE_POLYNOMIAL_COEFFICIENTS ];
 
 // Currently maximum size of MLKEM matrices is baked in, they are always square and up to 4x4.
 const MATRIX_MAX_NROWS: usize = 4;
 
-// The slice length is between 1 and MATRIX_MAX_NROWS.
-// Note (Rust): unlike the original C code, we de-couple what we pass around (this type) vs. the
-// underlying allocation (handled by the caller).
-// Note (Rust): this already keeps the length -- no need for an additional field.
-type VECTOR = [POLYELEMENT];
-
-// Array of pointers to PolyElements in row-major order
-// Note: the extra indirection is intentional to make transposing the matrix cheap,
-// given that in the MLKEM context the underlying PolyElements are relatively large
-// so we don't want to move them around.
-//
-// Note (Rust): this will work because the thing has a fixed size and so we can declare 16
-// variables in scope, borrow them all, and put them in an array (or use split_at_mut).
-//
-// Note (Rust): again, allocation to be handled by the caller or the owner.
-// Note (Rust): to avoid a const-generic, the array of pointers to elements is possibly oversized
-pub(crate) struct MATRIX {
-    pub(crate) nRows: usize,
-    pub(crate) apPolyElements: Box<[POLYELEMENT]>,
-}
-
-//
-// MLKEMKEY type
-//
-
-pub(crate)
-const KEY_MAX_SIZEOF_ENCODED_T: usize = 1536;
-
-pub(crate) enum PARAMS {
-    // Rust: unclear if needed
-    // PARAMS_NULL          = 0,
-    MLKEM512      = 1,
-    MLKEM768      = 2,
-    MLKEM1024     = 3,
-}
-
-pub(crate) struct INTERNAL_PARAMS {
-    pub(crate) params: PARAMS,         // parameter set of ML-KEM being used, takes a value from PARAMS
-
-    pub(crate) nRows: u8,           // corresponds to k from FIPS 203; the number of rows and columns in the matrix A,
-                         // and the number of rows in column vectors s and t
-    pub(crate) nEta1: u8,           // corresponds to eta_1 from FIPS 203; number of coinflips used in generating s and e
-                         // in keypair generation, and r in encapsulation
-    pub(crate) nEta2: u8,           // corresponds to eta_2 from FIPS 203; number of coinflips used in generating e_1 and
-                         // e_2 in encapsulation
-    pub(crate) nBitsOfU: u8,        // corresponds to d_u from FIPS 203; number of bits that the coefficients of the polynomial
-                         // ring elements of u are compressed to in encapsulation for encoding into ciphertext
-    pub(crate) nBitsOfV: u8,        // corresponds to d_v from FIPS 203; number of bits that the coefficients of the polynomial
-                         // ring element v is compressed to in encapsulation for encoding into ciphertext
-}
-
-pub(crate)
-struct KEY {
-    pub(crate)
-    fAlgorithmInfo: u32, // Tracks which algorithms the key can be used in
-                                            // Also tracks which per-key selftests have been performed on this key
-                                            // A bitwise OR of FLAG_KEY_*, FLAG_MLKEMKEY_*, and
-                                            // SELFTEST_KEY_* values
-
-    pub(crate)
-    params: INTERNAL_PARAMS,
-
-    pub(crate)
-    hasPrivateSeed: bool, // Set to true if key has the private seed (d)
-    pub(crate)
-    hasPrivateKey: bool,  // Set to true if key has the private key (s and z)
-
-    // seeds
-    pub(crate)
-    privateSeed: [u8; 32],    // private seed (d) from which entire private PKE key can be derived
-    pub(crate)
-    privateRandom: [u8; 32],  // private random (z) used in implicit rejection
-
-    pub(crate)
-    publicSeed: [u8; 32],     // public seed (rho) from which A can be derived
-
-    // A o s + e = t
-    pub(crate)
-    pmAtranspose: MATRIX,   // public matrix in NTT form (derived from publicSeed)
-    pub(crate)
-    pvt: Box<VECTOR>,        // public vector in NTT form
-
-    pub(crate)
-    pvs: Box<VECTOR>,        // private vector in NTT form
-
-    // misc fields
-    pub(crate)
-    encodedT: [u8; KEY_MAX_SIZEOF_ENCODED_T], // byte-encoding of public vector
-                                                                              // may only use a prefix of this buffer
-    pub(crate)
-    encapsKeyHash: [u8; 32],  // Precomputed value of hash of ML-KEM's byte-encoding of encapsulation key
-}
 
 //=====================================================
 //  ML-KEM primitives

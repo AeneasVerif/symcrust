@@ -5,7 +5,7 @@
 // For the `alloc` module
 #![feature(allocator_api)]
 
-pub mod alloc;
+pub mod key;
 pub mod ntt;
 pub mod mlkem;
 pub mod misc;
