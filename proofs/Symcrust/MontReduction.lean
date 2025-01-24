@@ -10,12 +10,12 @@ set_option maxHeartbeats 1000000
 set_option scalarTac.nonLin true
 
 /-- Montegomery reduction -/
-def mont_reduction (q R a : Nat) (minus_q_minus_1 : Int) : Int :=
+def mont_reduce (q R a : Nat) (minus_q_minus_1 : Int) : Int :=
   let f := (a * minus_q_minus_1) % R
   let t := (a + f * q) / R
   t
 
-def mont_reduction_spec
+def mont_reduce_spec
   (q: Nat)
   (R: Nat)
   (minus_q_minus_1: Int)
@@ -25,7 +25,7 @@ def mont_reduction_spec
   (h_q: 0 < q)
   (h_a: a < q * R)
   (h_q_R: Nat.Coprime R q) :
-  let t := mont_reduction q R a minus_q_minus_1
+  let t := mont_reduce q R a minus_q_minus_1
   t % (q : Int) = (a * (R: ZMod q)⁻¹.val) % q ∧
   0 ≤ t ∧ t < 2 * q
   := by
@@ -70,6 +70,6 @@ def mont_reduction_spec
     . conv => rhs; rw [Int.mul_assoc]; rhs; rw [Int.mul_comm]
       int_tac
 
-  simp +zetaDelta [mont_reduction, *]
+  simp +zetaDelta [mont_reduce, *]
 
 end Symcrust

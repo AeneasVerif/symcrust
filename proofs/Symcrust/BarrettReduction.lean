@@ -75,7 +75,7 @@ private theorem small_emod_inj {a b:ℤ} (n:ℤ)
   _ = n * (b / n) + b % n := by rw [←Int.ediv_eq_zero_of_lt h_b h_b']
   _ = b := by apply Int.ediv_add_emod
 
-private theorem barrett_reduction_lemma (x: Int) (m: Nat) (h_m: 0 < m) :
+private theorem barrett_reduce_lemma (x: Int) (m: Nat) (h_m: 0 < m) :
   round ((x : ℚ) / m) = (x - Int.bmod x m) / (m : ℚ) := by
 
   simp only [Int.bmod]
@@ -276,7 +276,7 @@ private theorem bmod_bounds (a: ℤ) (b: ℕ) (h_b: 0 < b) : |(Int.bmod a b : �
       exact Int.le.intro_sub (b % Int.natAbs 2 + 0) rfl
     qify at h2; exact h2
 
-private theorem barrett_reduction_bounds
+private theorem barrett_reduce_bounds
   (N: ℕ)
   (h_N: 0 < N)
   (R: ℕ)
@@ -300,14 +300,14 @@ private theorem barrett_reduction_bounds
   have h_rw1 : ((v * A) : ℚ) = (↑(v * ↑A)) := by simp
 
   qify
-  rw [h_rw1, barrett_reduction_lemma]
+  rw [h_rw1, barrett_reduce_lemma]
   swap; omega
   rw [h_A]
 
   have h_rw2 : ((R : ℤ) : ℚ) = (R : ℚ) := by simp
 
   qify
-  rw [← h_rw2, barrett_reduction_lemma (↑R) (↑N)]
+  rw [← h_rw2, barrett_reduce_lemma (↑R) (↑N)]
   swap; exact h_N
   qify
   ring_nf
@@ -410,7 +410,7 @@ private theorem qify_le (a b: Int) (h: (a: ℚ) < (b: ℚ)) : a < b := by
   qify
   apply h
 
-def barrett_reduction (N: Nat) -- odd modulus
+def barrett_reduce (N: Nat) -- odd modulus
   (R: Nat) -- = 2 ^ b
   (A: Nat) -- Precomputed
   (v: Int) :=
@@ -420,7 +420,7 @@ def barrett_reduction (N: Nat) -- odd modulus
   o
 
 /- Inherited from Goutam's writeup -/
-def barrett_reduction_spec
+def barrett_reduce_spec
   (N: Nat) -- odd modulus
   (h_N: 0 < N)
   (R: Nat) -- = 2 ^ b
@@ -429,18 +429,18 @@ def barrett_reduction_spec
   (h_A: A = round (R / N))
   (v: Int)
   (h_v: |v| < R) :
-  let o := barrett_reduction N R A v
+  let o := barrett_reduce N R A v
   o % N = v % N ∧ |o| < N
 := by
   let k := round (((v * A) : ℚ) / R)
   let c := N * k
   let o := v - c
 
-  simp +zetaDelta only [barrett_reduction]; split_conjs
+  simp +zetaDelta only [barrett_reduce]; split_conjs
   . apply ZMod_eq_imp_mod_eq -- We move to ZMod to leverage many useful lemmas there
     simp [k, c, o] -- Which are all conveniently annotated with @simp
 
-  . apply barrett_reduction_bounds N h_N R h_R A h_A v h_v o
+  . apply barrett_reduce_bounds N h_N R h_R A h_A v h_v o
     simp +zetaDelta
 
 end Symcrust
