@@ -18,7 +18,7 @@ import Aeneas
 
 namespace Symcrust
 
-set_option maxHeartbeats 500000
+set_option maxHeartbeats 1000000
 
 -- We have to prove a few inequalities involving non-linear arithmetic
 set_option scalarTac.nonLin true
@@ -30,15 +30,18 @@ theorem Int.gcd_add_mul_self (a b k : ℤ) :
   Int.gcd a (b + k * a) = Int.gcd a b := by
   apply Eq.symm
   have h := @Int.gcd_greatest a (b + k * a) (Int.gcd a b) (by simp)
-  simp at h
+  simp only [Nat.cast_inj] at h
   apply h
   . apply Int.gcd_dvd_left
   . apply dvd_add
     . apply Int.gcd_dvd_right
     . rw [dvd_mul]
       exists 1, gcd a b
-      simp
+      simp only [isUnit_one, IsUnit.dvd, one_mul, true_and]
+      split_conjs
       apply Int.gcd_dvd_left
+      rfl
+
   . intro e div_a div_bk
     have div_ka : e ∣ k * a := by
       rw [dvd_mul]
@@ -47,10 +50,11 @@ theorem Int.gcd_add_mul_self (a b k : ℤ) :
     have div_b : e ∣ b := by
       have h : e ∣ (b + k * a) + (- k * a) := by
         apply dvd_add <;> simp [*]
-      simp at h
+      simp only [neg_mul, add_neg_cancel_right] at h
       apply h
     apply Int.dvd_gcd <;> assumption
 
+-- TODO: this should be in mathlib
 theorem Int.gcd_mod_same {a b : ℤ} :
   Int.gcd (a % b) b = Int.gcd a b := by
   have h1 : a % b = a - b * (a / b) := by
@@ -65,71 +69,9 @@ theorem Int.gcd_mod_same {a b : ℤ} :
   ring_nf
 
 -- TODO: which representation should we use for the inverse?
+-- TODO: use the ⁻¹ notation and remove this theorem
 theorem ZMod.inv_inv_eq (n : ℕ) (a : ZMod n) :
   ZMod.inv n a = a⁻¹ := by rfl
-
-theorem ZMod.inv_cancels_left_pos {a : ℤ} {b : ℕ}
-  (H_b : 0 < b)
-  (H_c: Int.gcd a b = 1) :
-  ((ZMod.inv b a).val * a) % b = (1 : ℤ) % b := by
-  have H : NeZero b := by
-    simp [neZero_iff]
-    intro; linarith
-  have h_one: ZMod.inv b (↑ a) * ↑ a = (1 : ZMod b) := by
-    have h_r: (↑a)⁻¹ * ↑a = ZMod.inv b (↑ a) * ↑ a := by
-       trivial
-    rw [← h_r]
-    rw [mul_comm]
-    rw [ZMod.mul_inv_eq_gcd]
-    rw [← Int.gcd_natCast_natCast]
-    simp
-    rw [ZMod.coe_intCast]
-    simp [Int.gcd_mod_same, H_c]
-  have h_one': ZMod.inv b (↑ a) * ↑ a = (1 : ℤ) := by
-    simp [h_one]
-  have h_cast : (inv b ↑a * ↑a).val = ((inv b ↑a).val : Int) * a % ↑b := by
-    have h := @ZMod.coe_intCast b (((ZMod.inv b a).val : Int) * a)
-    simp_all
-  rw [h_one] at h_cast
-  rw [← h_cast]
-  have h := @ZMod.val_intCast b 1 _
-  simp at h
-  rw [h]
-
--- TODO: remove assumption that the gcd is 1
-@[simp] theorem ZMod.inv_cancels_left {a : ℤ} {b : ℕ}
-  (H_c: Int.gcd a b = 1) :
-  ((ZMod.inv b a).val * a) % b = (1 : ℤ) % b := by
-  if hb : b = 0 then
-    simp [hb] at H_c
-    rw [hb]; simp
-    have h : a = 1 ∨ a = - 1 := by
-      have h := Int.natAbs_eq a
-      rw [H_c] at h
-      simp at h
-      apply h
-    cases h <;> simp_all
-    decide
-    decide
-  else
-    have hb : 0 < b := by cases b <;> simp_all
-    apply ZMod.inv_cancels_left_pos hb H_c
-
-@[simp] theorem ZMod.inv_cancels_right {a : ℤ} {b : Nat}
-  (H_c: Int.gcd a b = 1) :
-  (a * (ZMod.inv b a).val) % b = (1 : ℤ) % b := by
-  rw [mul_comm]
-  simp [*]
-
--- TODO: remove?
-theorem ZMod.nat_inv_cancels_left {a b : ℕ}
-  (H_c: Nat.Coprime a b) :
-  ((ZMod.inv b a).val * a) % b = (1 : ℤ) % b := by
-  rw [Nat.coprime_iff_gcd_eq_one] at H_c
-  rw [← Int.gcd_natCast_natCast] at H_c
-  have h := ZMod.inv_cancels_left H_c
-  simp at h
-  apply h
 
 theorem cancel_right_div_gcd_pos {m a b : ℤ}
   (c : Int) (hm : 0 < m) (hgcd : Int.gcd m c = 1)
@@ -139,9 +81,10 @@ theorem cancel_right_div_gcd_pos {m a b : ℤ}
   simp [hgcd] at heq
   apply heq
 
-theorem cancel_right_div_gcd {m : ℤ} (a b c : Int) (hgcd : Int.gcd m c = 1)
+theorem cancel_right_div_gcd {m : ℤ} (a b c : Int) (hgcd : Int.gcd c m = 1)
   (h : (a * c) % m = (b * c) % m) :
   a % m = b % m := by
+  rw [Int.gcd_comm] at hgcd
   if hm : m = 0 then
     simp_all
     if hc : c = 0 then
@@ -168,7 +111,7 @@ theorem cancel_right_div_gcd {m : ℤ} (a b c : Int) (hgcd : Int.gcd m c = 1)
       simp [hgcd] at heq
       apply heq
 
-theorem cancel_left_div_gcd {m : ℤ} (a b c : Int) (hgcd : Int.gcd m c = 1)
+theorem cancel_left_div_gcd {m : ℤ} (a b c : Int) (hgcd : Int.gcd c m = 1)
   (h : (c * a) % m = (c * b) % m) :
   a % m = b % m := by
   have heq := cancel_right_div_gcd a b c hgcd
@@ -227,7 +170,7 @@ attribute [local simp] NeZero.of_pos Int.emod_eq_of_lt
 
 theorem times_mod_imp_div_mod (n : ℕ) (a b c : ℤ)
   (hdiv : a % b = 0)
-  (hgcd : Int.gcd n b = 1)
+  (hgcd : Int.gcd b n = 1)
   (heq : a % n = (c * b) % n) :
   (a / b) % n = c % n := by
   -- step 1: multiply by b on both sides
@@ -260,10 +203,9 @@ theorem ZMod_val_injective {n : ℕ} [NeZero n] {a b : ZMod n} (h : a.val = b.va
   ZMod.val_injective n h
 
 theorem ZMod.mul_inv_eq_int_gcd {n : ℕ} (a : ℤ) :
-  ↑a * ZMod.inv n ↑a = Int.gcd a n := by
+  (a : ZMod n) * (a : ZMod n)⁻¹ = Int.gcd a n := by
   if hn : n = 0 then
     simp [hn]
-    rw [ZMod.inv_inv_eq]
     rw [ZMod.mul_inv_eq_gcd]
     simp [hn]
 
@@ -275,7 +217,6 @@ theorem ZMod.mul_inv_eq_int_gcd {n : ℕ} (a : ℤ) :
     rfl
   else
     have hn : 0 < n := by cases n <;> simp_all
-    rw [ZMod.inv_inv_eq]
     rw [ZMod.mul_inv_eq_gcd]
     rw [← Int.gcd_natCast_natCast]
     have hnz : NeZero n := by simp [neZero_iff, *]
@@ -284,65 +225,47 @@ theorem ZMod.mul_inv_eq_int_gcd {n : ℕ} (a : ℤ) :
     rw [ZMod.coe_intCast]
     rw [Int.gcd_mod_same]
 
--- TODO: this rule applies a rewriting, so it can't be applied by aesop
-theorem div_to_ZMod {n : ℕ} {a b : ℤ}
-  (hdiv : a % b = 0) (hgcd : Int.gcd n b = 1) :
-  ((a / b) : ZMod n) = (a : ZMod n) * (ZMod.inv n b) := by
-  have hgcd' : Int.gcd b n = 1 := by rw [Int.gcd_comm]; apply hgcd
-  have h : (a / b) % (n : Int) = ((a % (n : Int)) * (ZMod.inv n b).val) % n := by
-    apply times_mod_imp_div_mod <;> try assumption
-    rw [mul_assoc]
-    rw [Int.mul_emod]
-    rw [ZMod.inv_cancels_left] <;> try assumption
-    conv => rhs; lhs; lhs; simp
-    rw [← Int.mul_emod]
-    simp
+theorem div_to_ZMod {n : ℕ} {a b : ℤ} [NeZero n] (hDiv : b ∣ a) (hgcd : Int.gcd b n = 1) :
+  ((a / b) : ZMod n) = (a : ZMod n) * (b : ZMod n)⁻¹ := by
+  have h : (a / b) % (n : Int) = ((a % (n : Int)) * (b : ZMod n)⁻¹.cast) % (n : Int) := by
+    apply times_mod_imp_div_mod
+    . rw [← Int.dvd_iff_emod_eq_zero]
+      assumption
+    . assumption
+    . apply ZMod_eq_imp_mod_eq; simp
+      rw [mul_assoc]
+      have := @ZMod.mul_inv_eq_int_gcd n b
+      rw [mul_comm] at this
+      rw [this]
+      rw [hgcd]
+      simp
   have h1 := mod_eq_imp_ZMod_eq h
   rw [h1]
   simp
 
 -- This rule is compatible with aesop (not the one above)
-theorem div_to_ZMod_impl (n : ℕ) (a b : ℤ) (c : ZMod n)
-  (hdiv : a % b = 0) (hgcd : Int.gcd n b = 1)
+theorem div_to_ZMod_impl (n : ℕ) [NeZero n] (a b : ℤ) (c : ZMod n)
+  (hdiv : b ∣ a) (hgcd : Int.gcd b n = 1)
   (h : (a : ZMod n) = (b : ZMod n) * c) :
   ((a / b) : ZMod n) = c := by
   rw [div_to_ZMod] <;> try assumption
   rw [h]
-  have heq : ((↑b * c * ZMod.inv n ↑b) : ZMod n) =
-         (c * (↑b * ZMod.inv n ↑b)) := by ring_nf
+  have heq : ((↑b * c * (b : ZMod n)⁻¹) : ZMod n) =
+         (c * (↑b * (b : ZMod n)⁻¹)) := by ring_nf
   rw [heq]
   rw [ZMod.mul_inv_eq_int_gcd]
-  rw [Int.gcd_comm]
   simp [hgcd]
 
 theorem ZMod_inv_eq (n : ℕ) (a b c : ℤ)
   (hgcd : Int.gcd a n = 1)
   (h : (b : ZMod n) = (c : ZMod n) * (a : ZMod n)) :
-  (ZMod.inv n a) * (b : ZMod n)  = (c : ZMod n) := by
+  (a : ZMod n)⁻¹ * (b : ZMod n)  = (c : ZMod n) := by
   rw [h]
-  have heq: ZMod.inv n ↑a * (↑c * ↑a) =
-            ↑c * (↑a * ZMod.inv n ↑a) := by ring_nf
+  have heq: ↑(a : ZMod n)⁻¹ * (↑c * ↑a) =
+            ↑c * (↑a * (a : ZMod n)⁻¹) := by ring_nf
   rw [heq]
   rw [ZMod.mul_inv_eq_int_gcd]
   simp [hgcd]
-
--- Pushing the inverses to the left
-theorem ZMod_inv_comm (n : ℕ) (a : ℤ) (b : ZMod n) :
-  b * (ZMod.inv n a) = (ZMod.inv n a) * b := by
-  rw [mul_comm]
-
--- ZMod.natCast_val
-theorem test (n : Nat) [NeZero n] (x : ZMod n) : (x.val).cast = x := by
-  simp [ZMod.natCast_val]
-
-theorem Nat.NeZero_pos (n : Nat) [NeZero n] : 0 < n := by
-  rename_i h
-  cases h
-  omega
-
-theorem Nat.pos_NeZero {n : Nat} (h : 0 < n) : NeZero n := by
-  constructor
-  omega
 
 /- Algorihm 6 from the thesis -/
 def mont_reduction (q R a : Nat) (minus_q_minus_1 : Int) : Int :=
@@ -359,29 +282,30 @@ def mont_reduction_spec
   (h_q_minus_1: (minus_q_minus_1 * q) % R = (-1) % R)
   (h_q: 0 < q)
   (h_a: a < q * R)
-  (h_q_R: Nat.Coprime q R) :
+  (h_q_R: Nat.Coprime R q) :
   let t := mont_reduction q R a minus_q_minus_1
-  t % (q : Int) = (a * (ZMod.inv q R).val) % q ∧
+  t % (q : Int) = (a * (R: ZMod q)⁻¹.val) % q ∧
   0 ≤ t ∧ t < 2 * q
   := by
   let f := (a * minus_q_minus_1) % R
   let t := (a + f * q) / R
 
   -- Having this is in the context is useful as it triggers simplifications
-  have _ := Nat.pos_NeZero h_q
+  have : NeZero q := by constructor; omega
 
   -- Main goal
-  have h_t: t % (q : Int) = (a * ((ZMod.inv q R).val : Int)) % q := by
+  have h_t: t % (q : Int) = (a * ((R : ZMod q)⁻¹.val : Int)) % q := by
     apply ZMod_eq_imp_mod_eq
     simp [f, t]
     rw [div_to_ZMod]
     . simp
-    . have hZero : 0 = 0 % (R : Int) := by simp
+    . rw [Int.dvd_iff_emod_eq_zero]
+      have hZero : 0 = 0 % (R : Int) := by simp
       rw [hZero]
       apply ZMod_eq_imp_mod_eq
       simp [← ZMod_int_cast_eq_int_cast_iff] at h_q_minus_1
       simp [mul_assoc, h_q_minus_1]
-    . simp [Nat.coprime_iff_gcd_eq_one, *]
+    . simp [← Nat.coprime_iff_gcd_eq_one, *]
 
   -- Secondary goals
   have h_t1 : 0 ≤ t := by scalar_tac
@@ -402,7 +326,7 @@ def mont_reduction_spec
     . conv => rhs; rw [Int.mul_assoc]; rhs; rw [Int.mul_comm]
       scalar_tac
 
-  simp [mont_reduction, *]
+  simp +zetaDelta [mont_reduction, *]
 
 theorem bmod_eq_emod_eq_iff (n: ℕ) (a b: ℤ) :
   (a % n = b % n) ↔ (Int.bmod a n = Int.bmod b n) := by
@@ -480,10 +404,11 @@ theorem barrett_lemma9 (x: Int) (m: Nat) (h_m: 0 < m) : round ((x : ℚ) / m) = 
   /- This lemma basically consists of reconciling the definition of bmod that is now in Lean's Stdlib
      with the one from Goutam's writeup, which is based on round above -/
 
-  simp [Int.bmod]
+  simp only [Int.bmod]
   let r := x % m;
-  if h: r < (m + 1) / 2 then
-    simp [h]
+  dcases h: r < (m + 1) / 2
+  . simp +zetaDelta only [h, ↓reduceIte]
+
     have h': round ((x:ℚ) / m) = x / m := by
       simp [round]
       field_simp
@@ -534,8 +459,7 @@ theorem barrett_lemma9 (x: Int) (m: Nat) (h_m: 0 < m) : round ((x : ℚ) / m) = 
     have h_rw: (x / m) * m = x - x % m := by rw [←def_ediv]; apply mul_comm
     qify at h_rw; exact h_rw
 
-  else
-    simp [h]
+  . simp +zetaDelta only [h, ↓reduceIte]
 
     have h': round ((x:ℚ) / m) = (x / m) + 1 := by
       simp [round]
@@ -623,7 +547,7 @@ theorem barrett_lemma9 (x: Int) (m: Nat) (h_m: 0 < m) : round ((x : ℚ) / m) = 
     field_simp
     have h_rw: (x / m) * m = x - x % m := by rw [←def_ediv]; apply mul_comm
     qify at h_rw; rw [h_rw]
-    ring
+    ring_nf
 
 
 theorem mul_cancel_le_mul (a b c : ℚ) (h_a: 0 < a) (h: a * b ≤ a * c) : b ≤ c := by
@@ -812,7 +736,7 @@ def barrett_reduction
   /- We do this proof in the external barrett_bounds lemma -/
   have h1: |o| < N := by
     apply barrett_bounds N h_N R h_R A h_A v h_v o
-    simp
+    simp +zetaDelta
 
   ⟨ o, ⟨ h_o, h1 ⟩ ⟩
 
