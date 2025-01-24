@@ -294,12 +294,6 @@ theorem ZMod_eq_imp_bmod_eq {n : ℕ} {a b : ℤ}
  -/
 def round (x: ℚ) : Int := ⌊ x + 1/2 ⌋
 
-theorem mul_cancel_eq_mul (a b c : ℚ) (h_a: 0 < a) (h: a * b = a * c) : b = c := by
-  apply mul_eq_mul_left_iff.mp at h
-  cases h
-  . assumption
-  . linarith
-
 theorem def_ediv (a b: ℤ) : b * (a / b) = a - a % b := by
   have h: a % b + b * (a / b) = a % b + (a - a % b) := (calc
     a % b + b * (a / b) = b * (a / b) + a % b := by apply add_comm
@@ -309,7 +303,8 @@ theorem def_ediv (a b: ℤ) : b * (a / b) = a - a % b := by
   apply Int.add_left_cancel
   exact h
 
-theorem small_emod_inj {a b:ℤ} (n:ℤ) (h_mod: a % n = b % n) (h_a: 0 ≤ a) (h_a': a < n) (h_b: 0 ≤ b) (h_b': b < n)
+private theorem small_emod_inj {a b:ℤ} (n:ℤ)
+  (h_mod: a % n = b % n) (h_a: 0 ≤ a) (h_a': a < n) (h_b: 0 ≤ b) (h_b': b < n)
   : a = b := calc
   a = n * (a / n) + a % n := by apply Eq.symm; apply Int.ediv_add_emod
   _ = n * 0 + a % n := by rw [Int.ediv_eq_zero_of_lt h_a h_a']
@@ -317,7 +312,7 @@ theorem small_emod_inj {a b:ℤ} (n:ℤ) (h_mod: a % n = b % n) (h_a: 0 ≤ a) (
   _ = n * (b / n) + b % n := by rw [←Int.ediv_eq_zero_of_lt h_b h_b']
   _ = b := by apply Int.ediv_add_emod
 
-theorem barrett_lemma (x: Int) (m: Nat) (h_m: 0 < m) :
+private theorem barrett_reduction_lemma (x: Int) (m: Nat) (h_m: 0 < m) :
   round ((x : ℚ) / m) = (x - Int.bmod x m) / (m : ℚ) := by
 
   simp only [Int.bmod]
@@ -468,17 +463,16 @@ theorem barrett_lemma (x: Int) (m: Nat) (h_m: 0 < m) :
     qify at h_rw; rw [h_rw]
     ring_nf
 
-
-theorem mul_cancel_le_mul (a b c : ℚ) (h_a: 0 < a) (h: a * b ≤ a * c) : b ≤ c := by
+private theorem mul_cancel_le_mul (a b c : ℚ) (h_a: 0 < a) (h: a * b ≤ a * c) : b ≤ c := by
   exact (mul_le_mul_left h_a).mp h
 
-theorem ediv_le_add_one (x: ℤ) : (x + 1) / 2 ≤ x / 2 + 1 := by
+private theorem ediv_le_add_one (x: ℤ) : (x + 1) / 2 ≤ x / 2 + 1 := by
   have h: x / 2 + 1 = (x + 2) / 2 := by
     rw [←Int.add_mul_ediv_left] <;> simp
   rw [h]
   apply Int.ediv_le_ediv <;> simp
 
-theorem bmod_bounds (a: ℤ) (b: ℕ) (h_b: 0 < b) : |(Int.bmod a b : ℚ)| ≤ (b:ℚ)/2 := by
+private theorem bmod_bounds (a: ℤ) (b: ℕ) (h_b: 0 < b) : |(Int.bmod a b : ℚ)| ≤ (b:ℚ)/2 := by
   apply abs_le.mpr
   apply And.intro
   . have h: - (b/2) ≤ Int.bmod a b := by
@@ -519,7 +513,7 @@ theorem bmod_bounds (a: ℤ) (b: ℕ) (h_b: 0 < b) : |(Int.bmod a b : ℚ)| ≤ 
       exact Int.le.intro_sub (b % Int.natAbs 2 + 0) rfl
     qify at h2; exact h2
 
-theorem barrett_reduction_bounds
+private theorem barrett_reduction_bounds
   (N: ℕ)
   (h_N: 0 < N)
   (R: ℕ)
@@ -543,14 +537,14 @@ theorem barrett_reduction_bounds
   have h_rw1 : ((v * A) : ℚ) = (↑(v * ↑A)) := by simp
 
   qify
-  rw [h_rw1, barrett_lemma]
+  rw [h_rw1, barrett_reduction_lemma]
   swap; omega
   rw [h_A]
 
   have h_rw2 : ((R : ℤ) : ℚ) = (R : ℚ) := by simp
 
   qify
-  rw [← h_rw2, barrett_lemma (↑R) (↑N)]
+  rw [← h_rw2, barrett_reduction_lemma (↑R) (↑N)]
   swap; exact h_N
   qify
   ring_nf
@@ -649,7 +643,7 @@ theorem barrett_reduction_bounds
 
   rw [h_simp3]
 
-theorem qify_le (a b: Int) (h: (a: ℚ) < (b: ℚ)) : a < b := by
+private theorem qify_le (a b: Int) (h: (a: ℚ) < (b: ℚ)) : a < b := by
   qify
   apply h
 
