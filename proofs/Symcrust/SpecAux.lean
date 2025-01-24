@@ -15,6 +15,7 @@ namespace Target
 
   open Aeneas.Notations.SRRange
   open Aeneas.Notations.DivRange
+  open Aeneas.Notations.MulRange
   open Symcrust.Spec.Notations
 
   def nttLayerInner (f : Polynomial) (i len start : Nat) : Polynomial := Id.run do
@@ -38,7 +39,7 @@ namespace Target
 
   def ntt (f : Polynomial) : Polynomial := Id.run do
     let mut fi := (f, 1)
-    for h: len in [128 : >1 : /2] do
+    for h: len in [128 : >1 : /= 2] do
       fi := nttLayer fi.1 fi.2 len (by simp [Membership.mem] at *; omega)
     pure fi.1
 
