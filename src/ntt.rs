@@ -358,7 +358,8 @@ fn SymCryptMlKemMontMul(a: u32, b: u32, bMont: u32) -> u32 {
     assert!( (res & Rmask) == 0 );
     res = res >> Rlog2;
 
-    return SymCryptMlKemModSub( res, Q ); // SH: why this?
+    // By doing this we always get back within the bounds
+    return SymCryptMlKemModSub( res, Q );
 }
 
 fn SymCryptMlKemPolyElementNTTLayerC(peSrc: &mut POLYELEMENT, mut k: usize, len: usize) {
