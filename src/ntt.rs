@@ -320,6 +320,10 @@ fn SymCryptMlKemModAdd(a: u32, b: u32) -> u32 {
 }
 
 fn SymCryptMlKemModSub(a: u32, b: u32) -> u32 {
+    // This function is called in two situations:
+    // - when we want to substract to field elements which are < Q
+    // - when we performed an addition and want to substract Q so
+    //   that the result is < Q
     assert!( a < 2*Q );
     assert!( b <= Q );
 
