@@ -116,7 +116,7 @@ pub(crate) struct INTERNAL_PARAMS {
 //
 // Note (Rust): again, allocation to be handled by the caller or the owner.
 // Note (Rust): to avoid a const-generic, the array of pointers to elements is possibly oversized
-pub(crate) struct MATRIX {
+pub(crate) struct MATRIX1 {
     pub(crate) nRows: usize,
     pub(crate) apPolyElements: Box<[POLYELEMENT]>,
 }
@@ -160,7 +160,7 @@ struct KEY1 {
     //    fields, thus preserving our invariants.
 
     // A o s + e = t
-    pmAtranspose: MATRIX,   // public matrix in NTT form (derived from publicSeed)
+    pmAtranspose: MATRIX1,   // public matrix in NTT form (derived from publicSeed)
     pvt: Box<VECTOR>,        // public vector in NTT form
     pvs: Box<VECTOR>,        // private vector in NTT form
 
@@ -208,7 +208,7 @@ fn KeyAllocate1(params: PARAMS) -> Result<Box<KEY1>,MLKEM_ERROR>
         // succeeded. We could presumably use an error monad (the ? operator), Box::try_new, and
         // return a std::result::Result for this function (and others who need to perform
         // comparable checks).
-        pmAtranspose: MATRIX {
+        pmAtranspose: MATRIX1 {
             nRows: nRows as usize,
             apPolyElements: vec![POLYELEMENT_ZERO; (nRows * nRows) as usize].into()
         },
@@ -254,6 +254,9 @@ struct PreKey2<U: ?Sized> {
 pub(crate)
 type KEY2 = PreKey2<[POLYELEMENT]>;
 
+// (of size nRows)
+type MATRIX2 = [POLYELEMENT];
+
 impl KEY2 {
     pub fn atranspose(&self) -> &[POLYELEMENT] {
         &self.data[0..2*self.nRows]
@@ -272,6 +275,19 @@ impl KEY2 {
     }
     pub fn s_mut(&mut self) -> &mut [POLYELEMENT] {
         &mut self.data[3*self.nRows..4*self.nRows]
+    }
+
+    // FIXME: slightly unpleasant, owing to the nature of the encoding; but perhaps this is
+    // inevitable; alternatively, we could put all of the "public" fields in their own struct; and
+    // then return that struct + a, s, t (so, a quadruple)
+    pub fn ast_mut(&mut self) -> (&mut [POLYELEMENT], &mut [POLYELEMENT], &mut [POLYELEMENT]) {
+        let (a, st) = self.data.split_at_mut(2*self.nRows);
+        let (s, t) = st.split_at_mut(self.nRows);
+        (a, s, t)
+    }
+
+    pub fn t_encoded_t_mut(&mut self) -> (&mut [POLYELEMENT], &mut [u8; KEY_MAX_SIZEOF_ENCODED_T]) {
+        (&mut self.data[2*self.nRows..3*self.nRows], &mut self.encodedT)
     }
 }
 
@@ -413,6 +429,9 @@ impl KEY3 {
 
 pub(crate)
 type KEY = KEY2; // EDIT HERE
+
+pub(crate)
+type MATRIX = MATRIX2; // EDIT HERE
 
 pub(crate)
 fn KeyAllocate(params: PARAMS) -> Result<Box<KEY>,MLKEM_ERROR> {

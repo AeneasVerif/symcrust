@@ -122,97 +122,93 @@ SymCryptMlKemkeyComputeEncapsulationKeyHash(
     crate::hash::sha3_256_result( pState, &mut pkMlKemkey.encapsKeyHash );
 }
 
-// static
-// VOID
-// CALL
-// SymCryptMlKemkeyExpandFromPrivateSeed(
-//     _Inout_ PMLKEMKEY                                  pkMlKemkey,
-//     _Inout_ PINTERNAL_COMPUTATION_TEMPORARIES    pCompTemps )
-// {
-//     BYTE privateSeedHash[SHA3_512_RESULT_SIZE];
-//     BYTE CBDSampleBuffer[3*64 + 1];
-//     PVECTOR pvTmp;
-//     PPOLYELEMENT_ACCUMULATOR paTmp;
-//     PSHAKE256_STATE pShakeStateBase = &pCompTemps->hashState0.shake256State;
-//     PSHAKE256_STATE pShakeStateWork = &pCompTemps->hashState1.shake256State;
-//     UINT32 i;
-//     const UINT32 nRows = pkMlKemkey->params.nRows;
-//     const UINT32 nEta1 = pkMlKemkey->params.nEta1;
-//     const SIZE_T cbEncodedVector = SIZEOF_ENCODED_UNCOMPRESSED_VECTOR(nRows);
-//     const UINT32 cbPolyElement = pkMlKemkey->params.cbPolyElement;
-//     const UINT32 cbVector = pkMlKemkey->params.cbVector;
+fn
+SymCryptMlKemkeyExpandFromPrivateSeed(
+    pkMlKemkey: &mut KEY,
+    pCompTemps: &mut INTERNAL_COMPUTATION_TEMPORARIES )
+{
+    let mut privateSeedHash = [0u8; crate::hash::SHA3_512_RESULT_SIZE];
+    let mut CBDSampleBuffer = [0u8; 3*64 + 1];
+    // PVECTOR pvTmp;
+    // PPOLYELEMENT_ACCUMULATOR paTmp;
+    // UINT32 i;
+    let nRows = pkMlKemkey.params.nRows;
+    let nEta1 = pkMlKemkey.params.nEta1;
+    let cbEncodedVector = SIZEOF_ENCODED_UNCOMPRESSED_VECTOR(nRows as usize);
+    // const SIZE_T cbEncodedVector = SIZEOF_ENCODED_UNCOMPRESSED_VECTOR(nRows);
+    // const UINT32 cbPolyElement = pkMlKemkey->params.cbPolyElement;
+    // const UINT32 cbVector = pkMlKemkey->params.cbVector;
 
-//     ASSERT( pkMlKemkey->hasPrivateSeed );
-//     ASSERT( (nEta1 == 2) || (nEta1 == 3) );
-//     ASSERT( cbEncodedVector <= sizeof(pkMlKemkey->encodedT) );
+    assert!( pkMlKemkey.hasPrivateSeed );
+    assert!( (nEta1 == 2) || (nEta1 == 3) );
 
-//     pvTmp = SymCryptMlKemVectorCreate( pCompTemps->abVectorBuffer0, cbVector, nRows );
-//     ASSERT( pvTmp != NULL );
-//     paTmp = SymCryptMlKemPolyElementAccumulatorCreate( pCompTemps->abPolyElementAccumulatorBuffer, 2*cbPolyElement );
-//     ASSERT( paTmp != NULL );
+    // Note(Rust): there's a whole lot of NULL-checking going on in C, which presumably does not
+    // happen here -- the checks for NULL in the C code seem to be unreachable, because at the
+    // leaves, SymCryptPolyElementCreate cannot return NULL...?
 
-//     // (rho || sigma) = G(d || k)
-//     // use CBDSampleBuffer to concatenate the private seed and encoding of nRows
-//     memcpy( CBDSampleBuffer, pkMlKemkey->privateSeed, sizeof(pkMlKemkey->privateSeed) );
-//     CBDSampleBuffer[sizeof(pkMlKemkey->privateSeed)] = (BYTE) nRows;
-//     SymCryptSha3_512( CBDSampleBuffer, sizeof(pkMlKemkey->privateSeed)+1, privateSeedHash );
+    // (rho || sigma) = G(d || k)
+    // use CBDSampleBuffer to concatenate the private seed and encoding of nRows
+    CBDSampleBuffer[0..pkMlKemkey.privateSeed.len()].copy_from_slice(&pkMlKemkey.privateSeed);
+    CBDSampleBuffer[pkMlKemkey.privateSeed.len() /* == 32 */] = nRows;
+    crate::hash::sha3_512(&CBDSampleBuffer[0..pkMlKemkey.privateSeed.len()+1], &mut privateSeedHash);
 
-//     // copy public seed
-//     memcpy( pkMlKemkey->publicSeed, privateSeedHash, sizeof(pkMlKemkey->publicSeed) );
+    // copy public seed
+    pkMlKemkey.publicSeed.copy_from_slice(&privateSeedHash);
 
-//     // generate A from public seed
-//     SymCryptMlKemkeyExpandPublicMatrixFromPublicSeed( pkMlKemkey, pCompTemps );
+    // generate A from public seed
+    SymCryptMlKemkeyExpandPublicMatrixFromPublicSeed( pkMlKemkey, pCompTemps );
 
-//     // Initialize pShakeStateBase with sigma
-//     SymCryptShake256Init( pShakeStateBase );
-//     SymCryptShake256Append( pShakeStateBase, privateSeedHash+sizeof(pkMlKemkey->publicSeed), 32 );
+    // Initialize pShakeStateBase with sigma
+    crate::hash::shake256_init(&mut pCompTemps.hashState0);
+    crate::hash::shake256_append(&mut pCompTemps.hashState0, &privateSeedHash[pkMlKemkey.publicSeed.len()..pkMlKemkey.publicSeed.len()+32]);
 
-//     // Expand s in place
-//     for( i=0; i<nRows; i++ )
-//     {
-//         CBDSampleBuffer[0] = (BYTE) i;
-//         SymCryptShake256StateCopy( pShakeStateBase, pShakeStateWork );
-//         SymCryptShake256Append( pShakeStateWork, CBDSampleBuffer, 1 );
+    // Expand s in place
+    c_for!(let mut i = 0; i < nRows; i += 1; {
+        CBDSampleBuffer[0] = i;
+        crate::hash::shake256_state_copy( &mut pCompTemps.hashState0, &mut pCompTemps.hashState1 );
+        crate::hash::shake256_append( &mut pCompTemps.hashState1, &CBDSampleBuffer[0..1] );
 
-//         SymCryptShake256Extract( pShakeStateWork, CBDSampleBuffer, 64ul*nEta1, FALSE );
+        crate::hash::shake256_extract( &mut pCompTemps.hashState1, &mut CBDSampleBuffer[0..64usize*(nEta1 as usize)], false);
 
-//         SymCryptMlKemPolyElementSampleCBDFromBytes( CBDSampleBuffer, nEta1, INTERNAL_MLKEM_VECTOR_ELEMENT(i, pkMlKemkey->pvs) );
-//     }
-//     // Expand e in t, ready for multiply-add
-//     for( i=0; i<nRows; i++ )
-//     {
-//         CBDSampleBuffer[0] = (BYTE) (nRows+i);
-//         SymCryptShake256StateCopy( pShakeStateBase, pShakeStateWork );
-//         SymCryptShake256Append( pShakeStateWork, CBDSampleBuffer, 1 );
+        SymCryptMlKemPolyElementSampleCBDFromBytes( &CBDSampleBuffer, nEta1 as u32, &mut pkMlKemkey.s_mut()[i as usize]);
+    });
+    // Expand e in t, ready for multiply-add
+    c_for!(let mut i = 0; i < nRows; i += 1; {
+        CBDSampleBuffer[0] = nRows+i;
+        crate::hash::shake256_state_copy( &mut pCompTemps.hashState0, &mut pCompTemps.hashState1 );
+        crate::hash::shake256_append( &mut pCompTemps.hashState1, &CBDSampleBuffer[0..1] );
 
-//         SymCryptShake256Extract( pShakeStateWork, CBDSampleBuffer, 64ul*nEta1, FALSE );
+        crate::hash::shake256_extract( &mut pCompTemps.hashState1, &mut CBDSampleBuffer[0..64*(nEta1 as usize)], false );
 
-//         SymCryptMlKemPolyElementSampleCBDFromBytes( CBDSampleBuffer, nEta1, INTERNAL_MLKEM_VECTOR_ELEMENT(i, pkMlKemkey->pvt) );
-//     }
+        SymCryptMlKemPolyElementSampleCBDFromBytes( &CBDSampleBuffer, nEta1 as u32, &mut pkMlKemkey.t_mut()[i as usize]);
+    });
 
-//     // Perform NTT on s and e
-//     SymCryptMlKemVectorNTT( pkMlKemkey->pvs );
-//     SymCryptMlKemVectorNTT( pkMlKemkey->pvt );
+    // Perform NTT on s and e
+    SymCryptMlKemVectorNTT( pkMlKemkey.s_mut() );
+    SymCryptMlKemVectorNTT( pkMlKemkey.t_mut() );
 
-//     // pvTmp = s .* R
-//     SymCryptMlKemVectorMulR( pkMlKemkey->pvs, pvTmp );
+    // pvTmp = s .* R
+    SymCryptMlKemVectorMulR( pkMlKemkey.s_mut(), &mut pCompTemps.abVectorBuffer0 );
 
-//     // t = ((A o (s .* R)) ./ R) + e = A o s + e
-//     SymCryptMlKemMatrixVectorMontMulAndAdd( pkMlKemkey->pmAtranspose, pvTmp, pkMlKemkey->pvt, paTmp );
+    // t = ((A o (s .* R)) ./ R) + e = A o s + e
+    let (a, _, t) = pkMlKemkey.ast_mut();
+    SymCryptMlKemMatrixVectorMontMulAndAdd(a, &pCompTemps.abVectorBuffer0, t, &mut pCompTemps.abPolyElementAccumulatorBuffer, nRows);
 
-//     // transpose A
-//     SymCryptMlKemMatrixTranspose( pkMlKemkey->pmAtranspose );
+    // transpose A
+    SymCryptMlKemMatrixTranspose( pkMlKemkey.atranspose_mut(), nRows);
 
-//     // precompute byte-encoding of public vector t
-//     SymCryptMlKemVectorCompressAndEncode( pkMlKemkey->pvt, 12, pkMlKemkey->encodedT, cbEncodedVector );
+    // precompute byte-encoding of public vector t
+    let (t, encodedT) = pkMlKemkey.t_encoded_t_mut();
+    SymCryptMlKemVectorCompressAndEncode(t, 12, encodedT, cbEncodedVector );
 
-//     // precompute hash of encapsulation key blob
-//     SymCryptMlKemkeyComputeEncapsulationKeyHash( pkMlKemkey, pCompTemps, cbEncodedVector );
+    // precompute hash of encapsulation key blob
+    SymCryptMlKemkeyComputeEncapsulationKeyHash( pkMlKemkey, pCompTemps, cbEncodedVector );
 
-//     // Cleanup!
-//     SymCryptWipeKnownSize( privateSeedHash, sizeof(privateSeedHash) );
-//     SymCryptWipeKnownSize( CBDSampleBuffer, sizeof(CBDSampleBuffer) );
-// }
+    // Cleanup!
+    // FIXME
+    // SymCryptWipeKnownSize( privateSeedHash, sizeof(privateSeedHash) );
+    // SymCryptWipeKnownSize( CBDSampleBuffer, sizeof(CBDSampleBuffer) );
+}
 
 // ERROR
 // CALL
