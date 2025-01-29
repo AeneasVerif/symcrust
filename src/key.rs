@@ -6,8 +6,30 @@
 
 use std::result::Result;
 
+#[derive(PartialEq)]
 pub(crate)
-enum MLKEM_ERROR { NO_ERROR, INVALID_BLOB, OUT_OF_MEMORY }
+// FIXME: make sure constants have values consistent with the C header
+enum MLKEM_ERROR { NO_ERROR, INVALID_BLOB, OUT_OF_MEMORY, INVALID_ARGUMENT, MEMORY_ALLOCATION_FAILURE, WRONG_KEY_SIZE }
+
+// MLKEM key formats
+// ==================
+//  -   The below formats apply **only to external formats**: When somebody is
+//      importing a key (from test vectors, for example) or exporting a key.
+//      The internal format of the keys is not visible to the caller.
+enum FORMAT {
+    // FORMAT_NULL               = 0,
+    FORMAT_PRIVATE_SEED       = 1,    
+        // 64-byte concatenation of d || z from FIPS 203. Smallest representation of a full
+        // ML-KEM key.
+        // On its own it is ambiguous what type of ML-KEM key this represents; callers wanting to
+        // store this format must track the key type alongside the key.
+    FORMAT_DECAPSULATION_KEY  = 2,
+        // Standard byte encoding of an ML-KEM Decapsulation key, per FIPS 203.
+        // Size is 1632, 2400, or 3168 bytes for ML-KEM 512, 768, and 1024 respectively.
+    FORMAT_ENCAPSULATION_KEY  = 3,
+        // Standard byte encoding of an ML-KEM Encapsulation key, per FIPS 203.
+        // Size is 800, 1184, or 1568 bytes for ML-KEM 512, 768, and 1024 respectively.
+}
 
 #[derive(PartialEq)]
 pub(crate) enum PARAMS {
@@ -66,6 +88,7 @@ const fn SymCryptMlKemkeyGetInternalParamsFromParams(
 pub(crate)
 const MLWE_POLYNOMIAL_COEFFICIENTS: usize = 256;
 
+pub(crate)
 const POLYELEMENT_ZERO: POLYELEMENT = [0; MLWE_POLYNOMIAL_COEFFICIENTS];
 
 // PolyElements just store the coefficients without any header.

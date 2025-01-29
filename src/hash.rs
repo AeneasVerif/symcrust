@@ -30,6 +30,18 @@ struct HASH_STATE {
     magic: usize,
 }
 
+pub(crate)
+const UNINITIALIZED_HASH_STATE: HASH_STATE = HASH_STATE {
+    state: KECCAK_STATE {
+        state: [0; 25],
+        inputBlockSize: 0,
+        stateIndex: 0,
+        paddingValue: 0,
+        squeezeMode: false,
+    },
+    magic: 0 // set by the various init* functions
+};
+
 pub(crate) const SHAKE128_RESULT_SIZE: usize = 32;
 pub(crate) const SHAKE128_INPUT_BLOCK_SIZE: usize = 168;
 

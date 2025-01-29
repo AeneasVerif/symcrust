@@ -175,6 +175,10 @@ SymCryptMlKemkeyExpandFromPrivateSeed(
     // Expand e in t, ready for multiply-add
     c_for!(let mut i = 0; i < nRows; i += 1; {
         CBDSampleBuffer[0] = nRows+i;
+        // Note (Rust): it is much better to borrow the hash states *here*, rather than declaring
+        // them at the beginning of the function. With the former style, the borrow lives for the
+        // duration of the function call and one can use pCompTemps still; with the latter style,
+        // pCompTemps is invalidated for the duration of the entire function.
         crate::hash::shake256_state_copy( &mut pCompTemps.hashState0, &mut pCompTemps.hashState1 );
         crate::hash::shake256_append( &mut pCompTemps.hashState1, &CBDSampleBuffer[0..1] );
 
@@ -199,7 +203,7 @@ SymCryptMlKemkeyExpandFromPrivateSeed(
 
     // precompute byte-encoding of public vector t
     let (t, encodedT) = pkMlKemkey.t_encoded_t_mut();
-    SymCryptMlKemVectorCompressAndEncode(t, 12, encodedT, cbEncodedVector );
+    SymCryptMlKemVectorCompressAndEncode(t, 12, &mut encodedT[0..cbEncodedVector] );
 
     // precompute hash of encapsulation key blob
     SymCryptMlKemkeyComputeEncapsulationKeyHash( pkMlKemkey, pCompTemps, cbEncodedVector );
@@ -210,158 +214,211 @@ SymCryptMlKemkeyExpandFromPrivateSeed(
     // SymCryptWipeKnownSize( CBDSampleBuffer, sizeof(CBDSampleBuffer) );
 }
 
-// ERROR
-// CALL
-// SymCryptMlKemkeySetValue(
-//     _In_reads_bytes_( cbSrc )   PCBYTE                      pbSrc,
-//                                 SIZE_T                      cbSrc,
-//                                 MLKEMKEY_FORMAT    mlKemkeyFormat,
-//                                 UINT32                      flags,
-//     _Inout_                     PMLKEMKEY          pkMlKemkey )
-// {
-//     ERROR scError = NO_ERROR;
-//     PCBYTE pbCurr = pbSrc;
-//     PINTERNAL_COMPUTATION_TEMPORARIES pCompTemps = NULL;
-//     const UINT32 nRows = pkMlKemkey->params.nRows;
-//     const SIZE_T cbEncodedVector = SIZEOF_ENCODED_UNCOMPRESSED_VECTOR( nRows );
+//=====================================================
+// Flags for asymmetric key generation and import
 
-//     // Ensure only allowed flags are specified
-//     UINT32 allowedFlags = FLAG_KEY_NO_FIPS | FLAG_KEY_MINIMAL_VALIDATION;
+// These flags are introduced primarily for FIPS purposes. For FIPS 140-3 rather than expose to the
+// caller the specifics of what tests will be run with various algorithms, we are sanitizing flags
+// provided on asymmetric key generation and import to enable the caller to indicate their intent,
+// and for SymCrypt to perform the required testing.
+// Below we define the flags that can be passed and when a caller should set them.
+// The specifics of what tests will be run are likely to change over time, as FIPS requirements and
+// our understanding of how best to implement them, change over time. Callers should not rely on
+// specific behavior.
 
-//     if ( ( flags & ~allowedFlags ) != 0 )
-//     {
-//         scError = INVALID_ARGUMENT;
-//         goto cleanup;
-//     }
 
-//     // Check that minimal validation flag only specified with no fips
-//     if ( ( ( flags & FLAG_KEY_NO_FIPS ) == 0 ) &&
-//          ( ( flags & FLAG_KEY_MINIMAL_VALIDATION ) != 0 ) )
-//     {
-//         scError = INVALID_ARGUMENT;
-//         goto cleanup;
-//     }
+// Validation required by FIPS is enabled by default. This flag enables a caller to opt out of this
+// validation.
+const FLAG_KEY_NO_FIPS: u32 = 0x100;
 
-//     if( mlKemkeyFormat == MLKEMKEY_FORMAT_NULL )
-//     {
-//         scError = INVALID_ARGUMENT;
-//         goto cleanup;
-//     }
+// When opting out of FIPS, SymCrypt may still perform some sanity checks on key import
+// In very performance sensitive situations where a caller strongly trusts the values it is passing
+// to SymCrypt and does not care about FIPS (or can statically prove properties about the imported
+// keys), a caller may specify FLAG_KEY_MINIMAL_VALIDATION in addition to
+// FLAG_KEY_NO_FIPS to skip costly checks
+const FLAG_KEY_MINIMAL_VALIDATION: u32 = 0x200;
 
-//     if( ( flags & FLAG_KEY_NO_FIPS ) == 0 )
-//     {
-//         // Ensure ML-KEM algorithm selftest is run before first use of ML-KEM algorithms;
-//         // notably _before_ first full KeyGen
-//         RUN_SELFTEST_ONCE(
-//             SymCryptMlKemSelftest,
-//             SELFTEST_ALGORITHM_MLKEM);
-//     }
+// Callers must specify what algorithm(s) a given asymmetric key will be used for.
+// This information will be tracked by SymCrypt, and attempting to use the key in an algorithm it
+// was not generated or imported for will result in failure.
+// If no algorithm is specified then the key generation or import function will fail.
+const FLAG_DLKEY_DSA: u32 = 0x1000;
+const FLAG_DLKEY_DH: u32 = 0x2000;
 
-//     pCompTemps = SymCryptCallbackAlloc( sizeof(INTERNAL_COMPUTATION_TEMPORARIES) );
-//     if( pCompTemps == NULL )
-//     {
-//         scError = MEMORY_ALLOCATION_FAILURE;
-//         goto cleanup;
-//     }
+const FLAG_ECKEY_ECDSA: u32 = 0x1000;
+const FLAG_ECKEY_ECDH: u32 = 0x2000;
 
-//     if( mlKemkeyFormat == MLKEMKEY_FORMAT_PRIVATE_SEED )
-//     {
-//         if( cbSrc != SIZEOF_FORMAT_PRIVATE_SEED )
-//         {
-//             scError = WRONG_KEY_SIZE;
-//             goto cleanup;
-//         }
+const FLAG_RSAKEY_SIGN: u32 = 0x1000;
+const FLAG_RSAKEY_ENCRYPT: u32 = 0x2000;
 
-//         pkMlKemkey->hasPrivateSeed = TRUE;
-//         memcpy( pkMlKemkey->privateSeed, pbCurr, sizeof(pkMlKemkey->privateSeed) );
-//         pbCurr += sizeof(pkMlKemkey->privateSeed);
+fn
+SymCryptMlKemkeySetValue(
+    pbSrc: &[u8],
+    mlKemkeyFormat: MLKEMKEY_FORMAT,
+    flags: u32,
+    pkMlKemkey: &mut KEY ) -> MLKEM_ERROR
+{
+    // ERROR scError = NO_ERROR;
+    let mut pbCurr: usize = 0;
+    // PINTERNAL_COMPUTATION_TEMPORARIES pCompTemps = NULL;
+    let nRows = pkMlKemkey.params.nRows;
+    let cbEncodedVector = SIZEOF_ENCODED_UNCOMPRESSED_VECTOR( nRows as usize);
 
-//         pkMlKemkey->hasPrivateKey = TRUE;
-//         memcpy( pkMlKemkey->privateRandom, pbCurr, sizeof(pkMlKemkey->privateRandom) );
-//         pbCurr += sizeof(pkMlKemkey->privateRandom);
+    // Ensure only allowed flags are specified
+    let allowedFlags: u32 = FLAG_KEY_NO_FIPS | FLAG_KEY_MINIMAL_VALIDATION;
 
-//         SymCryptMlKemkeyExpandFromPrivateSeed( pkMlKemkey, pCompTemps );
-//     }
-//     else if( mlKemkeyFormat == MLKEMKEY_FORMAT_DECAPSULATION_KEY )
-//     {
-//         if( cbSrc != SIZEOF_FORMAT_DECAPSULATION_KEY( nRows ) )
-//         {
-//             scError = WRONG_KEY_SIZE;
-//             goto cleanup;
-//         }
+    if ( ( flags & !allowedFlags ) != 0 )
+    {
+        return MLKEM_ERROR::INVALID_ARGUMENT;
+    }
 
-//         // decode s
-//         scError = SymCryptMlKemVectorDecodeAndDecompress( pbCurr, cbEncodedVector, 12, pkMlKemkey->pvs );
-//         if( scError != NO_ERROR )
-//         {
-//             goto cleanup;
-//         }
-//         pbCurr += cbEncodedVector;
+    // Check that minimal validation flag only specified with no fips
+    if ( ( flags & FLAG_KEY_NO_FIPS ) == 0 ) &&
+         ( ( flags & FLAG_KEY_MINIMAL_VALIDATION ) != 0 )
+    {
+        return MLKEM_ERROR::INVALID_ARGUMENT;
+    }
 
-//         // copy t and decode t
-//         memcpy( pkMlKemkey->encodedT, pbCurr, cbEncodedVector );
-//         pbCurr += cbEncodedVector;
-//         scError = SymCryptMlKemVectorDecodeAndDecompress( pkMlKemkey->encodedT, cbEncodedVector, 12, pkMlKemkey->pvt );
-//         if( scError != NO_ERROR )
-//         {
-//             goto cleanup;
-//         }
+    // Note (Rust): ruled out by typing
+    // if( mlKemkeyFormat == MLKEMKEY_FORMAT_NULL )
+    // {
+    //     return MLKEM_ERROR::INVALID_ARGUMENT;
+    // }
 
-//         // copy public seed and expand public matrix
-//         memcpy( pkMlKemkey->publicSeed, pbCurr, sizeof(pkMlKemkey->publicSeed) );
-//         pbCurr += sizeof(pkMlKemkey->publicSeed);
-//         SymCryptMlKemkeyExpandPublicMatrixFromPublicSeed( pkMlKemkey, pCompTemps );
+    if( ( flags & FLAG_KEY_NO_FIPS ) == 0 )
+    {
+        // FIXME
+        // Ensure ML-KEM algorithm selftest is run before first use of ML-KEM algorithms;
+        // notably _before_ first full KeyGen
+        // RUN_SELFTEST_ONCE(
+        //     SymCryptMlKemSelftest,
+        //     SELFTEST_ALGORITHM_MLKEM);
+    }
 
-//         // transpose A
-//         SymCryptMlKemMatrixTranspose( pkMlKemkey->pmAtranspose );
+    let pCompTemps = Box::try_new(INTERNAL_COMPUTATION_TEMPORARIES {
+        abVectorBuffer0: [POLYELEMENT_ZERO; MATRIX_MAX_NROWS],
+        abVectorBuffer1: [POLYELEMENT_ZERO; MATRIX_MAX_NROWS],
+        abPolyElementBuffer0: POLYELEMENT_ZERO,
+        abPolyElementBuffer1: POLYELEMENT_ZERO,
+        abPolyElementAccumulatorBuffer: [0; MLWE_POLYNOMIAL_COEFFICIENTS ],
+        hashState0: crate::hash::UNINITIALIZED_HASH_STATE,
+        hashState1: crate::hash::UNINITIALIZED_HASH_STATE,
+    });
 
-//         // copy hash of encapsulation key
-//         memcpy( pkMlKemkey->encapsKeyHash, pbCurr, sizeof(pkMlKemkey->encapsKeyHash) );
-//         pbCurr += sizeof(pkMlKemkey->encapsKeyHash);
+    let mut pCompTemps = match pCompTemps {
+        Result::Err(_) => { return MLKEM_ERROR::MEMORY_ALLOCATION_FAILURE },
+        Result::Ok(pCompTemps) => pCompTemps
+    };
 
-//         // copy private random
-//         memcpy( pkMlKemkey->privateRandom, pbCurr, sizeof(pkMlKemkey->privateRandom) );
-//         pbCurr += sizeof(pkMlKemkey->privateRandom);
+    match mlKemkeyFormat {
+    MLKEMKEY_FORMAT::PRIVATE_SEED =>
+    {
+        if( pbSrc.len() != SIZEOF_FORMAT_PRIVATE_SEED )
+        {
+            return MLKEM_ERROR::WRONG_KEY_SIZE;
+        }
 
-//         pkMlKemkey->hasPrivateSeed = FALSE;
-//         pkMlKemkey->hasPrivateKey  = TRUE;
-//     }
-//     else if( mlKemkeyFormat == MLKEMKEY_FORMAT_ENCAPSULATION_KEY )
-//     {
-//         if( cbSrc != SIZEOF_FORMAT_ENCAPSULATION_KEY( nRows ) )
-//         {
-//             scError = WRONG_KEY_SIZE;
-//             goto cleanup;
-//         }
+        pkMlKemkey.hasPrivateSeed = true;
+        let l = pkMlKemkey.privateSeed.len();
+        pkMlKemkey.privateSeed.copy_from_slice(&pbSrc[0..l]);
+        pbCurr += pkMlKemkey.privateSeed.len();
 
-//         // copy t and decode t
-//         memcpy( pkMlKemkey->encodedT, pbCurr, cbEncodedVector );
-//         pbCurr += cbEncodedVector;
-//         scError = SymCryptMlKemVectorDecodeAndDecompress( pkMlKemkey->encodedT, cbEncodedVector, 12, pkMlKemkey->pvt );
-//         if( scError != NO_ERROR )
-//         {
-//             goto cleanup;
-//         }
+        pkMlKemkey.hasPrivateKey = true;
+        let l = pkMlKemkey.privateRandom.len();
+        pkMlKemkey.privateRandom.copy_from_slice(&pbSrc[pbCurr..pbCurr+l]);
+        pbCurr += pkMlKemkey.privateRandom.len();
 
-//         // copy public seed and expand public matrix
-//         memcpy( pkMlKemkey->publicSeed, pbCurr, sizeof(pkMlKemkey->publicSeed) );
-//         pbCurr += sizeof(pkMlKemkey->publicSeed);
-//         SymCryptMlKemkeyExpandPublicMatrixFromPublicSeed( pkMlKemkey, pCompTemps );
+        SymCryptMlKemkeyExpandFromPrivateSeed( pkMlKemkey, &mut pCompTemps );
+    },
 
-//         // transpose A
-//         SymCryptMlKemMatrixTranspose( pkMlKemkey->pmAtranspose );
+    MLKEMKEY_FORMAT::DECAPSULATION_KEY =>
+    {
+        if( pbSrc.len() != SIZEOF_FORMAT_DECAPSULATION_KEY( nRows as usize) )
+        {
+            return MLKEM_ERROR::WRONG_KEY_SIZE;
+        }
 
-//         // precompute hash of encapsulation key blob
-//         SymCryptMlKemkeyComputeEncapsulationKeyHash( pkMlKemkey, pCompTemps, cbEncodedVector );
+        // decode s
+        let scError = SymCryptMlKemVectorDecodeAndDecompress( &pbSrc[pbCurr..pbCurr+cbEncodedVector], 12, pkMlKemkey.s_mut() );
+        if scError != MLKEM_ERROR::NO_ERROR
+        {
+            return scError;
+        }
+        pbCurr += cbEncodedVector;
 
-//         pkMlKemkey->hasPrivateSeed = FALSE;
-//         pkMlKemkey->hasPrivateKey  = FALSE;
-//     }
-//     else
-//     {
-//         scError = NOT_IMPLEMENTED;
-//         goto cleanup;
-//     }
+        // copy t and decode t
+        pkMlKemkey.encodedT.copy_from_slice(&pbSrc[pbCurr..pbCurr+cbEncodedVector]);
+        pbCurr += cbEncodedVector;
+        let (t, encodedT) = pkMlKemkey.t_encoded_t_mut();
+        let scError = SymCryptMlKemVectorDecodeAndDecompress( &encodedT[0..cbEncodedVector], 12, t );
+        if( scError != MLKEM_ERROR::NO_ERROR )
+        {
+            return scError;
+        }
+
+        // copy public seed and expand public matrix
+        let l = pkMlKemkey.publicSeed.len();
+        pkMlKemkey.publicSeed.copy_from_slice(&pbSrc[pbCurr..pbCurr+l] );
+        pbCurr += pkMlKemkey.publicSeed.len();
+        SymCryptMlKemkeyExpandPublicMatrixFromPublicSeed( pkMlKemkey, &mut pCompTemps );
+
+        // transpose A
+        SymCryptMlKemMatrixTranspose( pkMlKemkey.atranspose_mut(), nRows );
+
+        // copy hash of encapsulation key
+        let l = pkMlKemkey.encapsKeyHash.len();
+        pkMlKemkey.encapsKeyHash.copy_from_slice(&pbSrc[pbCurr..pbCurr+l]);
+        pbCurr += pkMlKemkey.encapsKeyHash.len();
+
+        // copy private random
+        let l = pkMlKemkey.privateRandom.len();
+        pkMlKemkey.privateRandom.copy_from_slice(&pbSrc[pbCurr..pbCurr+l]);
+        pbCurr += pkMlKemkey.privateRandom.len();
+
+        pkMlKemkey.hasPrivateSeed = false;
+        pkMlKemkey.hasPrivateKey  = true;
+    },
+
+    MLKEMKEY_FORMAT::ENCAPSULATION_KEY =>
+    {
+        if( pbSrc.len() != SIZEOF_FORMAT_ENCAPSULATION_KEY( nRows as usize) )
+        {
+            return MLKEM_ERROR::WRONG_KEY_SIZE;
+        }
+
+        // copy t and decode t
+        pkMlKemkey.encodedT.copy_from_slice(&pbSrc[pbCurr..pbCurr+cbEncodedVector]);
+        pbCurr += cbEncodedVector;
+        let (t, encodedT) = pkMlKemkey.t_encoded_t_mut();
+        let scError = SymCryptMlKemVectorDecodeAndDecompress( &encodedT[0..cbEncodedVector], 12, t );
+        if( scError != MLKEM_ERROR::NO_ERROR )
+        {
+            return scError;
+        }
+
+        // copy public seed and expand public matrix
+        let l = pkMlKemkey.publicSeed.len();
+        pkMlKemkey.publicSeed.copy_from_slice(&pbSrc[pbCurr..pbCurr+l]);
+        pbCurr += pkMlKemkey.publicSeed.len();
+        SymCryptMlKemkeyExpandPublicMatrixFromPublicSeed( pkMlKemkey, &mut pCompTemps );
+
+        // transpose A
+        SymCryptMlKemMatrixTranspose( pkMlKemkey.atranspose_mut(), nRows );
+
+        // precompute hash of encapsulation key blob
+        SymCryptMlKemkeyComputeEncapsulationKeyHash( pkMlKemkey, &mut pCompTemps, cbEncodedVector );
+
+        pkMlKemkey.hasPrivateSeed = false;
+        pkMlKemkey.hasPrivateKey  = false;
+    }
+    };
+    MLKEM_ERROR::NO_ERROR
+    // Note (Rust): exhaustiveness
+    // else
+    // {
+    //     scError = NOT_IMPLEMENTED;
+    //     goto cleanup;
+    // }
 
 //     ASSERT( pbCurr == pbSrc + cbSrc );
 
@@ -373,7 +430,7 @@ SymCryptMlKemkeyExpandFromPrivateSeed(
 //     }
 
 //     return scError;
-// }
+}
 
 
 // ERROR

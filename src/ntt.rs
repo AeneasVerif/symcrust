@@ -59,6 +59,7 @@ pub(crate)
 type POLYELEMENT_ACCUMULATOR = [u32; MLWE_POLYNOMIAL_COEFFICIENTS ];
 
 // Currently maximum size of MLKEM matrices is baked in, they are always square and up to 4x4.
+pub(crate)
 const MATRIX_MAX_NROWS: usize = 4;
 
 
@@ -83,6 +84,8 @@ const SIZEOF_ENCAPS_RANDOM: usize = 32;
 // Note (Rust): caller allocates these temporaries whichever way they want, and passes us a mutable
 // reference to such a struct. If we need to use several fields at once, we can use a `ref mut`
 // pattern in Rust.
+// FIXME: the Default trait only works for arrays of lengths up to 32??
+// #[derive(Default)]
 pub(crate)
 struct INTERNAL_COMPUTATION_TEMPORARIES {
 pub(crate)
@@ -992,8 +995,7 @@ fn
 SymCryptMlKemVectorCompressAndEncode(
     pvSrc: &VECTOR,
     nBitsPerCoefficient: u32,
-    pbDst: &mut[u8],
-    cbDst: usize )
+    pbDst: &mut[u8])
 {
     let nRows = pvSrc.len();
 
@@ -1001,7 +1003,7 @@ SymCryptMlKemVectorCompressAndEncode(
     assert!( nRows <= MATRIX_MAX_NROWS );
     assert!( nBitsPerCoefficient >  0  );
     assert!( nBitsPerCoefficient <= 12 );
-    assert!( cbDst == nRows*((nBitsPerCoefficient*(MLWE_POLYNOMIAL_COEFFICIENTS as u32 / 8)) as usize) );
+    assert!( pbDst.len() == nRows*((nBitsPerCoefficient*(MLWE_POLYNOMIAL_COEFFICIENTS as u32 / 8)) as usize) );
 
     c_for!(let mut i = 0; i < nRows; i += 1;
     {
@@ -1012,10 +1014,10 @@ SymCryptMlKemVectorCompressAndEncode(
     });
 }
 
+pub(crate)
 fn
 SymCryptMlKemVectorDecodeAndDecompress(
     pbSrc: &[u8],
-    cbSrc: usize,
     nBitsPerCoefficient: u32,
     pvDst: &mut VECTOR ) -> MLKEM_ERROR
 {
@@ -1025,13 +1027,13 @@ SymCryptMlKemVectorDecodeAndDecompress(
     assert!( nRows <= MATRIX_MAX_NROWS );
     assert!( nBitsPerCoefficient >  0  );
     assert!( nBitsPerCoefficient <= 12 );
-    assert!( cbSrc == nRows*(nBitsPerCoefficient as usize)*(MLWE_POLYNOMIAL_COEFFICIENTS / 8) );
+    assert!( pbSrc.len() == nRows*(nBitsPerCoefficient as usize)*(MLWE_POLYNOMIAL_COEFFICIENTS / 8) );
 
     c_for!(let mut i = 0; i < nRows; i += 1;
     {
         let pbSrc_index = i * (nBitsPerCoefficient as usize)*(MLWE_POLYNOMIAL_COEFFICIENTS / 8); 
         let scError = SymCryptMlKemPolyElementDecodeAndDecompress( &pbSrc[pbSrc_index..], nBitsPerCoefficient, &mut pvDst[i] );
-        match scError { MLKEM_ERROR::NO_ERROR => return scError, _ => () };
+        match scError { MLKEM_ERROR::NO_ERROR => (), _ => return scError };
     });
     MLKEM_ERROR::NO_ERROR
 }
