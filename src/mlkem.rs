@@ -4,6 +4,7 @@
 // Copyright (c) Microsoft Corporation. Licensed under the MIT license.
 //
 
+use crate::common::*;
 use crate::ntt::*;
 use crate::key::*;
 
@@ -530,48 +531,46 @@ SymCryptMlKemkeyGetValue(
 }
 
 
-// ERROR
-// CALL
-// SymCryptMlKemkeyGenerate(
-//     _Inout_                     PMLKEMKEY  pkMlKemkey,
-//                                 UINT32              flags )
-// {
-//     ERROR scError = NO_ERROR;
-//     BYTE privateSeed[SIZEOF_FORMAT_PRIVATE_SEED];
+fn
+SymCryptMlKemkeyGenerate(
+    pkMlKemkey: &mut KEY,
+                                flags : u32) -> MLKEM_ERROR
+{
+    // ERROR scError = NO_ERROR;
+    let mut privateSeed = [0u8; SIZEOF_FORMAT_PRIVATE_SEED];
 
-//     // Ensure only allowed flags are specified
-//     UINT32 allowedFlags = FLAG_KEY_NO_FIPS;
+    // Ensure only allowed flags are specified
+    let allowedFlags: u32 = FLAG_KEY_NO_FIPS;
 
-//     if ( ( flags & ~allowedFlags ) != 0 )
-//     {
-//         scError = INVALID_ARGUMENT;
-//         goto cleanup;
-//     }
+    if ( ( flags & !allowedFlags ) != 0 )
+    {
+        return MLKEM_ERROR::INVALID_ARGUMENT;
+    }
 
-//     scError = SymCryptCallbackRandom( privateSeed, sizeof(privateSeed) );
-//     if( scError != NO_ERROR )
-//     {
-//         goto cleanup;
-//     }
+    let scError = callback_random( &mut privateSeed );
+    if scError != MLKEM_ERROR::NO_ERROR
+    {
+        return scError;
+    }
 
-//     scError = SymCryptMlKemkeySetValue( privateSeed, sizeof(privateSeed), MLKEMKEY_FORMAT_PRIVATE_SEED, flags, pkMlKemkey );
-//     if( scError != NO_ERROR )
-//     {
-//         goto cleanup;
-//     }
+    let scError = SymCryptMlKemkeySetValue( &privateSeed, MLKEMKEY_FORMAT::PRIVATE_SEED, flags, pkMlKemkey );
+    if( scError != MLKEM_ERROR::NO_ERROR )
+    {
+        return scError;
+    }
 
-//     // SymCryptMlKemkeySetValue ensures the self-test is run before
-//     // first operational use of MlKem
+    // SymCryptMlKemkeySetValue ensures the self-test is run before
+    // first operational use of MlKem
 
-//     // Awaiting feedback from NIST for discussion from PQC forum and CMUF
-//     // before implementing costly PCT on ML-KEM key generation which is
-//     // not expected by FIPS 203
+    // Awaiting feedback from NIST for discussion from PQC forum and CMUF
+    // before implementing costly PCT on ML-KEM key generation which is
+    // not expected by FIPS 203
 
 // cleanup:
 //     SymCryptWipeKnownSize( privateSeed, sizeof(privateSeed) );
 
-//     return scError;
-// }
+    MLKEM_ERROR::NO_ERROR
+}
 
 // ERROR
 // CALL

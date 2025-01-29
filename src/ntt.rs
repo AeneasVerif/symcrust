@@ -50,6 +50,7 @@ macro_rules! c_for {
 }
 
 use crate::key::*;
+use crate::common::*;
 
 //=====================================================
 //  ML-KEM internal high level types
