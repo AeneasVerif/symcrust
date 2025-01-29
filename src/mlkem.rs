@@ -412,7 +412,6 @@ SymCryptMlKemkeySetValue(
         pkMlKemkey.hasPrivateKey  = false;
     }
     };
-    MLKEM_ERROR::NO_ERROR
     // Note (Rust): exhaustiveness
     // else
     // {
@@ -420,8 +419,9 @@ SymCryptMlKemkeySetValue(
     //     goto cleanup;
     // }
 
-//     ASSERT( pbCurr == pbSrc + cbSrc );
+    assert!( pbCurr == pbSrc.len() );
 
+    MLKEM_ERROR::NO_ERROR
 // cleanup:
 //     if( pCompTemps != NULL )
 //     {
@@ -433,21 +433,18 @@ SymCryptMlKemkeySetValue(
 }
 
 
-// ERROR
-// CALL
-// SymCryptMlKemkeyGetValue(
-//     _In_                        PCMLKEMKEY         pkMlKemkey,
-//     _Out_writes_bytes_( cbDst ) PBYTE                       pbDst,
-//                                 SIZE_T                      cbDst,
-//                                 MLKEMKEY_FORMAT    mlKemkeyFormat,
-//                                 UINT32                      flags )
-// {
-//     ERROR scError = NO_ERROR;
-//     PBYTE pbCurr = pbDst;
-//     const UINT32 nRows = pkMlKemkey->params.nRows;
-//     const SIZE_T cbEncodedVector = SIZEOF_ENCODED_UNCOMPRESSED_VECTOR( nRows );
-
-//     UNREFERENCED_PARAMETER( flags );
+fn
+SymCryptMlKemkeyGetValue(
+    pkMlKemkey: &KEY,
+    pbDst: &mut[u8],
+                                // SIZE_T                      cbDst,
+                                mlKemkeyFormat: MLKEMKEY_FORMAT,
+                                _flags: u32 ) -> MLKEM_ERROR
+{
+    // ERROR scError = NO_ERROR;
+    let mut pbCurr: usize = 0;
+    let nRows = pkMlKemkey.params.nRows;
+    let cbEncodedVector = SIZEOF_ENCODED_UNCOMPRESSED_VECTOR( nRows as usize );
 
 //     if( mlKemkeyFormat == MLKEMKEY_FORMAT_NULL )
 //     {
@@ -455,82 +452,82 @@ SymCryptMlKemkeySetValue(
 //         goto cleanup;
 //     }
 
-//     if( mlKemkeyFormat == MLKEMKEY_FORMAT_PRIVATE_SEED )
-//     {
-//         if( cbDst != SIZEOF_FORMAT_PRIVATE_SEED )
-//         {
-//             scError = WRONG_KEY_SIZE;
-//             goto cleanup;
-//         }
+    match mlKemkeyFormat {
+        MLKEMKEY_FORMAT::PRIVATE_SEED =>
+    {
+        if( pbDst.len() != SIZEOF_FORMAT_PRIVATE_SEED )
+        {
+            return MLKEM_ERROR::WRONG_KEY_SIZE;
+        }
 
-//         if( !pkMlKemkey->hasPrivateSeed )
-//         {
-//             scError = INCOMPATIBLE_FORMAT;
-//             goto cleanup;
-//         }
+        if( !pkMlKemkey.hasPrivateSeed )
+        {
+            return MLKEM_ERROR::INCOMPATIBLE_FORMAT;
+        }
 
-//         memcpy( pbCurr, pkMlKemkey->privateSeed, sizeof(pkMlKemkey->privateSeed) );
-//         pbCurr += sizeof(pkMlKemkey->privateSeed);
+        pbDst[pbCurr..pbCurr+pkMlKemkey.privateSeed.len()].copy_from_slice(&pkMlKemkey.privateSeed);
+        pbCurr += pkMlKemkey.privateSeed.len();
 
-//         memcpy( pbCurr, pkMlKemkey->privateRandom, sizeof(pkMlKemkey->privateRandom) );
-//         pbCurr += sizeof(pkMlKemkey->privateRandom);
-//     }
-//     else if( mlKemkeyFormat == MLKEMKEY_FORMAT_DECAPSULATION_KEY )
-//     {
-//         if( cbDst != SIZEOF_FORMAT_DECAPSULATION_KEY( nRows ) )
-//         {
-//             scError = INVALID_ARGUMENT;
-//             goto cleanup;
-//         }
+        pbDst[pbCurr..pbCurr+pkMlKemkey.privateRandom.len()].copy_from_slice(&pkMlKemkey.privateRandom);
+        pbCurr += pkMlKemkey.privateRandom.len();
+    },
 
-//         if( !pkMlKemkey->hasPrivateKey )
-//         {
-//             scError = INVALID_ARGUMENT;
-//             goto cleanup;
-//         }
+    MLKEMKEY_FORMAT::DECAPSULATION_KEY =>
+    {
+        if( pbDst.len() != SIZEOF_FORMAT_DECAPSULATION_KEY( nRows as usize) )
+        {
+            return MLKEM_ERROR::INVALID_ARGUMENT;
+        }
 
-//         // We don't precompute byte-encoding of private key as exporting decapsulation key is not a critical path operation
-//         // All other fields are kept in memory
-//         SymCryptMlKemVectorCompressAndEncode( pkMlKemkey->pvs, 12, pbCurr, cbEncodedVector );
-//         pbCurr += cbEncodedVector;
+        if( !pkMlKemkey.hasPrivateKey )
+        {
+            return MLKEM_ERROR::INVALID_ARGUMENT;
+        }
 
-//         memcpy( pbCurr, pkMlKemkey->encodedT, cbEncodedVector );
-//         pbCurr += cbEncodedVector;
+        // We don't precompute byte-encoding of private key as exporting decapsulation key is not a critical path operation
+        // All other fields are kept in memory
+        SymCryptMlKemVectorCompressAndEncode( pkMlKemkey.s(), 12, &mut pbDst[0..cbEncodedVector] );
+        pbCurr += cbEncodedVector;
 
-//         memcpy( pbCurr, pkMlKemkey->publicSeed, sizeof(pkMlKemkey->publicSeed) );
-//         pbCurr += sizeof(pkMlKemkey->publicSeed);
+        pbDst[pbCurr..pbCurr+cbEncodedVector].copy_from_slice(&pkMlKemkey.encodedT);
+        pbCurr += cbEncodedVector;
 
-//         memcpy( pbCurr, pkMlKemkey->encapsKeyHash, sizeof(pkMlKemkey->encapsKeyHash) );
-//         pbCurr += sizeof(pkMlKemkey->encapsKeyHash);
+        pbDst[pbCurr..pbCurr+pkMlKemkey.publicSeed.len()].copy_from_slice(&pkMlKemkey.publicSeed);
+        pbCurr += pkMlKemkey.publicSeed.len();
 
-//         memcpy( pbCurr, pkMlKemkey->privateRandom, sizeof(pkMlKemkey->privateRandom) );
-//         pbCurr += sizeof(pkMlKemkey->privateRandom);
-//     }
-//     else if( mlKemkeyFormat == MLKEMKEY_FORMAT_ENCAPSULATION_KEY )
-//     {
-//         if( cbDst != SIZEOF_FORMAT_ENCAPSULATION_KEY( nRows ) )
-//         {
-//             scError = INVALID_ARGUMENT;
-//             goto cleanup;
-//         }
+        pbDst[pbCurr..pbCurr+pkMlKemkey.encapsKeyHash.len()].copy_from_slice(&pkMlKemkey.encapsKeyHash);
+        pbCurr += pkMlKemkey.encapsKeyHash.len();
 
-//         memcpy( pbCurr, pkMlKemkey->encodedT, cbEncodedVector );
-//         pbCurr += cbEncodedVector;
+        pbDst[pbCurr..pbCurr+pkMlKemkey.privateRandom.len()].copy_from_slice(&pkMlKemkey.privateRandom);
+        pbCurr += pkMlKemkey.privateRandom.len();
+    },
 
-//         memcpy( pbCurr, pkMlKemkey->publicSeed, sizeof(pkMlKemkey->publicSeed) );
-//         pbCurr += sizeof(pkMlKemkey->publicSeed);
-//     }
-//     else
-//     {
-//         scError = NOT_IMPLEMENTED;
-//         goto cleanup;
-//     }
+    MLKEMKEY_FORMAT::ENCAPSULATION_KEY =>
+    {
+        if( pbDst.len() != SIZEOF_FORMAT_ENCAPSULATION_KEY( nRows as usize) )
+        {
+            return MLKEM_ERROR::INVALID_ARGUMENT;
+        }
 
-//     ASSERT( pbCurr == pbDst + cbDst );
+        pbDst[pbCurr..pbCurr+cbEncodedVector].copy_from_slice(&pkMlKemkey.encodedT);
+        pbCurr += cbEncodedVector;
+
+        pbDst[pbCurr..pbCurr+pkMlKemkey.publicSeed.len()].copy_from_slice(&pkMlKemkey.publicSeed);
+        pbCurr += pkMlKemkey.publicSeed.len();
+    },
+    // else
+    // {
+    //     scError = NOT_IMPLEMENTED;
+    //     goto cleanup;
+    // }
+    };
+
+    assert!( pbCurr == pbDst.len() );
 
 // cleanup:
 //     return scError;
-// }
+    MLKEM_ERROR::NO_ERROR
+}
 
 
 // ERROR

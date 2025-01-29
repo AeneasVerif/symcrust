@@ -9,7 +9,8 @@ use std::result::Result;
 #[derive(PartialEq)]
 pub(crate)
 // FIXME: make sure constants have values consistent with the C header
-enum MLKEM_ERROR { NO_ERROR, INVALID_BLOB, OUT_OF_MEMORY, INVALID_ARGUMENT, MEMORY_ALLOCATION_FAILURE, WRONG_KEY_SIZE }
+enum MLKEM_ERROR { NO_ERROR, INVALID_BLOB, OUT_OF_MEMORY, INVALID_ARGUMENT,
+MEMORY_ALLOCATION_FAILURE, WRONG_KEY_SIZE, INCOMPATIBLE_FORMAT }
 
 // MLKEM key formats
 // ==================
