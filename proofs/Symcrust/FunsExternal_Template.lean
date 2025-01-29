@@ -10,26 +10,26 @@ set_option linter.unusedVariables false
 open symcrust
 
 /- [symcrust::ntt::slice_to_sub_array]:
-   Source: 'src/ntt.rs', lines 705:0-707:1 -/
+   Source: 'src/ntt.rs', lines 710:0-712:1 -/
 axiom ntt.slice_to_sub_array
   (N : Usize) : Slice U8 → Usize → Result (Array U8 N)
 
 /- [symcrust::ntt::SymCryptShake128Extract]:
-   Source: 'src/ntt.rs', lines 800:0-807:1 -/
+   Source: 'src/ntt.rs', lines 805:0-812:1 -/
 axiom ntt.SymCryptShake128Extract
   :
   Array U8 0#usize → Slice U8 → Bool → Result ((Array U8 0#usize) ×
     (Slice U8))
 
 /- [symcrust::ntt::{symcrust::ntt::MATRIX<'a>}::swap]:
-   Source: 'src/ntt.rs', lines 920:4-928:5 -/
+   Source: 'src/ntt.rs', lines 925:4-933:5 -/
 axiom ntt.MATRIX.swap
   :
   ntt.MATRIX → Usize → Usize → Result (ntt.MATRIX × (ntt.MATRIX →
     ntt.MATRIX))
 
 /- [symcrust::ntt::SymCryptMlKemPolyElementMulAndAccumulate_aux]:
-   Source: 'src/ntt.rs', lines 958:0-968:1 -/
+   Source: 'src/ntt.rs', lines 963:0-973:1 -/
 axiom ntt.SymCryptMlKemPolyElementMulAndAccumulate_aux
   :
   ntt.MATRIX → Usize → Usize → Usize → Array U16 256#usize → Array
