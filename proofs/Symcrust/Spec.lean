@@ -7,6 +7,7 @@ import Mathlib.Data.Nat.Bits
 import Symcrust.SRRange
 import Symcrust.DivRange
 import Symcrust.MulRange
+import Symcrust.NatBit
 
 /-!
 The spec of ML-KEM, based on: https://csrc.nist.gov/pubs/fips/203/final
@@ -105,21 +106,6 @@ def sampleNTT (B : {l : List Byte // l.length = 34 }) : Polynomial := Id.run do
   sorry
 
 -- TODO: algorithm 8
-
-def bitRev (n : Nat) (i : Nat) : Nat :=
-  -- Convert to bits
-  let bits := i.bits
-  -- Make sure we have n bits - note that the list of bits goes from bits
-  -- of lower weight to bits of heigher weights
-  let bits := bits.take n
-  let bits := bits ++ List.replicate (n - bits.length) false
-  -- Reverse
-  let bits := List.reverse bits
-  -- Convert
-  (bits.mapIdx (fun i b => b.toNat * 2 ^ i)).sum
-
-#assert List.map (bitRev 2) (List.enumerate 4) = [0, 2, 1, 3]
-#assert List.map (bitRev 3) (List.enumerate 8) = [0, 4, 2, 6, 1, 5, 3, 7]
 
 def ζ : ZMod Q := 17
 
