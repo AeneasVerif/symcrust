@@ -104,28 +104,3 @@ theorem Nat.bits_div_pow (n i : Nat) :
 theorem Nat.bits_shiftRight (n i : Nat) :
   (n >>> i).bits = n.bits.drop i := by
   simp only [shiftRight_eq_div_pow, bits_div_pow]
-
--- TODO: move
-example (n m : Nat) (hn : n < 2 ^ 12) (hm : m < 2 ^ 12):
-  ((2^32 - 1 - n) >>> 16) &&& m = m := by
-  apply Nat.eq_of_testBit_eq
-  intro i
-  have h : 2^32 - 1 - n = 2^32 - (n + 1) := by simp
-  rw [h]; clear h
-  have := @Nat.testBit_two_pow_sub_succ n 32 (by omega) (16 + i)
-  simp [-Nat.reducePow]
-  rw [this]; clear this
-  intro hi
-  dcases hi : i < 12
-  . simp; split_conjs
-    . omega
-    . have hi : n < 2^(16 + i) := by
-        have := @Nat.pow_le_pow_of_le_right 2 (by simp) 12 (16 + i) (by omega)
-        omega
-      apply @Nat.testBit_eq_false_of_lt n (16 + i) hi
-  . -- Contradiction
-    have hi : m < 2^i := by
-      have := @Nat.pow_le_pow_of_le_right 2 (by simp) 12 i (by omega)
-      omega
-    have := @Nat.testBit_eq_false_of_lt m i hi
-    simp_all
