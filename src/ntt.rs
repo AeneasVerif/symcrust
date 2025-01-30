@@ -433,6 +433,7 @@ fn SymCryptMlKemPolyElementMulR(
     });
 }
 
+pub(crate)
 fn SymCryptMlKemPolyElementAdd(
     peSrc1: & POLYELEMENT,
     peSrc2: & POLYELEMENT,
@@ -474,6 +475,7 @@ fn SymCryptMlKemPolyElementNTT(
 const INTTFixupTimesRsqr: u32 = 1441;
 const INTTFixupTimesRsqrTimesNegQInvModR: u32 = 10079;
 
+pub(crate)
 fn SymCryptMlKemPolyElementINTTAndMulR(
     peSrc: &mut POLYELEMENT )
 {
@@ -505,6 +507,7 @@ const COMPRESS_SHIFTCONSTANT: u32 = 35;
 // use std::cmp::min;
 fn min(x: u32, y: u32) -> u32 { if x <= y { x } else { y } }
 
+pub(crate)
 fn
 SymCryptMlKemPolyElementCompressAndEncode(
     peSrc: & POLYELEMENT,
@@ -585,6 +588,7 @@ fn slice_to_sub_array<const N : usize>(s: &[u8], i: usize) -> [u8; N] {
 }
 
 
+pub(crate)
 fn
 SymCryptMlKemPolyElementDecodeAndDecompress(
     // _In_reads_bytes_(nBitsPerCoefficient*(MLWE_POLYNOMIAL_COEFFICIENTS / 8))
@@ -862,7 +866,7 @@ SymCryptMlKemMatrixVectorMontMulAndAdd(
     });
 }
 
-// FIXME: moving values around because we don't support nested borrows
+pub(crate)
 fn
 SymCryptMlKemVectorMontDotProduct(
     pvSrc1: &mut VECTOR,
@@ -976,6 +980,7 @@ SymCryptMlKemVectorNTT(
     });
 }
 
+pub(crate)
 fn
 SymCryptMlKemVectorINTTAndMulR(
     pvSrc: &mut VECTOR )

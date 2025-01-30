@@ -572,218 +572,223 @@ SymCryptMlKemkeyGenerate(
     MLKEM_ERROR::NO_ERROR
 }
 
-// ERROR
-// CALL
-// SymCryptMlKemEncapsulateInternal(
-//     _In_    PCMLKEMKEY                                 pkMlKemkey,
-//     _Out_writes_bytes_( cbAgreedSecret )
-//             PBYTE                                               pbAgreedSecret,
-//             SIZE_T                                              cbAgreedSecret,
-//     _Out_writes_bytes_( cbCiphertext )
-//             PBYTE                                               pbCiphertext,
-//             SIZE_T                                              cbCiphertext,
-//     _In_reads_bytes_( SIZEOF_ENCAPS_RANDOM )
-//             PCBYTE                                              pbRandom,
-//     _Inout_ PINTERNAL_COMPUTATION_TEMPORARIES    pCompTemps )
-// {
-//     BYTE CBDSampleBuffer[3*64 + 1];
-//     ERROR scError = NO_ERROR;
-//     PVECTOR pvrInner;
-//     PVECTOR pvTmp;
-//     PPOLYELEMENT peTmp0, peTmp1;
-//     PPOLYELEMENT_ACCUMULATOR paTmp;
-//     PSHA3_512_STATE pHashState = &pCompTemps->hashState0.sha3_512State;
-//     PSHAKE256_STATE pShakeBaseState = &pCompTemps->hashState0.shake256State;
-//     PSHAKE256_STATE pShakeWorkState = &pCompTemps->hashState1.shake256State;
-//     SIZE_T cbU, cbV;
-//     UINT32 i;
-//     const UINT32 nRows = pkMlKemkey->params.nRows;
-//     const UINT32 nBitsOfU = pkMlKemkey->params.nBitsOfU;
-//     const UINT32 nBitsOfV = pkMlKemkey->params.nBitsOfV;
-//     const UINT32 nEta1 = pkMlKemkey->params.nEta1;
-//     const UINT32 nEta2 = pkMlKemkey->params.nEta2;
-//     const UINT32 cbPolyElement = pkMlKemkey->params.cbPolyElement;
-//     const UINT32 cbVector = pkMlKemkey->params.cbVector;
+const SIZEOF_MAX_CIPHERTEXT: usize = 1568;
+const SIZEOF_AGREED_SECRET: usize = 32;
+const SIZEOF_ENCAPS_RANDOM: usize = 32;
 
-//     // u vector encoded with nBitsOfU * MLWE_POLYNOMIAL_COEFFICIENTS bits per polynomial
-//     cbU = nRows * nBitsOfU * (MLWE_POLYNOMIAL_COEFFICIENTS / 8);
-//     // v polynomial encoded with nBitsOfV * MLWE_POLYNOMIAL_COEFFICIENTS bits
-//     cbV = nBitsOfV * (MLWE_POLYNOMIAL_COEFFICIENTS / 8);
+fn
+SymCryptMlKemEncapsulateInternal(
+    pkMlKemkey: &mut KEY,
+    pbAgreedSecret: &mut[u8],
+    pbCiphertext: &mut[u8],
+    pbRandom: &[u8; SIZEOF_ENCAPS_RANDOM],
+    pCompTemps: &mut INTERNAL_COMPUTATION_TEMPORARIES ) -> MLKEM_ERROR
+{
+    let cbAgreedSecret = pbAgreedSecret.len();
+    let cbCiphertext = pbCiphertext.len();
+    let mut CBDSampleBuffer = [0u8; 3*64 + 1];
+    // ERROR scError = NO_ERROR;
+    // PVECTOR pvrInner;
+    // PVECTOR pvTmp;
+    // PPOLYELEMENT peTmp0, peTmp1;
+    // PPOLYELEMENT_ACCUMULATOR paTmp;
+    // PSHA3_512_STATE pHashState = &pCompTemps->hashState0.sha3_512State;
+    // PSHAKE256_STATE pShakeBaseState = &pCompTemps->hashState0.shake256State;
+    // PSHAKE256_STATE pShakeWorkState = &pCompTemps->hashState1.shake256State;
+    // SIZE_T cbU, cbV;
+    // UINT32 i;
+    let nRows = pkMlKemkey.params.nRows;
+    let nBitsOfU = pkMlKemkey.params.nBitsOfU;
+    let nBitsOfV = pkMlKemkey.params.nBitsOfV;
+    let nEta1 = pkMlKemkey.params.nEta1;
+    let nEta2 = pkMlKemkey.params.nEta2;
+    // let cbPolyElement = pkMlKemkey->params.cbPolyElement;
+    // let cbVector = pkMlKemkey->params.cbVector;
 
-//     if( (cbAgreedSecret != SIZEOF_AGREED_SECRET) ||
-//         (cbCiphertext != cbU + cbV) )
-//     {
-//         scError = INVALID_ARGUMENT;
-//         goto cleanup;
-//     }
+    // u vector encoded with nBitsOfU * MLWE_POLYNOMIAL_COEFFICIENTS bits per polynomial
+    let cbU = (nRows as usize) * (nBitsOfU as usize) * (MLWE_POLYNOMIAL_COEFFICIENTS / 8);
+    // v polynomial encoded with nBitsOfV * MLWE_POLYNOMIAL_COEFFICIENTS bits
+    let cbV = (nBitsOfV as usize) * (MLWE_POLYNOMIAL_COEFFICIENTS / 8);
 
-//     pvrInner = SymCryptMlKemVectorCreate( pCompTemps->abVectorBuffer0, cbVector, nRows );
-//     ASSERT( pvrInner != NULL );
-//     pvTmp = SymCryptMlKemVectorCreate( pCompTemps->abVectorBuffer1, cbVector, nRows );
-//     ASSERT( pvTmp != NULL );
-//     peTmp0 = SymCryptMlKemPolyElementCreate( pCompTemps->abPolyElementBuffer0, cbPolyElement );
-//     ASSERT( peTmp0 != NULL );
-//     peTmp1 = SymCryptMlKemPolyElementCreate( pCompTemps->abPolyElementBuffer1, cbPolyElement );
-//     ASSERT( peTmp1 != NULL );
-//     paTmp = SymCryptMlKemPolyElementAccumulatorCreate( pCompTemps->abPolyElementAccumulatorBuffer, 2*cbPolyElement );
-//     ASSERT( paTmp != NULL );
+    if (cbAgreedSecret != SIZEOF_AGREED_SECRET) ||
+        (cbCiphertext != cbU + cbV) 
+    {
+        return MLKEM_ERROR::INVALID_ARGUMENT;
+    }
 
-//     // CBDSampleBuffer = (K || rOuter) = SHA3-512(pbRandom || encapsKeyHash)
-//     SymCryptSha3_512Init( pHashState );
-//     SymCryptSha3_512Append( pHashState, pbRandom, SIZEOF_ENCAPS_RANDOM );
-//     SymCryptSha3_512Append( pHashState, pkMlKemkey->encapsKeyHash, sizeof(pkMlKemkey->encapsKeyHash) );
-//     SymCryptSha3_512Result( pHashState, CBDSampleBuffer );
+    let pvrInner = &mut pCompTemps.abVectorBuffer0;
+    let pvTmp = &mut pCompTemps.abVectorBuffer1;
+    let peTmp0 = &mut pCompTemps.abPolyElementBuffer0;
+    let peTmp1 = &mut pCompTemps.abPolyElementBuffer1;
+    let paTmp = &mut pCompTemps.abPolyElementAccumulatorBuffer;
 
-//     // Write K to pbAgreedSecret
-//     memcpy( pbAgreedSecret, CBDSampleBuffer, SIZEOF_AGREED_SECRET );
+    // CBDSampleBuffer = (K || rOuter) = SHA3-512(pbRandom || encapsKeyHash)
+    crate::hash::sha3_512_init( &mut pCompTemps.hashState0 );
+    crate::hash::sha3_512_append( &mut pCompTemps.hashState0, pbRandom );
+    crate::hash::sha3_512_append( &mut pCompTemps.hashState0, &pkMlKemkey.encapsKeyHash);
+    // Note (Rust): should we have a type that is less strict for the output of sha3_512_result?
+    // Note (Rust): no assert!(SIZEOF_AGREED_SECRET < SHA3_512_RESULT_SIZE)?
+    crate::hash::sha3_512_result( &mut pCompTemps.hashState0, &mut CBDSampleBuffer[0..crate::hash::SHA3_512_RESULT_SIZE].try_into().unwrap() );
 
-//     // Initialize pShakeStateBase with rOuter
-//     SymCryptShake256Init( pShakeBaseState );
-//     SymCryptShake256Append( pShakeBaseState, CBDSampleBuffer+cbAgreedSecret, 32 );
+    // Write K to pbAgreedSecret
+    pbAgreedSecret[0..SIZEOF_AGREED_SECRET].copy_from_slice(&CBDSampleBuffer[0..SIZEOF_AGREED_SECRET]);
 
-//     // Expand rInner vector
-//     for( i=0; i<nRows; i++ )
-//     {
-//         CBDSampleBuffer[0] = (BYTE) i;
-//         SymCryptShake256StateCopy( pShakeBaseState, pShakeWorkState );
-//         SymCryptShake256Append( pShakeWorkState, CBDSampleBuffer, 1 );
+    // Initialize pShakeStateBase with rOuter
+    crate::hash::shake256_init( &mut pCompTemps.hashState0 );
+    crate::hash::shake256_append( &mut pCompTemps.hashState0, &CBDSampleBuffer[cbAgreedSecret..cbAgreedSecret+32]);
 
-//         SymCryptShake256Extract( pShakeWorkState, CBDSampleBuffer, 64ul*nEta1, FALSE );
+    // Expand rInner vector
+    c_for!(let mut i=0u8; i<nRows; i += 1;
+    {
+        CBDSampleBuffer[0] = i;
+        crate::hash::shake256_state_copy( &mut pCompTemps.hashState0, &mut pCompTemps.hashState1 );
+        crate::hash::shake256_append( &mut pCompTemps.hashState1, &CBDSampleBuffer[0..1] );
 
-//         SymCryptMlKemPolyElementSampleCBDFromBytes( CBDSampleBuffer, nEta1, INTERNAL_MLKEM_VECTOR_ELEMENT(i, pvrInner) );
-//     }
+        crate::hash::shake256_extract( &mut pCompTemps.hashState1, &mut CBDSampleBuffer[0..64usize*(nEta1 as usize)], false );
 
-//     // Perform NTT on rInner
-//     SymCryptMlKemVectorNTT( pvrInner );
+        SymCryptMlKemPolyElementSampleCBDFromBytes( & CBDSampleBuffer, nEta1 as u32, &mut pvrInner[i as usize]);
+    });
 
-//     // Set pvTmp to 0
-//     SymCryptMlKemVectorSetZero( pvTmp );
+    // Perform NTT on rInner
+    SymCryptMlKemVectorNTT( pvrInner );
 
-//     // pvTmp = (Atranspose o rInner) ./ R
-//     SymCryptMlKemMatrixVectorMontMulAndAdd( pkMlKemkey->pmAtranspose, pvrInner, pvTmp, paTmp );
+    // Set pvTmp to 0
+    // TODO: write a helper function
+    *pvTmp = [POLYELEMENT_ZERO; 4];
+    // SymCryptMlKemVectorSetZero( pvTmp );
 
-//     // pvTmp = INTT(Atranspose o rInner)
-//     SymCryptMlKemVectorINTTAndMulR( pvTmp );
+    // pvTmp = (Atranspose o rInner) ./ R
+    SymCryptMlKemMatrixVectorMontMulAndAdd( pkMlKemkey.atranspose_mut(), pvrInner, pvTmp, paTmp, nRows );
 
-//     // Expand e1 and add it to pvTmp - do addition PolyElement-wise to reduce memory usage
-//     for( i=0; i<nRows; i++ )
-//     {
-//         CBDSampleBuffer[0] = (BYTE) (nRows+i);
-//         SymCryptShake256StateCopy( pShakeBaseState, pShakeWorkState );
-//         SymCryptShake256Append( pShakeWorkState, CBDSampleBuffer, 1 );
+    // pvTmp = INTT(Atranspose o rInner)
+    SymCryptMlKemVectorINTTAndMulR( pvTmp );
 
-//         SymCryptShake256Extract( pShakeWorkState, CBDSampleBuffer, 64ul*nEta2, FALSE );
+    // Expand e1 and add it to pvTmp - do addition PolyElement-wise to reduce memory usage
+    c_for!(let mut i=0; i<nRows; i += 1; {
+        CBDSampleBuffer[0] = nRows+i;
+        crate::hash::shake256_state_copy( &mut pCompTemps.hashState0, &mut pCompTemps.hashState1 );
+        crate::hash::shake256_append( &mut pCompTemps.hashState1, &CBDSampleBuffer[0..1] );
 
-//         SymCryptMlKemPolyElementSampleCBDFromBytes( CBDSampleBuffer, nEta2, peTmp0 );
+        crate::hash::shake256_extract( &mut pCompTemps.hashState1, &mut CBDSampleBuffer[0..64*(nEta2 as usize)], false );
 
-//         SymCryptMlKemPolyElementAdd( INTERNAL_MLKEM_VECTOR_ELEMENT(i, pvTmp), peTmp0, INTERNAL_MLKEM_VECTOR_ELEMENT(i, pvTmp) );
-//     }
+        SymCryptMlKemPolyElementSampleCBDFromBytes( &CBDSampleBuffer, nEta2 as u32, peTmp0 );
 
-//     // pvTmp = u = INTT(Atranspose o rInner) + e1
-//     // Compress and encode u into prefix of ciphertext
-//     SymCryptMlKemVectorCompressAndEncode( pvTmp, nBitsOfU, pbCiphertext, cbU );
+        // Note (Rust): in-place operation here, was:
+        // SymCryptMlKemPolyElementAdd( INTERNAL_MLKEM_VECTOR_ELEMENT(i, pvTmp), peTmp0, INTERNAL_MLKEM_VECTOR_ELEMENT(i, pvTmp) );
+        // Added a copy -- TODO: measure performance impact of the copy
+        let copy = pvTmp[i as usize];
+        SymCryptMlKemPolyElementAdd( &copy, &peTmp0, &mut pvTmp[i as usize] );
 
-//     // peTmp0 = (t o r) ./ R
-//     SymCryptMlKemVectorMontDotProduct( pkMlKemkey->pvt, pvrInner, peTmp0, paTmp );
+    });
 
-//     // peTmp0 = INTT(t o r)
-//     SymCryptMlKemPolyElementINTTAndMulR( peTmp0 );
+    // pvTmp = u = INTT(Atranspose o rInner) + e1
+    // Compress and encode u into prefix of ciphertext
+    SymCryptMlKemVectorCompressAndEncode( pvTmp, nBitsOfU as u32, &mut pbCiphertext[0..cbU] );
 
-//     // Expand e2 polynomial in peTmp1
-//     CBDSampleBuffer[0] = (BYTE) (2*nRows);
-//     SymCryptShake256StateCopy( pShakeBaseState, pShakeWorkState );
-//     SymCryptShake256Append( pShakeWorkState, CBDSampleBuffer, 1 );
+    // peTmp0 = (t o r) ./ R
+    SymCryptMlKemVectorMontDotProduct( pkMlKemkey.t_mut(), pvrInner, peTmp0, paTmp );
 
-//     SymCryptShake256Extract( pShakeWorkState, CBDSampleBuffer, 64ul*nEta2, FALSE );
+    // peTmp0 = INTT(t o r)
+    SymCryptMlKemPolyElementINTTAndMulR( peTmp0 );
 
-//     SymCryptMlKemPolyElementSampleCBDFromBytes( CBDSampleBuffer, nEta2, peTmp1 );
+    // Expand e2 polynomial in peTmp1
+    CBDSampleBuffer[0] = 2*nRows;
+    crate::hash::shake256_state_copy( &mut pCompTemps.hashState0, &mut pCompTemps.hashState1 );
+    crate::hash::shake256_append( &mut pCompTemps.hashState1, &CBDSampleBuffer[0..1] );
 
-//     // peTmp = INTT(t o r) + e2
-//     SymCryptMlKemPolyElementAdd( peTmp0, peTmp1, peTmp0 );
+    crate::hash::shake256_extract( &mut pCompTemps.hashState1, &mut CBDSampleBuffer[0..64*(nEta2 as usize)], false );
 
-//     // peTmp1 = mu
-//     SymCryptMlKemPolyElementDecodeAndDecompress( pbRandom, 1, peTmp1 );
+    SymCryptMlKemPolyElementSampleCBDFromBytes( &mut CBDSampleBuffer, nEta2 as u32, peTmp1 );
 
-//     // peTmp0 = v = INTT(t o r) + e2 + mu
-//     SymCryptMlKemPolyElementAdd( peTmp0, peTmp1, peTmp0 );
+    // peTmp = INTT(t o r) + e2
+    // Note (Rust): in-place operation, was:
+    // SymCryptMlKemPolyElementAdd( peTmp0, peTmp1, peTmp0 );
+    // FIXME (measure performance issues, adjust)
+    let copy = *peTmp0;
+    SymCryptMlKemPolyElementAdd( &copy, peTmp1, peTmp0 );
 
-//     // Compress and encode v into remainder of ciphertext
-//     SymCryptMlKemPolyElementCompressAndEncode( peTmp0, nBitsOfV, pbCiphertext+cbU );
+    // peTmp1 = mu
+    SymCryptMlKemPolyElementDecodeAndDecompress( pbRandom, 1, peTmp1 );
+
+    // peTmp0 = v = INTT(t o r) + e2 + mu
+    let copy = *peTmp0;
+    // FIXME (same as above)
+    SymCryptMlKemPolyElementAdd( &copy, peTmp1, peTmp0 );
+
+    // Compress and encode v into remainder of ciphertext
+    SymCryptMlKemPolyElementCompressAndEncode( peTmp0, nBitsOfV as u32, &mut pbCiphertext[cbU..] );
 
 // cleanup:
 //     SymCryptWipeKnownSize( CBDSampleBuffer, sizeof(CBDSampleBuffer) );
 
-//     return scError;
-// }
+    MLKEM_ERROR::NO_ERROR
+}
 
 
-// ERROR
-// CALL
-// SymCryptMlKemEncapsulateEx(
-//     _In_                                    PCMLKEMKEY pkMlKemkey,
-//     _In_reads_bytes_( cbRandom )            PCBYTE              pbRandom,
-//                                             SIZE_T              cbRandom,
-//     _Out_writes_bytes_( cbAgreedSecret )    PBYTE               pbAgreedSecret,
-//                                             SIZE_T              cbAgreedSecret,
-//     _Out_writes_bytes_( cbCiphertext )      PBYTE               pbCiphertext,
-//                                             SIZE_T              cbCiphertext )
-// {
-//     ERROR scError = NO_ERROR;
-//     PINTERNAL_COMPUTATION_TEMPORARIES pCompTemps = NULL;
+fn
+SymCryptMlKemEncapsulateEx(
+    pkMlKemkey: &mut KEY,
+    pbRandom: &[u8], // Note(Rust): we could statically require the right length, and have the FFI
+                     // wrapper enforce it
+    pbAgreedSecret: &mut[u8],
+    pbCiphertext: &mut[u8],
+) -> MLKEM_ERROR
+{
+    let cbRandom = pbRandom.len();
+    let cbAgreedSecret = pbAgreedSecret.len();
+    let cbCiphertext = pbCiphertext.len();
 
-//     if( cbRandom != SIZEOF_ENCAPS_RANDOM )
-//     {
-//         scError = INVALID_ARGUMENT;
-//         goto cleanup;
-//     }
+    if( cbRandom != SIZEOF_ENCAPS_RANDOM )
+    {
+        return MLKEM_ERROR::INVALID_ARGUMENT;
+    }
 
-//     pCompTemps = SymCryptCallbackAlloc( sizeof(INTERNAL_COMPUTATION_TEMPORARIES) );
-//     if( pCompTemps == NULL )
-//     {
-//         scError = MEMORY_ALLOCATION_FAILURE;
-//         goto cleanup;
-//     }
+    let pCompTemps = Box::try_new(INTERNAL_COMPUTATION_TEMPORARIES {
+        abVectorBuffer0: [POLYELEMENT_ZERO; MATRIX_MAX_NROWS],
+        abVectorBuffer1: [POLYELEMENT_ZERO; MATRIX_MAX_NROWS],
+        abPolyElementBuffer0: POLYELEMENT_ZERO,
+        abPolyElementBuffer1: POLYELEMENT_ZERO,
+        abPolyElementAccumulatorBuffer: [0; MLWE_POLYNOMIAL_COEFFICIENTS ],
+        hashState0: crate::hash::UNINITIALIZED_HASH_STATE,
+        hashState1: crate::hash::UNINITIALIZED_HASH_STATE,
+    });
 
-//     scError = SymCryptMlKemEncapsulateInternal(
-//         pkMlKemkey,
-//         pbAgreedSecret, cbAgreedSecret,
-//         pbCiphertext, cbCiphertext,
-//         pbRandom,
-//         pCompTemps );
+    let mut pCompTemps = match pCompTemps {
+        Result::Err(_) => { return MLKEM_ERROR::MEMORY_ALLOCATION_FAILURE },
+        Result::Ok(pCompTemps) => pCompTemps
+    };
 
-// cleanup:
-//     if( pCompTemps != NULL )
-//     {
-//         SymCryptWipe( pCompTemps, sizeof(*pCompTemps) );
-//         SymCryptCallbackFree( pCompTemps );
-//     }
+    SymCryptMlKemEncapsulateInternal(
+        pkMlKemkey,
+        pbAgreedSecret,
+        pbCiphertext,
+        pbRandom.try_into().unwrap(),
+        &mut pCompTemps )
+}
 
-//     return scError;
-// }
+fn
+SymCryptMlKemEncapsulate(
+    pkMlKemkey: &mut KEY,
+    pbAgreedSecret: &mut[u8],
+    pbCiphertext: &mut[u8],
+)
+    -> MLKEM_ERROR
+{
+    let mut pbm = [0u8; SIZEOF_ENCAPS_RANDOM];
 
-// ERROR
-// CALL
-// SymCryptMlKemEncapsulate(
-//     _In_                                    PCMLKEMKEY pkMlKemkey,
-//     _Out_writes_bytes_( cbAgreedSecret )    PBYTE               pbAgreedSecret,
-//                                             SIZE_T              cbAgreedSecret,
-//     _Out_writes_bytes_( cbCiphertext )      PBYTE               pbCiphertext,
-//                                             SIZE_T              cbCiphertext )
-// {
-//     ERROR scError = NO_ERROR;
-//     BYTE pbm[SIZEOF_ENCAPS_RANDOM];
+    let scError = callback_random( &mut pbm );
+    if( scError != MLKEM_ERROR::NO_ERROR )
+    {
+        return scError;
+    }
 
-//     scError = SymCryptCallbackRandom( pbm, sizeof(pbm) );
-//     if( scError != NO_ERROR )
-//     {
-//         goto cleanup;
-//     }
-
-//     scError = SymCryptMlKemEncapsulateEx(
-//         pkMlKemkey,
-//         pbm, sizeof(pbm),
-//         pbAgreedSecret, cbAgreedSecret,
-//         pbCiphertext, cbCiphertext );
+    SymCryptMlKemEncapsulateEx(
+        pkMlKemkey,
+        &pbm,
+        pbAgreedSecret,
+        pbCiphertext,
+    )
+}
 
 // cleanup:
 //     SymCryptWipeKnownSize( pbm, sizeof(pbm) );
