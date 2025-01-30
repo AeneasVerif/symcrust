@@ -6,7 +6,7 @@ set_option linter.dupNamespace false
 set_option linter.hashCommand false
 set_option linter.unusedVariables false
 
-namespace symcrust
+namespace Symcrust
 
 /- [symcrust::ntt::MATRIX]
    Source: 'src/ntt.rs', lines 82:0-85:1 -/
@@ -65,4 +65,4 @@ structure misc.Temporaries where
   data1 : Array U8 16#usize
   data2 : Array U8 16#usize
 
-end symcrust
+end Symcrust

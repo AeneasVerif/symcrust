@@ -7,7 +7,8 @@ open Aeneas.Std
 set_option linter.dupNamespace false
 set_option linter.hashCommand false
 set_option linter.unusedVariables false
-open symcrust
+
+namespace Symcrust
 
 /- [symcrust::ntt::slice_to_sub_array]:
    Source: 'src/ntt.rs', lines 665:0-667:1 -/
@@ -31,3 +32,4 @@ def ntt.SymCryptMlKemPolyElementMulAndAccumulate_aux
   (paTmp : Array U32 256#usize) :
   Result (ntt.MATRIX × (ntt.MATRIX → ntt.MATRIX) × (Array U32 256#usize)) := sorry
 
+namespace Symcrust

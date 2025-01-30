@@ -8,7 +8,7 @@ set_option linter.dupNamespace false
 set_option linter.hashCommand false
 set_option linter.unusedVariables false
 
-namespace symcrust
+namespace Symcrust
 
 /- [symcrust::ntt::MLWE_POLYNOMIAL_COEFFICIENTS]
    Source: 'src/ntt.rs', lines 52:0-52:48 -/
@@ -1803,4 +1803,4 @@ def ntt.SymCryptMlKemVectorDecodeAndDecompress
   ntt.SymCryptMlKemVectorDecodeAndDecompress_loop pbSrc nBitsPerCoefficient
     pvDst nRows 0#usize
 
-end symcrust
+end Symcrust

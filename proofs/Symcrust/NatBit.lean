@@ -1,16 +1,20 @@
 import Lean
 import Mathlib.Data.Nat.Bits
+import Mathlib.Data.Nat.Bitwise
+import Init.Data.Int.Bitwise.Lemmas
+import Mathlib.Data.Int.Bitwise
 import Aeneas
 
 /-!
 Introducing an alternative for `Nat.ofBits`: we want to manipulate lists of bits.
+TODO: is this really useful?
 -/
 
 def Nat.ofBits' (bits : List Bool) : Nat := List.foldr Nat.bit 0 bits
 
-@[simp] theorem Nat.ofBits'_nil : Nat.ofBits' [] = 0 := by simp [Nat.ofBits']
+@[simp] theorem Nat.ofBits'_nil : Nat.ofBits' [] = 0 := by simp only [ofBits', List.foldr_nil]
 @[simp] theorem Nat.ofBits'_cons {bits : List Bool} :
-  Nat.ofBits' (b :: bits) = Nat.bit b (ofBits' bits) := by simp [Nat.ofBits']
+  Nat.ofBits' (b :: bits) = Nat.bit b (ofBits' bits) := by simp only [ofBits', List.foldr_cons]
 
 def bitRev (n : Nat) (i : Nat) : Nat :=
   -- Convert to bits
@@ -29,18 +33,19 @@ def bitRev (n : Nat) (i : Nat) : Nat :=
 
 theorem Nat.bits_append_bit_bodd_div2 (n : Nat) (h : n ≠ 0) :
   (bit n.bodd n.div2).bits = n.bodd :: n.div2.bits := by
-  cases h: n.bodd <;> try simp_all
+  cases h: n.bodd <;> try simp_all only [ne_eq, implies_true, bits_append_bit]
   unfold bit
-  simp
+  simp only [cond_false]
 
   have := Nat.mod_two_of_bodd n
 
-  have := Nat.bit0_bits (n / 2) (by simp_all; omega)
+  have := Nat.bit0_bits (n / 2) (by simp_all only [Bool.toNat_false, ne_eq, Nat.div_eq_zero_iff,
+    OfNat.ofNat_ne_zero, not_false_eq_true, Aeneas.Simp.neq_imp, false_or, not_lt]; omega)
 
   have hDiv : n.div2 = n / 2 := Nat.div2_val n
   rw [hDiv]
 
-  simp_all
+  simp_all only [Bool.toNat_false]
 
 -- TODO: this should be in Mathlib
 /-- This is the important reasoning theorem about `bits`, together with `Nat.zero_bits` -/
@@ -48,18 +53,18 @@ theorem Nat.bits_bit_decomp (n : Nat) (h : n ≠ 0) :
   n.bits = n.bodd :: n.div2.bits := by
   have hBit := Nat.bit_decomp n
   conv => lhs; rw [← hBit]
-  simp [ofBits', Nat.bits_append_bit_bodd_div2 n h]
+  simp only [Nat.bits_append_bit_bodd_div2 n h]
 
 @[simp]
 theorem Nat.ofBits'_bits (n : Nat) :
   Nat.ofBits' n.bits = n := by
   if h: n = 0 then
-    simp [h, ofBits']
+    simp only [ofBits', h, zero_bits, List.foldr_nil]
   else
     have hBit := Nat.bit_decomp n
     conv => lhs; rw [← hBit]
 
-    simp [ofBits', Nat.bits_append_bit_bodd_div2 n h]
+    simp only [ofBits', Nat.bits_append_bit_bodd_div2 n h, List.foldr_cons]
 
     have hDiv : n.div2 = n / 2 := Nat.div2_val n
     rw [hDiv]
@@ -68,17 +73,17 @@ theorem Nat.ofBits'_bits (n : Nat) :
       rw [← Nat.mod_two_of_bodd]
 
     have hInd := ofBits'_bits (n / 2)
-    simp [ofBits'] at hInd
+    simp only [ofBits'] at hInd
 
-    cases h:n.bodd <;> simp_all
+    cases h:n.bodd <;> simp_all only [Bool.toNat_true, Bool.toNat_false]
 
 @[simp]
 theorem Nat.bits_div_two (n : Nat) :
   (n / 2).bits = n.bits.drop 1 := by
-  dcases h: n = 0 <;> simp_all
+  dcases h: n = 0 <;> simp_all only [Nat.zero_div, zero_bits, List.drop_nil, List.drop_one]
   have := Nat.bits_bit_decomp n h
   rw [this]
-  simp
+  simp only [List.tail_cons]
   have hDiv : n.div2 = n / 2 := Nat.div2_val n
   rw [hDiv]
 
@@ -87,20 +92,171 @@ theorem Nat.bits_div_pow (n i : Nat) :
   (n / 2^i).bits = n.bits.drop i := by
   revert n
   induction i <;> intro n
-  . simp_all
+  . simp_all only [pow_zero, Nat.div_one, List.drop_zero]
   . rename_i i hInd
     rw [Nat.pow_add_one]
     rw [← Nat.div_div_eq_div_mul]
-    simp
+    simp only [bits_div_two, List.drop_one]
     rw [hInd]
-    simp
+    simp only [List.tail_drop]
 
 @[simp]
 theorem Nat.bits_shiftRight (n i : Nat) :
   (n >>> i).bits = n.bits.drop i := by
-  simp [Nat.shiftRight_eq_div_pow]
+  simp only [shiftRight_eq_div_pow, bits_div_pow]
 
-namespace Aeneas
+-- TODO: move
+example (n m : Nat) (hn : n < 2 ^ 12) (hm : m < 2 ^ 12):
+  ((2^32 - 1 - n) >>> 16) &&& m = m := by
+  apply Nat.eq_of_testBit_eq
+  intro i
+  have h : 2^32 - 1 - n = 2^32 - (n + 1) := by simp
+  rw [h]; clear h
+  have := @Nat.testBit_two_pow_sub_succ n 32 (by omega) (16 + i)
+  simp [-Nat.reducePow]
+  rw [this]; clear this
+  intro hi
+  dcases hi : i < 12
+  . simp; split_conjs
+    . omega
+    . have hi : n < 2^(16 + i) := by
+        have := @Nat.pow_le_pow_of_le_right 2 (by simp) 12 (16 + i) (by omega)
+        omega
+      apply @Nat.testBit_eq_false_of_lt n (16 + i) hi
+  . -- Contradiction
+    have hi : m < 2^i := by
+      have := @Nat.pow_le_pow_of_le_right 2 (by simp) 12 i (by omega)
+      omega
+    have := @Nat.testBit_eq_false_of_lt m i hi
+    simp_all
 
+namespace Aeneas.Std
 
-end Aeneas
+@[reducible]
+def ScalarTy.bitWidth (ty : ScalarTy) : Nat :=
+  match ty with
+  | Isize | Usize => size_num_bits
+  | I8 | U8 => 8
+  | I16 | U16 => 16
+  | I32 | U32 => 32
+  | I64 | U64 => 64
+  | I128 | U128 => 128
+
+set_option maxRecDepth 1000
+
+open Result
+
+theorem core.num.Scalar.wrapping_add_val_unsigned_eq {ty} (x y : Scalar ty) (hs : ¬ ty.isSigned := by simp) :
+  (Scalar.wrapping_add x y).val = (x.val + y.val) % 2^ty.bitWidth := by
+  sorry
+
+@[simp] theorem core.num.U8.wrapping_add_val_eq (x y : U8) :
+  (core.num.U8.wrapping_add x y).val = (x.val + y.val) % (U8.max + 1) :=
+  core.num.Scalar.wrapping_add_val_unsigned_eq x y
+
+@[simp] theorem core.num.U16.wrapping_add_val_eq (x y : U16) :
+  (core.num.U16.wrapping_add x y).val = (x.val + y.val) % (U16.max + 1) :=
+  core.num.Scalar.wrapping_add_val_unsigned_eq x y
+
+@[simp] theorem core.num.U32.wrapping_add_val_eq (x y : U32) :
+  (core.num.U32.wrapping_add x y).val = (x.val + y.val) % (U32.max + 1) :=
+  core.num.Scalar.wrapping_add_val_unsigned_eq x y
+
+@[simp] theorem core.num.U64.wrapping_add_val_eq (x y : U64) :
+  (core.num.U64.wrapping_add x y).val = (x.val + y.val) % (U64.max + 1) :=
+  core.num.Scalar.wrapping_add_val_unsigned_eq x y
+
+@[simp] theorem core.num.U128.wrapping_add_val_eq (x y : U128) :
+  (core.num.U128.wrapping_add x y).val = (x.val + y.val) % (U128.max + 1) :=
+  core.num.Scalar.wrapping_add_val_unsigned_eq x y
+
+theorem core.num.Scalar.wrapping_add_toNat_unsigned_eq {ty} (x y : Scalar ty) (hs : ¬ ty.isSigned := by simp) :
+  (Scalar.wrapping_add x y).toNat = (x.toNat + y.toNat) % 2^ty.bitWidth := by
+  sorry
+
+@[simp] theorem core.num.U8.wrapping_add_toNat_eq (x y : U8) :
+  (core.num.U8.wrapping_add x y).toNat = (x.toNat + y.toNat) % (U8.max + 1) :=
+  core.num.Scalar.wrapping_add_toNat_unsigned_eq x y
+
+@[simp] theorem core.num.U16.wrapping_add_toNat_eq (x y : U16) :
+  (core.num.U16.wrapping_add x y).toNat = (x.toNat + y.toNat) % (U16.max + 1) :=
+  core.num.Scalar.wrapping_add_toNat_unsigned_eq x y
+
+@[simp] theorem core.num.U32.wrapping_add_toNat_eq (x y : U32) :
+  (core.num.U32.wrapping_add x y).toNat = (x.toNat + y.toNat) % (U32.max + 1) :=
+  core.num.Scalar.wrapping_add_toNat_unsigned_eq x y
+
+@[simp] theorem core.num.U64.wrapping_add_toNat_eq (x y : U64) :
+  (core.num.U64.wrapping_add x y).toNat = (x.toNat + y.toNat) % (U64.max + 1) :=
+  core.num.Scalar.wrapping_add_toNat_unsigned_eq x y
+
+@[simp] theorem core.num.U128.wrapping_add_toNat_eq (x y : U128) :
+  (core.num.U128.wrapping_add x y).toNat = (x.toNat + y.toNat) % (U128.max + 1) :=
+  core.num.Scalar.wrapping_add_toNat_unsigned_eq x y
+
+theorem core.num.Scalar.wrapping_sub_val_unsigned_eq {ty} (x y : Scalar ty) (hs : ¬ ty.isSigned := by simp) :
+  (Scalar.wrapping_sub x y).val = (x.val - y.val) % 2^ty.bitWidth := by
+  sorry
+
+@[simp] theorem core.num.U8.wrapping_sub_val_eq (x y : U8) :
+  (core.num.U8.wrapping_sub x y).val = (x.val - y.val) % (U8.max + 1) :=
+  core.num.Scalar.wrapping_sub_val_unsigned_eq x y
+
+@[simp] theorem core.num.U16.wrapping_sub_val_eq (x y : U16) :
+  (core.num.U16.wrapping_sub x y).val = (x.val - y.val) % (U16.max + 1) :=
+  core.num.Scalar.wrapping_sub_val_unsigned_eq x y
+
+@[simp] theorem core.num.U32.wrapping_sub_val_eq (x y : U32) :
+  (core.num.U32.wrapping_sub x y).val = (x.val - y.val) % (U32.max + 1) :=
+  core.num.Scalar.wrapping_sub_val_unsigned_eq x y
+
+@[simp] theorem core.num.U64.wrapping_sub_val_eq (x y : U64) :
+  (core.num.U64.wrapping_sub x y).val = (x.val - y.val) % (U64.max + 1) :=
+  core.num.Scalar.wrapping_sub_val_unsigned_eq x y
+
+@[simp] theorem core.num.U128.wrapping_sub_val_eq (x y : U128) :
+  (core.num.U128.wrapping_sub x y).val = (x.val - y.val) % (U128.max + 1) :=
+  core.num.Scalar.wrapping_sub_val_unsigned_eq x y
+
+theorem core.num.Scalar.wrapping_sub_toNat_unsigned_eq {ty} (x y : Scalar ty) (hs : ¬ ty.isSigned := by simp) :
+  (Scalar.wrapping_sub x y).toNat = ((x.val - y.val) % 2^ty.bitWidth).toNat := by
+  sorry
+
+@[simp] theorem core.num.U8.wrapping_sub_toNat_eq (x y : U8) :
+  (core.num.U8.wrapping_sub x y).toNat = ((x.val - y.val) % (U8.max + 1)).toNat :=
+  core.num.Scalar.wrapping_sub_toNat_unsigned_eq x y
+
+@[simp] theorem core.num.U16.wrapping_sub_toNat_eq (x y : U16) :
+  (core.num.U16.wrapping_sub x y).toNat = ((x.val - y.val) % (U16.max + 1)).toNat :=
+  core.num.Scalar.wrapping_sub_toNat_unsigned_eq x y
+
+@[simp] theorem core.num.U32.wrapping_sub_toNat_eq (x y : U32) :
+  (core.num.U32.wrapping_sub x y).toNat = ((x.val - y.val) % (U32.max + 1)).toNat :=
+  core.num.Scalar.wrapping_sub_toNat_unsigned_eq x y
+
+@[simp] theorem core.num.U64.wrapping_sub_toNat_eq (x y : U64) :
+  (core.num.U64.wrapping_sub x y).toNat = ((x.val - y.val) % (U64.max + 1)).toNat :=
+  core.num.Scalar.wrapping_sub_toNat_unsigned_eq x y
+
+@[simp] theorem core.num.U128.wrapping_sub_toNat_eq (x y : U128) :
+  (core.num.U128.wrapping_sub x y).toNat = ((x.val - y.val) % (U128.max + 1)).toNat :=
+  core.num.Scalar.wrapping_sub_toNat_unsigned_eq x y
+
+-- TODO: scalar_tac_simp?
+@[simp] theorem Int.mod_toNat_val (n m : Int) (h : m ≠ 0) :
+  (n % m).toNat = n % m := by
+  simp only [Int.ofNat_toNat, ne_eq, h, not_false_eq_true, Int.emod_nonneg, sup_of_le_left]
+
+@[pspec] theorem core.num.Scalar.ShiftRight_val_unsigned_eq {ty0 ty1} (x : Scalar ty0) (y : Scalar ty1)
+  (hs : ¬ ty0.isSigned) (hy0 : 0 ≤ y.val) (hy1 : y.val ≤ ty0.bitWidth) :
+  ∃ z, x >>> y = ok z ∧
+  z.val = x.val >>> y.val
+  := by
+  sorry
+
+@[pspec] theorem core.num.Scalar.ShiftLeft_val_unsigned_eq {ty0 ty1} (x : Scalar ty0) (y : Scalar ty1)
+  (hs : ¬ ty0.isSigned) (hy0 : 0 ≤ y.val) (hy1 : y.val ≤ ty0.bitWidth) :
+  ∃ z, x <<< y = ok z ∧
+  z.val = x.val >>> y.val
+  := by
+  sorry
