@@ -52,6 +52,19 @@ open Result
 def Scalar.bv_ {ty} (x : Scalar ty) : BitVec ty.bitWidth :=
   if ty.isSigned then BitVec.ofInt _ x.val else BitVec.ofNat _ x.toNat
 
+@[simp] theorem Scalar.bv_U8 (x : U8) : Scalar.bv_ x = x.toNat := by rfl
+@[simp] theorem Scalar.bv_U16 (x : U16) : Scalar.bv_ x = x.toNat := by rfl
+@[simp] theorem Scalar.bv_U32 (x : U32) : Scalar.bv_ x = x.toNat := by rfl
+@[simp] theorem Scalar.bv_U64 (x : U64) : Scalar.bv_ x = x.toNat := by rfl
+@[simp] theorem Scalar.bv_U128 (x : U128) : Scalar.bv_ x = x.toNat := by rfl
+@[simp] theorem Scalar.bv_Usize (x : Usize) : Scalar.bv_ x = x.toNat := by rfl
+@[simp] theorem Scalar.bv_I8 (x : I8) : Scalar.bv_ x = x.val := by rfl
+@[simp] theorem Scalar.bv_I16 (x : I16) : Scalar.bv_ x = x.val := by rfl
+@[simp] theorem Scalar.bv_I32 (x : I32) : Scalar.bv_ x = x.val := by rfl
+@[simp] theorem Scalar.bv_I64 (x : I64) : Scalar.bv_ x = x.val := by rfl
+@[simp] theorem Scalar.bv_I128 (x : I128) : Scalar.bv_ x = x.val := by rfl
+@[simp] theorem Scalar.bv_Isize (x : Isize) : Scalar.bv_ x = x.val := by rfl
+
 def U8.bv (x : U8) : BitVec 8 := Scalar.bv_ x
 def U16.bv (x : U16) : BitVec 16 := Scalar.bv_ x
 def U32.bv (x : U32) : BitVec 32 := Scalar.bv_ x
@@ -609,12 +622,11 @@ theorem ntt.SymCryptMlKemMod'_spec (a : U32) (b : U32)
   (c.val : Spec.Zq) = (a.val : Spec.Zq) + (b.val : Spec.Zq) ∧
   c.val < Spec.Q := by
   unfold SymCryptMlKemModAdd'
-  -- TODO: automate those
-  have : a.bv < 3329#32 := by
-    simp [U32.bv, Scalar.bv_]
+  have : a.bv < 3329#32 := by -- TODO: automate with scalar_tac?
+    simp [U32.bv]
     scalar_tac
-  have : b.bv < 3329#32 := by
-    simp [U32.bv, Scalar.bv_]
+  have : b.bv < 3329#32 := by -- TODO: automate with scalar_tac?
+    simp [U32.bv]
     scalar_tac
   simp at *
   progress
@@ -640,8 +652,7 @@ theorem ntt.SymCryptMlKemMod'_spec (a : U32) (b : U32)
     -- There are two cases depending on whether `a + b - q` is `< 0` or not
     dcases hlt : 0 ≤ a.val + b.val - 3329
     . -- No underflow
-      -- TODO: automate
-      have : 3329#32 ≤ a.bv + b.bv := by
+      have : 3329#32 ≤ a.bv + b.bv := by -- TODO: automate
         simp [BitVec.le_def]
         rw [Nat.mod_eq_of_lt] <;> omega
 
