@@ -10,6 +10,189 @@ open Aeneas
 open Std
 open Result
 
+
+namespace Aeneas.Std
+
+@[reducible]
+def ScalarTy.bitWidth (ty : ScalarTy) : Nat :=
+  match ty with
+  | Isize | Usize => size_num_bits
+  | I8 | U8 => 8
+  | I16 | U16 => 16
+  | I32 | U32 => 32
+  | I64 | U64 => 64
+  | I128 | U128 => 128
+
+theorem ScalarTy.unsigned_min_eq_zero (ty : ScalarTy) (h : ¬ty.isSigned) :
+  Scalar.min ty = 0 := by
+  cases ty <;> simp_all <;> rfl
+
+theorem ScalarTy.unsigned_max_eq_pow_bitWidth (ty : ScalarTy) (h : ¬ty.isSigned) :
+  Scalar.max ty = 2 ^ ty.bitWidth - 1 := by
+  cases ty <;> simp_all <;> try rfl
+  simp [Scalar.max, Usize.max, Usize.refined_max, Usize.smax]
+
+set_option maxRecDepth 1000
+
+open Result
+
+/-- Bit vector representation of a scalar -/
+def Scalar.bv {ty} (x : Scalar ty) : BitVec ty.bitWidth :=
+  if ty.isSigned then BitVec.ofInt _ x.val else BitVec.ofNat _ x.toNat
+
+
+@[simp]
+theorem Scalar.bv_toNat_eq {ty : ScalarTy} (x : Scalar ty) (h : ¬ ty.isSigned := by simp) :
+  (Scalar.bv x).toNat  = x.val := by
+  have := x.hmin
+  have := x.hmax
+  simp [Scalar.bv, h]
+  simp [ScalarTy.unsigned_max_eq_pow_bitWidth, ScalarTy.unsigned_min_eq_zero, h] at *
+  simp [*]
+  have : x.val < 2 ^ ty.bitWidth := by omega
+  apply Int.emod_eq_of_lt <;> omega
+
+theorem core.num.Scalar.wrapping_add_bv_unsigned_eq {ty} (x y : Scalar ty) (hs : ¬ ty.isSigned := by simp) :
+  (Scalar.wrapping_add x y).bv = x.bv + y.bv := by
+  sorry
+
+theorem core.num.Scalar.wrapping_add_val_unsigned_eq {ty} (x y : Scalar ty) (hs : ¬ ty.isSigned := by simp) :
+  (Scalar.wrapping_add x y).val = (x.val + y.val) % 2^ty.bitWidth := by
+  sorry
+
+@[simp] theorem core.num.U8.wrapping_add_val_eq (x y : U8) :
+  (core.num.U8.wrapping_add x y).val = (x.val + y.val) % (U8.max + 1) :=
+  core.num.Scalar.wrapping_add_val_unsigned_eq x y
+
+@[simp] theorem core.num.U16.wrapping_add_val_eq (x y : U16) :
+  (core.num.U16.wrapping_add x y).val = (x.val + y.val) % (U16.max + 1) :=
+  core.num.Scalar.wrapping_add_val_unsigned_eq x y
+
+@[simp] theorem core.num.U32.wrapping_add_val_eq (x y : U32) :
+  (core.num.U32.wrapping_add x y).val = (x.val + y.val) % (U32.max + 1) :=
+  core.num.Scalar.wrapping_add_val_unsigned_eq x y
+
+@[simp] theorem core.num.U64.wrapping_add_val_eq (x y : U64) :
+  (core.num.U64.wrapping_add x y).val = (x.val + y.val) % (U64.max + 1) :=
+  core.num.Scalar.wrapping_add_val_unsigned_eq x y
+
+@[simp] theorem core.num.U128.wrapping_add_val_eq (x y : U128) :
+  (core.num.U128.wrapping_add x y).val = (x.val + y.val) % (U128.max + 1) :=
+  core.num.Scalar.wrapping_add_val_unsigned_eq x y
+
+@[simp] theorem core.num.U8.wrapping_add_bv_eq (x y : U8) :
+  (core.num.U8.wrapping_add x y).bv = x.bv + y.bv :=
+  core.num.Scalar.wrapping_add_bv_unsigned_eq x y
+
+@[simp] theorem core.num.U16.wrapping_add_bv_eq (x y : U16) :
+  (core.num.U16.wrapping_add x y).bv = x.bv + y.bv :=
+  core.num.Scalar.wrapping_add_bv_unsigned_eq x y
+
+@[simp] theorem core.num.U32.wrapping_add_bv_eq (x y : U32) :
+  (core.num.U32.wrapping_add x y).bv = x.bv + y.bv :=
+  core.num.Scalar.wrapping_add_bv_unsigned_eq x y
+
+@[simp] theorem core.num.U64.wrapping_add_bv_eq (x y : U64) :
+  (core.num.U64.wrapping_add x y).bv = x.bv + y.bv :=
+  core.num.Scalar.wrapping_add_bv_unsigned_eq x y
+
+@[simp] theorem core.num.U128.wrapping_add_bv_eq (x y : U128) :
+  (core.num.U128.wrapping_add x y).bv = x.bv + y.bv :=
+  core.num.Scalar.wrapping_add_bv_unsigned_eq x y
+
+theorem core.num.Scalar.wrapping_add_toNat_unsigned_eq {ty} (x y : Scalar ty) (hs : ¬ ty.isSigned := by simp) :
+  (Scalar.wrapping_add x y).toNat = (x.toNat + y.toNat) % 2^ty.bitWidth := by
+  sorry
+
+@[simp] theorem core.num.U8.wrapping_add_toNat_eq (x y : U8) :
+  (core.num.U8.wrapping_add x y).toNat = (x.toNat + y.toNat) % (U8.max + 1) :=
+  core.num.Scalar.wrapping_add_toNat_unsigned_eq x y
+
+@[simp] theorem core.num.U16.wrapping_add_toNat_eq (x y : U16) :
+  (core.num.U16.wrapping_add x y).toNat = (x.toNat + y.toNat) % (U16.max + 1) :=
+  core.num.Scalar.wrapping_add_toNat_unsigned_eq x y
+
+@[simp] theorem core.num.U32.wrapping_add_toNat_eq (x y : U32) :
+  (core.num.U32.wrapping_add x y).toNat = (x.toNat + y.toNat) % (U32.max + 1) :=
+  core.num.Scalar.wrapping_add_toNat_unsigned_eq x y
+
+@[simp] theorem core.num.U64.wrapping_add_toNat_eq (x y : U64) :
+  (core.num.U64.wrapping_add x y).toNat = (x.toNat + y.toNat) % (U64.max + 1) :=
+  core.num.Scalar.wrapping_add_toNat_unsigned_eq x y
+
+@[simp] theorem core.num.U128.wrapping_add_toNat_eq (x y : U128) :
+  (core.num.U128.wrapping_add x y).toNat = (x.toNat + y.toNat) % (U128.max + 1) :=
+  core.num.Scalar.wrapping_add_toNat_unsigned_eq x y
+
+theorem core.num.Scalar.wrapping_sub_val_unsigned_eq {ty} (x y : Scalar ty) (hs : ¬ ty.isSigned := by simp) :
+  (Scalar.wrapping_sub x y).val = (x.val - y.val) % 2^ty.bitWidth := by
+  sorry
+
+@[simp] theorem core.num.U8.wrapping_sub_val_eq (x y : U8) :
+  (core.num.U8.wrapping_sub x y).val = (x.val - y.val) % (U8.max + 1) :=
+  core.num.Scalar.wrapping_sub_val_unsigned_eq x y
+
+@[simp] theorem core.num.U16.wrapping_sub_val_eq (x y : U16) :
+  (core.num.U16.wrapping_sub x y).val = (x.val - y.val) % (U16.max + 1) :=
+  core.num.Scalar.wrapping_sub_val_unsigned_eq x y
+
+@[simp] theorem core.num.U32.wrapping_sub_val_eq (x y : U32) :
+  (core.num.U32.wrapping_sub x y).val = (x.val - y.val) % (U32.max + 1) :=
+  core.num.Scalar.wrapping_sub_val_unsigned_eq x y
+
+@[simp] theorem core.num.U64.wrapping_sub_val_eq (x y : U64) :
+  (core.num.U64.wrapping_sub x y).val = (x.val - y.val) % (U64.max + 1) :=
+  core.num.Scalar.wrapping_sub_val_unsigned_eq x y
+
+@[simp] theorem core.num.U128.wrapping_sub_val_eq (x y : U128) :
+  (core.num.U128.wrapping_sub x y).val = (x.val - y.val) % (U128.max + 1) :=
+  core.num.Scalar.wrapping_sub_val_unsigned_eq x y
+
+theorem core.num.Scalar.wrapping_sub_toNat_unsigned_eq {ty} (x y : Scalar ty) (hs : ¬ ty.isSigned := by simp) :
+  (Scalar.wrapping_sub x y).toNat = ((x.val - y.val) % 2^ty.bitWidth).toNat := by
+  sorry
+
+@[simp] theorem core.num.U8.wrapping_sub_toNat_eq (x y : U8) :
+  (core.num.U8.wrapping_sub x y).toNat = ((x.val - y.val) % (U8.max + 1)).toNat :=
+  core.num.Scalar.wrapping_sub_toNat_unsigned_eq x y
+
+@[simp] theorem core.num.U16.wrapping_sub_toNat_eq (x y : U16) :
+  (core.num.U16.wrapping_sub x y).toNat = ((x.val - y.val) % (U16.max + 1)).toNat :=
+  core.num.Scalar.wrapping_sub_toNat_unsigned_eq x y
+
+@[simp] theorem core.num.U32.wrapping_sub_toNat_eq (x y : U32) :
+  (core.num.U32.wrapping_sub x y).toNat = ((x.val - y.val) % (U32.max + 1)).toNat :=
+  core.num.Scalar.wrapping_sub_toNat_unsigned_eq x y
+
+@[simp] theorem core.num.U64.wrapping_sub_toNat_eq (x y : U64) :
+  (core.num.U64.wrapping_sub x y).toNat = ((x.val - y.val) % (U64.max + 1)).toNat :=
+  core.num.Scalar.wrapping_sub_toNat_unsigned_eq x y
+
+@[simp] theorem core.num.U128.wrapping_sub_toNat_eq (x y : U128) :
+  (core.num.U128.wrapping_sub x y).toNat = ((x.val - y.val) % (U128.max + 1)).toNat :=
+  core.num.Scalar.wrapping_sub_toNat_unsigned_eq x y
+
+-- TODO: scalar_tac_simp?
+@[simp] theorem Int.mod_toNat_val (n m : Int) (h : m ≠ 0) :
+  (n % m).toNat = n % m := by
+  simp only [Int.ofNat_toNat, ne_eq, h, not_false_eq_true, Int.emod_nonneg, sup_of_le_left]
+
+@[pspec] theorem core.num.Scalar.ShiftRight_val_unsigned_eq {ty0 ty1} (x : Scalar ty0) (y : Scalar ty1)
+  (hs : ¬ ty0.isSigned) (hy0 : 0 ≤ y.val) (hy1 : y.val ≤ ty0.bitWidth) :
+  ∃ z, x >>> y = ok z ∧
+  z.val = x.val >>> y.toNat
+  := by
+  sorry
+
+@[pspec] theorem core.num.Scalar.ShiftLeft_val_unsigned_eq {ty0 ty1} (x : Scalar ty0) (y : Scalar ty1)
+  (hs : ¬ ty0.isSigned) (hy0 : 0 ≤ y.val) (hy1 : y.val ≤ ty0.bitWidth) :
+  ∃ z, x <<< y = ok z ∧
+  z.val = x.val >>> y.toNat
+  := by
+  sorry
+
+end Aeneas.Std
+
 namespace Symcrust -- TODO: fix namespace issues
 
 def ntt.SymCryptMlKemModAdd' (a : U32) (b : U32) : Result U32 :=
@@ -187,6 +370,8 @@ theorem ntt.SymCryptMlKemMod_underflow_eq
       omega
     have := @Int.testBit_pos_eq_false_of_lt m i (by omega) hi
     simp_all
+
+#check Aeneas.Std.core.num.Scalar.ShiftRight_val_unsigned_eq
 
 theorem ntt.SymCryptMlKemMod'_spec (a : U32) (b : U32)
   (ha : a.val < Spec.Q) (hb : b.val < Spec.Q) :
