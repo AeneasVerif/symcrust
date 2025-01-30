@@ -371,7 +371,6 @@ fn KeyAllocate2(params: PARAMS) -> Result<Box<KEY2>,MLKEM_ERROR> {
                 data: [POLYELEMENT_ZERO; 4*nRows]
             }))
         },
-        _ => panic!(""),
     }
 
 }

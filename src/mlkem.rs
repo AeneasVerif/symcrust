@@ -193,11 +193,13 @@ SymCryptMlKemkeyExpandFromPrivateSeed(
     SymCryptMlKemVectorNTT( pkMlKemkey.t_mut() );
 
     // pvTmp = s .* R
-    SymCryptMlKemVectorMulR( pkMlKemkey.s_mut(), &mut pCompTemps.abVectorBuffer0 );
+    let pvTmp = &mut pCompTemps.abVectorBuffer0[0..nRows as usize];
+    SymCryptMlKemVectorMulR( pkMlKemkey.s_mut(), pvTmp);
 
     // t = ((A o (s .* R)) ./ R) + e = A o s + e
     let (a, _, t) = pkMlKemkey.ast_mut();
-    SymCryptMlKemMatrixVectorMontMulAndAdd(a, &pCompTemps.abVectorBuffer0, t, &mut pCompTemps.abPolyElementAccumulatorBuffer, nRows);
+    let paTmp = &mut pCompTemps.abPolyElementAccumulatorBuffer; 
+    SymCryptMlKemMatrixVectorMontMulAndAdd(a, &pCompTemps.abVectorBuffer0, t, paTmp, nRows);
 
     // transpose A
     SymCryptMlKemMatrixTranspose( pkMlKemkey.atranspose_mut(), nRows);
@@ -616,8 +618,8 @@ SymCryptMlKemEncapsulateInternal(
         return MLKEM_ERROR::INVALID_ARGUMENT;
     }
 
-    let pvrInner = &mut pCompTemps.abVectorBuffer0;
-    let pvTmp = &mut pCompTemps.abVectorBuffer1;
+    let pvrInner = &mut pCompTemps.abVectorBuffer0[0..nRows as usize];
+    let pvTmp = &mut pCompTemps.abVectorBuffer1[0..nRows as usize];
     let peTmp0 = &mut pCompTemps.abPolyElementBuffer0;
     let peTmp1 = &mut pCompTemps.abPolyElementBuffer1;
     let paTmp = &mut pCompTemps.abPolyElementAccumulatorBuffer;
@@ -653,8 +655,8 @@ SymCryptMlKemEncapsulateInternal(
     SymCryptMlKemVectorNTT( pvrInner );
 
     // Set pvTmp to 0
-    // TODO: write a helper function
-    *pvTmp = [POLYELEMENT_ZERO; 4];
+    // TODO: write a helper function -- any way to do this better?
+    pvTmp.copy_from_slice(&vec![POLYELEMENT_ZERO; nRows as usize].into_boxed_slice());
     // SymCryptMlKemVectorSetZero( pvTmp );
 
     // pvTmp = (Atranspose o rInner) ./ R
