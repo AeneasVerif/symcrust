@@ -796,25 +796,52 @@ SymCryptMlKemEncapsulate(
 //     return scError;
 // }
 
-// ERROR
-// CALL
-// SymCryptMlKemDecapsulate(
-//     _In_                                    PCMLKEMKEY pkMlKemkey,
-//     _In_reads_bytes_( cbCiphertext )        PCBYTE              pbCiphertext,
-//                                             SIZE_T              cbCiphertext,
-//     _Out_writes_bytes_( cbAgreedSecret )    PBYTE               pbAgreedSecret,
-//                                             SIZE_T              cbAgreedSecret )
-// {
-//     PINTERNAL_COMPUTATION_TEMPORARIES pCompTemps = NULL;
-//     BYTE pbDecryptedRandom[SIZEOF_ENCAPS_RANDOM];
-//     BYTE pbDecapsulatedSecret[SIZEOF_AGREED_SECRET];
-//     BYTE pbImplicitRejectionSecret[SIZEOF_AGREED_SECRET];
-//     PBYTE pbReadCiphertext, pbReencapsulatedCiphertext;
-//     BOOLEAN successfulReencrypt;
+fn
+SymCryptMlKemDecapsulate(
+    pkMlKemkey: &mut KEY,
+    pbCiphertext: &[u8],
+    pbAgreedSecret: &mut [u8],
+) -> MLKEM_ERROR
+{
+    let cbCiphertext = pbCiphertext.len();
+    let cbAgreedSecret = pbAgreedSecret.len();
 
-//     PBYTE pbCurr;
-//     PBYTE pbAlloc = NULL;
-//     const SIZE_T cbAlloc = sizeof(INTERNAL_COMPUTATION_TEMPORARIES) + (2*cbCiphertext);
+    let pCompTemps = Box::try_new(INTERNAL_COMPUTATION_TEMPORARIES {
+        abVectorBuffer0: [POLYELEMENT_ZERO; MATRIX_MAX_NROWS],
+        abVectorBuffer1: [POLYELEMENT_ZERO; MATRIX_MAX_NROWS],
+        abPolyElementBuffer0: POLYELEMENT_ZERO,
+        abPolyElementBuffer1: POLYELEMENT_ZERO,
+        abPolyElementAccumulatorBuffer: [0; MLWE_POLYNOMIAL_COEFFICIENTS ],
+        hashState0: crate::hash::UNINITIALIZED_HASH_STATE,
+        hashState1: crate::hash::UNINITIALIZED_HASH_STATE,
+    });
+
+    let mut pCompTemps = match pCompTemps {
+        Result::Err(_) => { return MLKEM_ERROR::MEMORY_ALLOCATION_FAILURE },
+        Result::Ok(pCompTemps) => pCompTemps
+    };
+
+    let mut pbDecryptedRandom = [0u8; SIZEOF_ENCAPS_RANDOM];
+    let mut pbDecapsulatedSecret = [0u8; SIZEOF_AGREED_SECRET];
+    let mut pbImplicitRejectionSecret = [0u8; SIZEOF_AGREED_SECRET];
+    // PBYTE pbReadCiphertext, pbReencapsulatedCiphertext;
+    // BOOLEAN successfulReencrypt;
+
+    // Note (Rust): we originally perform a single call to malloc() and use the first few bytes for
+    // the temporary computations, then for the two temporary ciphertexts. Rust does not allow to
+    // do this, so we perform two allocations.
+    // Note (Rust): rather than use the (simple) solution below, which does not allow catching
+    // memory allocation failures, we instead use the experimental try_with_capacity API:
+    // let pbCompCiphers = vec![0u8; 2*cbCipherText].into_boxed_slice();
+    let pbCompCiphers = Vec::try_with_capacity(2*cbCiphertext);
+    let mut pbCompCiphers = match pbCompCiphers {
+        Result::Ok(pbCompCiphers) => pbCompCiphers,
+        Result::Err(_) => return MLKEM_ERROR::MEMORY_ALLOCATION_FAILURE
+    };
+    pbCompCiphers.resize(2*cbCiphertext, 0u8);
+    let mut pbCompCiphers = pbCompCiphers.into_boxed_slice();
+    let (pbReadCiphertext, pbReencapsulatedCiphertext) =
+        pbCompCiphers.split_at_mut(cbCiphertext);
 
 //     ERROR scError = NO_ERROR;
 //     SIZE_T cbU, cbV, cbCopy;
@@ -822,107 +849,87 @@ SymCryptMlKemEncapsulate(
 //     PPOLYELEMENT peTmp0, peTmp1;
 //     PPOLYELEMENT_ACCUMULATOR paTmp;
 //     PSHAKE256_STATE pShakeState;
-//     const UINT32 nRows = pkMlKemkey->params.nRows;
-//     const UINT32 nBitsOfU = pkMlKemkey->params.nBitsOfU;
-//     const UINT32 nBitsOfV = pkMlKemkey->params.nBitsOfV;
-//     const UINT32 cbPolyElement = pkMlKemkey->params.cbPolyElement;
-//     const UINT32 cbVector = pkMlKemkey->params.cbVector;
+    let nRows = pkMlKemkey.params.nRows;
+    let nBitsOfU = pkMlKemkey.params.nBitsOfU;
+    let nBitsOfV = pkMlKemkey.params.nBitsOfV;
+    // let cbPolyElement = pkMlKemkey.params.cbPolyElement;
+    // let cbVector = pkMlKemkey.params.cbVector;
 
-//     // u vector encoded with nBitsOfU * MLWE_POLYNOMIAL_COEFFICIENTS bits per polynomial
-//     cbU = nRows * nBitsOfU * (MLWE_POLYNOMIAL_COEFFICIENTS / 8);
-//     // v polynomial encoded with nBitsOfV * MLWE_POLYNOMIAL_COEFFICIENTS bits
-//     cbV = nBitsOfV * (MLWE_POLYNOMIAL_COEFFICIENTS / 8);
+    // u vector encoded with nBitsOfU * MLWE_POLYNOMIAL_COEFFICIENTS bits per polynomial
+    let cbU = nRows as usize * nBitsOfU as usize * (MLWE_POLYNOMIAL_COEFFICIENTS / 8);
+    // v polynomial encoded with nBitsOfV * MLWE_POLYNOMIAL_COEFFICIENTS bits
+    let cbV = nBitsOfV as usize * (MLWE_POLYNOMIAL_COEFFICIENTS / 8);
 
-//     if( (cbAgreedSecret != SIZEOF_AGREED_SECRET) ||
-//         (cbCiphertext != cbU + cbV) ||
-//         !pkMlKemkey->hasPrivateKey )
-//     {
-//         scError = INVALID_ARGUMENT;
-//         goto cleanup;
-//     }
+    if (cbAgreedSecret != SIZEOF_AGREED_SECRET) ||
+        (cbCiphertext != cbU + cbV) ||
+        !pkMlKemkey.hasPrivateKey
+    {
+        return MLKEM_ERROR::INVALID_ARGUMENT;
+    }
 
-//     pbAlloc = SymCryptCallbackAlloc( cbAlloc );
-//     if( pbAlloc == NULL )
-//     {
-//         scError = MEMORY_ALLOCATION_FAILURE;
-//         goto cleanup;
-//     }
-//     pbCurr = pbAlloc;
+    // Read the input ciphertext once to local pbReadCiphertext to ensure our view of ciphertext consistent
+    pbReadCiphertext.copy_from_slice(pbCiphertext);
 
-//     pCompTemps = (PINTERNAL_COMPUTATION_TEMPORARIES) pbCurr;
-//     pbCurr += sizeof(INTERNAL_COMPUTATION_TEMPORARIES);
+    let pvu = &mut pCompTemps.abVectorBuffer0[0..nRows as usize];
+    let peTmp0 = &mut pCompTemps.abPolyElementBuffer0;
+    let peTmp1 = &mut pCompTemps.abPolyElementBuffer1;
+    let paTmp = &mut pCompTemps.abPolyElementAccumulatorBuffer;
 
-//     pbReadCiphertext = pbCurr;
-//     pbCurr += cbCiphertext;
+    // Decode and decompress u
+    let scError = SymCryptMlKemVectorDecodeAndDecompress( &mut pbReadCiphertext[0..cbU], nBitsOfU as u32, pvu );
+    assert!( scError == MLKEM_ERROR::NO_ERROR );
 
-//     pbReencapsulatedCiphertext = pbCurr;
-//     pbCurr += cbCiphertext;
+    // Perform NTT on u
+    SymCryptMlKemVectorNTT( pvu );
 
-//     ASSERT( pbCurr == (pbAlloc + cbAlloc) );
+    // peTmp0 = (s o NTT(u)) ./ R
+    SymCryptMlKemVectorMontDotProduct( pkMlKemkey.s_mut(), pvu, peTmp0, paTmp );
 
-//     // Read the input ciphertext once to local pbReadCiphertext to ensure our view of ciphertext consistent
-//     memcpy( pbReadCiphertext, pbCiphertext, cbCiphertext );
+    // peTmp0 = INTT(s o NTT(u))
+    SymCryptMlKemPolyElementINTTAndMulR( peTmp0 );
 
-//     pvu = SymCryptMlKemVectorCreate( pCompTemps->abVectorBuffer0, cbVector, nRows );
-//     ASSERT( pvu != NULL );
-//     peTmp0 = SymCryptMlKemPolyElementCreate( pCompTemps->abPolyElementBuffer0, cbPolyElement );
-//     ASSERT( peTmp0 != NULL );
-//     peTmp1 = SymCryptMlKemPolyElementCreate( pCompTemps->abPolyElementBuffer1, cbPolyElement );
-//     ASSERT( peTmp1 != NULL );
-//     paTmp = SymCryptMlKemPolyElementAccumulatorCreate( pCompTemps->abPolyElementAccumulatorBuffer, 2*cbPolyElement );
-//     ASSERT( paTmp != NULL );
+    // Decode and decompress v
+    let scError = SymCryptMlKemPolyElementDecodeAndDecompress(&mut pbReadCiphertext[cbU..], nBitsOfV as u32, peTmp1 );
+    assert!( scError == MLKEM_ERROR::NO_ERROR );
 
-//     // Decode and decompress u
-//     scError = SymCryptMlKemVectorDecodeAndDecompress( pbReadCiphertext, cbU, nBitsOfU, pvu );
-//     ASSERT( scError == NO_ERROR );
+    // peTmp0 = w = v - INTT(s o NTT(u))
+    // FIXME
+    let copy = *peTmp0;
+    SymCryptMlKemPolyElementSub( peTmp1, &copy, peTmp0 );
 
-//     // Perform NTT on u
-//     SymCryptMlKemVectorNTT( pvu );
+    // pbDecryptedRandom = m' = Encoding of w
+    SymCryptMlKemPolyElementCompressAndEncode( peTmp0, 1, &mut pbDecryptedRandom );
 
-//     // peTmp0 = (s o NTT(u)) ./ R
-//     SymCryptMlKemVectorMontDotProduct( pkMlKemkey->pvs, pvu, peTmp0, paTmp );
+    // Compute:
+    //  pbDecapsulatedSecret = K' = Decapsulated secret (without implicit rejection)
+    //  pbReencapsulatedCiphertext = c' = Ciphertext from re-encapsulating decrypted random value
+    let scError = SymCryptMlKemEncapsulateInternal(
+        pkMlKemkey,
+        &mut pbDecapsulatedSecret,
+        pbReencapsulatedCiphertext,
+        &mut pbDecryptedRandom,
+        &mut pCompTemps );
+    assert!( scError == MLKEM_ERROR::NO_ERROR );
 
-//     // peTmp0 = INTT(s o NTT(u))
-//     SymCryptMlKemPolyElementINTTAndMulR( peTmp0 );
+    // Compute the secret we will return if using implicit rejection
+    // pbImplicitRejectionSecret = K_bar = SHAKE256( z || c )
+    let mut pShakeState = &mut pCompTemps.hashState0;
+    crate::hash::shake256_init( pShakeState );
+    crate::hash::shake256_append( pShakeState, & pkMlKemkey.privateRandom);
+    crate::hash::shake256_append( pShakeState, pbReadCiphertext );
+    crate::hash::shake256_extract( pShakeState, &mut pbImplicitRejectionSecret, false );
 
-//     // Decode and decompress v
-//     scError = SymCryptMlKemPolyElementDecodeAndDecompress( pbReadCiphertext+cbU, nBitsOfV, peTmp1 );
-//     ASSERT( scError == NO_ERROR );
+    // Constant time test if re-encryption successful
+    let successfulReencrypt = pbReencapsulatedCiphertext == pbReadCiphertext;
 
-//     // peTmp0 = w = v - INTT(s o NTT(u))
-//     SymCryptMlKemPolyElementSub( peTmp1, peTmp0, peTmp0 );
+    // If not successful, perform side-channel-safe copy of Implicit Rejection secret over Decapsulated secret
+    let cbCopy = ((successfulReencrypt as usize)-1) & SIZEOF_AGREED_SECRET;
+    pbDecapsulatedSecret[0..SIZEOF_AGREED_SECRET].copy_from_slice(&pbImplicitRejectionSecret);
+    // FIXME, was:
+    // SymCryptScsCopy( pbImplicitRejectionSecret, cbCopy, pbDecapsulatedSecret, SIZEOF_AGREED_SECRET );
 
-//     // pbDecryptedRandom = m' = Encoding of w
-//     SymCryptMlKemPolyElementCompressAndEncode( peTmp0, 1, pbDecryptedRandom );
-
-//     // Compute:
-//     //  pbDecapsulatedSecret = K' = Decapsulated secret (without implicit rejection)
-//     //  pbReencapsulatedCiphertext = c' = Ciphertext from re-encapsulating decrypted random value
-//     scError = SymCryptMlKemEncapsulateInternal(
-//         pkMlKemkey,
-//         pbDecapsulatedSecret, sizeof(pbDecapsulatedSecret),
-//         pbReencapsulatedCiphertext, cbCiphertext,
-//         pbDecryptedRandom,
-//         pCompTemps );
-//     ASSERT( scError == NO_ERROR );
-
-//     // Compute the secret we will return if using implicit rejection
-//     // pbImplicitRejectionSecret = K_bar = SHAKE256( z || c )
-//     pShakeState = &pCompTemps->hashState0.shake256State;
-//     SymCryptShake256Init( pShakeState );
-//     SymCryptShake256Append( pShakeState, pkMlKemkey->privateRandom, sizeof(pkMlKemkey->privateRandom) );
-//     SymCryptShake256Append( pShakeState, pbReadCiphertext, cbCiphertext );
-//     SymCryptShake256Extract( pShakeState, pbImplicitRejectionSecret, sizeof(pbImplicitRejectionSecret), FALSE );
-
-//     // Constant time test if re-encryption successful
-//     successfulReencrypt = SymCryptEqual( pbReencapsulatedCiphertext, pbReadCiphertext, cbCiphertext );
-
-//     // If not successful, perform side-channel-safe copy of Implicit Rejection secret over Decapsulated secret
-//     cbCopy = (((SIZE_T)successfulReencrypt)-1) & SIZEOF_AGREED_SECRET;
-//     SymCryptScsCopy( pbImplicitRejectionSecret, cbCopy, pbDecapsulatedSecret, SIZEOF_AGREED_SECRET );
-
-//     // Write agreed secret (with implicit rejection) to pbAgreedSecret
-//     memcpy( pbAgreedSecret, pbDecapsulatedSecret, SIZEOF_AGREED_SECRET );
+    // Write agreed secret (with implicit rejection) to pbAgreedSecret
+    pbAgreedSecret.copy_from_slice(&pbDecapsulatedSecret);
 
 // cleanup:
 //     if( pbAlloc != NULL )
@@ -935,5 +942,5 @@ SymCryptMlKemEncapsulate(
 //     SymCryptWipeKnownSize( pbDecapsulatedSecret, sizeof(pbDecapsulatedSecret) );
 //     SymCryptWipeKnownSize( pbImplicitRejectionSecret, sizeof(pbImplicitRejectionSecret) );
 
-//     return scError;
-// }
+    MLKEM_ERROR::NO_ERROR
+}

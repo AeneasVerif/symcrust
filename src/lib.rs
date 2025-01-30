@@ -4,6 +4,7 @@
 
 // For the `alloc` module
 #![feature(allocator_api)]
+#![feature(try_with_capacity)]
 
 pub mod common;
 pub mod hash;

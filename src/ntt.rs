@@ -446,6 +446,7 @@ fn SymCryptMlKemPolyElementAdd(
     });
 }
 
+pub(crate)
 fn SymCryptMlKemPolyElementSub(
     peSrc1: & POLYELEMENT,
     peSrc2: & POLYELEMENT,
