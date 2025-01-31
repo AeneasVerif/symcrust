@@ -616,6 +616,35 @@ theorem Scalar.unsigned_ofInt_bv_lt_equiv {ty} (h : ¬ ty.isSigned) (x y : Int) 
 
 -- TODO: improve scalar_tac to reason about inequalities between bitvectors?
 
+/-- We're not using this theorem, but we keep the proof here because it can be useful if we want
+    to generalize the NTT. -/
+theorem ntt.SymCryptMlKemMod_underflow_eq
+  (n m : Int) (hn0 : 0 ≤ n) (hn : n < 2 ^ 12) (hm0 : 0 ≤ m) (hm : m < 2 ^ 12):
+  Int.land m ((2^32 - 1 - n) >>> (16 : Nat)) = m := by
+  apply Int.eq_of_testBit_eq
+  intro i
+  have h : 2^32 - 1 - n = 2^32 - (n + 1) := by ring_nf
+  rw [h]; clear h
+  have := @Int.testBit_two_pow_sub_succ n 32 (by omega) (by omega) (16 + i)
+  simp [-Int.reducePow]
+  rw [this]; clear this
+  intro hi
+  dcases hi : i < 12
+  . simp; split_conjs
+    . omega
+    . have hi : n < 2^(16 + i) := by
+        have := @Int.pow_le_pow_of_le_right 2 (by simp) 12 (16 + i) (by omega)
+        norm_cast at *
+        omega
+      apply @Int.testBit_pos_eq_false_of_lt n (16 + i) (by omega) hi
+  . -- Contradiction
+    have hi : m < 2^i := by
+      have := @Int.pow_le_pow_of_le_right 2 (by simp) 12 i (by omega)
+      norm_cast at *
+      omega
+    have := @Int.testBit_pos_eq_false_of_lt m i (by omega) hi
+    simp_all
+
 theorem ntt.SymCryptMlKemMod'_spec (a : U32) (b : U32)
   (ha : a.val < Spec.Q) (hb : b.val < Spec.Q) :
   ∃ (c : U32), ntt.SymCryptMlKemModAdd' a b = ok c ∧
