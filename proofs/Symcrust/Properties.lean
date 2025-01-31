@@ -317,6 +317,9 @@ end Aeneas.Std
 
 namespace Symcrust -- TODO: fix namespace issues
 
+/-!
+Addition modulo
+-/
 def ntt.SymCryptMlKemModAdd' (a : U32) (b : U32) : Result U32 :=
   do
   massert (a < ntt.Q)
@@ -667,6 +670,10 @@ theorem Int.neg_add_emod_self_left {a b c : ℤ} : (-a + b) % c = ((c - a) + b) 
   conv => lhs; rw [← Int.add_emod_self_left]
   ring_nf
 
+theorem Int.sub_eq_add_minus : ∀ (a b : Int), a - b = a + (-b) := by omega
+theorem Int.add_minus_add_eq_minus_add : ∀ (a b c : Int), a + (-b + c) = (-b) + (a + c) := by omega
+theorem Int.minus_add_minus_add_eq_minus_add : ∀ (a b c : Int), -a + (-b + c) = -(a + b) + c := by omega
+
 open Lean.Parser.Tactic in
 /-- A tactic to normalize modulo operations.
 
@@ -677,22 +684,29 @@ open Lean.Parser.Tactic in
                       = ((16 - 12) + (x + y)) % 16  -- add the modulus itself
                       = (4 + x + y) % 16
     ```
+    TODO: it doesn't work well if we have `- x` somewhere in the expression
 -/
 macro "norm_mod" cfg:optConfig loc:(location)? : tactic =>
   `(tactic |
-    -- We repeatedly perform the operation
-    repeat fail_if_no_progress
-      ring_nf $cfg:optConfig $(loc)? <;> -- push to the left
-      (try simp only [Int.add_assoc] $(loc)?) <;> -- isolate the constant
+    -- TODO: repeteadly performing the operation causes issues
+    -- repeat fail_if_no_progress
+      -- Push to the left and isolate
+      --ring_nf $cfg:optConfig $(loc)? <;> -- push to the left
+      (try simp only [Int.add_assoc, Int.sub_eq_add_minus, Int.add_minus_add_eq_minus_add, Int.minus_add_minus_add_eq_minus_add] $(loc)?) <;> -- isolate the constant
       (try rw [Int.neg_add_emod_self_left] $(loc)?) <;> -- add the modulo
       ring_nf $cfg:optConfig $(loc)? -- normalize again
     )
+
+theorem ZMod.castInt_val_sub {n : ℕ} [NeZero n] {a b : ZMod n} :
+  (a - b).val = (a.val - (b.val : Int)) % n := by
+  sorry
 
 /- TODO: move -/
 attribute [zify_simps] BitVec.toNat_eq BitVec.lt_def BitVec.le_def
                        BitVec.toNat_umod BitVec.toNat_add BitVec.toNat_sub BitVec.toNat_ofNat
                        BitVec.toNat_and BitVec.toNat_or BitVec.toNat_xor
 attribute [zify_simps] ZMod.eq_iff_mod ZMod.val_intCast ZMod.val_add ZMod.val_sub ZMod.val_mul
+                       ZMod.castInt_val_sub
 attribute [zify_simps] Nat.eq_iff_intCast_eq Nat.lt_iff_intCast_eq Nat.le_iff_intCast_eq -- TODO: remove?
 attribute [zify_simps] U32.bv_toNat_eq U32.toNat -- TODO: complete
 
@@ -748,7 +762,7 @@ theorem ntt.SymCryptMlKemModAdd'_spec (a : U32) (b : U32)
     bv_decide
   progress; clear hIf
 
-  -- Prove the post-condition
+  -- Prove the post-condition (we also need this prove that the assert holds)
   have hPost :
     let c := core.num.U32.wrapping_add (core.num.U32.wrapping_sub c1 3329#u32) (3329#u32 &&& c2)
     (c.val : Spec.Zq) = (a.val : Spec.Zq) + (b.val : Spec.Zq) ∧
@@ -772,6 +786,102 @@ theorem ntt.SymCryptMlKemModAdd'_spec (a : U32) (b : U32)
         apply Int.emod_eq_of_lt <;> scalar_tac
       rw [hab] at hEq
       apply hEq
+    . apply hLt
+
+  -- Finish the proof
+  progress
+  . -- massert
+    simp at hPost
+    apply hPost.right
+  . simp at *
+    apply hPost
+
+/-!
+Subtraction modulo
+-/
+
+def ntt.SymCryptMlKemModSub' (a : U32) (b : U32) : Result U32 := do
+  let i ← 2#u32 * ntt.Q
+  massert (a < i)
+  massert (b <= ntt.Q)
+  let res := core.num.U32.wrapping_sub a b
+  let i1 ← res >>> 16#i32
+  (if i1 = 0#u32 then ok () else massert (i1 = 65535#u32))
+  let res1 := core.num.U32.wrapping_add res (ntt.Q &&& i1)
+  massert (res1 < ntt.Q)
+  Result.ok res1
+
+@[simp]
+def ntt.SymCryptMlKemModSub_eq (a : U32) (b : U32) :
+  SymCryptMlKemModSub a b = SymCryptMlKemModSub' a b := by
+  unfold SymCryptMlKemModSub SymCryptMlKemModSub'
+  simp
+  intros
+  split <;> simp
+
+theorem ntt.SymCryptMlKemModSub'_spec (a : U32) (b : U32)
+  (ha : a.val < Spec.Q) (hb : b.val < Spec.Q) :
+  ∃ (c : U32), ntt.SymCryptMlKemModSub' a b = ok c ∧
+  (c.val : Spec.Zq) = (a.val : Spec.Zq) - (b.val : Spec.Zq) ∧
+  c.val < Spec.Q := by
+  unfold SymCryptMlKemModSub'
+  have : a.bv < 3329#32 := by -- TODO: bvfy?
+    simp [U32.bv]
+    scalar_tac
+  have : b.bv < 3329#32 := by -- TODO: bvfy?
+    simp [U32.bv]
+    scalar_tac
+  simp at *
+  progress as ⟨ twoQ, hTwoQ ⟩
+  progress
+  clear twoQ hTwoQ
+  progress
+  progress as ⟨ c2, hc2 ⟩
+  simp at *
+
+  -- TODO: handle this properly with progress
+  have hIf : (if c2 = 0#u32 then ok () else massert (c2 = 65535#u32)) = ok () := by
+    split <;> try simp
+    progress
+    simp [U32.eq_equiv_bv_eq] at *
+    bv_decide
+  progress; clear hIf
+
+  -- Prove the post-condition (we also need this prove that the assert holds)
+  have hPost :
+    let c := core.num.U32.wrapping_add (core.num.U32.wrapping_sub a b) (3329#u32 &&& c2)
+    (c.val : Spec.Zq) = (a.val : Spec.Zq) - (b.val : Spec.Zq) ∧
+    c.val < Spec.Q := by
+
+    /- We use bitvectors to automate the proofs -/
+    have hEq : ((a.bv - b.bv + (3329#32 &&& c2.bv)) % 3329#32) = (a.bv + 3329#32 - b.bv) % 3329#32 := by
+      rw [hc2]; clear hc2
+      bv_decide
+    have hLt : (a.bv - b.bv + (3329#32 &&& c2.bv)) < 3329#32 := by
+      bv_decide
+
+    /- We need to convert the bit vector, ℕ and ZMod elements to ℤ -/
+    zify at *
+    simp [U32.max] at *
+    norm_mod
+
+    have hb : ((4294967296 - b.toNat : Nat) : Int) = 4294967296 - b.val := by scalar_tac
+    rw [hb] at hEq hLt
+
+    /- We can now prove the two post-conditions -/
+    split_conjs
+    . rw [hEq]
+      have h :=
+        calc
+          (4294967296 - b.val + (a.val + 3329)) % 4294967296 = (4294967296 + (a.val + 3329 - b.val)) % 4294967296 := by ring_nf
+          _ = (a.val + 3329 - b.val) % 4294967296 := by simp
+      simp [h]; clear h
+      ring_nf
+      have h : (3329 + (a.val - b.val)) % 4294967296 = 3329 + (a.val - b.val) := by
+        apply Int.emod_eq_of_lt <;> scalar_tac
+      simp [h]; clear h
+
+      simp [← Int.sub_emod]
     . apply hLt
 
   -- Finish the proof
