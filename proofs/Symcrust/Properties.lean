@@ -721,7 +721,7 @@ example
     apply hEq
   . apply hLt
 
-theorem ntt.SymCryptMlKemMod'_spec (a : U32) (b : U32)
+theorem ntt.SymCryptMlKemModAdd'_spec (a : U32) (b : U32)
   (ha : a.val < Spec.Q) (hb : b.val < Spec.Q) :
   ∃ (c : U32), ntt.SymCryptMlKemModAdd' a b = ok c ∧
   (c.val : Spec.Zq) = (a.val : Spec.Zq) + (b.val : Spec.Zq) ∧
