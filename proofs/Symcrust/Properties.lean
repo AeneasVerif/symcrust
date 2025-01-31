@@ -616,6 +616,11 @@ theorem Scalar.unsigned_ofInt_bv_lt_equiv {ty} (h : ¬ ty.isSigned) (x y : Int) 
 
 -- TODO: improve scalar_tac to reason about inequalities between bitvectors?
 
+-- TODO: move
+theorem ZMod.eq_iff_mod (p : ℕ) (x y : ZMod p) :
+  x = y ↔ x.val = y.val := by
+  sorry
+
 /-- We're not using this theorem, but we keep the proof here because it can be useful if we want
     to generalize the NTT. -/
 theorem ntt.SymCryptMlKemMod_underflow_eq
@@ -645,16 +650,87 @@ theorem ntt.SymCryptMlKemMod_underflow_eq
     have := @Int.testBit_pos_eq_false_of_lt m i (by omega) hi
     simp_all
 
+set_option maxHeartbeats 500000
+
+theorem Nat.eq_iff_intCast_eq (n m : Nat) : n = m ↔ (n : Int) = (m : Int) := by omega
+theorem Nat.lt_iff_intCast_eq (n m : Nat) : n < m ↔ (n : Int) < (m : Int) := by omega
+theorem Nat.le_iff_intCast_eq (n m : Nat) : n ≤ m ↔ (n : Int) ≤ (m : Int) := by omega
+
+-- TODO: generalize
+@[simp] theorem U32.zmod_val_eq_mod (n : Nat) (x : U32) : ZMod.val (x.val : ZMod n) = x.val % n := by sorry
+@[simp] theorem U32.zmod_cast_int_eq_mod (n : Nat) (x : U32) : ZMod.cast (x.val : ZMod n) = x.val % n := by sorry
+
+-- TODO: generalize
+@[simp] theorem U32.val_max_zero_eq (x : U32) : x.val ⊔ 0 = x.val := by scalar_tac
+
+theorem Int.neg_add_emod_self_left {a b c : ℤ} : (-a + b) % c = ((c - a) + b) % c := by
+  conv => lhs; rw [← Int.add_emod_self_left]
+  ring_nf
+
+open Lean.Parser.Tactic in
+/-- A tactic to normalize modulo operations.
+
+    We do the following:
+    ```
+    (x + y - 12) % 16 = (-12 + x + y) % 16          -- push the negative constant to the left
+                      = (-12 + (x + y)) % 16        -- isolate it
+                      = ((16 - 12) + (x + y)) % 16  -- add the modulus itself
+                      = (4 + x + y) % 16
+    ```
+-/
+macro "norm_mod" cfg:optConfig loc:(location)? : tactic =>
+  `(tactic |
+    -- We repeatedly perform the operation
+    repeat fail_if_no_progress
+      ring_nf $cfg:optConfig $(loc)? <;> -- push to the left
+      (try simp only [Int.add_assoc] $(loc)?) <;> -- isolate the constant
+      (try rw [Int.neg_add_emod_self_left] $(loc)?) <;> -- add the modulo
+      ring_nf $cfg:optConfig $(loc)? -- normalize again
+    )
+
+/- TODO: move -/
+attribute [zify_simps] BitVec.toNat_eq BitVec.lt_def BitVec.le_def
+                       BitVec.toNat_umod BitVec.toNat_add BitVec.toNat_sub BitVec.toNat_ofNat
+                       BitVec.toNat_and BitVec.toNat_or BitVec.toNat_xor
+attribute [zify_simps] ZMod.eq_iff_mod ZMod.val_intCast ZMod.val_add ZMod.val_sub ZMod.val_mul
+attribute [zify_simps] Nat.eq_iff_intCast_eq Nat.lt_iff_intCast_eq Nat.le_iff_intCast_eq -- TODO: remove?
+attribute [zify_simps] U32.bv_toNat_eq U32.toNat -- TODO: complete
+
+-- TODO: move this example
+example
+  (a : U32)
+  (b : U32)
+  (c1 : U32)
+  (hc1 : c1.val = ↑a + ↑b)
+  (c2 : U32)
+  (hEq : (c1.bv - 3329#32 + (3329#32 &&& c2.bv)) % 3329#32 = (a.bv + b.bv) % 3329#32)
+  (hLt : c1.bv - 3329#32 + (3329#32 &&& c2.bv) < 3329#32) :
+  (((c1.val - 3329 + ((3329 &&& c2.toNat) : Nat)) % (U32.max + 1 : Int)) : ZMod Spec.Q) = ↑↑a + ↑↑b ∧
+  (c1.val - 3329 + ((3329 &&& c2.toNat) : Nat)) % (↑U32.max + 1) < 3329
+  := by
+  -- TODO: move
+  zify at *
+  simp [U32.max] at *
+  norm_mod
+
+  /- We can now prove the two post-conditions -/
+  split_conjs
+  . have hab : (a.val + b.val) % 4294967296 = a.val + b.val := by
+      apply Int.emod_eq_of_lt <;> scalar_tac
+    rw [hab] at hEq
+    apply hEq
+  . apply hLt
+
 theorem ntt.SymCryptMlKemMod'_spec (a : U32) (b : U32)
   (ha : a.val < Spec.Q) (hb : b.val < Spec.Q) :
   ∃ (c : U32), ntt.SymCryptMlKemModAdd' a b = ok c ∧
   (c.val : Spec.Zq) = (a.val : Spec.Zq) + (b.val : Spec.Zq) ∧
   c.val < Spec.Q := by
   unfold SymCryptMlKemModAdd'
-  have : a.bv < 3329#32 := by -- TODO: automate with scalar_tac?
+  have : a.bv < 3329#32 := by -- TODO: bvfy?
     simp [U32.bv]
     scalar_tac
-  have : b.bv < 3329#32 := by -- TODO: automate with scalar_tac?
+  have : b.bv < 3329#32 := by -- TODO: bvfy?
     simp [U32.bv]
     scalar_tac
   simp at *
@@ -678,51 +754,25 @@ theorem ntt.SymCryptMlKemMod'_spec (a : U32) (b : U32)
     (c.val : Spec.Zq) = (a.val : Spec.Zq) + (b.val : Spec.Zq) ∧
     c.val < Spec.Q := by
     simp
-    -- There are two cases depending on whether `a + b - q` is `< 0` or not
-    dcases hlt : 0 ≤ a.val + b.val - 3329
-    . -- No underflow
-      have : 3329#32 ≤ a.bv + b.bv := by -- TODO: automate
-        simp [BitVec.le_def]
-        rw [Nat.mod_eq_of_lt] <;> omega
 
-      -- The important part of the proof, that we prove with bv_decide
-      have hc2Eq : c2.toNat = 0 := by -- TODO: automate
-        have h : c2.bv = 0#32 := by bv_decide
-        have h : c2.bv.toNat = 0 := by rw [h]; simp
-        simp at h
-        scalar_tac
-      simp [hc2Eq]; clear hc2
+    /- We use bitvectors to automate the proofs -/
+    have hEq : ((c1.bv - 3329#32 + (3329#32 &&& c2.bv)) % 3329#32) = (a.bv + b.bv) % 3329#32 := by
+      bv_decide
+    have hLt : (c1.bv - 3329#32 + (3329#32 &&& c2.bv)) < 3329#32 := by
+      bv_decide
 
-      let c : Int := a.val + b.val - 3329
-      have : 0 ≤ c ∧ c < 3329 := by scalar_tac
-      have hcMod : c % (U32.max + 1) = c := by
+    /- We need to convert the bit vector, ℕ and ZMod elements to ℤ -/
+    zify at *
+    simp [U32.max] at *
+    norm_mod
+
+    /- We can now prove the two post-conditions -/
+    split_conjs
+    . have hab : (a.val + b.val) % 4294967296 = a.val + b.val := by
         apply Int.emod_eq_of_lt <;> scalar_tac
-
-      simp [*]
-      rw [hcMod]
-      simp +zetaDelta [Spec.Zq]
-      split_conjs
-      . rfl
-      . scalar_tac
-    . -- Underflow
-      simp at hlt
-
-      have : a.bv + b.bv < 3329#32 := by
-        simp [BitVec.lt_def]
-        rw [Nat.mod_eq_of_lt] <;> omega
-
-      -- The important part of the proof, that we prove with bv_decide
-      have hc2Eq : 3329 &&& c2.toNat = 3329 := by -- TODO: automate
-        have h : 3329#32 &&& c2.bv = 3329#32 := by bv_decide
-        have h : (3329#32 &&& c2.bv).toNat = 3329 := by
-          simp [h]
-        simp at h
-        apply h
-      simp [hc2Eq]; clear hc2
-
-      split_conjs
-      . simp [*]
-      . scalar_tac
+      rw [hab] at hEq
+      apply hEq
+    . apply hLt
 
   -- Finish the proof
   progress
