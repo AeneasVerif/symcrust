@@ -855,7 +855,6 @@ theorem ntt.SymCryptMlKemModSub'_spec (a : U32) (b : U32)
 
     /- We use bitvectors to automate the proofs -/
     have hEq : ((a.bv - b.bv + (3329#32 &&& c2.bv)) % 3329#32) = (a.bv + 3329#32 - b.bv) % 3329#32 := by
-      rw [hc2]; clear hc2
       bv_decide
     have hLt : (a.bv - b.bv + (3329#32 &&& c2.bv)) < 3329#32 := by
       bv_decide
