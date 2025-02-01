@@ -347,10 +347,11 @@ def ntt.SymCryptMlKemModAdd_eq (a : U32) (b : U32) :
   intros
   split <;> simp
 
-@[simp]
-theorem ntt.Q_eq : Q = 3329#u32 := by
-  unfold Q Q_body eval_global
-  simp
+-- TODO: register those as `scalar_tac_simp`?
+@[simp] theorem ntt.Q_eq : Q = 3329#u32 := by rfl
+@[simp] theorem ntt.NegQInvModR_eq : ntt.NegQInvModR = 3327#u32 := by rfl
+@[simp] theorem ntt.Rmask_eq : ntt.Rmask = 65535#u32 := by rfl
+@[simp] theorem ntt.Rlog2_eq : ntt.Rlog2 = 16#u32 := by rfl
 
 attribute [local simp] Spec.Q -- TODO: add this to the scalar_tac simp set
 
@@ -546,6 +547,112 @@ theorem I128.add_bv_spec {x y : I128} (hmin : I128.min ≤ x.val + y.val) (hmax 
 theorem Isize.add_bv_spec {x y : Isize} (hmin : Isize.min ≤ x.val + y.val) (hmax : x.val + y.val ≤ Isize.max) :
   ∃ (z : Isize), x + y = ok z ∧ z.val = x.val + y.val ∧ z.bv = x.bv + y.bv :=
   by apply Scalar.add_bv_spec <;> scalar_tac
+
+theorem Scalar.sub_bv_spec {ty} {x y : Scalar ty} (hmin : Scalar.min ty ≤ x.val - y.val) (hmax : x.val - y.val ≤ Scalar.max ty) :
+  ∃ (z : Scalar ty), x - y = ok z ∧ z.val = x.val - y.val ∧ z.bv_ = x.bv_ - y.bv_ := by sorry
+
+theorem U8.sub_bv_spec {x y : U8} (hmin : 0 ≤ x.val - y.val) (hmax : x.val - y.val ≤ U8.max) :
+  ∃ (z : U8), x - y = ok z ∧ z.val = x.val - y.val ∧ z.bv = x.bv - y.bv :=
+  by apply Scalar.sub_bv_spec; scalar_tac; apply hmax
+
+theorem U16.sub_bv_spec {x y : U16} (hmin : 0 ≤ x.val - y.val) (hmax : x.val - y.val ≤ U16.max) :
+  ∃ (z : U16), x - y = ok z ∧ z.val = x.val - y.val ∧ z.bv = x.bv - y.bv :=
+  by apply Scalar.sub_bv_spec; scalar_tac; apply hmax
+
+theorem U32.sub_bv_spec {x y : U32} (hmin : 0 ≤ x.val - y.val) (hmax : x.val - y.val ≤ U32.max) :
+  ∃ (z : U32), x - y = ok z ∧ z.val = x.val - y.val ∧ z.bv = x.bv - y.bv :=
+  by apply Scalar.sub_bv_spec; scalar_tac; apply hmax
+
+theorem U64.sub_bv_spec {x y : U64} (hmin : 0 ≤ x.val - y.val) (hmax : x.val - y.val ≤ U64.max) :
+  ∃ (z : U64), x - y = ok z ∧ z.val = x.val - y.val ∧ z.bv = x.bv - y.bv :=
+  by apply Scalar.sub_bv_spec; scalar_tac; apply hmax
+
+theorem U128.sub_bv_spec {x y : U128} (hmin : 0 ≤ x.val - y.val) (hmax : x.val - y.val ≤ U128.max) :
+  ∃ (z : U128), x - y = ok z ∧ z.val = x.val - y.val ∧ z.bv = x.bv - y.bv :=
+  by apply Scalar.sub_bv_spec; scalar_tac; apply hmax
+
+theorem Usize.sub_bv_spec {x y : Usize} (hmin : 0 ≤ x.val - y.val) (hmax : x.val - y.val ≤ Usize.max) :
+  ∃ (z : Usize), x - y = ok z ∧ z.val = x.val - y.val ∧ z.bv = x.bv - y.bv :=
+  by apply Scalar.sub_bv_spec; scalar_tac; apply hmax
+
+theorem I8.sub_bv_spec {x y : I8} (hmin : I8.min ≤ x.val - y.val) (hmax : x.val - y.val ≤ I8.max) :
+  ∃ (z : I8), x - y = ok z ∧ z.val = x.val - y.val ∧ z.bv = x.bv - y.bv :=
+  by apply Scalar.sub_bv_spec <;> scalar_tac
+
+theorem I16.sub_bv_spec {x y : I16} (hmin : I16.min ≤ x.val - y.val) (hmax : x.val - y.val ≤ I16.max) :
+  ∃ (z : I16), x - y = ok z ∧ z.val = x.val - y.val ∧ z.bv = x.bv - y.bv :=
+  by apply Scalar.sub_bv_spec <;> scalar_tac
+
+theorem I32.sub_bv_spec {x y : I32} (hmin : I32.min ≤ x.val - y.val) (hmax : x.val - y.val ≤ I32.max) :
+  ∃ (z : I32), x - y = ok z ∧ z.val = x.val - y.val ∧ z.bv = x.bv - y.bv :=
+  by apply Scalar.sub_bv_spec <;> scalar_tac
+
+theorem I64.sub_bv_spec {x y : I64} (hmin : I64.min ≤ x.val - y.val) (hmax : x.val - y.val ≤ I64.max) :
+  ∃ (z : I64), x - y = ok z ∧ z.val = x.val - y.val ∧ z.bv = x.bv - y.bv :=
+  by apply Scalar.sub_bv_spec <;> scalar_tac
+
+theorem I128.sub_bv_spec {x y : I128} (hmin : I128.min ≤ x.val - y.val) (hmax : x.val - y.val ≤ I128.max) :
+  ∃ (z : I128), x - y = ok z ∧ z.val = x.val - y.val ∧ z.bv = x.bv - y.bv :=
+  by apply Scalar.sub_bv_spec <;> scalar_tac
+
+theorem Isize.sub_bv_spec {x y : Isize} (hmin : Isize.min ≤ x.val - y.val) (hmax : x.val - y.val ≤ Isize.max) :
+  ∃ (z : Isize), x - y = ok z ∧ z.val = x.val - y.val ∧ z.bv = x.bv - y.bv :=
+  by apply Scalar.sub_bv_spec <;> scalar_tac
+
+theorem Scalar.mul_bv_spec {ty} {x y : Scalar ty} (hmin : Scalar.min ty ≤ x.val * y.val) (hmax : x.val * y.val ≤ Scalar.max ty) :
+  ∃ (z : Scalar ty), x * y = ok z ∧ z.val = x.val * y.val ∧ z.bv_ = x.bv_ * y.bv_ := by sorry
+
+set_option scalarTac.nonLin true
+
+theorem U8.mul_bv_spec {x y : U8} (hmax : x.val * y.val ≤ U8.max) :
+  ∃ (z : U8), x * y = ok z ∧ z.val = x.val * y.val ∧ z.bv = x.bv * y.bv :=
+  by apply Scalar.mul_bv_spec; scalar_tac; apply hmax
+
+theorem U16.mul_bv_spec {x y : U16} (hmax : x.val * y.val ≤ U16.max) :
+  ∃ (z : U16), x * y = ok z ∧ z.val = x.val * y.val ∧ z.bv = x.bv * y.bv :=
+  by apply Scalar.mul_bv_spec; scalar_tac; apply hmax
+
+theorem U32.mul_bv_spec {x y : U32} (hmax : x.val * y.val ≤ U32.max) :
+  ∃ (z : U32), x * y = ok z ∧ z.val = x.val * y.val ∧ z.bv = x.bv * y.bv :=
+  by apply Scalar.mul_bv_spec; scalar_tac; apply hmax
+
+theorem U64.mul_bv_spec {x y : U64} (hmax : x.val * y.val ≤ U64.max) :
+  ∃ (z : U64), x * y = ok z ∧ z.val = x.val * y.val ∧ z.bv = x.bv * y.bv :=
+  by apply Scalar.mul_bv_spec; scalar_tac; apply hmax
+
+theorem U128.mul_bv_spec {x y : U128} (hmax : x.val * y.val ≤ U128.max) :
+  ∃ (z : U128), x * y = ok z ∧ z.val = x.val * y.val ∧ z.bv = x.bv * y.bv :=
+  by apply Scalar.mul_bv_spec; scalar_tac; apply hmax
+
+theorem Usize.mul_bv_spec {x y : Usize} (hmax : x.val * y.val ≤ Usize.max) :
+  ∃ (z : Usize), x * y = ok z ∧ z.val = x.val * y.val ∧ z.bv = x.bv * y.bv :=
+  by apply Scalar.mul_bv_spec; scalar_tac; apply hmax
+
+theorem I8.mul_bv_spec {x y : I8} (hmin : I8.min ≤ x.val * y.val) (hmax : x.val * y.val ≤ I8.max) :
+  ∃ (z : I8), x * y = ok z ∧ z.val = x.val * y.val ∧ z.bv = x.bv * y.bv :=
+  by apply Scalar.mul_bv_spec <;> scalar_tac
+
+theorem I16.mul_bv_spec {x y : I16} (hmin : I16.min ≤ x.val * y.val) (hmax : x.val * y.val ≤ I16.max) :
+  ∃ (z : I16), x * y = ok z ∧ z.val = x.val * y.val ∧ z.bv = x.bv * y.bv :=
+  by apply Scalar.mul_bv_spec <;> scalar_tac
+
+theorem I32.mul_bv_spec {x y : I32} (hmin : I32.min ≤ x.val * y.val) (hmax : x.val * y.val ≤ I32.max) :
+  ∃ (z : I32), x * y = ok z ∧ z.val = x.val * y.val ∧ z.bv = x.bv * y.bv :=
+  by apply Scalar.mul_bv_spec <;> scalar_tac
+
+theorem I64.mul_bv_spec {x y : I64} (hmin : I64.min ≤ x.val * y.val) (hmax : x.val * y.val ≤ I64.max) :
+  ∃ (z : I64), x * y = ok z ∧ z.val = x.val * y.val ∧ z.bv = x.bv * y.bv :=
+  by apply Scalar.mul_bv_spec <;> scalar_tac
+
+theorem I128.mul_bv_spec {x y : I128} (hmin : I128.min ≤ x.val * y.val) (hmax : x.val * y.val ≤ I128.max) :
+  ∃ (z : I128), x * y = ok z ∧ z.val = x.val * y.val ∧ z.bv = x.bv * y.bv :=
+  by apply Scalar.mul_bv_spec <;> scalar_tac
+
+theorem Isize.mul_bv_spec {x y : Isize} (hmin : Isize.min ≤ x.val * y.val) (hmax : x.val * y.val ≤ Isize.max) :
+  ∃ (z : Isize), x * y = ok z ∧ z.val = x.val * y.val ∧ z.bv = x.bv * y.bv :=
+  by apply Scalar.mul_bv_spec <;> scalar_tac
+
+set_option scalarTac.nonLin false
 
 theorem Scalar.unsigned_ofInt_bv_lt_equiv {ty} (h : ¬ ty.isSigned) (x y : Int) (hx) (hy) :
   (@Scalar.ofInt ty x hx).bv_ < (@Scalar.ofInt ty y hy).bv_ ↔ x < y := by
@@ -819,18 +926,17 @@ def ntt.SymCryptMlKemModSub_eq (a : U32) (b : U32) :
   intros
   split <;> simp
 
-theorem ntt.SymCryptMlKemModSub'_spec (a : U32) (b : U32)
-  (ha : a.val < Spec.Q) (hb : b.val < Spec.Q) :
+/-- We first introduce a general, auxiliary version of the spec, that we later split in two.
+    One of them is used to subtract numbers in the NTT, the other is used in the Montgomery
+    multiplication to put the number back in the bounds.
+ -/
+theorem ntt.SymCryptMlKemModSub'_aux_spec (a : U32) (b : U32)
+  (h : (a.val < Spec.Q ∧ b.val < Spec.Q) ∨ (a.val < 2 * Spec.Q ∧ b.val = Spec.Q)) :
   ∃ (c : U32), ntt.SymCryptMlKemModSub' a b = ok c ∧
   (c.val : Spec.Zq) = (a.val : Spec.Zq) - (b.val : Spec.Zq) ∧
   c.val < Spec.Q := by
   unfold SymCryptMlKemModSub'
-  have : a.bv < 3329#32 := by -- TODO: bvfy?
-    simp [U32.bv]
-    scalar_tac
-  have : b.bv < 3329#32 := by -- TODO: bvfy?
-    simp [U32.bv]
-    scalar_tac
+
   simp at *
   progress as ⟨ twoQ, hTwoQ ⟩
   progress
@@ -841,10 +947,27 @@ theorem ntt.SymCryptMlKemModSub'_spec (a : U32) (b : U32)
 
   -- TODO: handle this properly with progress
   have hIf : (if c2 = 0#u32 then ok () else massert (c2 = 65535#u32)) = ok () := by
-    split <;> try simp
-    progress
-    simp [U32.eq_equiv_bv_eq] at *
-    bv_decide
+    dcases h
+    -- TODO: automate this
+    . have : a.bv < 3329#32 := by
+        simp [U32.bv]
+        scalar_tac
+      have : b.bv < 3329#32 := by -- TODO: bvfy?
+        simp [U32.bv]
+        scalar_tac
+      split <;> try simp
+      progress
+      simp [U32.eq_equiv_bv_eq] at *
+      bv_decide
+    . have : a.bv < 6658#32 := by
+        simp [U32.bv]
+        scalar_tac
+      have : b.bv = 3329#32 := by -- TODO: bvfy?
+        simp [U32.bv, *]
+      split <;> try simp
+      progress
+      simp [U32.eq_equiv_bv_eq] at *
+      bv_decide
   progress; clear hIf
 
   -- Prove the post-condition (we also need this prove that the assert holds)
@@ -854,10 +977,23 @@ theorem ntt.SymCryptMlKemModSub'_spec (a : U32) (b : U32)
     c.val < Spec.Q := by
 
     /- We use bitvectors to automate the proofs -/
-    have hEq : ((a.bv - b.bv + (3329#32 &&& c2.bv)) % 3329#32) = (a.bv + 3329#32 - b.bv) % 3329#32 := by
-      bv_decide
-    have hLt : (a.bv - b.bv + (3329#32 &&& c2.bv)) < 3329#32 := by
-      bv_decide
+    have ⟨ hEq, hLt ⟩ :
+      ((a.bv - b.bv + (3329#32 &&& c2.bv)) % 3329#32) = (a.bv + 3329#32 - b.bv) % 3329#32 ∧
+      (a.bv - b.bv + (3329#32 &&& c2.bv)) < 3329#32 := by
+      dcases h
+      . have : a.bv < 3329#32 := by -- TODO: bvfy?
+          simp [U32.bv]
+          scalar_tac
+        have : b.bv < 3329#32 := by -- TODO: bvfy?
+          simp [U32.bv]
+          scalar_tac
+        bv_decide
+      . have : a.bv < 6658#32 := by
+          simp [U32.bv]
+          scalar_tac
+        have : b.bv = 3329#32 := by -- TODO: bvfy?
+          simp [U32.bv, *]
+        bv_decide
 
     /- We need to convert the bit vector, ℕ and ZMod elements to ℤ -/
     zify at *
@@ -890,5 +1026,288 @@ theorem ntt.SymCryptMlKemModSub'_spec (a : U32) (b : U32)
     apply hPost.right
   . simp at *
     apply hPost
+
+theorem ntt.SymCryptMlKemModSub'_spec (a : U32) (b : U32)
+  (ha : a.val < Spec.Q) (hb : b.val < Spec.Q) :
+  ∃ (c : U32), ntt.SymCryptMlKemModSub' a b = ok c ∧
+  (c.val : Spec.Zq) = (a.val : Spec.Zq) - (b.val : Spec.Zq) ∧
+  c.val < Spec.Q := by
+  progress with SymCryptMlKemModSub'_aux_spec
+  simp_all
+
+theorem ntt.SymCryptMlKemModSub'_sub_Q_spec (a : U32) (b : U32)
+  (ha : a.val < 2 * Spec.Q) (hb : b.val = Spec.Q) :
+  ∃ (c : U32), ntt.SymCryptMlKemModSub' a b = ok c ∧
+  (c.val : Spec.Zq) = (a.val : Spec.Zq) - (b.val : Spec.Zq) ∧
+  c.val < Spec.Q := by
+  progress with SymCryptMlKemModSub'_aux_spec
+  simp_all
+
+-- TODO: generalize and move
+
+
+-- TODO: automatic simplification when using bv_decide? simp_ctx tactic?
+@[simp] theorem U8.bv_ofInt (x : Int) (h) : U8.bv (U8.ofInt x h) = BitVec.ofNat _ x.toNat := by simp [U8.bv]
+@[simp] theorem U16.bv_ofInt (x : Int) (h) : U16.bv (U16.ofInt x h) = BitVec.ofNat _ x.toNat := by simp [U16.bv]
+@[simp] theorem U32.bv_ofInt (x : Int) (h) : U32.bv (U32.ofInt x h) = BitVec.ofNat _ x.toNat := by simp [U32.bv]
+@[simp] theorem U64.bv_ofInt (x : Int) (h) : U64.bv (U64.ofInt x h) = BitVec.ofNat _ x.toNat := by simp [U64.bv]
+@[simp] theorem U128.bv_ofInt (x : Int) (h) : U128.bv (U128.ofInt x h) = BitVec.ofNat _ x.toNat := by simp [U128.bv]
+@[simp] theorem Usize.bv_ofInt (x : Int) (h) : Usize.bv (Usize.ofInt x h) = BitVec.ofNat _ x.toNat := by simp [Usize.bv]
+
+-- TODO: option that we give to scalar_tac upon calling it (rather than global option)
+-- TODO: scalar_tac can't reason about upper bounds such as: `a < b ∧ c < d → a * c < b * d`
+-- (we need aesop to saturate the context)
+
+-- TODO: having too many theorems like this can make the context explode
+theorem Scalar_mul_bound {ty : ScalarTy} (h : ¬ ty.isSigned) (x y : Scalar ty) :
+  0 ≤ x.val * y.val ∧ x.val * y.val ≤ Scalar.max ty * Scalar.max ty := by
+  have := x.hmin
+  have := x.hmax
+  have := y.hmin
+  have := y.hmax
+  have : Scalar.min ty = 0 := by dcases ty <;> simp_all [Scalar.min]
+  have := Aeneas.ScalarTac.Int.pos_mul_pos_is_pos y.val x.val (by omega) (by omega)
+  have := @Int.mul_le_mul x.val y.val (Scalar.max ty) (Scalar.max ty) (by omega) (by omega)
+  omega
+
+@[nonlin_scalar_tac x.val * y.val]
+theorem U8.mul_bound (x y : U8) : 0 ≤ x.val * y.val ∧ x.val * y.val ≤ (2^8 - 1) * (2^8 - 1) := by
+  have := Scalar_mul_bound (by simp) x y
+  scalar_tac
+
+@[nonlin_scalar_tac x.val * y.val]
+theorem U16.mul_bound (x y : U16) : 0 ≤ x.val * y.val ∧ x.val * y.val ≤ (2^16 - 1) * (2^16 - 1) := by
+  have := Scalar_mul_bound (by simp) x y
+  scalar_tac
+
+@[nonlin_scalar_tac x.val * y.val]
+theorem U32.mul_bound (x y : U8) : 0 ≤ x.val * y.val ∧ x.val * y.val ≤ (2^32 - 1) * (2^32 - 1) := by
+  have := Scalar_mul_bound (by simp) x y
+  scalar_tac
+
+@[nonlin_scalar_tac x.val * y.val]
+theorem U64.mul_bound (x y : U64) : 0 ≤ x.val * y.val ∧ x.val * y.val ≤ (2^64 - 1) * (2^64 - 1) := by
+  have := Scalar_mul_bound (by simp) x y
+  scalar_tac
+
+@[nonlin_scalar_tac x.val * y.val]
+theorem U128.mul_bound (x y : U128) : 0 ≤ x.val * y.val ∧ x.val * y.val ≤ (2^128 - 1) * (2^128 - 1) := by
+  have := Scalar_mul_bound (by simp) x y
+  simp [Scalar.max, U128.max] at *
+  omega
+
+-- TODO: generalize
+-- TODO: the infered type of `abMont &&& 65535#u32` is `Scalar ...` while it should be `U32`
+@[simp]
+theorem U32.bv_and (x y : U32) : U32.bv (x &&& y) = x.bv &&& y.bv := by
+  -- This should derive directly from the definition of U32.hAnd, but for now this definition is a `sorry`...
+  sorry
+
+--set_option scalarTac.nonLin true
+
+@[push_cast, simp] -- TODO: this doesn't work
+theorem ZMod.intCast_mod_atLeastTwo (a : ℤ) (b : ℕ) [b.AtLeastTwo] :
+  ((a % (@OfNat.ofNat ℤ b instOfNatAtLeastTwo) : ℤ) : ZMod b) = (a : ZMod b) := by
+  have : @OfNat.ofNat ℤ b instOfNatAtLeastTwo = b := by
+    unfold OfNat.ofNat instOfNatAtLeastTwo
+    simp
+  rw [this]
+  simp
+
+
+@[local push_cast, local simp] -- TODO: doesn't get automatically applied!?
+theorem ZMod.intCast_mod' (a : ℤ) (b : ℕ) (bz : Int) (h : bz = b) :
+  ((a % bz) : ZMod b) = (a : ZMod b) := by
+  simp [*]
+
+
+theorem bv_and_65535_eq_mod (x : BitVec 32) : x &&& 65535#32 = x % 65536#32 := by bv_decide
+theorem bv_shift_16_eq_div (x : BitVec 32) : x >>> 16 = x / 65536#32 := by bv_decide
+
+@[local simp]
+theorem mod_4294967296_65536_eq (x : Int) : ((x % 4294967296) % 65536) = x % 65536 := by
+  rw [Int.emod_emod_of_dvd]
+  omega
+
+theorem mont_reduce_no_divide_bv_spec (a b bMont tR : U32)
+  (hbMont : bMont.bv = (b.bv * ntt.NegQInvModR.bv) &&& ntt.Rmask.bv)
+  (htR : tR.bv = a.bv * b.bv + ((a.bv * bMont.bv) &&& ntt.Rmask.bv) * 3329) :
+  tR.bv &&& ntt.Rmask.bv = 0 := by
+  /- The proof strategy is as follows:
+     - we first simplify the BitVec expressions (by using the fact that bit masking is equivalent to modulo, etc.)
+     - go to ℤ and simplify further
+     - go to ZMod
+   -/
+  simp at *
+  simp [*]; clear hbMont htR
+  simp [bv_and_65535_eq_mod] at *
+
+  -- Reason in ℤ and simplify the modulus
+  zify; simp [- EuclideanDomain.mod_eq_zero]
+
+  -- Go to ZMod
+  have : 0 = 0 % (65536 : Int) := by simp
+  rw [this]; clear this
+  have : (65536 : Int) = (65536 : Nat) := by simp
+  rw [this]; clear this
+  rw [← ZMod_int_cast_eq_int_cast_iff]
+  simp
+
+  -- TODO: casting problems: automate that
+  simp [ZMod.intCast_mod'] -- TODO: doesn't get automatically applied?
+
+  -- Finish
+  simp [mul_assoc]
+  ring_nf
+  have : (11075584 : ZMod 65536) = 0 := by rfl
+  rw [this]; simp
+
+set_option scalarTac.nonLin true
+
+theorem mont_reduce_bv_spec (a b bMont tR t : U32)
+  (haBound : a.val < 3329)
+  (hbBound : b.val < 3329)
+  (hbMont : bMont.bv = (b.bv * ntt.NegQInvModR.bv) &&& ntt.Rmask.bv)
+  (htR : tR.bv = a.bv * b.bv + ((a.bv * bMont.bv) &&& ntt.Rmask.bv) * 3329)
+  (ht : t.bv = tR.bv >>> 16) :
+  (t.val : ZMod Spec.Q) = (a.val : ZMod Spec.Q) * b.val * (2^16 : ZMod Spec.Q)⁻¹ ∧
+  t.val < 2 * Spec.Q := by
+  have hEq := mont_reduce_no_divide_bv_spec a b bMont tR hbMont htR
+  have habLt : (a.val * b.val).toNat < 3329 * 2 ^ 16 := by
+    have : (a.val * b.val).toNat = a.toNat * b.toNat := by
+      have ha : a.val = a.toNat := by scalar_tac
+      have hb : b.val = b.toNat := by scalar_tac
+      rw [ha, hb]
+      scalar_tac
+    rw [this]; clear this
+    apply Nat.mul_lt_mul_of_lt_of_lt <;> scalar_tac
+
+  have hMont := mont_reduce_spec 3329 (2^16) 3327 (a.val * b.val).toNat (by simp; exists 16) (by simp) (by simp)
+    habLt (by constructor)
+  -- Simplify the bit vector operations
+  simp [mont_reduce] at hMont
+  have : a.val * b.val ⊔ 0 = a.val * b.val := by
+    scalar_tac
+
+  simp [this] at hMont; clear this
+  replace ⟨ hMont, hBounds ⟩ := hMont
+  rw [htR, hbMont] at ht
+  simp [bv_and_65535_eq_mod] at ht
+  simp [bv_shift_16_eq_div] at ht
+
+  zify at ht; simp at ht
+  zify; simp
+  rw [ht]
+
+  have : (a.val * b.val + a.val * (b.val * 3327 % 65536) % 65536 * 3329) % 4294967296 =
+         a.val * b.val + a.val * (b.val * 3327 % 65536) % 65536 * 3329 := by
+    apply Int.emod_eq_of_lt
+    . scalar_tac
+    . have : a.val * b.val ≤ 3329 * 3329 := by
+        apply Int.mul_le_mul <;> (try omega); scalar_tac
+      have : a.val * (b.val * 3327 % 65536) % 65536 * 3329 ≤ 65536 * 3329 := by
+        apply Int.mul_le_mul <;> (try omega)
+      omega
+  rw [this]; clear this
+
+  have : a.val * (b.val * 3327 % 65536) % 65536 =
+         (a.val * b.val * 3327) % 65536 := by
+    apply ZMod_eq_imp_mod_eq
+    simp [ZMod.intCast_mod', mul_assoc] -- TODO: doesn't get automatically applied?
+  rw [this]
+
+  simp [hMont, hBounds]
+  apply ZMod_eq_imp_mod_eq
+  simp
+
+  -- TODO: conversion issues
+  simp [ZMod.intCast_mod'] -- TODO: doesn't get automatically applied?
+  ring_nf
+
+set_option scalarTac.nonLin false
+
+set_option maxHeartbeats 1000000
+
+theorem ntt.SymCryptMlKemMontMul_spec (a : U32) (b : U32) (bMont : U32)
+  (ha : a.val < Spec.Q) (hb : b.val < Spec.Q) --(hbMont : bMont.val < Spec.Q * Spec.Q)
+  (hbMont : bMont.bv = (b.bv * ntt.NegQInvModR.bv) &&& Rmask.bv) :
+  ∃ (c : U32), ntt.SymCryptMlKemMontMul a b bMont = ok c ∧
+  (c.val : Spec.Zq) = (a.val : Spec.Zq) * (b.val : Spec.Zq) * (2^16)⁻¹ ∧
+  c.val < Spec.Q := by
+  unfold SymCryptMlKemMontMul
+  have : a.bv < 3329#32 := by -- TODO: bvfy?
+    simp [U32.bv]
+    scalar_tac
+  have : b.bv < 3329#32 := by -- TODO: bvfy?
+    simp [U32.bv]
+    scalar_tac
+  simp at *
+  progress
+  progress
+
+  have bMontLe : bMont.val ≤ 65535 := by
+    have : bMont.bv ≤ 65535#32 := by bv_decide
+    zify at this; simp_all
+  progress
+
+  progress with U32.mul_bv_spec as ⟨ b1, hb1, hb1' ⟩
+  simp at hb1'
+
+  have bMontLe : bMont = b1 &&& 65535#u32 := by
+    have : bMont.bv = b1.bv &&& 65535#32 := by bv_decide
+    zify at this; simp_all
+    simp_all [Scalar.eq_equiv]
+    have : b.toNat * 3327 % 4294967296 = b.toNat * 3327 := by
+      apply Nat.mod_eq_of_lt
+      scalar_tac
+    simp [this]
+    have : (b.val * 3327).toNat = b.toNat * 3327 := by scalar_tac
+    simp [this]
+  progress
+
+  -- TODO: scalar_tac is not good at reasoning about upper bounds in the presence of multiplication
+  have : a.val * b.val ≤ 3329 * 3329 := by
+    have := @Int.mul_le_mul a.val b.val 3329 3329 (by scalar_tac) (by scalar_tac) (by scalar_tac) (by simp)
+    scalar_tac
+  progress with U32.mul_bv_spec as ⟨ ab, hab, hab' ⟩
+
+  have : a.val * bMont.val ≤ 3329 * 65535 := by
+    have := @Int.mul_le_mul a.val bMont.val 3329 65535 (by scalar_tac) (by scalar_tac) (by scalar_tac) (by simp)
+    scalar_tac
+  progress with U32.mul_bv_spec as ⟨ abMont, _, habMont ⟩
+
+  have : (abMont &&& 65535#u32).val ≤ 65535 := by
+    have : (U32.bv (abMont &&& 65535#u32)) ≤ 65535#32 := by simp; bv_decide -- TODO: remove the simp
+    zify at this; simp_all
+
+  have : (abMont &&& 65535#u32).val * 3329#u32.val ≤ 65535 * 3329 := by
+    have := @Int.mul_le_mul (abMont &&& 65535#u32).val 3329 65535 3329 (by scalar_tac) (by scalar_tac) (by scalar_tac) (by simp)
+    simp at *
+    scalar_tac
+  progress with U32.mul_bv_spec as ⟨ res1 ⟩
+
+  progress with U32.add_bv_spec as ⟨ res2 ⟩
+
+  have : res2 &&& 65535#u32 = 0#u32 := by
+    have := mont_reduce_no_divide_bv_spec a b bMont res2 (by simp [*]) (by simp [*])
+    simp at this
+    simp [U32.eq_equiv_bv_eq, this]
+  progress
+
+  progress as ⟨ res3, hRes3 ⟩
+  simp at hRes3
+
+  -- Here we need to use the fact that we performed a Montgomery multiplication to get
+  -- the bounds and the rest
+  have hMontReduce :=
+    mont_reduce_bv_spec a b bMont res2 res3 (by omega) (by omega) (by simp [*])
+      (by simp[*]) (by simp[*])
+
+  progress with ntt.SymCryptMlKemModSub'_sub_Q_spec as ⟨ res4, hRes4Eq, hRes4Bound ⟩
+  simp at hRes4Bound
+
+  simp [hRes4Eq, hRes4Bound]
+  simp [hMontReduce]
+  rfl
 
 end Symcrust
