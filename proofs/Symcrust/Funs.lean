@@ -254,6 +254,7 @@ divergent def ntt.SymCryptMlKemPolyElementNTTLayerC.inner_loop_loop
 
 /- [symcrust::ntt::SymCryptMlKemPolyElementNTTLayerC::inner_loop]:
    Source: 'src/ntt.rs', lines 380:8-403:9 -/
+@[reducible]
 def ntt.SymCryptMlKemPolyElementNTTLayerC.inner_loop
   (peSrc : Array U16 256#usize) (len : Usize) (start : Usize)
   (twiddleFactor : U32) (twiddleFactorMont : U32) :
@@ -287,6 +288,7 @@ divergent def ntt.SymCryptMlKemPolyElementNTTLayerC_loop
 
 /- [symcrust::ntt::SymCryptMlKemPolyElementNTTLayerC]:
    Source: 'src/ntt.rs', lines 369:0-406:1 -/
+@[reducible]
 def ntt.SymCryptMlKemPolyElementNTTLayerC
   (peSrc : Array U16 256#usize) (k : Usize) (len : Usize) :
   Result (Array U16 256#usize)
@@ -359,6 +361,7 @@ divergent def ntt.SymCryptMlKemPolyElementINTTLayerC_loop
 
 /- [symcrust::ntt::SymCryptMlKemPolyElementINTTLayerC]:
    Source: 'src/ntt.rs', lines 408:0-437:1 -/
+@[reducible]
 def ntt.SymCryptMlKemPolyElementINTTLayerC
   (peSrc : Array U16 256#usize) (k : Usize) (len : Usize) :
   Result (Array U16 256#usize)
@@ -464,6 +467,7 @@ divergent def ntt.SymCryptMlKemPolyElementMulAndAccumulate_loop
 
 /- [symcrust::ntt::SymCryptMlKemPolyElementMulAndAccumulate]:
    Source: 'src/ntt.rs', lines 447:0-512:1 -/
+@[reducible]
 def ntt.SymCryptMlKemPolyElementMulAndAccumulate
   (peSrc1 : Array U16 256#usize) (peSrc2 : Array U16 256#usize)
   (paDst : Array U32 256#usize) :
@@ -568,6 +572,7 @@ divergent def
 
 /- [symcrust::ntt::SymCryptMlKemMontgomeryReduceAndAddPolyElementAccumulatorToPolyElement]:
    Source: 'src/ntt.rs', lines 514:0-547:1 -/
+@[reducible]
 def ntt.SymCryptMlKemMontgomeryReduceAndAddPolyElementAccumulatorToPolyElement
   (paSrc : Array U32 256#usize) (peDst : Array U16 256#usize) :
   Result ((Array U32 256#usize) × (Array U16 256#usize))
@@ -595,6 +600,7 @@ divergent def ntt.SymCryptMlKemPolyElementMulR_loop
 
 /- [symcrust::ntt::SymCryptMlKemPolyElementMulR]:
    Source: 'src/ntt.rs', lines 549:0-559:1 -/
+@[reducible]
 def ntt.SymCryptMlKemPolyElementMulR
   (peSrc : Array U16 256#usize) (peDst : Array U16 256#usize) :
   Result (Array U16 256#usize)
@@ -624,6 +630,7 @@ divergent def ntt.SymCryptMlKemPolyElementAdd_loop
 
 /- [symcrust::ntt::SymCryptMlKemPolyElementAdd]:
    Source: 'src/ntt.rs', lines 561:0-571:1 -/
+@[reducible]
 def ntt.SymCryptMlKemPolyElementAdd
   (peSrc1 : Array U16 256#usize) (peSrc2 : Array U16 256#usize)
   (peDst : Array U16 256#usize) :
@@ -654,6 +661,7 @@ divergent def ntt.SymCryptMlKemPolyElementSub_loop
 
 /- [symcrust::ntt::SymCryptMlKemPolyElementSub]:
    Source: 'src/ntt.rs', lines 573:0-582:1 -/
+@[reducible]
 def ntt.SymCryptMlKemPolyElementSub
   (peSrc1 : Array U16 256#usize) (peSrc2 : Array U16 256#usize)
   (peDst : Array U16 256#usize) :
