@@ -1485,6 +1485,34 @@ theorem List.set_get!_eq_set [Inhabited α] (l : List α) (i : Nat) (x : α) (h 
 theorem List.set_get!_eq_get! [Inhabited α] (l : List α) (i j : Nat) (x : α) (h : i ≠ j):
   (l.set i x)[j]! = l[j]! := by sorry
 
+-- TODO: U32.val should give a ℕ, not an ℤ (and the spec for sub should be: ∃ z, x - y = ok z ∧ x.val = y.val + z.val)
+
+def wfArray {n} (a : Array U16 n) : Prop :=
+  ∀ i, i < n.toNat → (List.index a.val i).val < 3329
+
+-- TODO: local attribute for progress
+theorem wfArray_update {n : Usize} (v : Std.Array U16 n) (i : Usize) (x : U16)
+  (hbound : i.toNat < v.length)
+  (hx : x.val < 3329)
+  (hWf : wfArray v) :
+  ∃ nv, v.update_usize i x = ok nv ∧ nv = v.update i x ∧
+  wfArray nv := by
+  progress as ⟨ nv, hnv ⟩
+  simp [wfArray] at *
+  simp [hnv]
+  intro j hj
+  dcases hLt : j = i.toNat <;> simp [*]
+
+theorem wfArray_index {n : Usize} (v : Std.Array U16 n) (i : Usize)
+  (hbound : i.toNat < v.length)
+  (hWf : wfArray v) :
+  ∃ x, v.index_usize i = ok x ∧ x = v.val[i.toNat]! ∧ x.toNat < 3329 := by
+  progress as ⟨ x ⟩
+  simp [wfArray] at hWf
+  simp [*]
+  replace hWf := hWf i.toNat (by scalar_tac)
+  scalar_tac
+
 -- TODO: progress is too slow, probably because of scalar_tac
 -- TODO: termination_by is too slow
 def ntt.SymCryptMlKemPolyElementNTTLayerC.inner_loop_loop_spec
@@ -1496,7 +1524,7 @@ def ntt.SymCryptMlKemPolyElementNTTLayerC.inner_loop_loop_spec
   (htfBound : twiddleFactor.val < 3329)
   (htfMont : twiddleFactorMont.bv = (BitVec.ofNat _ ((17^(bitRev 7 k.toNat) * 65536) % 3329) * 3327#32) &&& 65535#32)
   -- TODO: use get notations
-  (hBounds : ∀ i, i < 256 → (List.index peSrc.val i).val < 3329)
+  (hBounds : wfArray peSrc)
   :
   ∃ peSrc', inner_loop_loop peSrc len start twiddleFactor twiddleFactorMont j = ok peSrc' ∧
   to_poly peSrc' = SpecAux.nttLayerInner (to_poly peSrc) k.toNat len.toNat start.toNat j.toNat := by
@@ -1508,14 +1536,14 @@ def ntt.SymCryptMlKemPolyElementNTTLayerC.inner_loop_loop_spec
     simp only [this]; clear this
     simp
   . progress as ⟨ start_j, h_start_j ⟩
-    progress as ⟨ c0 ⟩
+    progress with wfArray_index as ⟨ c0 ⟩
 
     -- assert
     have hc0Bound := hBounds start_j.toNat (by scalar_tac)
     progress
 
     progress as ⟨ start_j_len, h_start_j_len ⟩
-    progress as ⟨ c1 ⟩
+    progress with wfArray_index as ⟨ c1 ⟩
 
     -- assert
     have hc1Bound := hBounds start_j_len.toNat (by scalar_tac)
@@ -1531,39 +1559,12 @@ def ntt.SymCryptMlKemPolyElementNTTLayerC.inner_loop_loop_spec
     progress as ⟨ c0' ⟩
 
     progress as ⟨ c0'' ⟩
-    progress as ⟨ peSrc1, hPeSrc1 ⟩
+    progress with wfArray_update as ⟨ peSrc1, hPeSrc1 ⟩
     progress as ⟨ c1'' ⟩
-    progress as ⟨ peSrc2, hPeSrc2 ⟩
+    progress with wfArray_update as ⟨ peSrc2, hPeSrc2 ⟩
 
     progress as ⟨ j1 ⟩
 
-    have hAddEq : (start.val + j.val + len.val).toNat = start.toNat + j.toNat + len.toNat := by scalar_tac
-
-    have hWfPeSrc1 : ∀ i < 256, ((peSrc1.val).index i).val < 3329 := by
-      simp [hPeSrc1, h_start_j]
-      intro i hi
-      have h0 : start.toNat + j.toNat < peSrc.val.length := by scalar_tac
-      simp at h0
-      have h1 : i < peSrc.val.length := by scalar_tac
-      dcases h2 : i = start.toNat + j.toNat <;> simp [h0, h1, h2]
-      . simp only [Spec.Q] at *
-        omega
-      . replace hBounds := hBounds i hi
-        simp at hBounds
-        apply hBounds
-
-    have hWfPeSrc2 : ∀ i < 256, ((peSrc2.val).index i).val < 3329 := by
-      simp [hPeSrc2, h_start_j, h_start_j_len, hAddEq]
-      intro i hi
-      have h0 : start.toNat + j.toNat + len.toNat < peSrc1.val.length := by scalar_tac
-      simp at h0
-      have h1 : i < peSrc1.val.length := by scalar_tac
-      dcases h2 : i = start.toNat + j.toNat + len.toNat <;> simp [h0, h1, h2]
-      . simp only [Spec.Q] at *
-        omega
-      . replace hBounds := hWfPeSrc1 i hi
-        simp at hBounds
-        apply hBounds
     progress as ⟨ peSrc3, hPeSrc3 ⟩
 
     -- The postcondition
@@ -1571,6 +1572,7 @@ def ntt.SymCryptMlKemPolyElementNTTLayerC.inner_loop_loop_spec
     have : j.toNat < len.toNat := by scalar_tac
     simp only [this]; clear this
     simp [hPeSrc1, hPeSrc2, hPeSrc3]
+    have hAddEq : (start.val + j.val + len.val).toNat = start.toNat + j.toNat + len.toNat := by scalar_tac
     simp [*]
 termination_by len.toNat - j.toNat
 decreasing_by scalar_decr_tac
