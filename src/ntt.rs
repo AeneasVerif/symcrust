@@ -373,7 +373,7 @@ fn SymCryptMlKemPolyElementNTTLayerC(peSrc: &mut POLYELEMENT, mut k: usize, len:
         let twiddleFactor: u32 = MlKemZetaBitRevTimesR[k].into();
         // twiddleFactor = (Zeta^BitRev(k) * R) mod Q
         let twiddleFactorMont: u32 = MlKemZetaBitRevTimesRTimesNegQInvModR[k].into();
-        // twiddleFactorMont = (((Zeta^BitRev(k) * R) mod Q) * -Q^(-1) mod R) mod Q
+        // twiddleFactorMont = (((Zeta^BitRev(k) * R) mod Q) * -Q^(-1) mod R)
         k += 1;
 
         #[inline]

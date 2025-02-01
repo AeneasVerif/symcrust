@@ -842,6 +842,7 @@ example
     apply hEq
   . apply hLt
 
+@[pspec]
 theorem ntt.SymCryptMlKemModAdd'_spec (a : U32) (b : U32)
   (ha : a.val < Spec.Q) (hb : b.val < Spec.Q) :
   ∃ (c : U32), ntt.SymCryptMlKemModAdd' a b = ok c ∧
@@ -1121,13 +1122,17 @@ theorem ZMod.intCast_mod' (a : ℤ) (b : ℕ) (bz : Int) (h : bz = b) :
   simp [*]
 
 
-theorem bv_and_65535_eq_mod (x : BitVec 32) : x &&& 65535#32 = x % 65536#32 := by bv_decide
-theorem bv_shift_16_eq_div (x : BitVec 32) : x >>> 16 = x / 65536#32 := by bv_decide
+@[local simp] theorem bv_and_65535_eq_mod (x : BitVec 32) : x &&& 65535#32 = x % 65536#32 := by bv_decide
+@[local simp] theorem bv_shift_16_eq_div (x : BitVec 32) : x >>> 16 = x / 65536#32 := by bv_decide
 
 @[local simp]
 theorem mod_4294967296_65536_eq (x : Int) : ((x % 4294967296) % 65536) = x % 65536 := by
   rw [Int.emod_emod_of_dvd]
   omega
+
+@[local simp]
+theorem mod_65536_4294967296_eq (x : Int) : ((x % 65536) % 4294967296) = x % 65536 := by
+  apply Int.emod_eq_of_lt <;> omega
 
 theorem mont_reduce_no_divide_bv_spec (a b bMont tR : U32)
   (hbMont : bMont.bv = (b.bv * ntt.NegQInvModR.bv) &&& ntt.Rmask.bv)
@@ -1140,7 +1145,6 @@ theorem mont_reduce_no_divide_bv_spec (a b bMont tR : U32)
    -/
   simp at *
   simp [*]; clear hbMont htR
-  simp [bv_and_65535_eq_mod] at *
 
   -- Reason in ℤ and simplify the modulus
   zify; simp [- EuclideanDomain.mod_eq_zero]
@@ -1192,8 +1196,7 @@ theorem mont_reduce_bv_spec (a b bMont tR t : U32)
   simp [this] at hMont; clear this
   replace ⟨ hMont, hBounds ⟩ := hMont
   rw [htR, hbMont] at ht
-  simp [bv_and_65535_eq_mod] at ht
-  simp [bv_shift_16_eq_div] at ht
+  simp [bv_and_65535_eq_mod] at ht -- TODO: why is this theorem not automatically applied?
 
   zify at ht; simp at ht
   zify; simp
@@ -1228,6 +1231,7 @@ set_option scalarTac.nonLin false
 
 set_option maxHeartbeats 1000000
 
+@[pspec]
 theorem ntt.SymCryptMlKemMontMul_spec (a : U32) (b : U32) (bMont : U32)
   (ha : a.val < Spec.Q) (hb : b.val < Spec.Q) --(hbMont : bMont.val < Spec.Q * Spec.Q)
   (hbMont : bMont.bv = (b.bv * ntt.NegQInvModR.bv) &&& Rmask.bv) :
@@ -1255,14 +1259,9 @@ theorem ntt.SymCryptMlKemMontMul_spec (a : U32) (b : U32) (bMont : U32)
 
   have bMontLe : bMont = b1 &&& 65535#u32 := by
     have : bMont.bv = b1.bv &&& 65535#32 := by bv_decide
-    zify at this; simp_all
+    simp at this
+    zify at this; simp at this
     simp_all [Scalar.eq_equiv]
-    have : b.toNat * 3327 % 4294967296 = b.toNat * 3327 := by
-      apply Nat.mod_eq_of_lt
-      scalar_tac
-    simp [this]
-    have : (b.val * 3327).toNat = b.toNat * 3327 := by scalar_tac
-    simp [this]
   progress
 
   -- TODO: scalar_tac is not good at reasoning about upper bounds in the presence of multiplication
@@ -1309,5 +1308,270 @@ theorem ntt.SymCryptMlKemMontMul_spec (a : U32) (b : U32) (bMont : U32)
   simp [hRes4Eq, hRes4Bound]
   simp [hMontReduce]
   rfl
+
+theorem ntt.MlKemZetaBitRevTimesR_map_val_eq :
+  List.map Scalar.val ntt.MlKemZetaBitRevTimesR.val =
+  List.map (fun i => (17^bitRev 7 i * 2^16) % 3329) (List.range' 0 128) := by
+  native_decide
+
+theorem ntt.MlKemZetaBitRevTimesRTimesNegQInvModR_map_val_eq :
+  List.map U16.toNat ntt.MlKemZetaBitRevTimesRTimesNegQInvModR.val =
+  List.map (fun i => (((17^bitRev 7 i * 2^16) % 3329) * 3327) %  2^16) (List.range' 0 128) := by
+  native_decide
+
+@[simp]
+theorem Array.val_length_eq (n : Usize) (a : Std.Array α n) :
+  a.val.length = n.toNat := by
+  cases a; simp; omega
+
+-- TODO: List.getD
+@[simp]
+theorem List.index_range' (i start n: ℕ) :
+  (List.range' start n).index i = if i < n then start + i else 0 := by
+  revert start i
+  induction n <;> intro i start
+  . simp
+  . rename_i n hInd
+    unfold List.range'
+    dcases i
+    . simp
+    . rename_i i
+      have := hInd i (start + 1)
+      simp [this]
+      ring_nf
+
+theorem array_map_val_eq_range'_imp_index_usize_eq {α β} [Inhabited α] {a : Std.Array α n} {f : α → β} {g : ℕ → β}
+  (hEq : List.map f a = List.map g (List.range' 0 n.toNat)) (i : Usize) (h : i.toNat < n.toNat) :
+  ∃ v, Array.index_usize a i = ok v ∧
+  f v = g i.toNat := by
+  let rec aux (l : List α) (i : Nat) (hi : i < l.length) (start : Nat)
+            (hEq : List.map f l = List.map g (List.range' start l.length)) :
+            f (List.index l i) = g (start + i) := by
+    match l with
+    | [] =>  simp at hi
+    | hd :: l =>
+      simp at hEq
+      simp [List.range'] at hEq
+      dcases i
+      . simp at *
+        simp [hEq]
+      . rename_i i
+        simp at hi
+        simp [hi]
+        have := aux l i hi (start + 1) (by simp [hEq])
+        rw [this]; ring_nf
+
+  progress as ⟨ v, hv ⟩
+  rw [hv]
+  -- TODO: we should use List.getD now
+  have h := aux a i.toNat (by scalar_tac) 0 (by simp[hEq])
+  simp at h
+  simp [h]
+
+@[pspec]
+theorem ntt.MlKemZetaBitRevTimesR_index_spec (k : Usize) (h : k.val < 128) :
+  ∃ v, Array.index_usize ntt.MlKemZetaBitRevTimesR k = ok v ∧
+  --v.bv = BitVec.ofNat 32 (17 ^ bitRev 7 k.toNat * 65536 % 3329)
+  (v.val : ZMod Spec.Q) = Spec.ζ^(bitRev 7 k.toNat) * 65536
+  := by
+  have := array_map_val_eq_range'_imp_index_usize_eq ntt.MlKemZetaBitRevTimesR_map_val_eq
+  progress as ⟨ v, hv ⟩
+  rw [hv]
+  simp [Spec.ζ]
+  simp [ZMod.intCast_mod']
+
+@[pspec]
+theorem ntt.MlKemZetaBitRevTimesRTimesNegQInvModR_index_spec' (k : Usize) (h : k.val < 128) :
+  ∃ v, Array.index_usize ntt.MlKemZetaBitRevTimesRTimesNegQInvModR k = ok v ∧
+  BitVec.ofNat 32 v.toNat = (BitVec.ofNat _ ((17^(bitRev 7 k.toNat) * 65536) % 3329) * 3327#32) &&& 65535#32
+  := by
+  have := array_map_val_eq_range'_imp_index_usize_eq ntt.MlKemZetaBitRevTimesRTimesNegQInvModR_map_val_eq
+  progress as ⟨ v, hv ⟩
+  simp only [bv_and_65535_eq_mod]
+  zify
+  rw [hv]
+  simp
+
+-- TODO: we need to get rid of List.update/List.index
+@[simp]
+theorem List.update_eq_set (l : List α) (i : Nat) (x : α) :
+  l.update i x = l.set i x := by
+  revert i
+  induction l <;> intro i
+  . simp
+  . dcases i
+    . simp at *
+    . simp [*]
+
+-- TODO: we need to get rid of List.update/List.index
+@[simp]
+theorem List.index_eq_get [Inhabited α] (l : List α) (i : Nat) :
+  l.index i = l[i]! := by
+  revert i
+  induction l <;> intro i
+  . simp
+  . dcases i
+    . simp at *
+    . simp [*]
+
+def to_poly (a : Array U16 256#usize) : Spec.Polynomial :=
+  ⟨ List.map (fun x => (x.val : Spec.Zq)) a.val, by simp ⟩
+
+@[simp]
+theorem index_to_poly (a : Array U16 256#usize) (i : ℕ) :
+  List.index (to_poly a) i = ((List.index a.val i) : Spec.Zq) := by
+  sorry
+
+@[simp]
+theorem to_poly_update (a : Array U16 256#usize) (i : Usize) (x : U16) :
+  to_poly (Array.update a i x) = Spec.Polynomial.set (to_poly a) i.toNat (x.val : Spec.Zq) := by
+  sorry
+
+-- TODO: generalize
+@[simp] theorem core.convert.num.FromU32U16.val_from_eq x : (core.convert.num.FromU32U16.from x).val = x.val := by rfl
+
+-- TODO: generalize
+@[simp] theorem U32.add_toNat_eq (x y : U32) : (x.val + y.val).toNat = x.toNat + y.toNat := by scalar_tac
+@[simp] theorem Usize.add_toNat_eq (x y : Usize) : (x.val + y.val).toNat = x.toNat + y.toNat := by scalar_tac
+
+attribute [local simp] Spec.Polynomial.set Spec.Polynomial.get!
+attribute [-simp] List.getElem!_eq_getElem?_getD
+
+@[simp]
+theorem to_poly_get!_eq (a : Array U16 256#usize) (i : Nat) :
+  (to_poly a)[i]! = ((a.val)[i]!.val : Spec.Zq) := by
+  simp [to_poly, Spec.Polynomial.get!, getElem!]
+  sorry
+
+@[local simp]
+theorem mod_3329_mod_4294967296_eq (x : Int) :
+  x % 3329 % 4294967296 = x % 3329 := by
+  apply Int.emod_eq_of_lt <;> omega
+
+@[pspec]
+theorem ntt.SymCryptMlKemMontMul_twiddle_spec (k : Usize) (c : U32) (twiddleFactor : U32) (twiddleFactorMont : U32)
+  (hc : c.val < Spec.Q) (hb : twiddleFactor.val < Spec.Q)
+  (htf : twiddleFactor.bv = BitVec.ofNat _ ((17^(bitRev 7 k.toNat) * 65536) % 3329))
+  (htfMont : twiddleFactorMont.bv = (twiddleFactor.bv * 3327#32) &&& 65535#32) :
+  ∃ (d : U32), ntt.SymCryptMlKemMontMul c twiddleFactor twiddleFactorMont = ok d ∧
+  (d.val : Spec.Zq) = (c.val : Spec.Zq) * (Spec.ζ^(bitRev 7 k.toNat)) ∧
+  d.val < Spec.Q := by
+  progress as ⟨ d, hEq, hLt ⟩
+  simp at htfMont
+  zify at htf; simp at htf
+  zify at htfMont; simp at htfMont
+  simp [*]
+  split_conjs
+  . simp [ZMod.intCast_mod']
+    ring_nf
+    simp [Spec.ζ]
+    have : (c.val : Spec.Zq) * 65536⁻¹ * 17 ^ bitRev 7 k.toNat * 65536 =
+           (c.val : Spec.Zq) * 17 ^ bitRev 7 k.toNat * (65536⁻¹ * 65536) := by ring_nf
+    rw [this]
+    have : (65536⁻¹ : Spec.Zq) * (65536 : Spec.Zq) = 1 := by native_decide
+    rw [this]
+    simp
+  . simp at hLt
+    apply hLt
+
+set_option maxHeartbeats 2000000
+
+@[simp]
+theorem List.set_get!_eq_set [Inhabited α] (l : List α) (i : Nat) (x : α) (h : i < l.length):
+  (l.set i x)[i]! = x := by sorry
+
+-- TODO: make the inequality check more robust
+@[simp]
+theorem List.set_get!_eq_get! [Inhabited α] (l : List α) (i j : Nat) (x : α) (h : i ≠ j):
+  (l.set i x)[j]! = l[j]! := by sorry
+
+def ntt.SymCryptMlKemPolyElementNTTLayerC.inner_loop_loop_spec
+  (peSrc : Array U16 256#usize) (k : Usize) (len : Usize) (start : Usize)
+  (twiddleFactor : U32) (twiddleFactorMont : U32) (j : Usize)
+  (hStart : start.toNat + 2 * len.toNat ≤ 256)
+  (hjLe : j.toNat ≤ len.toNat)
+  (htf : twiddleFactor.bv = BitVec.ofNat 32 (17 ^ bitRev 7 k.toNat * 65536 % 3329))
+  (htfBound : twiddleFactor.val < 3329)
+  (htfMont : twiddleFactorMont.bv = (BitVec.ofNat _ ((17^(bitRev 7 k.toNat) * 65536) % 3329) * 3327#32) &&& 65535#32)
+  -- TODO: use get notations
+  (hBounds : ∀ i, i < 256 → (List.index peSrc.val i).val < 3329)
+  :
+  ∃ peSrc', inner_loop_loop peSrc len start twiddleFactor twiddleFactorMont j = ok peSrc' ∧
+  to_poly peSrc' = SpecAux.nttLayerInner (to_poly peSrc) k.toNat len.toNat start.toNat j.toNat := by
+
+  rw [inner_loop_loop]
+  split <;> rename_i hjLt; swap
+  . unfold SpecAux.nttLayerInner
+    have : ¬ j.toNat < len.toNat := by scalar_tac
+    simp only [this]; clear this
+    simp
+  . progress as ⟨ start_j, h_start_j ⟩
+    progress as ⟨ c0 ⟩
+    simp
+
+    -- assert
+    have hc0Bound := hBounds start_j.toNat (by scalar_tac)
+    progress
+
+    progress as ⟨ start_j_len, h_start_j_len ⟩
+    progress as ⟨ c1 ⟩
+
+    -- assert
+    have hc1Bound := hBounds start_j_len.toNat (by scalar_tac)
+    progress
+
+    -- TODO: progress triggers as "maximum recursion depth has been reached"
+    have ⟨ c1TimesTwiddle, hEq, hC1TimesTwiddle ⟩ :=
+      ntt.SymCryptMlKemMontMul_twiddle_spec k (core.convert.num.FromU32U16.from c1) twiddleFactor twiddleFactorMont
+        (by simp; scalar_tac) htfBound htf (by simp[htf, htfMont])
+    simp [hEq]; clear hEq
+
+    progress with SymCryptMlKemModSub'_spec as ⟨ c1' ⟩
+    progress as ⟨ c0' ⟩
+
+    progress as ⟨ c0'' ⟩
+    progress as ⟨ peSrc1, hPeSrc1 ⟩
+    progress as ⟨ c1'' ⟩
+    progress as ⟨ peSrc2, hPeSrc2 ⟩
+
+    progress as ⟨ j1 ⟩
+
+    have hAddEq : (start.val + j.val + len.val).toNat = start.toNat + j.toNat + len.toNat := by scalar_tac
+
+    have hWfPeSrc1 : ∀ i < 256, ((peSrc1.val).index i).val < 3329 := by
+      simp [hPeSrc1, h_start_j]
+      intro i hi
+      have h0 : start.toNat + j.toNat < peSrc.val.length := by scalar_tac
+      simp at h0
+      have h1 : i < peSrc.val.length := by scalar_tac
+      dcases h2 : i = start.toNat + j.toNat <;> simp [h0, h1, h2]
+      . simp only [Spec.Q] at *
+        omega
+      . replace hBounds := hBounds i hi
+        simp at hBounds
+        apply hBounds
+
+    have hWfPeSrc2 : ∀ i < 256, ((peSrc2.val).index i).val < 3329 := by
+      simp [hPeSrc2, h_start_j, h_start_j_len, hAddEq]
+      intro i hi
+      have h0 : start.toNat + j.toNat + len.toNat < peSrc1.val.length := by scalar_tac
+      simp at h0
+      have h1 : i < peSrc1.val.length := by scalar_tac
+      dcases h2 : i = start.toNat + j.toNat + len.toNat <;> simp [h0, h1, h2]
+      . simp only [Spec.Q] at *
+        omega
+      . replace hBounds := hWfPeSrc1 i hi
+        simp at hBounds
+        apply hBounds
+    progress as ⟨ peSrc3, hPeSrc3 ⟩
+
+    -- The postcondition
+    unfold SpecAux.nttLayerInner
+    have : j.toNat < len.toNat := by scalar_tac
+    simp only [this]; clear this
+    simp [hPeSrc1, hPeSrc2, hPeSrc3]
+    simp [*]
+termination_by len.toNat - j.toNat
+decreasing_by scalar_decr_tac
 
 end Symcrust
