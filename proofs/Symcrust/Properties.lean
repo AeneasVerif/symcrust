@@ -1485,6 +1485,8 @@ theorem List.set_get!_eq_set [Inhabited α] (l : List α) (i : Nat) (x : α) (h 
 theorem List.set_get!_eq_get! [Inhabited α] (l : List α) (i j : Nat) (x : α) (h : i ≠ j):
   (l.set i x)[j]! = l[j]! := by sorry
 
+-- TODO: progress is too slow, probably because of scalar_tac
+-- TODO: termination_by is too slow
 def ntt.SymCryptMlKemPolyElementNTTLayerC.inner_loop_loop_spec
   (peSrc : Array U16 256#usize) (k : Usize) (len : Usize) (start : Usize)
   (twiddleFactor : U32) (twiddleFactorMont : U32) (j : Usize)
@@ -1500,14 +1502,13 @@ def ntt.SymCryptMlKemPolyElementNTTLayerC.inner_loop_loop_spec
   to_poly peSrc' = SpecAux.nttLayerInner (to_poly peSrc) k.toNat len.toNat start.toNat j.toNat := by
 
   rw [inner_loop_loop]
-  split <;> rename_i hjLt; swap
+  dcases hjLt : ¬ j < len <;> simp [hjLt]
   . unfold SpecAux.nttLayerInner
     have : ¬ j.toNat < len.toNat := by scalar_tac
     simp only [this]; clear this
     simp
   . progress as ⟨ start_j, h_start_j ⟩
     progress as ⟨ c0 ⟩
-    simp
 
     -- assert
     have hc0Bound := hBounds start_j.toNat (by scalar_tac)
