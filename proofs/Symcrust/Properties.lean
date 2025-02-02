@@ -771,7 +771,12 @@ theorem Nat.le_iff_intCast_eq (n m : Nat) : n ≤ m ↔ (n : Int) ≤ (m : Int) 
 @[simp] theorem U32.zmod_cast_int_eq_mod (n : Nat) (x : U32) : ZMod.cast (x.val : ZMod n) = x.val % n := by sorry
 
 -- TODO: generalize
+@[simp] theorem U8.val_max_zero_eq (x : U8) : x.val ⊔ 0 = x.val := by scalar_tac
+@[simp] theorem U16.val_max_zero_eq (x : U16) : x.val ⊔ 0 = x.val := by scalar_tac
 @[simp] theorem U32.val_max_zero_eq (x : U32) : x.val ⊔ 0 = x.val := by scalar_tac
+@[simp] theorem U64.val_max_zero_eq (x : U64) : x.val ⊔ 0 = x.val := by scalar_tac
+@[simp] theorem U128.val_max_zero_eq (x : U128) : x.val ⊔ 0 = x.val := by scalar_tac
+@[simp] theorem Usize.val_max_zero_eq (x : Usize) : x.val ⊔ 0 = x.val := by scalar_tac
 
 theorem Int.neg_add_emod_self_left {a b c : ℤ} : (-a + b) % c = ((c - a) + b) % c := by
   conv => lhs; rw [← Int.add_emod_self_left]
@@ -1617,42 +1622,118 @@ def ntt.SymCryptMlKemPolyElementNTTLayerC.inner_loop_loop_spec
 termination_by len.toNat - j.toNat
 decreasing_by scalar_decr_tac
 
-@[pspec]
+-- TODO: private attribute for all the auxiliary theorems
+-- TODO: extract_minimized_goal
+private theorem convert_twiddleFactor_eq
+  (k : Usize)
+  (twiddleFactor : U16)
+  (hft : twiddleFactor.val = Spec.ζ ^ bitRev 7 k.toNat * 65536)
+  (hftBound : twiddleFactor.val < 3329) :
+  (core.convert.num.FromU32U16.from twiddleFactor).bv = BitVec.ofNat 32 (17 ^ bitRev 7 k.toNat * 65536 % 3329)
+  := by
+  zify at *
+  simp at *
+  have : twiddleFactor.val % 3329 = twiddleFactor.val := by
+    apply Int.emod_eq_of_lt <;> scalar_tac
+  rw [this] at hft
+  rw [hft]
+  -- Those conversion problems are annoying
+  have : (3329 : Int) = (3329 : Nat) := by simp
+  rw [this]
+  rw [← ZMod_int_cast_eq_int_cast_iff]
+  simp [Spec.ζ]
+
 theorem ntt.SymCryptMlKemPolyElementNTTLayerC_loop_spec
-  (peSrc : Array U16 256#usize) (k : Usize) (len : Usize) (start : Usize)
+  -- Some ghost values
+  (layer : ℕ) -- the layer
+  (hLayer : layer < 7)
+  (step : ℕ) -- the current step inside the layer (i.e., the number of times we incremented `start`)
+  (hStep : step ≤ 2^layer)
+  --
+  (peSrc : Array U16 256#usize)
+  (k : Usize) (len : Usize) (start : Usize)
   (hWf : wfArray peSrc)
-  (hk : k.val < 128)
-  (hStart : start.toNat ≤ 256)
-  (hLen : start.toNat = 256 ∨ start.toNat + 2 * len.toNat ≤ 256)
-  (hLenPos : 0 < len.toNat)
+  (hk : k.toNat = 2^layer + step)
+  (hStart : start.toNat = 2 * len.toNat * step)
+  (hLen : len.toNat = 2^(7-layer))
   :
   ∃ peSrc', SymCryptMlKemPolyElementNTTLayerC_loop peSrc k len start = ok peSrc' ∧
-  to_poly peSrc' = SpecAux.nttLayer (to_poly peSrc) k.toNat len.toNat start.toNat (by omega)
+  to_poly peSrc' = SpecAux.nttLayer (to_poly peSrc) k.toNat len.toNat start.toNat (by simp [hLen]) ∧
+  wfArray peSrc'
   := by
   rw [SymCryptMlKemPolyElementNTTLayerC_loop]
   dcases hLt: ¬ start < 256#usize <;> simp only [hLt] <;> simp
   . unfold SpecAux.nttLayer
     have : ¬ start.val.toNat < 256 := by scalar_tac
-    simp only [this]; simp
-  . progress as ⟨ twiddleFactor, hft, hftBound ⟩
+    simp only [this]; simp [*]
+  . -- Getting those arithmetic facts is actually non trivial
+    have : 2^layer ≤ 2^6 := by apply Nat.pow_le_pow_of_le <;> omega
+    have : step < 2^layer := by
+      have : ¬ step = 2^layer := by
+        intro hContra
+        simp [hContra] at hStart
+        simp [hLen] at hStart
+        simp [Nat.mul_assoc] at hStart
+        rw [← Nat.pow_add] at hStart
+        have : 7 - layer + layer = 7 := by omega
+        rw [this] at hStart; clear this
+        simp at hStart
+        scalar_tac
+      omega
+    have : start.toNat + 2 * len.toNat ≤ 256 := by
+      simp [hLen, hStart]
+      have :=
+        calc
+          2 * 2 ^ (7 - layer) * step + 2 * 2 ^ (7 - layer)
+          = (2 * 2^(7 - layer)) * (step + 1) := by ring_nf
+          _ ≤ (2 * 2^(7 - layer)) * 2^layer := by apply Nat.mul_le_mul <;> omega
+          _ = 2 * (2^(7 - layer) * 2^layer) := by ring_nf
+          _ = 2 * 2 ^ (7 - layer + layer) := by rw [← Nat.pow_add]
+          _ = 2 * 2 ^ 7 := by
+            have : 7 - layer + layer = 7 := by omega
+            rw [this]
+      omega
+    have : k.toNat < 128 := by
+      rw [hk]
+      have : 2^layer ≤ 2^6 := by apply Nat.pow_le_pow_of_le <;> omega
+      simp at *
+      have : step ≤ 2^6 := by omega
+      have : ¬ step = 2^6 := by
+        intro hContra
+        simp [hContra] at hStart
+        have : 2 ≤ len.toNat := by
+          have := @Nat.pow_le_pow_of_le 2 1 (7 - layer) (by simp) (by omega)
+          simp at this
+          omega
+        ring_nf at hStart
+        have : 2 * 128 ≤ len.toNat * 128 := by apply Nat.mul_le_mul <;> omega
+        scalar_tac
+      scalar_tac
+
+    progress as ⟨ twiddleFactor, hft, hftBound ⟩
     progress as ⟨ twiddleFactorMont, hftMont ⟩
     progress as ⟨ k', hk' ⟩
 
     -- Recursive call
     have : (core.convert.num.FromU32U16.from twiddleFactor).bv =
-           BitVec.ofNat 32 (17 ^ bitRev 7 k.toNat * 65536 % 3329) := by sorry
+           BitVec.ofNat 32 (17 ^ bitRev 7 k.toNat * 65536 % 3329) :=
+      convert_twiddleFactor_eq k twiddleFactor hft hftBound
     progress as ⟨ peSrc1, _, hPeSrc1 ⟩
 
     progress as ⟨ twoLen, hTwoLen ⟩
     progress as ⟨ start', hStart' ⟩
 
-    have : k'.val < 128 := by sorry -- TODO??
-    have : start'.toNat = 256 ∨ start'.toNat + 2 * len.toNat ≤ 256 := by
-      dcases hLen <;> rename_i hLen
-      . scalar_tac
-      . dcases h : start'.toNat = 256
-        . left; apply h
-        . sorry
+    have : k'.val ≤ 128 := by scalar_tac
+
+    have : start'.toNat = 2 * len.toNat * (step + 1) := by
+      ring_nf
+      simp [hStart', hTwoLen]
+      -- TODO: those facts are annoying
+      have : (start.val + 2 * len.val).toNat = start.toNat + 2 * len.toNat := by scalar_tac
+      rw [this]; simp
+      simp [hStart]
+      ring_nf
+    have := ntt.SymCryptMlKemPolyElementNTTLayerC_loop_spec layer hLayer (step + 1) (by scalar_tac)
 
     progress as ⟨ peSrc2, hPeSrc2 ⟩
 
@@ -1663,7 +1744,57 @@ theorem ntt.SymCryptMlKemPolyElementNTTLayerC_loop_spec
     simp [hPeSrc2, hPeSrc1, hk', hTwoLen, hStart']
     have : (start.val + 2 * len.val).toNat = start.toNat + 2 * len.toNat := by scalar_tac
     simp [this]
+    simp [*]
 termination_by 256 - k.toNat
 decreasing_by scalar_decr_tac
+
+-- TODO: maybe progress is slow because it attempts to use all the local variables
+-- in the context?
+
+@[pspec]
+theorem ntt.SymCryptMlKemPolyElementNTTLayer_spec
+  (peSrc : Array U16 256#usize)
+  (k : Usize) (len : Usize)
+  (hWf : wfArray peSrc)
+  -- Putting many preconditions to get rid of the ghost while making sure `progress`
+  -- goes through automatically
+  (hk : k.toNat = 2^(k.toNat.log2) ∧ k.toNat.log2 < 7)
+  (hLen : len.toNat = 128 / k.toNat)
+  (hLenPos : 0 < len.toNat)
+  :
+  ∃ peSrc', SymCryptMlKemPolyElementNTTLayer peSrc k len = ok peSrc' ∧
+  to_poly peSrc' = SpecAux.nttLayer (to_poly peSrc) k.toNat len.toNat 0 hLenPos ∧
+  wfArray peSrc'
+  := by
+  let step := k.toNat.log2
+  have : len.toNat = 2 ^ (7 - step) := by
+    rw [hLen]
+    rw [hk.left]
+    have :=
+      calc 128 / 2^step = 2^7 / 2^step := by simp
+           _ = 2^(7-step) := by rw [Nat.pow_div] <;> scalar_tac
+    rw [this]
+  have := ntt.SymCryptMlKemPolyElementNTTLayerC_loop_spec step (by scalar_tac) 0 (by simp)
+  unfold SymCryptMlKemPolyElementNTTLayer
+  progress as ⟨ peSrc1, hEq, hWf ⟩; clear this
+  tauto
+
+@[pspec]
+theorem ntt.SymCryptMlKemPolyElementNTT_spec (peSrc : Std.Array U16 256#usize)
+  (hWf : wfArray peSrc) :
+  ∃ peSrc1, SymCryptMlKemPolyElementNTT peSrc = ok peSrc1 ∧
+  to_poly peSrc1 = Spec.ntt (to_poly peSrc) ∧ wfArray peSrc1
+  := by
+  unfold SymCryptMlKemPolyElementNTT
+  progress as ⟨ peSrc1 ⟩; simp [Nat.log2]
+  progress as ⟨ peSrc2 ⟩; try simp [Nat.log2]
+  progress as ⟨ peSrc3 ⟩; try simp [Nat.log2]
+  progress as ⟨ peSrc4 ⟩; try simp [Nat.log2]
+  progress as ⟨ peSrc5 ⟩; try simp [Nat.log2]
+  progress as ⟨ peSrc6 ⟩; try simp [Nat.log2]
+  progress as ⟨ peSrc7 ⟩; try simp [Nat.log2]
+  rw [← SpecAux.ntt_eq]
+  unfold SpecAux.ntt
+  simp [*]
 
 end Symcrust
