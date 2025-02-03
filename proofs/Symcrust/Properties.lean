@@ -1139,6 +1139,10 @@ theorem mod_4294967296_65536_eq (x : Int) : ((x % 4294967296) % 65536) = x % 655
 theorem mod_65536_4294967296_eq (x : Int) : ((x % 65536) % 4294967296) = x % 65536 := by
   apply Int.emod_eq_of_lt <;> omega
 
+/-!
+Montgomery reduction
+-/
+
 theorem mont_reduce_no_divide_bv_spec (a b bMont tR : U32)
   (hbMont : bMont.bv = (b.bv * ntt.NegQInvModR.bv) &&& ntt.Rmask.bv)
   (htR : tR.bv = a.bv * b.bv + ((a.bv * bMont.bv) &&& ntt.Rmask.bv) * 3329) :
@@ -1556,6 +1560,10 @@ theorem wfArray_index {n : Usize} (v : Std.Array U16 n) (i : Usize)
   replace hWf := hWf i.toNat (by scalar_tac)
   scalar_tac
 
+/-!
+NTT
+-/
+
 -- TODO: progress is too slow, probably because of scalar_tac
 -- TODO: termination_by is too slow
 @[pspec]
@@ -1571,8 +1579,8 @@ def ntt.SymCryptMlKemPolyElementNTTLayerC.inner_loop_loop_spec
   (hBounds : wfArray peSrc)
   :
   ∃ peSrc', inner_loop_loop peSrc len start twiddleFactor twiddleFactorMont j = ok peSrc' ∧
-  wfArray peSrc' ∧
-  to_poly peSrc' = SpecAux.nttLayerInner (to_poly peSrc) k.toNat len.toNat start.toNat j.toNat := by
+  to_poly peSrc' = SpecAux.nttLayerInner (to_poly peSrc) k.toNat len.toNat start.toNat j.toNat ∧
+  wfArray peSrc' := by
 
   rw [inner_loop_loop]
   dcases hjLt : ¬ j < len <;> simp [hjLt]
@@ -1697,24 +1705,15 @@ theorem ntt.SymCryptMlKemPolyElementNTTLayerC_loop_spec
       rw [hk]
       have : 2^layer ≤ 2^6 := by apply Nat.pow_le_pow_of_le <;> omega
       simp at *
-      have : step ≤ 2^6 := by omega
-      have : ¬ step = 2^6 := by
-        intro hContra
-        simp [hContra] at hStart
-        have : 2 ≤ len.toNat := by
-          have := @Nat.pow_le_pow_of_le 2 1 (7 - layer) (by simp) (by omega)
-          simp at this
-          omega
-        ring_nf at hStart
-        have : 2 * 128 ≤ len.toNat * 128 := by apply Nat.mul_le_mul <;> omega
-        scalar_tac
+      have : step < 2^6 := by
+        have := @Nat.pow_le_pow_of_le 2 layer 6 (by simp) (by omega)
+        omega
       scalar_tac
 
     progress as ⟨ twiddleFactor, hft, hftBound ⟩
     progress as ⟨ twiddleFactorMont, hftMont ⟩
     progress as ⟨ k', hk' ⟩
 
-    -- Recursive call
     have : (core.convert.num.FromU32U16.from twiddleFactor).bv =
            BitVec.ofNat 32 (17 ^ bitRev 7 k.toNat * 65536 % 3329) :=
       convert_twiddleFactor_eq k twiddleFactor hft hftBound
@@ -1779,6 +1778,10 @@ theorem ntt.SymCryptMlKemPolyElementNTTLayer_spec
   progress as ⟨ peSrc1, hEq, hWf ⟩; clear this
   tauto
 
+set_option profiler true
+set_option profiler.threshold 100
+-- TODO: `progress` takes a time which is linear in the size of the context. This is normal but
+-- grows too fast. We need to investigate - the example below seems good: we neeed to minimize.
 @[pspec]
 theorem ntt.SymCryptMlKemPolyElementNTT_spec (peSrc : Std.Array U16 256#usize)
   (hWf : wfArray peSrc) :
@@ -1795,6 +1798,382 @@ theorem ntt.SymCryptMlKemPolyElementNTT_spec (peSrc : Std.Array U16 256#usize)
   progress as ⟨ peSrc7 ⟩; try simp [Nat.log2]
   rw [← SpecAux.ntt_eq]
   unfold SpecAux.ntt
+  simp [*]
+
+/-!
+INTT
+-/
+
+@[pspec]
+def ntt.SymCryptMlKemPolyElementINTTLayerC.inner_loop_loop_spec
+  (peSrc : Array U16 256#usize) (k : Usize) (len : Usize) (start : Usize)
+  (twiddleFactor : U32) (twiddleFactorMont : U32) (j : Usize)
+  (hStart : start.toNat + 2 * len.toNat ≤ 256)
+  (hjLe : j.toNat ≤ len.toNat)
+  (htf : twiddleFactor.bv = BitVec.ofNat 32 (17 ^ bitRev 7 k.toNat * 65536 % 3329))
+  (htfBound : twiddleFactor.val < 3329)
+  (htfMont : twiddleFactorMont.bv = (BitVec.ofNat _ ((17^(bitRev 7 k.toNat) * 65536) % 3329) * 3327#32) &&& 65535#32)
+  -- TODO: use get notations
+  (hBounds : wfArray peSrc)
+  :
+  ∃ peSrc', inner_loop_loop peSrc len start twiddleFactor twiddleFactorMont j = ok peSrc' ∧
+  to_poly peSrc' = SpecAux.invNttLayerInner (to_poly peSrc) k.toNat len.toNat start.toNat j.toNat ∧
+  wfArray peSrc' := by
+
+  rw [inner_loop_loop]
+  dcases hjLt : ¬ j < len <;> simp [hjLt]
+  . unfold SpecAux.invNttLayerInner
+    have : ¬ j.toNat < len.toNat := by scalar_tac
+    simp only [this]; clear this
+    simp [*]
+  . progress as ⟨ start_j, h_start_j ⟩
+    progress with wfArray_index as ⟨ c0, hc0 ⟩
+
+    -- assert
+    have hc0Bound := hBounds start_j.toNat (by scalar_tac)
+    progress
+
+    progress as ⟨ start_j_len, h_start_j_len ⟩
+    progress with wfArray_index as ⟨ c1, hc1 ⟩
+
+    -- assert
+    have hc1Bound := hBounds start_j_len.toNat (by scalar_tac)
+    progress
+
+    progress with SymCryptMlKemModAdd'_spec as ⟨ tmp, htmp ⟩
+    progress with SymCryptMlKemModSub'_spec as ⟨ c1', hc1' ⟩
+
+    -- TODO: progress triggers as "maximum recursion depth has been reached"
+    have ⟨ c1'', hEq, hc1'' ⟩ :=
+      ntt.SymCryptMlKemMontMul_twiddle_spec k c1' twiddleFactor twiddleFactorMont
+        (by simp; scalar_tac) htfBound htf (by simp[htf, htfMont])
+    simp [hEq]; clear hEq
+
+    progress as ⟨ tmp_u16, h_tmp_u16 ⟩
+
+    progress with wfArray_update as ⟨ peSrc1, hPeSrc1 ⟩
+    progress as ⟨ c1''_u16, hc1''_u16 ⟩
+    progress with wfArray_update as ⟨ peSrc2, hPeSrc2 ⟩
+
+    progress as ⟨ j1, hj1 ⟩
+
+    progress as ⟨ peSrc3, hPeSrc3, hWfPeSrc3 ⟩
+
+    -- The postcondition
+    unfold SpecAux.invNttLayerInner
+
+    let c0s := (to_poly peSrc)[start.toNat + j.toNat]!;
+    let c1s := (to_poly peSrc)[start.toNat + j.toNat + len.toNat]!;
+    let zetas := Spec.ζ ^ bitRev 7 k.toNat;
+    let f1 := (to_poly peSrc).set (start.toNat + j.toNat) (c0s + c1s);
+    let f2 := f1.set (start.toNat + j.toNat + len.toNat) (zetas * (c1s - c0s));
+    let f3 := SpecAux.invNttLayerInner f2 k.toNat len.toNat start.toNat (j.toNat + 1)
+
+    have : (start.val + j.val + len.val).toNat = start.toNat + j.toNat + len.toNat := by scalar_tac
+    have hf1_eq : f1 = to_poly peSrc1 := by
+      unfold f1
+      simp [hPeSrc1, h_start_j, h_tmp_u16, htmp]
+      simp +zetaDelta [*]
+    have hf2_eq : f2 = to_poly peSrc2 := by
+      unfold f2
+      simp [hPeSrc2, hf1_eq, h_start_j_len, h_start_j, hc1''_u16, hc1'', hc1']
+      have : zetas * (c1s - c0s) = (↑↑c1 - ↑↑c0) * Spec.ζ ^ bitRev 7 k.toNat := by
+        unfold c0s c1s zetas
+        simp [hc0, hc1]
+        ring_nf
+        simp [*]
+      simp [*]
+    have hf3_eq : f3 = to_poly peSrc3 := by
+      unfold f3
+      simp [hPeSrc3, hj1, hf2_eq]
+
+    have : j.toNat < len.toNat := by scalar_tac
+    simp only [this]; clear this
+    simp +zetaDelta at hf3_eq
+    simp +zetaDelta [hf3_eq, hWfPeSrc3]
+termination_by len.toNat - j.toNat
+decreasing_by scalar_decr_tac
+
+theorem ntt.SymCryptMlKemPolyElementINTTLayerC_loop_spec
+  -- Some ghost values
+  (layer : ℕ) -- the layer
+  (hLayer : layer < 7)
+  (step : ℕ) -- the current step inside the layer (i.e., the number of times we decremented `start`)
+  (hStep : step ≤ 2^(6-layer))
+  --
+  (peSrc : Array U16 256#usize)
+  (k : Usize) (len : Usize) (start : Usize)
+  (hWf : wfArray peSrc)
+  (hk : k.toNat + 1 = 2^(7 - layer) - step)
+  (hStart : start.toNat = 2 * len.toNat * step)
+  (hLen : len.toNat = 2^(layer + 1))
+  :
+  ∃ peSrc', SymCryptMlKemPolyElementINTTLayerC_loop peSrc k len start = ok peSrc' ∧
+  to_poly peSrc' = SpecAux.invNttLayer (to_poly peSrc) k.toNat len.toNat start.toNat (by simp [hLen]) ∧
+  wfArray peSrc'
+  := by
+  rw [SymCryptMlKemPolyElementINTTLayerC_loop]
+  dcases hLt: ¬ start < 256#usize <;> simp only [hLt] <;> simp
+  . unfold SpecAux.invNttLayer
+    have : ¬ start.val.toNat < 256 := by scalar_tac
+    simp only [this]; simp [*]
+  . -- Getting those arithmetic facts is actually non trivial - TODO: factor out
+    have : 2^layer ≤ 2^6 := by apply Nat.pow_le_pow_of_le <;> omega
+    have : step < 2^(6 - layer) := by
+      have : ¬ step = 2^(6 - layer) := by
+        intro hContra
+        simp [hLen] at hStart
+        simp [hContra] at hStart
+        simp [Nat.mul_assoc] at hStart
+        rw [← Nat.pow_add] at hStart
+        have : layer + 1 + (6 - layer) = 7 := by omega
+        rw [this] at hStart; clear this
+        simp at hStart
+        scalar_tac
+      omega
+    have : start.toNat + 2 * len.toNat ≤ 256 := by
+      simp [hLen, hStart]
+      have :=
+        calc
+          2 * 2 ^ (layer + 1) * step + 2 * 2 ^ (layer + 1)
+          = (2 * 2^(layer + 1)) * (step + 1) := by ring_nf
+          _ ≤ (2 * 2^(layer + 1)) * 2^(6 - layer):= by apply Nat.mul_le_mul <;> omega
+          _ = 2 * (2^(layer + 1) * 2^(6 - layer)) := by ring_nf
+          _ = 2 * 2 ^ (layer + 1 + (6 - layer)) := by rw [← Nat.pow_add]
+          _ = 2 * 2 ^ 7 := by
+            have : layer + 1 + (6 - layer) = 7 := by omega
+            rw [this]
+      omega
+    have : k.toNat < 128 := by
+      suffices k.toNat + 1 ≤ 128 by omega
+      rw [hk]
+      have : 2^(7 - layer) ≤ 2^7 := by apply Nat.pow_le_pow_of_le <;> omega
+      simp at *
+      have : step < 2^6 := by
+        have := @Nat.pow_le_pow_of_le 2 (6 - layer) 6 (by simp) (by omega)
+        omega
+      scalar_tac
+    have : 0 < k.toNat := by
+      have : k.toNat ≠ 0 := by
+        intro hContra
+        simp [hContra] at *
+        have : 2 ^ (7 - layer) = 2 * 2 ^ (6 - layer) := by
+          have : 7 - layer = (6 - layer) + 1 := by omega
+          rw [this]
+          rw [Nat.pow_add_one]
+          ring_nf
+        omega
+      omega
+
+    progress as ⟨ twiddleFactor, hft, hftBound ⟩
+    progress as ⟨ twiddleFactorMont, hftMont ⟩
+    progress as ⟨ k', hk' ⟩
+
+    -- Recursive call
+    have hRec := ntt.SymCryptMlKemPolyElementINTTLayerC_loop_spec layer hLayer (step + 1) (by omega)
+    unfold SymCryptMlKemPolyElementINTTLayerC.inner_loop -- TODO: add the reducible attribute
+
+    have : (core.convert.num.FromU32U16.from twiddleFactor).bv =
+           BitVec.ofNat 32 (17 ^ bitRev 7 k.toNat * 65536 % 3329) :=
+      convert_twiddleFactor_eq k twiddleFactor hft hftBound
+    progress as ⟨ peSrc1, _, hPeSrc1 ⟩
+
+    progress as ⟨ twoLen, hTwoLen ⟩
+    progress as ⟨ start', hStart' ⟩
+
+    have : start'.toNat = 2 * len.toNat * (step + 1) := by
+      ring_nf
+      simp [hStart', hTwoLen]
+      -- TODO: those facts are annoying
+      have : (start.val + 2 * len.val).toNat = start.toNat + 2 * len.toNat := by scalar_tac
+      rw [this]; simp
+      simp [hStart]
+      ring_nf
+
+    progress as ⟨ peSrc2, hPeSrc2 ⟩
+
+    -- Proving the post-condition
+    unfold SpecAux.invNttLayer
+    have hLt : start.toNat < 256 := by scalar_tac
+    simp only [hLt]; simp
+    simp [hPeSrc2, hPeSrc1, hk', hTwoLen, hStart']
+    have : (start.val + 2 * len.val).toNat = start.toNat + 2 * len.toNat := by scalar_tac
+    simp [this]
+    simp [*]
+
+@[pspec]
+theorem ntt.SymCryptMlKemPolyElementINTTLayer_spec
+  (peSrc : Array U16 256#usize)
+  (k : Usize) (len : Usize)
+  (hWf : wfArray peSrc)
+  -- Putting many preconditions to get rid of the ghost while making sure `progress`
+  -- goes through automatically
+  (hLen : len.toNat = 2^(len.toNat.log2) ∧ 1 ≤ len.toNat.log2 ∧ len.toNat.log2 ≤ 7)
+  (hk : k.toNat + 1 = 256 / len.toNat)
+  (hLenPos : 0 < len.toNat)
+  :
+  ∃ peSrc', SymCryptMlKemPolyElementINTTLayer peSrc k len = ok peSrc' ∧
+  to_poly peSrc' = SpecAux.invNttLayer (to_poly peSrc) k.toNat len.toNat 0 hLenPos ∧
+  wfArray peSrc'
+  := by
+  let step := len.toNat.log2 - 1
+  have : k.toNat + 1 = 2 ^ (7 - step) := by
+    rw [hk]
+    rw [hLen.left]
+    have :=
+      calc 256 / 2^len.toNat.log2 = 2^8 / 2^len.toNat.log2 := by simp [step]
+           _ = 2^(8-len.toNat.log2) := by rw [Nat.pow_div] <;> scalar_tac
+    rw [this]
+    simp [step]
+    scalar_tac
+  have := ntt.SymCryptMlKemPolyElementINTTLayerC_loop_spec step (by scalar_tac) 0 (by simp)
+  unfold SymCryptMlKemPolyElementINTTLayer
+  have : len.toNat = 2 ^ (len.toNat.log2 - 1 + 1) := by
+    have : len.toNat.log2 - 1 + 1 = len.toNat.log2 := by omega
+    rw [this]
+    rw [← hLen.left]
+  progress as ⟨ peSrc1, hEq, hWf ⟩
+  tauto
+
+-- TODO: move
+@[simp] theorem ntt.MLWE_POLYNOMIAL_COEFFICIENTS_eq : ntt.MLWE_POLYNOMIAL_COEFFICIENTS.val = 256 := by rfl
+
+@[simp] theorem ntt.INTTFixupTimesRsqr_eq : ntt.INTTFixupTimesRsqr.val = 1441 := by rfl
+@[simp] theorem ntt.INTTFixupTimesRsqr_bv_eq : ntt.INTTFixupTimesRsqr.bv = 1441#32 := by rfl
+
+@[simp] theorem ntt.INTTFixupTimesRsqrTimesNegQInvModR_bv_eq : INTTFixupTimesRsqrTimesNegQInvModR.bv = 10079#32 := by rfl
+
+@[pspec]
+theorem ntt.SymCryptMlKemPolyElementINTTAndMulR_loop_spec_aux
+  (peSrc : Std.Array U16 256#usize) (i : Usize)
+  (hi : i.toNat ≤ 256) (hWf : wfArray peSrc) :
+  ∃ peSrc', ntt.SymCryptMlKemPolyElementINTTAndMulR_loop peSrc i = ok peSrc' ∧
+  (∀ (j : Nat), j < i.toNat → (to_poly peSrc')[j]! = (to_poly peSrc)[j]!) ∧
+  (∀ (j : Nat), i.toNat ≤ j → j < 256 →
+    (to_poly peSrc')[j]! = (to_poly peSrc)[j]! * (3303 : Spec.Zq) * 2^16) ∧
+  wfArray peSrc' := by
+  rw [SymCryptMlKemPolyElementINTTAndMulR_loop]
+  simp
+  split <;> rename_i h
+  . progress with wfArray_index as ⟨ x ⟩
+    progress with ntt.SymCryptMlKemMontMul_spec as ⟨ xTimes ⟩
+    progress as ⟨ xTimes' ⟩
+    progress with wfArray_update as ⟨ peSrc1, hPeSrc1 ⟩
+    progress as ⟨ i1 ⟩
+    progress as ⟨ peSrc2, h1, h2 ⟩
+    split_conjs
+    . intro j hj
+      simp [Array.update] at *
+      have := h1 j (by omega)
+      rw [this]; clear this
+      simp [*]
+      have : i.toNat ≠ j := by scalar_tac
+      simp [this]
+    . intro j hj0 hj1
+      simp at *
+      dcases hij : j = i.toNat
+      . have := h1 j (by scalar_tac)
+        rw [this]; clear this
+        have : i.val.toNat < peSrc.val.length := by scalar_tac
+        simp [*]
+        -- TODO: why is this not automatically applied?
+        rw [List.set_get!_eq_set]
+        . simp [*]
+          simp [mul_assoc]
+          have : (1441 : Spec.Zq) * (2 ^ 16)⁻¹ = 3303 * 2 ^ 16 := by
+            native_decide
+          rw [this]
+        . apply this -- TODO: why do we have to do this?
+      . have hij : i1.toNat ≤ j := by scalar_tac
+        have := h2 j (by scalar_tac) (by scalar_tac)
+        simp [this, hPeSrc1]
+        -- TODO: automate
+        rw [List.set_get!_eq_get!]
+        scalar_tac
+    . simp [*]
+  . have : i.toNat = 256 := by scalar_tac
+    simp [*]
+    intro j hj0 hj1
+    -- Contradiction
+    omega
+termination_by 256 - i.toNat
+decreasing_by scalar_decr_tac
+
+-- TODO: move up
+@[simp]
+theorem to_poly_getElem!_eq (a : Std.Array U16 256#usize) (i : Nat) :
+  (to_poly a)[i]! = a.val[i]! := by
+  simp [to_poly]
+  simp [getElem!, decidableGetElem?]
+  conv => lhs; simp only [getElem, Spec.Polynomial.get!]
+  simp [getElem!, decidableGetElem?]
+  dcases h: i < 256 <;> simp [h]
+  rfl
+
+-- TODO: move
+@[simp]
+theorem getElem!_cons_succ [Inhabited α] (hd : α) (tl : List α) (i : Nat) :
+  getElem! (hd :: tl) (i + 1) = getElem! tl i := by
+  simp [getElem!, decidableGetElem?]
+
+@[simp]
+theorem getElem!_cons_zero [Inhabited α] (hd : α) (tl : List α) :
+  getElem! (hd :: tl) 0 = hd := by
+  simp [getElem!, decidableGetElem?]
+
+@[pspec]
+theorem ntt.SymCryptMlKemPolyElementINTTAndMulR_loop_spec (peSrc : Std.Array U16 256#usize)
+  (hWf : wfArray peSrc) :
+  ∃ peSrc', ntt.SymCryptMlKemPolyElementINTTAndMulR_loop peSrc 0#usize = ok peSrc' ∧
+  to_poly peSrc' = (to_poly peSrc) * (3303 : Spec.Zq) * (2^16 : Spec.Zq) ∧
+  wfArray peSrc' := by
+  progress as ⟨ peSrc', _, h ⟩
+  simp [HMul.hMul, Spec.Polynomial.scalarMul, to_poly, *]
+
+  have aux (f f' : List U16) (hLen : f'.length = f.length)
+    (hEq : ∀ i, i < f.length → (f'[i]!.val : Spec.Zq) = f[i]!.val * 3303 * 2^16) :
+    List.map (fun x => (x.val : Spec.Zq)) f' =
+    List.map ((fun v => Mul.mul v (2^16 : Spec.Zq)) ∘ (fun v => Mul.mul v 3303) ∘ fun x => (x.val : Spec.Zq)) f := by
+    revert f'; induction f
+    . simp_all
+    . rename_i hd tl hInd
+      intro f' hLen hi
+      dcases f'
+      . simp at hLen
+      . rename_i hd' tl'
+        simp at *
+        have := hInd tl' (by simp [*])
+          (by
+            intro i hLen
+            have := hi (i + 1) (by omega)
+            simp [hLen] at this
+            apply this)
+        simp [*]
+        have := hi 0 (by omega)
+        simp at this
+        apply this
+
+  rw [aux] <;> simp [*]
+  simp at h
+  apply h
+
+@[pspec]
+theorem ntt.SymCryptMlKemPolyElementINTTAndMulR_spec (peSrc : Std.Array U16 256#usize)
+  (hWf : wfArray peSrc) :
+  ∃ peSrc1, SymCryptMlKemPolyElementINTTAndMulR peSrc = ok peSrc1 ∧
+  to_poly peSrc1 = Spec.invNtt (to_poly peSrc) * (2^16 : Spec.Zq) ∧ wfArray peSrc1
+  := by
+  unfold SymCryptMlKemPolyElementINTTAndMulR
+  progress as ⟨ peSrc1 ⟩; try simp [Nat.log2]
+  progress as ⟨ peSrc2 ⟩; try simp [Nat.log2]
+  progress as ⟨ peSrc3 ⟩; try simp [Nat.log2]
+  progress as ⟨ peSrc4 ⟩; try simp [Nat.log2]
+  progress as ⟨ peSrc5 ⟩; try simp [Nat.log2]
+  progress as ⟨ peSrc6 ⟩; try simp [Nat.log2]
+  progress as ⟨ peSrc7 ⟩; try simp [Nat.log2]
+  progress as ⟨ peSrc8 ⟩
+  rw [← SpecAux.invNtt_eq]
+  unfold SpecAux.invNtt
   simp [*]
 
 end Symcrust
