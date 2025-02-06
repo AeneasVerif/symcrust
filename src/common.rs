@@ -1,5 +1,5 @@
 // FIXME: move this into a shared set of definitions, rename to SYMCRYPT_ERROR
-#[derive(PartialEq)]
+#[derive(PartialEq, Debug)]
 pub(crate)
 // FIXME: make sure constants have values consistent with the C header
 enum MLKEM_ERROR {

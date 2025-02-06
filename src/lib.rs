@@ -12,3 +12,4 @@ pub mod key;
 pub mod ntt;
 pub mod mlkem;
 pub mod misc;
+pub mod test;
