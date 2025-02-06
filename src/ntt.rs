@@ -791,10 +791,10 @@ fn SymCryptMlKemPolyElementSampleCBDFromBytes(
                            // the first eta bits are positive, the second eta bits are negative
                            let mut coefficient = *sampleBits & 0xf;
                            *sampleBits >>= 4;
-                           coefficient = (coefficient&3) - (coefficient>>2);
+                           coefficient = (coefficient&3).wrapping_sub(coefficient>>2);
                            assert!((coefficient >= (-2i32 as u32)) || (coefficient <= 2));
 
-                           coefficient = coefficient + (Q & (coefficient >> 16));     // in range [0, Q-1]
+                           coefficient = coefficient.wrapping_add(Q & (coefficient >> 16));     // in range [0, Q-1]
                            assert!( coefficient < Q );
 
                            peDst[i+j] = coefficient as u16;

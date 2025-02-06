@@ -768,7 +768,7 @@ SymCryptMlKemEncapsulateEx(
         &mut pCompTemps )
 }
 
-pub(crate)
+pub
 fn
 SymCryptMlKemEncapsulate(
     pkMlKemkey: &mut KEY,
@@ -799,7 +799,7 @@ SymCryptMlKemEncapsulate(
 //     return scError;
 // }
 
-pub(crate)
+pub
 fn
 SymCryptMlKemDecapsulate(
     pkMlKemkey: &mut KEY,

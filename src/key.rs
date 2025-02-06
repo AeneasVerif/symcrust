@@ -451,7 +451,7 @@ type KEY = KEY2; // EDIT HERE
 pub(crate)
 type MATRIX = MATRIX2; // EDIT HERE
 
-pub(crate)
+pub
 fn KeyAllocate(params: PARAMS) -> Result<Box<KEY>,MLKEM_ERROR> {
     KeyAllocate2(params) // EDIT HERE
 }
