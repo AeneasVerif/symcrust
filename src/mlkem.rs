@@ -324,12 +324,12 @@ SymCryptMlKemkeySetValue(
         pkMlKemkey.hasPrivateSeed = true;
         let l = pkMlKemkey.privateSeed.len();
         pkMlKemkey.privateSeed.copy_from_slice(&pbSrc[0..l]);
-        pbCurr += pkMlKemkey.privateSeed.len();
+        pbCurr += l;
 
         pkMlKemkey.hasPrivateKey = true;
         let l = pkMlKemkey.privateRandom.len();
         pkMlKemkey.privateRandom.copy_from_slice(&pbSrc[pbCurr..pbCurr+l]);
-        pbCurr += pkMlKemkey.privateRandom.len();
+        pbCurr += l;
 
         SymCryptMlKemkeyExpandFromPrivateSeed( pkMlKemkey, &mut pCompTemps );
     },

@@ -227,22 +227,38 @@ fn SymCryptMlKemModAdd(a: u32, b: u32) -> u32 {
     assert!( a < Q );
     assert!( b < Q );
 
-    let res = a + b - Q;
+    // In the comments below, we manipulate unbounded integers.
+    // res = (a + b) - Q
+    let res = (a + b).wrapping_sub(Q); // -Q <= res < Q
     assert!( ((res >> 16) == 0) || ((res >> 16) == 0xffff) );
-    let res = res + (Q & (res >> 16));
+    // If res < 0, then: Q & (res >> 16) = Q
+    // Otherwise: Q & (res >> 16) = 0
+    let res = res.wrapping_add(Q & (res >> 16));
     assert!( res < Q );
 
     return res;
 }
 
 fn SymCryptMlKemModSub(a: u32, b: u32) -> u32 {
+    // This function is called in two situations:
+    // - when we want to substract to field elements which are < Q
+    // - when we performed an addition and want to substract Q so
+    //   that the result is < Q
     assert!( a < 2*Q );
     assert!( b <= Q );
 
-    let res = a - b;
+    // In the comments below, we manipulate unbounded integers.
+    // res = a - b
+    let res = a.wrapping_sub(b); // -Q <= res < 2 * Q
     assert!( ((res >> 16) == 0) || ((res >> 16) == 0xffff) );
-    let res = res + (Q & (res >> 16));
-    assert!( res < Q );
+    // If res < 0, then: Q & (res >> 16) = Q
+    // Otherwise: Q & (res >> 16) = 0
+    let res = res.wrapping_add(Q & (res >> 16));
+    // 0 <= res < 2 * Q
+    assert!( res < Q ); // SH: how do we justify this given the bound: a < 2*Q?
+    // SH: I believe it depends on the situation: we may have to prove several
+    // auxiliary lemmas for this (there are situations where we call this function
+    // with a < Q for instance).
 
     return res;
 }
