@@ -236,7 +236,7 @@ fn SymCryptMlKemModAdd(a: u32, b: u32) -> u32 {
     let res = res.wrapping_add(Q & (res >> 16));
     assert!( res < Q );
 
-    return res;
+    res
 }
 
 fn SymCryptMlKemModSub(a: u32, b: u32) -> u32 {
@@ -260,7 +260,7 @@ fn SymCryptMlKemModSub(a: u32, b: u32) -> u32 {
     // auxiliary lemmas for this (there are situations where we call this function
     // with a < Q for instance).
 
-    return res;
+    res
 }
 
 fn SymCryptMlKemMontMul(a: u32, b: u32, bMont: u32) -> u32 {
@@ -273,9 +273,9 @@ fn SymCryptMlKemMontMul(a: u32, b: u32, bMont: u32) -> u32 {
     let inv = (a * bMont) & Rmask;
     res += inv * Q;
     assert!( (res & Rmask) == 0 );
-    res = res >> Rlog2;
+    res >>= Rlog2;
 
-    return SymCryptMlKemModSub( res, Q );
+    SymCryptMlKemModSub( res, Q )
 }
 
 fn SymCryptMlKemPolyElementNTTLayerC(peSrc: &mut POLYELEMENT, mut k: usize, len: usize) {
@@ -352,18 +352,18 @@ fn SymCryptMlKemPolyElementMulAndAccumulate(
     // FIXME
     c_for!(let mut i = 0; i < MLWE_POLYNOMIAL_COEFFICIENTS / 2; i += 1; {
         let a0: u32 = peSrc1[2*i].into();
-        assert!( (a0 as u32) < Q );
+        assert!( a0 < Q );
         let a1: u32 = peSrc1[2*i+1].into();
-        assert!( (a1 as u32) < Q );
+        assert!( a1 < Q );
 
         let b0: u32 = peSrc2[2*i  ].into();
-        assert!( (b0 as u32) < Q );
+        assert!( b0 < Q );
         let b1: u32 = peSrc2[2*i+1].into();
-        assert!( (b1 as u32) < Q );
+        assert!( b1 < Q );
 
-        let mut c0: u32 = paDst[2*i].into();
+        let mut c0: u32 = paDst[2*i];
         assert!( c0 <= 3*((3328*3328) + (3494*3312)) );
-        let mut c1: u32 = paDst[(2*i)+1].into();
+        let mut c1: u32 = paDst[(2*i)+1];
         assert!( c1 <= 3*((3328*3328) + (3494*3312)) );
 
         // multiplication results in range [0, 3328*3328]

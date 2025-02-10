@@ -270,7 +270,7 @@ SymCryptMlKemkeySetValue(
     // Ensure only allowed flags are specified
     let allowedFlags: u32 = FLAG_KEY_NO_FIPS | FLAG_KEY_MINIMAL_VALIDATION;
 
-    if ( ( flags & !allowedFlags ) != 0 )
+    if ( flags & !allowedFlags ) != 0
     {
         return MLKEM_ERROR::INVALID_ARGUMENT;
     }
@@ -336,7 +336,7 @@ SymCryptMlKemkeySetValue(
 
     MLKEMKEY_FORMAT::DECAPSULATION_KEY =>
     {
-        if( pbSrc.len() != SIZEOF_FORMAT_DECAPSULATION_KEY( nRows as usize) )
+        if pbSrc.len() != SIZEOF_FORMAT_DECAPSULATION_KEY( nRows as usize)
         {
             return MLKEM_ERROR::WRONG_KEY_SIZE;
         }
@@ -354,7 +354,7 @@ SymCryptMlKemkeySetValue(
         pbCurr += cbEncodedVector;
         let (t, encodedT) = pkMlKemkey.t_encoded_t_mut();
         let scError = SymCryptMlKemVectorDecodeAndDecompress( &encodedT[0..cbEncodedVector], 12, t );
-        if( scError != MLKEM_ERROR::NO_ERROR )
+        if scError != MLKEM_ERROR::NO_ERROR
         {
             return scError;
         }
@@ -384,7 +384,7 @@ SymCryptMlKemkeySetValue(
 
     MLKEMKEY_FORMAT::ENCAPSULATION_KEY =>
     {
-        if( pbSrc.len() != SIZEOF_FORMAT_ENCAPSULATION_KEY( nRows as usize) )
+        if pbSrc.len() != SIZEOF_FORMAT_ENCAPSULATION_KEY( nRows as usize)
         {
             return MLKEM_ERROR::WRONG_KEY_SIZE;
         }
@@ -394,7 +394,7 @@ SymCryptMlKemkeySetValue(
         pbCurr += cbEncodedVector;
         let (t, encodedT) = pkMlKemkey.t_encoded_t_mut();
         let scError = SymCryptMlKemVectorDecodeAndDecompress( &encodedT[0..cbEncodedVector], 12, t );
-        if( scError != MLKEM_ERROR::NO_ERROR )
+        if scError != MLKEM_ERROR::NO_ERROR
         {
             return scError;
         }
@@ -458,12 +458,12 @@ SymCryptMlKemkeyGetValue(
     match mlKemkeyFormat {
         MLKEMKEY_FORMAT::PRIVATE_SEED =>
     {
-        if( pbDst.len() != SIZEOF_FORMAT_PRIVATE_SEED )
+        if pbDst.len() != SIZEOF_FORMAT_PRIVATE_SEED
         {
             return MLKEM_ERROR::WRONG_KEY_SIZE;
         }
 
-        if( !pkMlKemkey.hasPrivateSeed )
+        if !pkMlKemkey.hasPrivateSeed
         {
             return MLKEM_ERROR::INCOMPATIBLE_FORMAT;
         }
@@ -477,12 +477,12 @@ SymCryptMlKemkeyGetValue(
 
     MLKEMKEY_FORMAT::DECAPSULATION_KEY =>
     {
-        if( pbDst.len() != SIZEOF_FORMAT_DECAPSULATION_KEY( nRows as usize) )
+        if pbDst.len() != SIZEOF_FORMAT_DECAPSULATION_KEY( nRows as usize)
         {
             return MLKEM_ERROR::INVALID_ARGUMENT;
         }
 
-        if( !pkMlKemkey.hasPrivateKey )
+        if !pkMlKemkey.hasPrivateKey
         {
             return MLKEM_ERROR::INVALID_ARGUMENT;
         }
@@ -507,7 +507,7 @@ SymCryptMlKemkeyGetValue(
 
     MLKEMKEY_FORMAT::ENCAPSULATION_KEY =>
     {
-        if( pbDst.len() != SIZEOF_FORMAT_ENCAPSULATION_KEY( nRows as usize) )
+        if pbDst.len() != SIZEOF_FORMAT_ENCAPSULATION_KEY( nRows as usize)
         {
             return MLKEM_ERROR::INVALID_ARGUMENT;
         }
@@ -544,7 +544,7 @@ SymCryptMlKemkeyGenerate(
     // Ensure only allowed flags are specified
     let allowedFlags: u32 = FLAG_KEY_NO_FIPS;
 
-    if ( ( flags & !allowedFlags ) != 0 )
+    if ( flags & !allowedFlags ) != 0
     {
         return MLKEM_ERROR::INVALID_ARGUMENT;
     }
@@ -556,7 +556,7 @@ SymCryptMlKemkeyGenerate(
     }
 
     let scError = SymCryptMlKemkeySetValue( &privateSeed, MLKEMKEY_FORMAT::PRIVATE_SEED, flags, pkMlKemkey );
-    if( scError != MLKEM_ERROR::NO_ERROR )
+    if scError != MLKEM_ERROR::NO_ERROR
     {
         return scError;
     }
@@ -679,7 +679,7 @@ SymCryptMlKemEncapsulateInternal(
         // SymCryptMlKemPolyElementAdd( INTERNAL_MLKEM_VECTOR_ELEMENT(i, pvTmp), peTmp0, INTERNAL_MLKEM_VECTOR_ELEMENT(i, pvTmp) );
         // Added a copy -- TODO: measure performance impact of the copy
         let copy = pvTmp[i as usize];
-        SymCryptMlKemPolyElementAdd( &copy, &peTmp0, &mut pvTmp[i as usize] );
+        SymCryptMlKemPolyElementAdd( &copy, peTmp0, &mut pvTmp[i as usize] );
 
     });
 
@@ -917,7 +917,7 @@ SymCryptMlKemDecapsulate(
 
     // Compute the secret we will return if using implicit rejection
     // pbImplicitRejectionSecret = K_bar = SHAKE256( z || c )
-    let mut pShakeState = &mut pCompTemps.hashState0;
+    let pShakeState = &mut pCompTemps.hashState0;
     crate::hash::shake256_init( pShakeState );
     crate::hash::shake256_append( pShakeState, & pkMlKemkey.privateRandom);
     crate::hash::shake256_append( pShakeState, pbReadCiphertext );

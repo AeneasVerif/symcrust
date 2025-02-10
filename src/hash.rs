@@ -4,7 +4,6 @@
 // not revealed to clients of SymCrypt, but since we are an internal client, we can leverage that
 // and save the need for a tagged union in Rust.
 
-use crate::common::*;
 
 // Previously, was:
 /*union HashStateUnion {
