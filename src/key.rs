@@ -3,6 +3,9 @@
 //
 // We offer several implementations, as this is the design phase; but we only pick one at
 // compile-time so as to not generate polymorphic code.
+#![allow(non_snake_case)]
+#![allow(non_camel_case_types)]
+#![allow(non_upper_case_globals)]
 
 use crate::common::*;
 use std::result::Result;
