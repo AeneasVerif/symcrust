@@ -17,9 +17,11 @@
 }*/
 
 #[repr(C)]
+pub(crate) // FIXME remove debug
 struct 
 KECCAK_STATE
 {
+    pub(crate) // FIXME remove debug
     state: [u64; 25],      // state for Keccak-f[1600] permutation
     inputBlockSize: u32, // rate
     stateIndex: u32,     // position in the state for next merge/extract operation
@@ -30,13 +32,14 @@ KECCAK_STATE
 #[repr(C)]
 pub(crate)
 struct HASH_STATE {
-    state: KECCAK_STATE,
+    pub(crate) // FIXME remove debug
+    ks: KECCAK_STATE,
     magic: usize,
 }
 
 pub(crate)
 const UNINITIALIZED_HASH_STATE: HASH_STATE = HASH_STATE {
-    state: KECCAK_STATE {
+    ks: KECCAK_STATE {
         state: [0; 25],
         inputBlockSize: 0,
         stateIndex: 0,

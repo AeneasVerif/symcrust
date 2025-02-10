@@ -1,25 +1,47 @@
-// use hex;
+#[test]
+pub fn test_ffi() -> Result<(), Box<dyn std::error::Error>> {
+    let mut actual = [0u8; 64];
+    let mut expected = [
+        0xa6, 0x9f, 0x73, 0xcc, 0xa2, 0x3a, 0x9a, 0xc5, 0xc8, 0xb5, 0x67, 0xdc, 0x18, 0x5a, 0x75,
+        0x6e, 0x97, 0xc9, 0x82, 0x16, 0x4f, 0xe2, 0x58, 0x59, 0xe0, 0xd1, 0xdc, 0xc1, 0x47, 0x5c,
+        0x80, 0xa6, 0x15, 0xb2, 0x12, 0x3a, 0xf1, 0xf5, 0xf9, 0x4c, 0x11, 0xe3, 0xe9, 0x40, 0x2c,
+        0x3a, 0xc5, 0x58, 0xf5, 0x00, 0x19, 0x9d, 0x95, 0xb6, 0xd3, 0xe3, 0x01, 0x75, 0x85, 0x86,
+        0x28, 0x1d, 0xcd, 0x26, 
+    ];
+    crate::hash::sha3_512(&[0u8; 0], &mut actual);
+    assert_eq!(actual, expected);
+
+    let mut hs = crate::hash::UNINITIALIZED_HASH_STATE;
+    crate::hash::sha3_512_init(&mut hs);
+    println!("internal hash state: {:?}", hs.ks.state);
+    crate::hash::sha3_512_result(&mut hs, &mut actual);
+    let mut actual = [0u8; 64];
+    assert_eq!(actual, expected);
+
+    Ok(())
+}
 
 #[test]
-pub fn test() -> Result<(), MLKEM_ERROR> {
+pub fn test_api() -> Result<(), Box<dyn std::error::Error>> {
 
     // Functional test
     let mut k = crate::key::KeyAllocate(crate::key::PARAMS::MLKEM768)?;
+    crate::mlkem::SymCryptMlKemkeyGenerate(&mut k, 0);
     let mut secret = [0u8; 32];
     let mut cipher = [0u8; 1088];
     crate::mlkem::SymCryptMlKemEncapsulate(&mut k, &mut secret, &mut cipher);
 
     let mut secret2 = [0u8; 32];
-    secret2[0] = 0;
     crate::mlkem::SymCryptMlKemDecapsulate(&mut k, &cipher, &mut secret2);
     assert_eq!(secret, secret2);
 
     // Known-answer test
-    // let key_generation_seed = hex::decode("7c9935a0b07694aa0c6d10e4db6b1add2fd81a25ccb148032dcd739936737f2d8626ed79d451140800e03b59b956f8210e556067407d13dc90fa9e8b872bfb8f")?;
-    // let sha3_256_hash_of_public_key = hex::decode("f57262661358cde8d3ebf990e5fd1d5b896c992ccfaadb5256b68bbf5943b132")?;
-    // let sha3_256_hash_of_secret_key = hex::decode("7deef44965b03d76de543ad6ef9e74a2772fa5a9fa0e761120dac767cf0152ef")?;
-    // let encapsulation_seed = hex::decode("147c03f7a5bebba406c8fae1874d7f13c80efe79a3a9a874cc09fe76f6997615")?;
-    // let sha3_256_hash_of_ciphertext = hex::decode("6e777e2cf8054659136a971d9e70252f301226930c19c470ee0688163a63c15b")?;
-    // let shared_secret = hex::decode("e7184a0975ee3470878d2d159ec83129c8aec253d4ee17b4810311d198cd0368")?;
+    let key_generation_seed = hex::decode("7c9935a0b07694aa0c6d10e4db6b1add2fd81a25ccb148032dcd739936737f2d8626ed79d451140800e03b59b956f8210e556067407d13dc90fa9e8b872bfb8f")?;
+    let sha3_256_hash_of_public_key = hex::decode("f57262661358cde8d3ebf990e5fd1d5b896c992ccfaadb5256b68bbf5943b132")?;
+    let sha3_256_hash_of_secret_key = hex::decode("7deef44965b03d76de543ad6ef9e74a2772fa5a9fa0e761120dac767cf0152ef")?;
+    let encapsulation_seed = hex::decode("147c03f7a5bebba406c8fae1874d7f13c80efe79a3a9a874cc09fe76f6997615")?;
+    let sha3_256_hash_of_ciphertext = hex::decode("6e777e2cf8054659136a971d9e70252f301226930c19c470ee0688163a63c15b")?;
+    let shared_secret = hex::decode("e7184a0975ee3470878d2d159ec83129c8aec253d4ee17b4810311d198cd0368")?;
+
     Ok(())
 }

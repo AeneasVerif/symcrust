@@ -157,7 +157,8 @@ SymCryptMlKemkeyExpandFromPrivateSeed(
     crate::hash::sha3_512(&CBDSampleBuffer[0..pkMlKemkey.privateSeed.len()+1], &mut privateSeedHash);
 
     // copy public seed
-    pkMlKemkey.publicSeed.copy_from_slice(&privateSeedHash);
+    let pkLen = pkMlKemkey.publicSeed.len();
+    pkMlKemkey.publicSeed.copy_from_slice(&privateSeedHash[0..pkLen]);
 
     // generate A from public seed
     SymCryptMlKemkeyExpandPublicMatrixFromPublicSeed( pkMlKemkey, pCompTemps );
@@ -202,7 +203,7 @@ SymCryptMlKemkeyExpandFromPrivateSeed(
     // t = ((A o (s .* R)) ./ R) + e = A o s + e
     let (a, t, _s) = pkMlKemkey.ats_mut();
     let paTmp = &mut pCompTemps.abPolyElementAccumulatorBuffer; 
-    SymCryptMlKemMatrixVectorMontMulAndAdd(a, &pCompTemps.abVectorBuffer0, t, paTmp, nRows);
+    SymCryptMlKemMatrixVectorMontMulAndAdd(a, &pCompTemps.abVectorBuffer0[0..nRows as usize], t, paTmp, nRows);
 
     // transpose A
     SymCryptMlKemMatrixTranspose( pkMlKemkey.atranspose_mut(), nRows);
@@ -536,10 +537,11 @@ SymCryptMlKemkeyGetValue(
 }
 
 
+pub(crate)
 fn
 SymCryptMlKemkeyGenerate(
     pkMlKemkey: &mut KEY,
-                                flags : u32) -> MLKEM_ERROR
+    flags : u32) -> MLKEM_ERROR
 {
     // ERROR scError = NO_ERROR;
     let mut privateSeed = [0u8; SIZEOF_FORMAT_PRIVATE_SEED];
@@ -571,8 +573,8 @@ SymCryptMlKemkeyGenerate(
     // before implementing costly PCT on ML-KEM key generation which is
     // not expected by FIPS 203
 
-// cleanup:
-//     SymCryptWipeKnownSize( privateSeed, sizeof(privateSeed) );
+    // cleanup:
+    //     SymCryptWipeKnownSize( privateSeed, sizeof(privateSeed) );
 
     MLKEM_ERROR::NO_ERROR
 }
@@ -634,9 +636,11 @@ SymCryptMlKemEncapsulateInternal(
     // Note (Rust): should we have a type that is less strict for the output of sha3_512_result?
     // Note (Rust): no assert!(SIZEOF_AGREED_SECRET < SHA3_512_RESULT_SIZE)?
     crate::hash::sha3_512_result( &mut pCompTemps.hashState0, &mut CBDSampleBuffer[0..crate::hash::SHA3_512_RESULT_SIZE].try_into().unwrap() );
+    println!("CBDSampleBuffer: {}", hex::encode(CBDSampleBuffer));
 
     // Write K to pbAgreedSecret
     pbAgreedSecret[0..SIZEOF_AGREED_SECRET].copy_from_slice(&CBDSampleBuffer[0..SIZEOF_AGREED_SECRET]);
+    println!("pbAgreedSecret: {}", hex::encode(pbAgreedSecret));
 
     // Initialize pShakeStateBase with rOuter
     crate::hash::shake256_init( &mut pCompTemps.hashState0 );
@@ -930,7 +934,7 @@ SymCryptMlKemDecapsulate(
     let successfulReencrypt = pbReencapsulatedCiphertext == pbReadCiphertext;
 
     // If not successful, perform side-channel-safe copy of Implicit Rejection secret over Decapsulated secret
-    let cbCopy = ((successfulReencrypt as usize)-1) & SIZEOF_AGREED_SECRET;
+    let cbCopy = ((successfulReencrypt as usize).wrapping_sub(1)) & SIZEOF_AGREED_SECRET;
     pbDecapsulatedSecret[0..SIZEOF_AGREED_SECRET].copy_from_slice(&pbImplicitRejectionSecret);
     // FIXME, was:
     // SymCryptScsCopy( pbImplicitRejectionSecret, cbCopy, pbDecapsulatedSecret, SIZEOF_AGREED_SECRET );

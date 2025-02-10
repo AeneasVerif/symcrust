@@ -32,6 +32,14 @@ enum MLKEM_ERROR {
     HBS_PUBLIC_ROOT_MISMATCH,
 }
 
+impl std::fmt::Display for MLKEM_ERROR {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", self)
+    }
+}
+
+impl std::error::Error for MLKEM_ERROR {}
+
 extern "C" {
     fn SymCryptCallbackRandom(pbBuffer: *mut u8, cbBuffer: usize) -> MLKEM_ERROR;
 }

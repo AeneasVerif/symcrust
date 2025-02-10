@@ -377,7 +377,7 @@ fn SymCryptMlKemPolyElementMulAndAccumulate(
         // a1b1 = red(a1*b1) -> range [0,3494]
         //   (3494 is maximum result of first step of montgomery reduction of x*y for x,y in [0,3328])
         // we do not need to do final reduction yet
-        let inv : u32= (a1b1 * NegQInvModR) & Rmask;
+        let inv : u32= (a1b1.wrapping_mul(NegQInvModR)) & Rmask;
         let a1b1: u32 = (a1b1 + (inv * Q)) >> Rlog2; // in range [0, 3494]
         assert!( a1b1 <= 3494 );
 
@@ -417,7 +417,7 @@ SymCryptMlKemMontgomeryReduceAndAddPolyElementAccumulatorToPolyElement(
         assert!( c < Q );
 
         // montgomery reduce sum of products
-        let inv = (a * NegQInvModR) & Rmask;
+        let inv = (a.wrapping_mul(NegQInvModR)) & Rmask;
         a = (a + (inv * Q)) >> Rlog2; // in range [0, 4711]
         assert!( a <= 4711 );
 
@@ -428,7 +428,7 @@ SymCryptMlKemMontgomeryReduceAndAddPolyElementAccumulatorToPolyElement(
         // subtraction and conditional additions for constant time range reduction
         c = c.wrapping_sub(2*Q);           // in range [-2Q, 1381]
         assert!( (c >= ((-2*(Q as i32)) as u32)) || (c < 1381) );
-        c += Q & (c >> 16); // in range [-Q, Q-1]
+        c = c.wrapping_add(Q & (c >> 16)); // in range [-Q, Q-1]
         assert!( (c >= ((-(Q as i32) as u32))) || (c < Q) );
         c = c.wrapping_add(Q & (c >> 16)); // in range [0, Q-1]
         assert!( c < Q );
@@ -855,8 +855,8 @@ SymCryptMlKemMatrixVectorMontMulAndAdd(
 
     assert!( nRows >  0 );
     assert!( nRows <= MATRIX_MAX_NROWS );
-    assert!( pvSrc2.len() == nRows );
-    assert!( pvDst.len() == nRows );
+    assert_eq!( pvSrc2.len(), nRows );
+    assert_eq!( pvDst.len() ,nRows );
 
     // Zero paTmp
     // FIXME
