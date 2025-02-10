@@ -12,6 +12,7 @@ pub fn test() -> Result<(), MLKEM_ERROR> {
     crate::mlkem::SymCryptMlKemEncapsulate(&mut k, &mut secret, &mut cipher);
 
     let mut secret2 = [0u8; 32];
+    secret2[0] = 0;
     crate::mlkem::SymCryptMlKemDecapsulate(&mut k, &cipher, &mut secret2);
     assert_eq!(secret, secret2);
 

@@ -426,11 +426,11 @@ SymCryptMlKemMontgomeryReduceAndAddPolyElementAccumulatorToPolyElement(
         assert!( c <= 8039 );
 
         // subtraction and conditional additions for constant time range reduction
-        c -= 2*Q;           // in range [-2Q, 1381]
+        c = c.wrapping_sub(2*Q);           // in range [-2Q, 1381]
         assert!( (c >= ((-2*(Q as i32)) as u32)) || (c < 1381) );
         c += Q & (c >> 16); // in range [-Q, Q-1]
         assert!( (c >= ((-(Q as i32) as u32))) || (c < Q) );
-        c += Q & (c >> 16); // in range [0, Q-1]
+        c = c.wrapping_add(Q & (c >> 16)); // in range [0, Q-1]
         assert!( c < Q );
 
         peDst[i] = c as u16;
@@ -741,7 +741,7 @@ fn SymCryptMlKemPolyElementSampleCBDFromBytes(
     assert!((eta == 2) || (eta == 3));
     if eta == 3
     {
-        c_for!(let mut i = 0; i < MLWE_POLYNOMIAL_COEFFICIENTS; i += 1;
+        c_for!(let mut i = 0; i < MLWE_POLYNOMIAL_COEFFICIENTS; i += 4;
         {
             // unconditionally load 4 bytes into sampleBits, but only treat the load
             // as being 3 bytes (24-bits -> 4 coefficients) for eta==3 to align to
@@ -774,7 +774,7 @@ fn SymCryptMlKemPolyElementSampleCBDFromBytes(
     }
     else
     {
-        c_for!(let mut i = 0; i < MLWE_POLYNOMIAL_COEFFICIENTS; i += 1;
+        c_for!(let mut i = 0; i < MLWE_POLYNOMIAL_COEFFICIENTS; i += 8;
         {
             // unconditionally load 4 bytes (32-bits -> 8 coefficients) into sampleBits
             let mut sampleBits = u32::from_le_bytes(slice_to_sub_array::<4>(pbSrc, src_i));

@@ -197,7 +197,7 @@ SymCryptMlKemkeyExpandFromPrivateSeed(
     SymCryptMlKemVectorMulR( pkMlKemkey.s_mut(), pvTmp);
 
     // t = ((A o (s .* R)) ./ R) + e = A o s + e
-    let (a, _, t) = pkMlKemkey.ast_mut();
+    let (a, t, _s) = pkMlKemkey.ats_mut();
     let paTmp = &mut pCompTemps.abPolyElementAccumulatorBuffer; 
     SymCryptMlKemMatrixVectorMontMulAndAdd(a, &pCompTemps.abVectorBuffer0, t, paTmp, nRows);
 
@@ -288,7 +288,7 @@ SymCryptMlKemkeySetValue(
     //     return MLKEM_ERROR::INVALID_ARGUMENT;
     // }
 
-    if( ( flags & FLAG_KEY_NO_FIPS ) == 0 )
+    if ( flags & FLAG_KEY_NO_FIPS ) == 0
     {
         // FIXME
         // Ensure ML-KEM algorithm selftest is run before first use of ML-KEM algorithms;
@@ -316,7 +316,7 @@ SymCryptMlKemkeySetValue(
     match mlKemkeyFormat {
     MLKEMKEY_FORMAT::PRIVATE_SEED =>
     {
-        if( pbSrc.len() != SIZEOF_FORMAT_PRIVATE_SEED )
+        if pbSrc.len() != SIZEOF_FORMAT_PRIVATE_SEED
         {
             return MLKEM_ERROR::WRONG_KEY_SIZE;
         }
@@ -740,7 +740,7 @@ SymCryptMlKemEncapsulateEx(
     let cbAgreedSecret = pbAgreedSecret.len();
     let cbCiphertext = pbCiphertext.len();
 
-    if( cbRandom != SIZEOF_ENCAPS_RANDOM )
+    if cbRandom != SIZEOF_ENCAPS_RANDOM
     {
         return MLKEM_ERROR::INVALID_ARGUMENT;
     }
@@ -780,7 +780,7 @@ SymCryptMlKemEncapsulate(
     let mut pbm = [0u8; SIZEOF_ENCAPS_RANDOM];
 
     let scError = callback_random( &mut pbm );
-    if( scError != MLKEM_ERROR::NO_ERROR )
+    if scError != MLKEM_ERROR::NO_ERROR
     {
         return scError;
     }

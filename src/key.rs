@@ -277,36 +277,47 @@ type KEY2 = PreKey2<[POLYELEMENT]>;
 type MATRIX2 = [POLYELEMENT];
 
 impl KEY2 {
+    fn matrix_len(&self) -> usize {
+        self.nRows * self.nRows
+    }
     pub fn atranspose(&self) -> &[POLYELEMENT] {
-        &self.data[0..2*self.nRows]
+        let m_len = self.matrix_len();
+        &self.data[0..m_len]
     }
     pub fn t(&self) -> &[POLYELEMENT] {
-        &self.data[2*self.nRows..3*self.nRows]
+        let m_len = self.matrix_len();
+        &self.data[m_len..m_len+self.nRows]
     }
     pub fn s(&self) -> &[POLYELEMENT] {
-        &self.data[3*self.nRows..4*self.nRows]
+        let m_len = self.matrix_len();
+        &self.data[m_len+self.nRows..m_len+2*self.nRows]
     }
     pub fn atranspose_mut(&mut self) -> &mut [POLYELEMENT] {
-        &mut self.data[0..2*self.nRows]
+        let m_len = self.matrix_len();
+        &mut self.data[0..m_len]
     }
     pub fn t_mut(&mut self) -> &mut [POLYELEMENT] {
-        &mut self.data[2*self.nRows..3*self.nRows]
+        let m_len = self.matrix_len();
+        &mut self.data[m_len..m_len+self.nRows]
     }
     pub fn s_mut(&mut self) -> &mut [POLYELEMENT] {
-        &mut self.data[3*self.nRows..4*self.nRows]
+        let m_len = self.matrix_len();
+        &mut self.data[m_len+self.nRows..m_len+2*self.nRows]
     }
 
     // FIXME: slightly unpleasant, owing to the nature of the encoding; but perhaps this is
     // inevitable; alternatively, we could put all of the "public" fields in their own struct; and
     // then return that struct + a, s, t (so, a quadruple)
-    pub fn ast_mut(&mut self) -> (&mut [POLYELEMENT], &mut [POLYELEMENT], &mut [POLYELEMENT]) {
-        let (a, st) = self.data.split_at_mut(2*self.nRows);
-        let (s, t) = st.split_at_mut(self.nRows);
-        (a, s, t)
+    pub fn ats_mut(&mut self) -> (&mut [POLYELEMENT], &mut [POLYELEMENT], &mut [POLYELEMENT]) {
+        let m_len = self.matrix_len();
+        let (a, ts) = self.data.split_at_mut(m_len);
+        let (t, s) = ts.split_at_mut(self.nRows);
+        (a, t, s)
     }
 
     pub fn t_encoded_t_mut(&mut self) -> (&mut [POLYELEMENT], &mut [u8; KEY_MAX_SIZEOF_ENCODED_T]) {
-        (&mut self.data[2*self.nRows..3*self.nRows], &mut self.encodedT)
+        let m_len = self.matrix_len();
+        (&mut self.data[m_len..m_len+self.nRows], &mut self.encodedT)
     }
 }
 
@@ -330,7 +341,7 @@ fn KeyAllocate2(params: PARAMS) -> Result<Box<KEY2>,MLKEM_ERROR> {
                 encodedT: [0u8; KEY_MAX_SIZEOF_ENCODED_T],
                 encapsKeyHash: [0u8; 32],
                 nRows,
-                data: [POLYELEMENT_ZERO; 4*nRows]
+                data: [POLYELEMENT_ZERO; nRows*nRows+2*nRows]
             }))
         },
         PARAMS::MLKEM768 => {
@@ -349,7 +360,7 @@ fn KeyAllocate2(params: PARAMS) -> Result<Box<KEY2>,MLKEM_ERROR> {
                 encodedT: [0u8; KEY_MAX_SIZEOF_ENCODED_T],
                 encapsKeyHash: [0u8; 32],
                 nRows,
-                data: [POLYELEMENT_ZERO; 4*nRows]
+                data: [POLYELEMENT_ZERO; nRows*nRows+2*nRows]
             }))
         },
         PARAMS::MLKEM1024 => {
@@ -368,7 +379,7 @@ fn KeyAllocate2(params: PARAMS) -> Result<Box<KEY2>,MLKEM_ERROR> {
                 encodedT: [0u8; KEY_MAX_SIZEOF_ENCODED_T],
                 encapsKeyHash: [0u8; 32],
                 nRows,
-                data: [POLYELEMENT_ZERO; 4*nRows]
+                data: [POLYELEMENT_ZERO; nRows*nRows+2*nRows]
             }))
         },
     }
@@ -395,6 +406,7 @@ pub(crate)
 type KEY3 = PreKey2<[u64]>;
 
 impl KEY3 {
+    // FIXME OFFSET COMPUTATIONS INCORRECT HERE SEE KEY2, ABOVE
     pub fn atranspose(&self) -> &[POLYELEMENT] {
         unsafe {
             std::slice::from_raw_parts((&raw const self.data).cast::<POLYELEMENT>(), 2*self.nRows)
