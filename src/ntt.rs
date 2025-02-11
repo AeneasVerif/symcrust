@@ -743,6 +743,7 @@ fn SymCryptMlKemPolyElementSampleCBDFromBytes(
             // as being 3 bytes (24-bits -> 4 coefficients) for eta==3 to align to
             // byte boundaries. Source buffer must be 1 byte larger than shake output
             let mut sampleBits = u32::from_le_bytes(slice_to_sub_array::<4>(pbSrc, src_i));
+            println!("RS sampleBits: {:#10x}", sampleBits);
             src_i += 3;
 
             // sum bit samples - each consecutive slice of eta bits is summed together
@@ -763,6 +764,7 @@ fn SymCryptMlKemPolyElementSampleCBDFromBytes(
                            assert!( coefficient < Q );
 
                            peDst[i+j] = coefficient as u16;
+                           println!("RS peDst[i+j]: {:#06x}", coefficient as u16);
                        });
             }
             then_inner_loop(peDst, i, &mut sampleBits);
@@ -794,6 +796,7 @@ fn SymCryptMlKemPolyElementSampleCBDFromBytes(
                            assert!( coefficient < Q );
 
                            peDst[i+j] = coefficient as u16;
+                           println!("RS peDst[i+j]: {:#06x}", coefficient as u16);
                        });
             }
             else_inner_loop(peDst, i, &mut sampleBits);
@@ -869,7 +872,7 @@ SymCryptMlKemMatrixVectorMontMulAndAdd(
         ) {
             c_for!(let mut j = 0; j < nRows; j += 1;
             {
-                SymCryptMlKemPolyElementMulAndAccumulate_aux(pmSrc1, nRows, i, j, &pvSrc2[i], paTmp );
+                SymCryptMlKemPolyElementMulAndAccumulate_aux(pmSrc1, nRows, i, j, &pvSrc2[j], paTmp );
             });
         }
         inner_loop(pmSrc1, pvSrc2, paTmp, nRows, i);

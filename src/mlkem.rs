@@ -10,6 +10,20 @@ use crate::key::*;
 
 use crate::c_for;
 
+/* DEBUG */
+
+use itertools::Itertools;
+
+fn debug_bytes(name: &str, bytes: &[u8]) {
+    println!("RS {}: {}", name, hex::encode(bytes));
+}
+
+fn debug_poly_element(name: &str, i: u8, elt: &POLYELEMENT) {
+    println!("RS {}[{}]: {}", name, i, elt.into_iter().map(|x| { hex::encode(x.to_le_bytes()) }).format(""))
+}
+
+/* END DEBUG */
+
 const fn SIZEOF_ENCODED_UNCOMPRESSED_VECTOR(_nRows: usize) -> usize { 384 * _nRows }
 
 // d and z are each 32 bytes
@@ -154,6 +168,7 @@ SymCryptMlKemkeyExpandFromPrivateSeed(
     CBDSampleBuffer[0..pkMlKemkey.privateSeed.len()].copy_from_slice(&pkMlKemkey.privateSeed);
     CBDSampleBuffer[pkMlKemkey.privateSeed.len() /* == 32 */] = nRows;
     crate::hash::sha3_512(&CBDSampleBuffer[0..pkMlKemkey.privateSeed.len()+1], &mut privateSeedHash);
+    debug_bytes("privateSeedHash", &privateSeedHash);
 
     // copy public seed
     let pkLen = pkMlKemkey.publicSeed.len();
@@ -173,8 +188,11 @@ SymCryptMlKemkeyExpandFromPrivateSeed(
         crate::hash::shake256_append( &mut pCompTemps.hashState1, &CBDSampleBuffer[0..1] );
 
         crate::hash::shake256_extract( &mut pCompTemps.hashState1, &mut CBDSampleBuffer[0..64usize*(nEta1 as usize)], false);
+        debug_bytes("shake256_extract", &CBDSampleBuffer[0..64usize*(nEta1 as usize)]);
 
+        // debug_poly_element("s[i]", &pkMlKemkey.s()[i as usize]);
         SymCryptMlKemPolyElementSampleCBDFromBytes( &CBDSampleBuffer, nEta1 as u32, &mut pkMlKemkey.s_mut()[i as usize]);
+        debug_poly_element("s", i, &pkMlKemkey.s()[i as usize]);
     });
     // Expand e in t, ready for multiply-add
     c_for!(let mut i = 0; i < nRows; i += 1; {
@@ -187,22 +205,32 @@ SymCryptMlKemkeyExpandFromPrivateSeed(
         crate::hash::shake256_append( &mut pCompTemps.hashState1, &CBDSampleBuffer[0..1] );
 
         crate::hash::shake256_extract( &mut pCompTemps.hashState1, &mut CBDSampleBuffer[0..64*(nEta1 as usize)], false );
+        debug_bytes("shake256_extract", &CBDSampleBuffer[0..64usize*(nEta1 as usize)]);
 
         SymCryptMlKemPolyElementSampleCBDFromBytes( &CBDSampleBuffer, nEta1 as u32, &mut pkMlKemkey.t_mut()[i as usize]);
+        debug_poly_element("t", i, &pkMlKemkey.t()[i as usize]);
     });
 
     // Perform NTT on s and e
     SymCryptMlKemVectorNTT( pkMlKemkey.s_mut() );
+    debug_poly_element("s", 0, &pkMlKemkey.s()[0]);
+    println!("RS s[0][0] {:#06x}", &pkMlKemkey.s()[0][0]);
     SymCryptMlKemVectorNTT( pkMlKemkey.t_mut() );
 
     // pvTmp = s .* R
     let pvTmp = &mut pCompTemps.abVectorBuffer0[0..nRows as usize];
     SymCryptMlKemVectorMulR( pkMlKemkey.s_mut(), pvTmp);
+    println!("RS s[0][0] {:#06x}", &pkMlKemkey.s()[0][0]);
 
     // t = ((A o (s .* R)) ./ R) + e = A o s + e
+    println!("RS t[0][0] {:#06x}", &pkMlKemkey.t()[0][0]);
     let (a, t, _s) = pkMlKemkey.ats_mut();
     let paTmp = &mut pCompTemps.abPolyElementAccumulatorBuffer; 
     SymCryptMlKemMatrixVectorMontMulAndAdd(a, &pCompTemps.abVectorBuffer0[0..nRows as usize], t, paTmp, nRows);
+    println!("RS t[0][0] {:#06x}", &pkMlKemkey.t()[0][0]);
+    println!("RS a[0][0] {:#06x}", &pkMlKemkey.atranspose()[0][0]);
+    println!("RS a[0][1] {:#06x}", &pkMlKemkey.atranspose()[0][1]);
+    println!("RS a[0][2] {:#06x}", &pkMlKemkey.atranspose()[0][2]);
 
     // transpose A
     SymCryptMlKemMatrixTranspose( pkMlKemkey.atranspose_mut(), nRows);
@@ -210,6 +238,7 @@ SymCryptMlKemkeyExpandFromPrivateSeed(
     // precompute byte-encoding of public vector t
     let (t, encodedT) = pkMlKemkey.t_encoded_t_mut();
     SymCryptMlKemVectorCompressAndEncode(t, 12, &mut encodedT[0..cbEncodedVector] );
+    debug_bytes("encodedT", &encodedT[0..cbEncodedVector]);
 
     // precompute hash of encapsulation key blob
     SymCryptMlKemkeyComputeEncapsulationKeyHash( pkMlKemkey, pCompTemps);
@@ -265,6 +294,7 @@ SymCryptMlKemkeySetValue(
     flags: u32,
     pkMlKemkey: &mut KEY ) -> MLKEM_ERROR
 {
+    debug_bytes("pbSrc", pbSrc);
     // ERROR scError = NO_ERROR;
     let mut pbCurr: usize = 0;
     // PINTERNAL_COMPUTATION_TEMPORARIES pCompTemps = NULL;
@@ -334,6 +364,9 @@ SymCryptMlKemkeySetValue(
         let l = pkMlKemkey.privateRandom.len();
         pkMlKemkey.privateRandom.copy_from_slice(&pbSrc[pbCurr..pbCurr+l]);
         pbCurr += l;
+
+        debug_bytes("privateSeed", &pkMlKemkey.privateSeed);
+        debug_bytes("privateRandom", &pkMlKemkey.privateRandom);
 
         SymCryptMlKemkeyExpandFromPrivateSeed( pkMlKemkey, &mut pCompTemps );
     },

@@ -55,7 +55,7 @@ int main() {
       SymCryptMlKemkeyAllocate(SYMCRYPT_MLKEM_PARAMS_MLKEM768);
   SYMCRYPT_ERROR r =
       SymCryptMlKemkeySetValue(key_generation_seed, sizeof(key_generation_seed),
-                               SYMCRYPT_MLKEMKEY_FORMAT_PRIVATE_SEED, 0, k);
+                               SYMCRYPT_MLKEMKEY_FORMAT_PRIVATE_SEED, SYMCRYPT_FLAG_KEY_NO_FIPS, k);
   CHECK_ERROR(r, "setvalue");
 
   unsigned char secret_key[2400] = { 0 };
