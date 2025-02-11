@@ -1,10 +1,11 @@
 // use std::io::Write;
-use crate::common::*;
+use crate::common::MLKEM_ERROR;
 
+#[allow(dead_code)]
 #[test]
 pub fn test_ffi() -> Result<(), Box<dyn std::error::Error>> {
     let mut actual = [0u8; 64];
-    let mut expected = [
+    let expected = [
         0xa6, 0x9f, 0x73, 0xcc, 0xa2, 0x3a, 0x9a, 0xc5, 0xc8, 0xb5, 0x67, 0xdc, 0x18, 0x5a, 0x75,
         0x6e, 0x97, 0xc9, 0x82, 0x16, 0x4f, 0xe2, 0x58, 0x59, 0xe0, 0xd1, 0xdc, 0xc1, 0x47, 0x5c,
         0x80, 0xa6, 0x15, 0xb2, 0x12, 0x3a, 0xf1, 0xf5, 0xf9, 0x4c, 0x11, 0xe3, 0xe9, 0x40, 0x2c,
@@ -34,6 +35,7 @@ pub fn test_ffi() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+#[allow(dead_code)]
 #[test]
 pub fn test_api() -> Result<(), Box<dyn std::error::Error>> {
 
@@ -59,10 +61,10 @@ pub fn test_api() -> Result<(), Box<dyn std::error::Error>> {
     crate::hash::sha3_256(&secret_key, &mut actual_sha3_256_hash_of_secret_key);
     assert_eq!(sha3_256_hash_of_secret_key, actual_sha3_256_hash_of_secret_key);
 
-    let sha3_256_hash_of_public_key = hex::decode("f57262661358cde8d3ebf990e5fd1d5b896c992ccfaadb5256b68bbf5943b132")?;
-    let encapsulation_seed = hex::decode("147c03f7a5bebba406c8fae1874d7f13c80efe79a3a9a874cc09fe76f6997615")?;
-    let sha3_256_hash_of_ciphertext = hex::decode("6e777e2cf8054659136a971d9e70252f301226930c19c470ee0688163a63c15b")?;
-    let shared_secret = hex::decode("e7184a0975ee3470878d2d159ec83129c8aec253d4ee17b4810311d198cd0368")?;
+    let _sha3_256_hash_of_public_key = hex::decode("f57262661358cde8d3ebf990e5fd1d5b896c992ccfaadb5256b68bbf5943b132")?;
+    let _encapsulation_seed = hex::decode("147c03f7a5bebba406c8fae1874d7f13c80efe79a3a9a874cc09fe76f6997615")?;
+    let _sha3_256_hash_of_ciphertext = hex::decode("6e777e2cf8054659136a971d9e70252f301226930c19c470ee0688163a63c15b")?;
+    let _shared_secret = hex::decode("e7184a0975ee3470878d2d159ec83129c8aec253d4ee17b4810311d198cd0368")?;
 
     // Functional test -- should roundtrip!
     let mut k = crate::key::KeyAllocate(crate::key::PARAMS::MLKEM768)?;

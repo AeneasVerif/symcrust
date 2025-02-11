@@ -3,9 +3,6 @@
 //
 // Copyright (c) Microsoft Corporation. Licensed under the MIT license.
 //
-#![allow(non_snake_case)]
-#![allow(non_camel_case_types)]
-#![allow(non_upper_case_globals)]
 
 use crate::common::*;
 use crate::ntt::*;
@@ -118,8 +115,7 @@ fn SymCryptMlKemkeyExpandPublicMatrixFromPublicSeed(
 fn
 SymCryptMlKemkeyComputeEncapsulationKeyHash(
     pkMlKemkey: &mut KEY,
-    pCompTemps: &mut INTERNAL_COMPUTATION_TEMPORARIES,
-    cbEncodedVector: usize )
+    pCompTemps: &mut INTERNAL_COMPUTATION_TEMPORARIES,)
 {
     let pState = &mut pCompTemps.hashState0;
 
@@ -216,7 +212,7 @@ SymCryptMlKemkeyExpandFromPrivateSeed(
     SymCryptMlKemVectorCompressAndEncode(t, 12, &mut encodedT[0..cbEncodedVector] );
 
     // precompute hash of encapsulation key blob
-    SymCryptMlKemkeyComputeEncapsulationKeyHash( pkMlKemkey, pCompTemps, cbEncodedVector );
+    SymCryptMlKemkeyComputeEncapsulationKeyHash( pkMlKemkey, pCompTemps);
 
     // Cleanup!
     // FIXME
@@ -417,7 +413,7 @@ SymCryptMlKemkeySetValue(
         SymCryptMlKemMatrixTranspose( pkMlKemkey.atranspose_mut(), nRows );
 
         // precompute hash of encapsulation key blob
-        SymCryptMlKemkeyComputeEncapsulationKeyHash( pkMlKemkey, &mut pCompTemps, cbEncodedVector );
+        SymCryptMlKemkeyComputeEncapsulationKeyHash( pkMlKemkey, &mut pCompTemps);
 
         pkMlKemkey.hasPrivateSeed = false;
         pkMlKemkey.hasPrivateKey  = false;
@@ -747,8 +743,8 @@ SymCryptMlKemEncapsulateEx(
 ) -> MLKEM_ERROR
 {
     let cbRandom = pbRandom.len();
-    let cbAgreedSecret = pbAgreedSecret.len();
-    let cbCiphertext = pbCiphertext.len();
+    // let cbAgreedSecret = pbAgreedSecret.len();
+    // let cbCiphertext = pbCiphertext.len();
 
     if cbRandom != SIZEOF_ENCAPS_RANDOM
     {
@@ -934,10 +930,10 @@ SymCryptMlKemDecapsulate(
     crate::hash::shake256_extract( pShakeState, &mut pbImplicitRejectionSecret, false );
 
     // Constant time test if re-encryption successful
-    let successfulReencrypt = pbReencapsulatedCiphertext == pbReadCiphertext;
+    // let successfulReencrypt = pbReencapsulatedCiphertext == pbReadCiphertext;
 
     // If not successful, perform side-channel-safe copy of Implicit Rejection secret over Decapsulated secret
-    let cbCopy = ((successfulReencrypt as usize).wrapping_sub(1)) & SIZEOF_AGREED_SECRET;
+    // let cbCopy = ((successfulReencrypt as usize).wrapping_sub(1)) & SIZEOF_AGREED_SECRET;
     pbDecapsulatedSecret[0..SIZEOF_AGREED_SECRET].copy_from_slice(&pbImplicitRejectionSecret);
     // FIXME, was:
     // SymCryptScsCopy( pbImplicitRejectionSecret, cbCopy, pbDecapsulatedSecret, SIZEOF_AGREED_SECRET );

@@ -3,9 +3,6 @@
 //
 // We offer several implementations, as this is the design phase; but we only pick one at
 // compile-time so as to not generate polymorphic code.
-#![allow(non_snake_case)]
-#![allow(non_camel_case_types)]
-#![allow(non_upper_case_globals)]
 
 use crate::common::*;
 use std::result::Result;
@@ -31,7 +28,7 @@ enum FORMAT {
 }
 
 #[derive(PartialEq)]
-pub(crate) enum PARAMS {
+pub enum PARAMS {
     // Rust: unclear if needed
     // PARAMS_NULL          = 0,
     MLKEM512      = 1,
@@ -250,7 +247,7 @@ fn KeyAllocate1(params: PARAMS) -> Result<Box<KEY1>,MLKEM_ERROR>
 // It also forces us to be a little more verbose because Rust does not allow allocating such a type
 // when the length of the variable part is not a compile-time constant.
 
-pub(crate)
+pub
 struct PreKey2<U: ?Sized> {
     pub(crate) fAlgorithmInfo: u32,
     pub(crate) params: INTERNAL_PARAMS,
@@ -273,7 +270,7 @@ struct PreKey2<U: ?Sized> {
 
 }
 
-pub(crate)
+pub
 type KEY2 = PreKey2<[POLYELEMENT]>;
 
 // (of size nRows)

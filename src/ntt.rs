@@ -30,10 +30,6 @@
 // standard form, or the NTT form. For brevity we tend to refer to polynomial ring elements as PolyElements.
 //
 
-#![allow(non_snake_case)]
-#![allow(non_camel_case_types)]
-#![allow(non_upper_case_globals)]
-
 // FIXME: using a range-based iterator involves a remarkable amount of traits, including advanced
 // features like associated types; for the quality of the C code, we instead rely on a custom macro
 // that expands to a while-loop, to be later peephole-optimized into a C for loop

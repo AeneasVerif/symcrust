@@ -4,10 +4,6 @@
 // not revealed to clients of SymCrypt, but since we are an internal client, we can leverage that
 // and save the need for a tagged union in Rust.
 
-#![allow(non_snake_case)]
-#![allow(non_camel_case_types)]
-#![allow(non_upper_case_globals)]
-
 // Previously, was:
 /*union HashStateUnion {
     shake128State: shake128State,

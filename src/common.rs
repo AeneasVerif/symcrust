@@ -1,11 +1,8 @@
 // FIXME: move this into a shared set of definitions, rename to SYMCRYPT_ERROR
-#![allow(non_snake_case)]
-#![allow(non_camel_case_types)]
-#![allow(non_upper_case_globals)]
 
 #[derive(PartialEq, Debug)]
 #[repr(C)]
-pub(crate)
+pub
 enum MLKEM_ERROR {
     NO_ERROR = 0,
     UNUSED = 0x8000, // Start our error codes here so they're easier to distinguish
