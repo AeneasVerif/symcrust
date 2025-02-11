@@ -19,11 +19,13 @@ const fn SIZEOF_ENCODED_UNCOMPRESSED_VECTOR(_nRows: usize) -> usize { 384 * _nRo
 const SIZEOF_FORMAT_PRIVATE_SEED: usize =               2*32;
 // s and t are encoded uncompressed vectors
 // public seed, H(encapsulation key) and z are each 32 bytes
+pub(crate)
 const fn SIZEOF_FORMAT_DECAPSULATION_KEY(_nRows: usize) -> usize {
     2*SIZEOF_ENCODED_UNCOMPRESSED_VECTOR(_nRows) + 3*32
 }
 // t is encoded uncompressed vector
 // public seed is 32 bytes
+pub(crate)
 const fn SIZEOF_FORMAT_ENCAPSULATION_KEY(_nRows: usize) -> usize {
     SIZEOF_ENCODED_UNCOMPRESSED_VECTOR(_nRows) + 32
 }
@@ -37,6 +39,7 @@ const CIPHERTEXT_SIZE_MLKEM1024 : usize = 1568;
 //  -   The below formats apply **only to external formats**: When somebody is
 //      importing a key (from test vectors, for example) or exporting a key.
 //      The internal format of the keys is not visible to the caller.
+pub(crate)
 enum MLKEMKEY_FORMAT {
         // Note (Rust): skipping NULL case since these things are exhaustive, but keeping the
         // values for ease of debug / differential testing
@@ -258,6 +261,7 @@ const FLAG_ECKEY_ECDH: u32 = 0x2000;
 const FLAG_RSAKEY_SIGN: u32 = 0x1000;
 const FLAG_RSAKEY_ENCRYPT: u32 = 0x2000;
 
+pub(crate)
 fn
 SymCryptMlKemkeySetValue(
     pbSrc: &[u8],
@@ -440,6 +444,7 @@ SymCryptMlKemkeySetValue(
 }
 
 
+pub(crate)
 fn
 SymCryptMlKemkeyGetValue(
     pkMlKemkey: &KEY,
@@ -496,7 +501,7 @@ SymCryptMlKemkeyGetValue(
         SymCryptMlKemVectorCompressAndEncode( pkMlKemkey.s(), 12, &mut pbDst[0..cbEncodedVector] );
         pbCurr += cbEncodedVector;
 
-        pbDst[pbCurr..pbCurr+cbEncodedVector].copy_from_slice(&pkMlKemkey.encodedT);
+        pbDst[pbCurr..pbCurr+cbEncodedVector].copy_from_slice(&pkMlKemkey.encodedT[0..cbEncodedVector]);
         pbCurr += cbEncodedVector;
 
         pbDst[pbCurr..pbCurr+pkMlKemkey.publicSeed.len()].copy_from_slice(&pkMlKemkey.publicSeed);
@@ -635,12 +640,10 @@ SymCryptMlKemEncapsulateInternal(
     crate::hash::sha3_512_append( &mut pCompTemps.hashState0, &pkMlKemkey.encapsKeyHash);
     // Note (Rust): should we have a type that is less strict for the output of sha3_512_result?
     // Note (Rust): no assert!(SIZEOF_AGREED_SECRET < SHA3_512_RESULT_SIZE)?
-    crate::hash::sha3_512_result( &mut pCompTemps.hashState0, &mut CBDSampleBuffer[0..crate::hash::SHA3_512_RESULT_SIZE].try_into().unwrap() );
-    println!("CBDSampleBuffer: {}", hex::encode(CBDSampleBuffer));
+    crate::hash::sha3_512_result( &mut pCompTemps.hashState0, (&mut CBDSampleBuffer[0..crate::hash::SHA3_512_RESULT_SIZE]).try_into().unwrap() );
 
     // Write K to pbAgreedSecret
     pbAgreedSecret[0..SIZEOF_AGREED_SECRET].copy_from_slice(&CBDSampleBuffer[0..SIZEOF_AGREED_SECRET]);
-    println!("pbAgreedSecret: {}", hex::encode(pbAgreedSecret));
 
     // Initialize pShakeStateBase with rOuter
     crate::hash::shake256_init( &mut pCompTemps.hashState0 );

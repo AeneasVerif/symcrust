@@ -30,6 +30,7 @@ KECCAK_STATE
 }
 
 #[repr(C)]
+#[repr(align(16))]
 pub(crate)
 struct HASH_STATE {
     pub(crate) // FIXME remove debug
@@ -40,13 +41,13 @@ struct HASH_STATE {
 pub(crate)
 const UNINITIALIZED_HASH_STATE: HASH_STATE = HASH_STATE {
     ks: KECCAK_STATE {
-        state: [0; 25],
-        inputBlockSize: 0,
-        stateIndex: 0,
-        paddingValue: 0,
+        state: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24],
+        inputBlockSize: 25,
+        stateIndex: 26,
+        paddingValue: 27,
         squeezeMode: false,
     },
-    magic: 0 // set by the various init* functions
+    magic: 28 // set by the various init* functions
 };
 
 pub(crate) const SHAKE128_RESULT_SIZE: usize = 32;
@@ -220,6 +221,7 @@ pub(crate) fn sha3_512(pbData: &[u8], pbResult: &mut [u8; SHA3_512_RESULT_SIZE])
 }
 
 pub(crate) fn sha3_512_init(pState: &mut HASH_STATE) {
+    println!("pState addr: {:p}", pState);
     unsafe {
         SymCryptSha3_512Init(pState)
     }
