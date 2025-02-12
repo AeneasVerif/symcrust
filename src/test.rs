@@ -61,7 +61,15 @@ pub fn test_api() -> Result<(), Box<dyn std::error::Error>> {
     crate::hash::sha3_256(&secret_key, &mut actual_sha3_256_hash_of_secret_key);
     assert_eq!(sha3_256_hash_of_secret_key, actual_sha3_256_hash_of_secret_key);
 
-    let _sha3_256_hash_of_public_key = hex::decode("f57262661358cde8d3ebf990e5fd1d5b896c992ccfaadb5256b68bbf5943b132")?;
+    let mut public_key = [0u8; crate::mlkem::SIZEOF_FORMAT_ENCAPSULATION_KEY(3)];
+    let r = crate::mlkem::SymCryptMlKemkeyGetValue(&k, &mut public_key, crate::mlkem::MLKEMKEY_FORMAT::ENCAPSULATION_KEY, 0);
+    if r != MLKEM_ERROR::NO_ERROR {
+        return Err(Box::new(r))
+    }
+    let sha3_256_hash_of_public_key = hex::decode("f57262661358cde8d3ebf990e5fd1d5b896c992ccfaadb5256b68bbf5943b132")?;
+    let mut actual_sha3_256_hash_of_public_key = [0u8; 32];
+    crate::hash::sha3_256(&public_key, &mut actual_sha3_256_hash_of_public_key);
+
     let _encapsulation_seed = hex::decode("147c03f7a5bebba406c8fae1874d7f13c80efe79a3a9a874cc09fe76f6997615")?;
     let _sha3_256_hash_of_ciphertext = hex::decode("6e777e2cf8054659136a971d9e70252f301226930c19c470ee0688163a63c15b")?;
     let _shared_secret = hex::decode("e7184a0975ee3470878d2d159ec83129c8aec253d4ee17b4810311d198cd0368")?;
