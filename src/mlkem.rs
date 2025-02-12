@@ -132,9 +132,9 @@ SymCryptMlKemkeyComputeEncapsulationKeyHash(
     pCompTemps: &mut INTERNAL_COMPUTATION_TEMPORARIES,)
 {
     let pState = &mut pCompTemps.hashState0;
-
+    let cbEncodedVector = SIZEOF_ENCODED_UNCOMPRESSED_VECTOR(pkMlKemkey.params.nRows as usize);
     crate::hash::sha3_256_init( pState );
-    crate::hash::sha3_256_append( pState, &pkMlKemkey.encodedT);
+    crate::hash::sha3_256_append( pState, &pkMlKemkey.encodedT[0..cbEncodedVector]);
     crate::hash::sha3_256_append( pState, &pkMlKemkey.publicSeed);
     crate::hash::sha3_256_result( pState, &mut pkMlKemkey.encapsKeyHash );
 }
@@ -387,7 +387,7 @@ SymCryptMlKemkeySetValue(
         pbCurr += cbEncodedVector;
 
         // copy t and decode t
-        pkMlKemkey.encodedT.copy_from_slice(&pbSrc[pbCurr..pbCurr+cbEncodedVector]);
+        pkMlKemkey.encodedT[0..cbEncodedVector].copy_from_slice(&pbSrc[pbCurr..pbCurr+cbEncodedVector]);
         pbCurr += cbEncodedVector;
         let (t, encodedT) = pkMlKemkey.t_encoded_t_mut();
         let scError = SymCryptMlKemVectorDecodeAndDecompress( &encodedT[0..cbEncodedVector], 12, t );
@@ -427,7 +427,7 @@ SymCryptMlKemkeySetValue(
         }
 
         // copy t and decode t
-        pkMlKemkey.encodedT.copy_from_slice(&pbSrc[pbCurr..pbCurr+cbEncodedVector]);
+        pkMlKemkey.encodedT[0..cbEncodedVector].copy_from_slice(&pbSrc[pbCurr..pbCurr+cbEncodedVector]);
         pbCurr += cbEncodedVector;
         let (t, encodedT) = pkMlKemkey.t_encoded_t_mut();
         let scError = SymCryptMlKemVectorDecodeAndDecompress( &encodedT[0..cbEncodedVector], 12, t );
@@ -550,7 +550,7 @@ SymCryptMlKemkeyGetValue(
             return MLKEM_ERROR::INVALID_ARGUMENT;
         }
 
-        pbDst[pbCurr..pbCurr+cbEncodedVector].copy_from_slice(&pkMlKemkey.encodedT);
+        pbDst[pbCurr..pbCurr+cbEncodedVector].copy_from_slice(&pkMlKemkey.encodedT[0..cbEncodedVector]);
         pbCurr += cbEncodedVector;
 
         pbDst[pbCurr..pbCurr+pkMlKemkey.publicSeed.len()].copy_from_slice(&pkMlKemkey.publicSeed);
