@@ -4,6 +4,8 @@
 // Copyright (c) Microsoft Corporation. Licensed under the MIT license.
 //
 
+use zeroize::Zeroize;
+
 use crate::common::*;
 use crate::ntt::*;
 use crate::key::*;
@@ -19,7 +21,8 @@ fn debug_bytes(name: &str, bytes: &[u8]) {
 }
 
 fn debug_poly_element(name: &str, i: u8, elt: &POLYELEMENT) {
-    println!("RS {}[{}]: {}", name, i, elt.into_iter().map(|x| { hex::encode(x.to_le_bytes()) }).format(""))
+    // FIXME is this a bug in the code?
+    println!("RS {}[{}]: {}", name, i, elt.into_iter().map(|x| { hex::encode(x.to_be_bytes()) }).format(""))
 }
 
 /* END DEBUG */
@@ -244,9 +247,8 @@ SymCryptMlKemkeyExpandFromPrivateSeed(
     SymCryptMlKemkeyComputeEncapsulationKeyHash( pkMlKemkey, pCompTemps);
 
     // Cleanup!
-    // FIXME
-    // SymCryptWipeKnownSize( privateSeedHash, sizeof(privateSeedHash) );
-    // SymCryptWipeKnownSize( CBDSampleBuffer, sizeof(CBDSampleBuffer) );
+    privateSeedHash.zeroize();
+    CBDSampleBuffer.zeroize();
 }
 
 //=====================================================
@@ -670,6 +672,7 @@ SymCryptMlKemEncapsulateInternal(
     // Note (Rust): should we have a type that is less strict for the output of sha3_512_result?
     // Note (Rust): no assert!(SIZEOF_AGREED_SECRET < SHA3_512_RESULT_SIZE)?
     crate::hash::sha3_512_result( &mut pCompTemps.hashState0, (&mut CBDSampleBuffer[0..crate::hash::SHA3_512_RESULT_SIZE]).try_into().unwrap() );
+    debug_bytes("CBDSampleBuffer", &mut CBDSampleBuffer[0..crate::hash::SHA3_512_RESULT_SIZE]);
 
     // Write K to pbAgreedSecret
     pbAgreedSecret[0..SIZEOF_AGREED_SECRET].copy_from_slice(&CBDSampleBuffer[0..SIZEOF_AGREED_SECRET]);
@@ -692,6 +695,7 @@ SymCryptMlKemEncapsulateInternal(
 
     // Perform NTT on rInner
     SymCryptMlKemVectorNTT( pvrInner );
+    debug_poly_element("pvrInner", 0, &pvrInner[0]);
 
     // Set pvTmp to 0
     // TODO: write a helper function -- any way to do this better?
@@ -700,6 +704,10 @@ SymCryptMlKemEncapsulateInternal(
 
     // pvTmp = (Atranspose o rInner) ./ R
     SymCryptMlKemMatrixVectorMontMulAndAdd( pkMlKemkey.atranspose_mut(), pvrInner, pvTmp, paTmp, nRows );
+    println!("RS t[0][0] {:#06x}", &pkMlKemkey.t()[0][0]);
+    println!("RS a[0][0] {:#06x}", &pkMlKemkey.atranspose()[0][0]);
+    println!("RS a[0][1] {:#06x}", &pkMlKemkey.atranspose()[0][1]);
+    println!("RS a[0][2] {:#06x}", &pkMlKemkey.atranspose()[0][2]);
 
     // pvTmp = INTT(Atranspose o rInner)
     SymCryptMlKemVectorINTTAndMulR( pvTmp );
@@ -725,9 +733,12 @@ SymCryptMlKemEncapsulateInternal(
     // pvTmp = u = INTT(Atranspose o rInner) + e1
     // Compress and encode u into prefix of ciphertext
     SymCryptMlKemVectorCompressAndEncode( pvTmp, nBitsOfU as u32, &mut pbCiphertext[0..cbU] );
+    debug_bytes("pbCiphertext(u)", &pbCiphertext[0..cbU]);
 
     // peTmp0 = (t o r) ./ R
     SymCryptMlKemVectorMontDotProduct( pkMlKemkey.t_mut(), pvrInner, peTmp0, paTmp );
+    println!("RS paTmp[0] {:#010x}", paTmp[0]);
+    println!("RS peTmp[0] {:#06x}", peTmp0[0]);
 
     // peTmp0 = INTT(t o r)
     SymCryptMlKemPolyElementINTTAndMulR( peTmp0 );
@@ -766,6 +777,7 @@ SymCryptMlKemEncapsulateInternal(
 }
 
 
+pub
 fn
 SymCryptMlKemEncapsulateEx(
     pkMlKemkey: &mut KEY,
@@ -963,11 +975,11 @@ SymCryptMlKemDecapsulate(
     crate::hash::shake256_extract( pShakeState, &mut pbImplicitRejectionSecret, false );
 
     // Constant time test if re-encryption successful
-    // let successfulReencrypt = pbReencapsulatedCiphertext == pbReadCiphertext;
+    let successfulReencrypt = pbReencapsulatedCiphertext == pbReadCiphertext;
 
     // If not successful, perform side-channel-safe copy of Implicit Rejection secret over Decapsulated secret
-    // let cbCopy = ((successfulReencrypt as usize).wrapping_sub(1)) & SIZEOF_AGREED_SECRET;
-    pbDecapsulatedSecret[0..SIZEOF_AGREED_SECRET].copy_from_slice(&pbImplicitRejectionSecret);
+    let cbCopy = ((successfulReencrypt as usize).wrapping_sub(1)) & SIZEOF_AGREED_SECRET;
+    pbDecapsulatedSecret[0..cbCopy].copy_from_slice(&pbImplicitRejectionSecret[0..cbCopy]);
     // FIXME, was:
     // SymCryptScsCopy( pbImplicitRejectionSecret, cbCopy, pbDecapsulatedSecret, SIZEOF_AGREED_SECRET );
 

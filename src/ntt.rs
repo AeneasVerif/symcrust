@@ -45,6 +45,8 @@ macro_rules! c_for {
     }
 }
 
+use zeroize::Zeroize;
+
 use crate::key::*;
 use crate::common::*;
 
@@ -367,6 +369,7 @@ fn SymCryptMlKemPolyElementMulAndAccumulate(
         let a1b1 = a1 * b1;
         let mut a0b1: u32 = a0 * b1;
         let a1b0 = a1 * b0;
+        println!("RS {} {} {} {} {} {} {} {} {} {}", a0, a1, b0, b1, c0, c1, a0b0, a1b1, a0b1, a1b0);
 
         // we need a1*b1*zetaTwoTimesBitRevPlus1TimesR[i]
         // eagerly reduce a1*b1 with montgomery reduction
@@ -393,6 +396,8 @@ fn SymCryptMlKemPolyElementMulAndAccumulate(
         c1 += a0b1; // in range [0,5*3328*3328 + 3*3494*3312]
         assert!( c1 < (5*3328*3328) + (3*3494*3312) );
 
+        println!("RS {} {} {} {} {} {} {} {} {} {}", a0, a1, b0, b1, c0, c1, a0b0, a1b1, a0b1, a1b0);
+
         paDst[2*i  ] = c0;
         paDst[2*i+1] = c1;
     });
@@ -411,6 +416,7 @@ SymCryptMlKemMontgomeryReduceAndAddPolyElementAccumulatorToPolyElement(
 
         let mut c: u32 = peDst[i].into();
         assert!( c < Q );
+        println!("RS {} {} {}", i, a, c);
 
         // montgomery reduce sum of products
         let inv = (a.wrapping_mul(NegQInvModR)) & Rmask;
@@ -430,6 +436,7 @@ SymCryptMlKemMontgomeryReduceAndAddPolyElementAccumulatorToPolyElement(
         assert!( c < Q );
 
         peDst[i] = c as u16;
+        println!("RS {}", c);
     });
 }
 
@@ -858,8 +865,7 @@ SymCryptMlKemMatrixVectorMontMulAndAdd(
     assert_eq!( pvDst.len() ,nRows );
 
     // Zero paTmp
-    // FIXME
-    // SymCryptWipeKnownSize( paTmp, INTERNAL_MLKEM_SIZEOF_POLYRINGELEMENT_ACCUMULATOR );
+    paTmp.zeroize();
 
     c_for!(let mut i = 0; i < nRows; i += 1;
     {
@@ -891,15 +897,15 @@ SymCryptMlKemVectorMontDotProduct(
     paTmp: &mut POLYELEMENT_ACCUMULATOR )
 {
     let nRows = pvSrc1.len();
+    println!("RS nRows {}", nRows);
 
     assert!( nRows >  0 );
     assert!( nRows <= MATRIX_MAX_NROWS );
     assert!( pvSrc2.len() == nRows );
 
     // Zero paTmp and peDst
-    // FIXME
-    // SymCryptWipeKnownSize( paTmp, INTERNAL_MLKEM_SIZEOF_POLYRINGELEMENT_ACCUMULATOR );
-    // SymCryptWipeKnownSize( peDst, INTERNAL_MLKEM_SIZEOF_POLYRINGELEMENT );
+    paTmp.zeroize();
+    peDst.zeroize();
 
     c_for!(let mut i = 0; i < nRows; i += 1;
     {
@@ -920,8 +926,9 @@ SymCryptMlKemVectorSetZero(
     assert!( nRows >  0 );
     assert!( nRows <= MATRIX_MAX_NROWS );
 
-    // FIXME
-    // SymCryptWipe( (PBYTE) INTERNAL_MLKEM_VECTOR_ELEMENT( 0, pvSrc ), nRows*INTERNAL_MLKEM_SIZEOF_POLYRINGELEMENT );
+    c_for!(let mut i = 0; i < nRows; i += 1; {
+        pvSrc[i].zeroize();
+    });
 }
 
 pub(crate)
