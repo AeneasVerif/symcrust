@@ -38,12 +38,12 @@ impl std::fmt::Display for MLKEM_ERROR {
 impl std::error::Error for MLKEM_ERROR {}
 
 extern "C" {
-    fn SymCryptCallbackRandom(pbBuffer: *mut u8, cbBuffer: usize) -> MLKEM_ERROR;
+    fn SymCryptRandom(pbBuffer: *mut u8, cbBuffer: usize) -> MLKEM_ERROR;
 }
 
 pub(crate)
 fn callback_random(dst: &mut [u8]) -> MLKEM_ERROR {
     unsafe {
-        SymCryptCallbackRandom(dst.as_mut_ptr(), dst.len())
+        SymCryptRandom(dst.as_mut_ptr(), dst.len())
     }
 }
