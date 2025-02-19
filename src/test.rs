@@ -4,6 +4,8 @@ use crate::common::MLKEM_ERROR;
 #[allow(dead_code)]
 #[test]
 pub fn test_ffi() -> Result<(), Box<dyn std::error::Error>> {
+    crate::common::init();
+
     let mut actual = [0u8; 64];
     let expected = [
         0xa6, 0x9f, 0x73, 0xcc, 0xa2, 0x3a, 0x9a, 0xc5, 0xc8, 0xb5, 0x67, 0xdc, 0x18, 0x5a, 0x75,
@@ -38,6 +40,7 @@ pub fn test_ffi() -> Result<(), Box<dyn std::error::Error>> {
 #[allow(dead_code)]
 #[test]
 pub fn test_api() -> Result<(), Box<dyn std::error::Error>> {
+    crate::common::init();
 
     // KNOWN-ANSWER TEST
     let key_generation_seed = hex::decode("7c9935a0b07694aa0c6d10e4db6b1add2fd81a25ccb148032dcd739936737f2d8626ed79d451140800e03b59b956f8210e556067407d13dc90fa9e8b872bfb8f")?;

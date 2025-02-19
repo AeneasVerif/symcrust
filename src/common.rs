@@ -45,6 +45,7 @@ impl std::error::Error for MLKEM_ERROR {}
 // #[cfg(feature = "dynamic")]
 extern "C" {
     fn SymCryptRandom(pbBuffer: *mut u8, cbBuffer: usize);
+    fn SymCryptModuleInit(api: u32, minor: u32);
 }
 
 pub(crate)
@@ -57,5 +58,12 @@ fn callback_random(dst: &mut [u8]) -> MLKEM_ERROR {
     unsafe {
         SymCryptRandom(dst.as_mut_ptr(), dst.len());
         MLKEM_ERROR::NO_ERROR
+    }
+}
+
+pub(crate)
+fn init() {
+    unsafe {
+        SymCryptModuleInit(103, 8);
     }
 }
