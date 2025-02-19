@@ -37,13 +37,25 @@ impl std::fmt::Display for MLKEM_ERROR {
 
 impl std::error::Error for MLKEM_ERROR {}
 
+// #[cfg(not(feature = "dynamic"))]
+// extern "C" {
+//     fn SymCryptCallbackRandom(pbBuffer: *mut u8, cbBuffer: usize) -> MLKEM_ERROR;
+// }
+
+// #[cfg(feature = "dynamic")]
 extern "C" {
-    fn SymCryptRandom(pbBuffer: *mut u8, cbBuffer: usize) -> MLKEM_ERROR;
+    fn SymCryptRandom(pbBuffer: *mut u8, cbBuffer: usize);
 }
 
 pub(crate)
 fn callback_random(dst: &mut [u8]) -> MLKEM_ERROR {
+    // #[cfg(not(feature = "dynamic"))]
+    // unsafe {
+    //     SymCryptCallbackRandom(dst.as_mut_ptr(), dst.len())
+    // }
+    // #[cfg(feature = "dynamic")]
     unsafe {
-        SymCryptRandom(dst.as_mut_ptr(), dst.len())
+        SymCryptRandom(dst.as_mut_ptr(), dst.len());
+        MLKEM_ERROR::NO_ERROR
     }
 }

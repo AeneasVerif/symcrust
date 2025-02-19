@@ -12,21 +12,6 @@ use crate::key::*;
 
 use crate::c_for;
 
-/* DEBUG */
-
-use itertools::Itertools;
-
-fn debug_bytes(name: &str, bytes: &[u8]) {
-    println!("RS {}: {}", name, hex::encode(bytes));
-}
-
-fn debug_poly_element(name: &str, i: u8, elt: &POLYELEMENT) {
-    // FIXME is this a bug in the code?
-    println!("RS {}[{}]: {}", name, i, elt.into_iter().map(|x| { hex::encode(x.to_be_bytes()) }).format(""))
-}
-
-/* END DEBUG */
-
 const fn SIZEOF_ENCODED_UNCOMPRESSED_VECTOR(_nRows: usize) -> usize { 384 * _nRows }
 
 // d and z are each 32 bytes
@@ -171,7 +156,6 @@ SymCryptMlKemkeyExpandFromPrivateSeed(
     CBDSampleBuffer[0..pkMlKemkey.privateSeed.len()].copy_from_slice(&pkMlKemkey.privateSeed);
     CBDSampleBuffer[pkMlKemkey.privateSeed.len() /* == 32 */] = nRows;
     crate::hash::sha3_512(&CBDSampleBuffer[0..pkMlKemkey.privateSeed.len()+1], &mut privateSeedHash);
-    debug_bytes("privateSeedHash", &privateSeedHash);
 
     // copy public seed
     let pkLen = pkMlKemkey.publicSeed.len();
@@ -191,11 +175,8 @@ SymCryptMlKemkeyExpandFromPrivateSeed(
         crate::hash::shake256_append( &mut pCompTemps.hashState1, &CBDSampleBuffer[0..1] );
 
         crate::hash::shake256_extract( &mut pCompTemps.hashState1, &mut CBDSampleBuffer[0..64usize*(nEta1 as usize)], false);
-        debug_bytes("shake256_extract", &CBDSampleBuffer[0..64usize*(nEta1 as usize)]);
 
-        // debug_poly_element("s[i]", &pkMlKemkey.s()[i as usize]);
         SymCryptMlKemPolyElementSampleCBDFromBytes( &CBDSampleBuffer, nEta1 as u32, &mut pkMlKemkey.s_mut()[i as usize]);
-        debug_poly_element("s", i, &pkMlKemkey.s()[i as usize]);
     });
     // Expand e in t, ready for multiply-add
     c_for!(let mut i = 0; i < nRows; i += 1; {
@@ -208,15 +189,12 @@ SymCryptMlKemkeyExpandFromPrivateSeed(
         crate::hash::shake256_append( &mut pCompTemps.hashState1, &CBDSampleBuffer[0..1] );
 
         crate::hash::shake256_extract( &mut pCompTemps.hashState1, &mut CBDSampleBuffer[0..64*(nEta1 as usize)], false );
-        debug_bytes("shake256_extract", &CBDSampleBuffer[0..64usize*(nEta1 as usize)]);
 
         SymCryptMlKemPolyElementSampleCBDFromBytes( &CBDSampleBuffer, nEta1 as u32, &mut pkMlKemkey.t_mut()[i as usize]);
-        debug_poly_element("t", i, &pkMlKemkey.t()[i as usize]);
     });
 
     // Perform NTT on s and e
     SymCryptMlKemVectorNTT( pkMlKemkey.s_mut() );
-    debug_poly_element("s", 0, &pkMlKemkey.s()[0]);
     println!("RS s[0][0] {:#06x}", &pkMlKemkey.s()[0][0]);
     SymCryptMlKemVectorNTT( pkMlKemkey.t_mut() );
 
@@ -241,7 +219,6 @@ SymCryptMlKemkeyExpandFromPrivateSeed(
     // precompute byte-encoding of public vector t
     let (t, encodedT) = pkMlKemkey.t_encoded_t_mut();
     SymCryptMlKemVectorCompressAndEncode(t, 12, &mut encodedT[0..cbEncodedVector] );
-    debug_bytes("encodedT", &encodedT[0..cbEncodedVector]);
 
     // precompute hash of encapsulation key blob
     SymCryptMlKemkeyComputeEncapsulationKeyHash( pkMlKemkey, pCompTemps);
@@ -296,7 +273,6 @@ SymCryptMlKemkeySetValue(
     flags: u32,
     pkMlKemkey: &mut KEY ) -> MLKEM_ERROR
 {
-    debug_bytes("pbSrc", pbSrc);
     // ERROR scError = NO_ERROR;
     let mut pbCurr: usize = 0;
     // PINTERNAL_COMPUTATION_TEMPORARIES pCompTemps = NULL;
@@ -366,9 +342,6 @@ SymCryptMlKemkeySetValue(
         let l = pkMlKemkey.privateRandom.len();
         pkMlKemkey.privateRandom.copy_from_slice(&pbSrc[pbCurr..pbCurr+l]);
         pbCurr += l;
-
-        debug_bytes("privateSeed", &pkMlKemkey.privateSeed);
-        debug_bytes("privateRandom", &pkMlKemkey.privateRandom);
 
         SymCryptMlKemkeyExpandFromPrivateSeed( pkMlKemkey, &mut pCompTemps );
     },
@@ -672,7 +645,6 @@ SymCryptMlKemEncapsulateInternal(
     // Note (Rust): should we have a type that is less strict for the output of sha3_512_result?
     // Note (Rust): no assert!(SIZEOF_AGREED_SECRET < SHA3_512_RESULT_SIZE)?
     crate::hash::sha3_512_result( &mut pCompTemps.hashState0, (&mut CBDSampleBuffer[0..crate::hash::SHA3_512_RESULT_SIZE]).try_into().unwrap() );
-    debug_bytes("CBDSampleBuffer", &mut CBDSampleBuffer[0..crate::hash::SHA3_512_RESULT_SIZE]);
 
     // Write K to pbAgreedSecret
     pbAgreedSecret[0..SIZEOF_AGREED_SECRET].copy_from_slice(&CBDSampleBuffer[0..SIZEOF_AGREED_SECRET]);
@@ -695,7 +667,6 @@ SymCryptMlKemEncapsulateInternal(
 
     // Perform NTT on rInner
     SymCryptMlKemVectorNTT( pvrInner );
-    debug_poly_element("pvrInner", 0, &pvrInner[0]);
 
     // Set pvTmp to 0
     // TODO: write a helper function -- any way to do this better?
@@ -733,7 +704,6 @@ SymCryptMlKemEncapsulateInternal(
     // pvTmp = u = INTT(Atranspose o rInner) + e1
     // Compress and encode u into prefix of ciphertext
     SymCryptMlKemVectorCompressAndEncode( pvTmp, nBitsOfU as u32, &mut pbCiphertext[0..cbU] );
-    debug_bytes("pbCiphertext(u)", &pbCiphertext[0..cbU]);
 
     // peTmp0 = (t o r) ./ R
     SymCryptMlKemVectorMontDotProduct( pkMlKemkey.t_mut(), pvrInner, peTmp0, paTmp );
