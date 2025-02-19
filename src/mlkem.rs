@@ -195,23 +195,16 @@ SymCryptMlKemkeyExpandFromPrivateSeed(
 
     // Perform NTT on s and e
     SymCryptMlKemVectorNTT( pkMlKemkey.s_mut() );
-    println!("RS s[0][0] {:#06x}", &pkMlKemkey.s()[0][0]);
     SymCryptMlKemVectorNTT( pkMlKemkey.t_mut() );
 
     // pvTmp = s .* R
     let pvTmp = &mut pCompTemps.abVectorBuffer0[0..nRows as usize];
     SymCryptMlKemVectorMulR( pkMlKemkey.s_mut(), pvTmp);
-    println!("RS s[0][0] {:#06x}", &pkMlKemkey.s()[0][0]);
 
     // t = ((A o (s .* R)) ./ R) + e = A o s + e
-    println!("RS t[0][0] {:#06x}", &pkMlKemkey.t()[0][0]);
     let (a, t, _s) = pkMlKemkey.ats_mut();
     let paTmp = &mut pCompTemps.abPolyElementAccumulatorBuffer; 
     SymCryptMlKemMatrixVectorMontMulAndAdd(a, &pCompTemps.abVectorBuffer0[0..nRows as usize], t, paTmp, nRows);
-    println!("RS t[0][0] {:#06x}", &pkMlKemkey.t()[0][0]);
-    println!("RS a[0][0] {:#06x}", &pkMlKemkey.atranspose()[0][0]);
-    println!("RS a[0][1] {:#06x}", &pkMlKemkey.atranspose()[0][1]);
-    println!("RS a[0][2] {:#06x}", &pkMlKemkey.atranspose()[0][2]);
 
     // transpose A
     SymCryptMlKemMatrixTranspose( pkMlKemkey.atranspose_mut(), nRows);
@@ -675,10 +668,6 @@ SymCryptMlKemEncapsulateInternal(
 
     // pvTmp = (Atranspose o rInner) ./ R
     SymCryptMlKemMatrixVectorMontMulAndAdd( pkMlKemkey.atranspose_mut(), pvrInner, pvTmp, paTmp, nRows );
-    println!("RS t[0][0] {:#06x}", &pkMlKemkey.t()[0][0]);
-    println!("RS a[0][0] {:#06x}", &pkMlKemkey.atranspose()[0][0]);
-    println!("RS a[0][1] {:#06x}", &pkMlKemkey.atranspose()[0][1]);
-    println!("RS a[0][2] {:#06x}", &pkMlKemkey.atranspose()[0][2]);
 
     // pvTmp = INTT(Atranspose o rInner)
     SymCryptMlKemVectorINTTAndMulR( pvTmp );
@@ -707,8 +696,6 @@ SymCryptMlKemEncapsulateInternal(
 
     // peTmp0 = (t o r) ./ R
     SymCryptMlKemVectorMontDotProduct( pkMlKemkey.t_mut(), pvrInner, peTmp0, paTmp );
-    println!("RS paTmp[0] {:#010x}", paTmp[0]);
-    println!("RS peTmp[0] {:#06x}", peTmp0[0]);
 
     // peTmp0 = INTT(t o r)
     SymCryptMlKemPolyElementINTTAndMulR( peTmp0 );
