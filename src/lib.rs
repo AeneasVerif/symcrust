@@ -16,7 +16,6 @@ pub mod hash;
 pub mod key;
 pub mod ntt;
 pub mod mlkem;
-pub mod misc;
 
 #[cfg(test)]
 pub mod test;
