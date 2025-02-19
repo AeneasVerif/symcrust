@@ -217,7 +217,6 @@ pub(crate) fn sha3_512(pbData: &[u8], pbResult: &mut [u8; SHA3_512_RESULT_SIZE])
 }
 
 pub(crate) fn sha3_512_init(pState: &mut HASH_STATE) {
-    println!("pState addr: {:p}", pState);
     unsafe {
         SymCryptSha3_512Init(pState)
     }
