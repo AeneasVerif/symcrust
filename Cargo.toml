@@ -11,3 +11,6 @@ zeroize = "1.8.1"
 
 [lib]
 crate-type = ["cdylib"]
+
+[profile.release]
+lto = true
