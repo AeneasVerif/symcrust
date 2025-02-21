@@ -38,23 +38,10 @@ const CIPHERTEXT_SIZE_MLKEM1024 : usize = 1568;
 //  -   The below formats apply **only to external formats**: When somebody is
 //      importing a key (from test vectors, for example) or exporting a key.
 //      The internal format of the keys is not visible to the caller.
-pub(crate)
-enum MLKEMKEY_FORMAT {
-        // Note (Rust): skipping NULL case since these things are exhaustive, but keeping the
-        // values for ease of debug / differential testing
-    PRIVATE_SEED       = 1,    
-        // 64-byte concatenation of d || z from FIPS 203. Smallest representation of a full
-        // ML-KEM key.
-        // On its own it is ambiguous what type of ML-KEM key this represents; callers wanting to
-        // store this format must track the key type alongside the key.
-    DECAPSULATION_KEY  = 2,
-        // Standard byte encoding of an ML-KEM Decapsulation key, per FIPS 203.
-        // Size is 1632, 2400, or 3168 bytes for ML-KEM 512, 768, and 1024 respectively.
-    ENCAPSULATION_KEY  = 3,
-        // Standard byte encoding of an ML-KEM Encapsulation key, per FIPS 203.
-        // Size is 800, 1184, or 1568 bytes for ML-KEM 512, 768, and 1024 respectively.
-}
+pub
+type MLKEMKEY_FORMAT = crate::key::FORMAT;
 
+pub
 fn SymCryptMlKemSizeofKeyFormatFromParams(params: PARAMS,
             mlKemkeyFormat: MLKEMKEY_FORMAT) -> usize
 {
@@ -68,6 +55,7 @@ fn SymCryptMlKemSizeofKeyFormatFromParams(params: PARAMS,
     }
 }
 
+pub
 fn SymCryptMlKemSizeofCiphertextFromParams(
     params: PARAMS
 ) -> usize
@@ -258,7 +246,7 @@ const FLAG_ECKEY_ECDH: u32 = 0x2000;
 const FLAG_RSAKEY_SIGN: u32 = 0x1000;
 const FLAG_RSAKEY_ENCRYPT: u32 = 0x2000;
 
-pub(crate)
+pub
 fn
 SymCryptMlKemkeySetValue(
     pbSrc: &[u8],
@@ -441,7 +429,7 @@ SymCryptMlKemkeySetValue(
 }
 
 
-pub(crate)
+pub
 fn
 SymCryptMlKemkeyGetValue(
     pkMlKemkey: &KEY,
@@ -539,7 +527,7 @@ SymCryptMlKemkeyGetValue(
 }
 
 
-pub(crate)
+pub
 fn
 SymCryptMlKemkeyGenerate(
     pkMlKemkey: &mut KEY,

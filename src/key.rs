@@ -12,17 +12,18 @@ use std::result::Result;
 //  -   The below formats apply **only to external formats**: When somebody is
 //      importing a key (from test vectors, for example) or exporting a key.
 //      The internal format of the keys is not visible to the caller.
+pub
 enum FORMAT {
     // FORMAT_NULL               = 0,
-    FORMAT_PRIVATE_SEED       = 1,    
+    PRIVATE_SEED       = 1,    
         // 64-byte concatenation of d || z from FIPS 203. Smallest representation of a full
         // ML-KEM key.
         // On its own it is ambiguous what type of ML-KEM key this represents; callers wanting to
         // store this format must track the key type alongside the key.
-    FORMAT_DECAPSULATION_KEY  = 2,
+    DECAPSULATION_KEY  = 2,
         // Standard byte encoding of an ML-KEM Decapsulation key, per FIPS 203.
         // Size is 1632, 2400, or 3168 bytes for ML-KEM 512, 768, and 1024 respectively.
-    FORMAT_ENCAPSULATION_KEY  = 3,
+    ENCAPSULATION_KEY  = 3,
         // Standard byte encoding of an ML-KEM Encapsulation key, per FIPS 203.
         // Size is 800, 1184, or 1568 bytes for ML-KEM 512, 768, and 1024 respectively.
 }

@@ -11,11 +11,14 @@
 #![allow(non_camel_case_types)]
 #![allow(non_upper_case_globals)]
 
+#![feature(try_trait_v2)]
+
 pub mod common;
 pub mod hash;
 pub mod key;
 pub mod ntt;
 pub mod mlkem;
+pub mod ffi;
 
 #[cfg(test)]
 pub mod test;
