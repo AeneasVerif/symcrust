@@ -111,5 +111,19 @@ pub fn test_api() -> Result<(), Box<dyn std::error::Error>> {
     crate::mlkem::SymCryptMlKemDecapsulate(&mut k, &cipher, &mut secret2);
     assert_eq!(secret, secret2);
 
+    // Perf test -- simplistic
+    let mut k = crate::key::KeyAllocate(crate::key::PARAMS::MLKEM768)?;
+    for i in 0..1000u32 {
+        crate::mlkem::SymCryptMlKemkeyGenerate(&mut k, 0);
+        let mut secret = [(i % 256) as u8; 32];
+        let mut cipher = [0u8; 1088];
+        crate::mlkem::SymCryptMlKemEncapsulate(&mut k, &mut secret, &mut cipher);
+
+        let mut secret2 = [(i % 256) as u8; 32];
+        crate::mlkem::SymCryptMlKemDecapsulate(&mut k, &cipher, &mut secret2);
+        assert_eq!(secret, secret2);
+    }
+
+
     Ok(())
 }

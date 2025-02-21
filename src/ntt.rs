@@ -221,6 +221,7 @@ const zetaTwoTimesBitRevPlus1TimesR: [u16; 128] = [
 ];
 
 
+#[inline(always)]
 fn SymCryptMlKemModAdd(a: u32, b: u32) -> u32 {
     assert!( a < Q );
     assert!( b < Q );
@@ -237,6 +238,7 @@ fn SymCryptMlKemModAdd(a: u32, b: u32) -> u32 {
     res
 }
 
+#[inline(always)]
 fn SymCryptMlKemModSub(a: u32, b: u32) -> u32 {
     // This function is called in two situations:
     // - when we want to substract to field elements which are < Q
@@ -261,6 +263,7 @@ fn SymCryptMlKemModSub(a: u32, b: u32) -> u32 {
     res
 }
 
+#[inline(always)]
 fn SymCryptMlKemMontMul(a: u32, b: u32, bMont: u32) -> u32 {
     assert!( a < Q );
     assert!( b < Q );
@@ -284,7 +287,7 @@ fn SymCryptMlKemPolyElementNTTLayerC(peSrc: &mut POLYELEMENT, mut k: usize, len:
         let twiddleFactorMont: u32 = MlKemZetaBitRevTimesRTimesNegQInvModR[k].into();
         k += 1;
 
-        #[inline]
+        #[inline(always)]
         fn inner_loop(peSrc: &mut POLYELEMENT, len: usize,
                       start: usize, twiddleFactor: u32, twiddleFactorMont: u32) {
             c_for!(let mut j = 0usize; j < len; j += 1; {
@@ -314,7 +317,7 @@ fn SymCryptMlKemPolyElementINTTLayerC(peSrc: &mut POLYELEMENT, mut k: usize, len
         k -= 1;
 
         inner_loop(peSrc, len, start, twiddleFactor, twiddleFactorMont);
-        #[inline]
+        #[inline(always)]
         fn inner_loop(peSrc: &mut POLYELEMENT, len: usize,
                       start: usize, twiddleFactor: u32, twiddleFactorMont: u32) {
             c_for!(let mut j = 0; j < len; j += 1; {
@@ -334,10 +337,12 @@ fn SymCryptMlKemPolyElementINTTLayerC(peSrc: &mut POLYELEMENT, mut k: usize, len
     });
 }
 
+#[inline(always)]
 fn SymCryptMlKemPolyElementNTTLayer(peSrc: &mut POLYELEMENT, k: usize, len: usize) {
     SymCryptMlKemPolyElementNTTLayerC(peSrc, k, len);
 }
 
+#[inline(always)]
 fn SymCryptMlKemPolyElementINTTLayer(peSrc: &mut POLYELEMENT, k: usize, len: usize) {
     SymCryptMlKemPolyElementINTTLayerC(peSrc, k, len);
 }
@@ -566,7 +571,7 @@ SymCryptMlKemPolyElementCompressAndEncode(
 
         // encode the coefficient
         // simple loop to add bits to accumulator and write accumulator to output
-        #[inline]
+        #[inline(always)]
         fn inner_loop(pbDst: &mut [u8], cbDstWritten: &mut usize, accumulator: &mut u32,
                       nBitsInAccumulator: &mut u32, nBitsInCoefficient: &mut u32, coefficient: &mut u32,
         ) {
@@ -597,7 +602,7 @@ SymCryptMlKemPolyElementCompressAndEncode(
 }
 
 // FIXME:
-#[inline]
+#[inline(always)]
 #[charon::opaque]
 fn slice_to_sub_array<const N : usize>(s: &[u8], i: usize) -> [u8; N] {
     s[i..i+N].try_into().unwrap()
@@ -626,7 +631,7 @@ SymCryptMlKemPolyElementDecodeAndDecompress(
         let mut nBitsInCoefficient = 0;
 
         // first gather and decode bits from pbSrc
-        #[inline]
+        #[inline(always)]
         fn inner_loop(pbSrc: &[u8], nBitsPerCoefficient: u32,
                       cbSrcRead: &mut usize, accumulator: &mut u32,
                       nBitsInAccumulator: &mut u32, coefficient: &mut u32,
@@ -751,7 +756,7 @@ fn SymCryptMlKemPolyElementSampleCBDFromBytes(
             // sum bit samples - each consecutive slice of eta bits is summed together
             sampleBits = (sampleBits&0x249249) + ((sampleBits>>1)&0x249249) + ((sampleBits>>2)&0x249249);
 
-            #[inline]
+            #[inline(always)]
             fn then_inner_loop(peDst: &mut POLYELEMENT, i: usize, sampleBits: &mut u32) {
                 c_for!(let mut j = 0; j < 4; j += 1;
                        {
@@ -782,7 +787,7 @@ fn SymCryptMlKemPolyElementSampleCBDFromBytes(
             // sum bit samples - each consecutive slice of eta bits is summed together
             sampleBits = (sampleBits&0x55555555) + ((sampleBits>>1)&0x55555555);
 
-            #[inline]
+            #[inline(always)]
             fn else_inner_loop(peDst: &mut POLYELEMENT, i: usize, sampleBits: &mut u32) {
                 c_for!(let mut j = 0; j < 8; j += 1;
                        {
@@ -815,7 +820,7 @@ fn SymCryptMlKemMatrixTranspose(
 
     c_for!(let mut i = 0; i < nRows; i += 1;
     {
-        #[inline]
+        #[inline(always)]
         fn inner_loop(pmSrc: &mut MATRIX, nRows: usize, i:usize) {
             c_for!(let mut j = i+1; j < nRows; j += 1;
             {
@@ -827,7 +832,7 @@ fn SymCryptMlKemMatrixTranspose(
 }
 
 // FIXME: this probably no longer needs to be inlined
-#[inline]
+#[inline(always)]
 fn SymCryptMlKemPolyElementMulAndAccumulate_aux<'a>(
     pmSrc1: &mut MATRIX,
     nRows : usize,
@@ -862,7 +867,7 @@ SymCryptMlKemMatrixVectorMontMulAndAdd(
 
     c_for!(let mut i = 0; i < nRows; i += 1;
     {
-        #[inline]
+        #[inline(always)]
         fn inner_loop<'a>(pmSrc1: &mut MATRIX, // TODO: &MATRIX
                       pvSrc2: &VECTOR,
                       paTmp: &mut POLYELEMENT_ACCUMULATOR,
