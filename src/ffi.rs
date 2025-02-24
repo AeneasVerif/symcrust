@@ -15,16 +15,13 @@ use libc::{c_int, size_t};
 // ----------------
 
 // C11 enums are `int`, per the C standard
-type c_params = c_int;
-type c_format = c_int;
-
-// This type has repr(C) -- it can be shuttled back and forth.
-type c_error = crate::common::Error;
+type CParams = c_int;
+type CFormat = c_int;
 
 // So the dynamically-sized type (DST) comes back to bite us. The KEY type is a DST, meaning that
 // in Rust it's a fat pointer -- it does not implement the Thin trait, and as such cannot be passed
 // via the FFI. We add another layer of indirection.
-type c_key = *mut Box<crate::key::Key>;
+type CKey = *mut Box<crate::key::Key>;
 
 // CONVERSIONS
 // -----------
@@ -59,7 +56,7 @@ impl TryFrom<c_int> for crate::key::Format {
 // ---
 
 #[no_mangle]
-pub extern "C" fn SymCryptMlKemkeyAllocate(params: c_int) -> c_key {
+pub extern "C" fn SymCryptMlKemkeyAllocate(params: c_int) -> CKey {
     match crate::key::Params::try_from(params) {
         Result::Err(_) => std::ptr::null_mut(),
         Result::Ok(params) => match crate::key::key_allocate(params) {
@@ -70,15 +67,15 @@ pub extern "C" fn SymCryptMlKemkeyAllocate(params: c_int) -> c_key {
 }
 
 #[no_mangle]
-pub extern "C" fn SymCryptMlKemKeyFree(k: c_key) {
+pub extern "C" fn SymCryptMlKemKeyFree(k: CKey) {
     let _ = unsafe { Box::from_raw(k) };
     // Drop trait gets called here, presumably.
 }
 
 #[no_mangle]
 pub extern "C" fn SymCryptMlKemSizeofKeyFormatFromParams(
-    params: c_params,
-    format: c_format,
+    params: CParams,
+    format: CFormat,
     sz: &mut size_t,
 ) -> Error {
     *sz = crate::mlkem::SymCryptMlKemSizeofKeyFormatFromParams(
@@ -90,7 +87,7 @@ pub extern "C" fn SymCryptMlKemSizeofKeyFormatFromParams(
 
 #[no_mangle]
 pub extern "C" fn SymCryptMlKemSizeofCiphertextFromParams(
-    params: c_params,
+    params: CParams,
     sz: &mut size_t,
 ) -> Error {
     *sz = crate::mlkem::SymCryptMlKemSizeofCiphertextFromParams(params.try_into()?);
@@ -98,7 +95,7 @@ pub extern "C" fn SymCryptMlKemSizeofCiphertextFromParams(
 }
 
 #[no_mangle]
-pub extern "C" fn SymCryptMlKemkeyGenerate(k: c_key, flags: u32) -> Error {
+pub extern "C" fn SymCryptMlKemkeyGenerate(k: CKey, flags: u32) -> Error {
     let mut k = unsafe { Box::from_raw(k) };
     // Note: the * can be inserted by Rust automatically
     let r = crate::mlkem::SymCryptMlKemkeyGenerate(&mut (*k), flags);
@@ -109,14 +106,14 @@ pub extern "C" fn SymCryptMlKemkeyGenerate(k: c_key, flags: u32) -> Error {
 
 #[no_mangle]
 pub extern "C" fn SymCryptMlKemkeySetValue(
-    pbSrc: *const u8,
-    cbSrc: size_t,
-    format: c_format,
+    pb_src: *const u8,
+    cb_src: size_t,
+    format: CFormat,
     flags: u32,
-    k: c_key,
+    k: CKey,
 ) -> Error {
     let mut k = unsafe { Box::from_raw(k) };
-    let src = unsafe { std::slice::from_raw_parts(pbSrc, cbSrc) };
+    let src = unsafe { std::slice::from_raw_parts(pb_src, cb_src) };
     let r = crate::mlkem::SymCryptMlKemkeySetValue(src, format.try_into()?, flags, &mut (*k));
     // Note: we probably (check) need this to prevent Drop from being called.
     let _ = Box::into_raw(k);
@@ -125,14 +122,14 @@ pub extern "C" fn SymCryptMlKemkeySetValue(
 
 #[no_mangle]
 pub extern "C" fn SymCryptMlKemkeyGetValue(
-    k: c_key,
-    pbDst: *mut u8,
-    cbDst: size_t,
-    format: c_format,
+    k: CKey,
+    pb_dst: *mut u8,
+    cb_dst: size_t,
+    format: CFormat,
     flags: u32,
 ) -> Error {
     let mut k = unsafe { Box::from_raw(k) };
-    let dst = unsafe { std::slice::from_raw_parts_mut(pbDst, cbDst) };
+    let dst = unsafe { std::slice::from_raw_parts_mut(pb_dst, cb_dst) };
     let r = crate::mlkem::SymCryptMlKemkeyGetValue(&mut (*k), dst, format.try_into()?, flags);
     // Note: we probably (check) need this to prevent Drop from being called.
     let _ = Box::into_raw(k);
@@ -141,15 +138,15 @@ pub extern "C" fn SymCryptMlKemkeyGetValue(
 
 #[no_mangle]
 pub extern "C" fn SymCryptMlKemEncapsulate(
-    k: c_key,
-    pbAgreedSecret: *mut u8,
-    cbAgreedSecret: size_t,
-    pbCiphertext: *mut u8,
-    cbCiphertext: size_t,
+    k: CKey,
+    pb_agreed_secret: *mut u8,
+    cb_agreed_secret: size_t,
+    pb_ciphertext: *mut u8,
+    cb_ciphertext: size_t,
 ) -> Error {
     let mut k = unsafe { Box::from_raw(k) };
-    let agreedSecret = unsafe { std::slice::from_raw_parts_mut(pbAgreedSecret, cbAgreedSecret) };
-    let ciphertext = unsafe { std::slice::from_raw_parts_mut(pbCiphertext, cbCiphertext) };
+    let agreedSecret = unsafe { std::slice::from_raw_parts_mut(pb_agreed_secret, cb_agreed_secret) };
+    let ciphertext = unsafe { std::slice::from_raw_parts_mut(pb_ciphertext, cb_ciphertext) };
     let r = crate::mlkem::SymCryptMlKemEncapsulate(&mut (*k), agreedSecret, ciphertext);
     // Note: we probably (check) need this to prevent Drop from being called.
     let _ = Box::into_raw(k);
@@ -158,18 +155,18 @@ pub extern "C" fn SymCryptMlKemEncapsulate(
 
 #[no_mangle]
 pub extern "C" fn SymCryptMlKemEncapsulateEx(
-    k: c_key,
-    pbRandom: *mut u8,
-    cbRandom: size_t,
-    pbAgreedSecret: *mut u8,
-    cbAgreedSecret: size_t,
-    pbCiphertext: *mut u8,
-    cbCiphertext: size_t,
+    k: CKey,
+    pb_random: *mut u8,
+    cb_random: size_t,
+    pb_agreed_secret: *mut u8,
+    cb_agreed_secret: size_t,
+    pb_ciphertext: *mut u8,
+    cb_ciphertext: size_t,
 ) -> Error {
     let mut k = unsafe { Box::from_raw(k) };
-    let random = unsafe { std::slice::from_raw_parts_mut(pbRandom, cbRandom) };
-    let agreedSecret = unsafe { std::slice::from_raw_parts_mut(pbAgreedSecret, cbAgreedSecret) };
-    let ciphertext = unsafe { std::slice::from_raw_parts_mut(pbCiphertext, cbCiphertext) };
+    let random = unsafe { std::slice::from_raw_parts_mut(pb_random, cb_random) };
+    let agreedSecret = unsafe { std::slice::from_raw_parts_mut(pb_agreed_secret, cb_agreed_secret) };
+    let ciphertext = unsafe { std::slice::from_raw_parts_mut(pb_ciphertext, cb_ciphertext) };
     let r = crate::mlkem::SymCryptMlKemEncapsulateEx(&mut (*k), random, agreedSecret, ciphertext);
     // Note: we probably (check) need this to prevent Drop from being called.
     let _ = Box::into_raw(k);
@@ -178,15 +175,15 @@ pub extern "C" fn SymCryptMlKemEncapsulateEx(
 
 #[no_mangle]
 pub extern "C" fn SymCryptMlKemDecapsulate(
-    k: c_key,
-    pbCiphertext: *const u8,
-    cbCiphertext: size_t,
-    pbAgreedSecret: *mut u8,
-    cbAgreedSecret: size_t,
+    k: CKey,
+    pb_ciphertext: *const u8,
+    cb_ciphertext: size_t,
+    pb_agreed_secret: *mut u8,
+    cb_agreed_secret: size_t,
 ) -> Error {
     let mut k = unsafe { Box::from_raw(k) };
-    let agreedSecret = unsafe { std::slice::from_raw_parts_mut(pbAgreedSecret, cbAgreedSecret) };
-    let ciphertext = unsafe { std::slice::from_raw_parts(pbCiphertext, cbCiphertext) };
+    let agreedSecret = unsafe { std::slice::from_raw_parts_mut(pb_agreed_secret, cb_agreed_secret) };
+    let ciphertext = unsafe { std::slice::from_raw_parts(pb_ciphertext, cb_ciphertext) };
     let r = crate::mlkem::SymCryptMlKemDecapsulate(&mut (*k), ciphertext, agreedSecret);
     // Note: we probably (check) need this to prevent Drop from being called.
     let _ = Box::into_raw(k);

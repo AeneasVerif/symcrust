@@ -237,15 +237,15 @@ pub struct PreKey2<U: ?Sized> {
     n_rows: usize, // note that this can be deduced from fAlgorithmInfo
 
     // Instantiated with U = [PolyElement], contains:
-    // Atranspose, of length nRows * nRows
-    // t, of length nRows
-    // s, of length nRows
+    // Atranspose, of length n_rows * n_rows
+    // t, of length n_rows
+    // s, of length n_rows
     data: U,
 }
 
 pub type Key2 = PreKey2<[PolyElement]>;
 
-// (of size nRows)
+// (of size n_rows)
 type Matrix2 = [PolyElement];
 
 impl Key2 {
@@ -371,7 +371,7 @@ fn key_allocate2(params: Params) -> Result<Box<Key2>, Error> {
 //
 // Design notes:
 // - Rust cannot allocate DSTs when the size isn't known at compile-time, i.e. KeyAllocate2, above,
-//   fails without the `const` on `nRows`
+//   fails without the `const` on `n_rows`
 // - thus, we need to rely on unsafe to *even* create such an object;
 //   https://docs.rs/slice-dst/latest/src/slice_dst/lib.rs.html#200-202 knows how to do that, we
 //   should take inspiration from this code to correctly handle padding and alignment
