@@ -7,84 +7,90 @@
 use zeroize::Zeroize;
 
 use crate::common::*;
-use crate::ntt::*;
 use crate::key::*;
+use crate::ntt::*;
 
 use crate::c_for;
 
-const fn SIZEOF_ENCODED_UNCOMPRESSED_VECTOR(_nRows: usize) -> usize { 384 * _nRows }
+const fn SIZEOF_ENCODED_UNCOMPRESSED_VECTOR(_nRows: usize) -> usize {
+    384 * _nRows
+}
 
 // d and z are each 32 bytes
-const SIZEOF_FORMAT_PRIVATE_SEED: usize =               2*32;
+const SIZEOF_FORMAT_PRIVATE_SEED: usize = 2 * 32;
 // s and t are encoded uncompressed vectors
 // public seed, H(encapsulation key) and z are each 32 bytes
-pub(crate)
-const fn SIZEOF_FORMAT_DECAPSULATION_KEY(_nRows: usize) -> usize {
-    2*SIZEOF_ENCODED_UNCOMPRESSED_VECTOR(_nRows) + 3*32
+pub(crate) const fn SIZEOF_FORMAT_DECAPSULATION_KEY(_nRows: usize) -> usize {
+    2 * SIZEOF_ENCODED_UNCOMPRESSED_VECTOR(_nRows) + 3 * 32
 }
 // t is encoded uncompressed vector
 // public seed is 32 bytes
-pub(crate)
-const fn SIZEOF_FORMAT_ENCAPSULATION_KEY(_nRows: usize) -> usize {
+pub(crate) const fn SIZEOF_FORMAT_ENCAPSULATION_KEY(_nRows: usize) -> usize {
     SIZEOF_ENCODED_UNCOMPRESSED_VECTOR(_nRows) + 32
 }
 
-const CIPHERTEXT_SIZE_MLKEM512  : usize = 768 ;
-const CIPHERTEXT_SIZE_MLKEM768  : usize = 1088;
-const CIPHERTEXT_SIZE_MLKEM1024 : usize = 1568;
+const CIPHERTEXT_SIZE_MLKEM512: usize = 768;
+const CIPHERTEXT_SIZE_MLKEM768: usize = 1088;
+const CIPHERTEXT_SIZE_MLKEM1024: usize = 1568;
 
 // MLKEM key formats
 // ==================
 //  -   The below formats apply **only to external formats**: When somebody is
 //      importing a key (from test vectors, for example) or exporting a key.
 //      The internal format of the keys is not visible to the caller.
-pub
-type MLKEMKEY_FORMAT = crate::key::FORMAT;
+pub type MLKEMKEY_FORMAT = crate::key::FORMAT;
 
-pub
-fn SymCryptMlKemSizeofKeyFormatFromParams(params: PARAMS,
-            mlKemkeyFormat: MLKEMKEY_FORMAT) -> usize
-{
+pub fn SymCryptMlKemSizeofKeyFormatFromParams(
+    params: PARAMS,
+    mlKemkeyFormat: MLKEMKEY_FORMAT,
+) -> usize {
     let internalParams = SymCryptMlKemkeyGetInternalParamsFromParams(params);
 
-    match mlKemkeyFormat
-    {
+    match mlKemkeyFormat {
         MLKEMKEY_FORMAT::PRIVATE_SEED => SIZEOF_FORMAT_PRIVATE_SEED,
-        MLKEMKEY_FORMAT::DECAPSULATION_KEY => SIZEOF_FORMAT_DECAPSULATION_KEY(internalParams.nRows as usize),
-        MLKEMKEY_FORMAT::ENCAPSULATION_KEY => SIZEOF_FORMAT_ENCAPSULATION_KEY(internalParams.nRows as usize),
+        MLKEMKEY_FORMAT::DECAPSULATION_KEY => {
+            SIZEOF_FORMAT_DECAPSULATION_KEY(internalParams.nRows as usize)
+        }
+        MLKEMKEY_FORMAT::ENCAPSULATION_KEY => {
+            SIZEOF_FORMAT_ENCAPSULATION_KEY(internalParams.nRows as usize)
+        }
     }
 }
 
-pub
-fn SymCryptMlKemSizeofCiphertextFromParams(
-    params: PARAMS
-) -> usize
-{
+pub fn SymCryptMlKemSizeofCiphertextFromParams(params: PARAMS) -> usize {
     let internalParams = SymCryptMlKemkeyGetInternalParamsFromParams(params);
 
     // u vector encoded with nBitsOfU * MLWE_POLYNOMIAL_COEFFICIENTS bits per polynomial
-    let cbU = (internalParams.nRows as usize) * (internalParams.nBitsOfU as usize) * (MLWE_POLYNOMIAL_COEFFICIENTS / 8);
+    let cbU = (internalParams.nRows as usize)
+        * (internalParams.nBitsOfU as usize)
+        * (MLWE_POLYNOMIAL_COEFFICIENTS / 8);
     // v polynomial encoded with nBitsOfV * MLWE_POLYNOMIAL_COEFFICIENTS bits
     let cbV = (internalParams.nBitsOfV as usize) * (MLWE_POLYNOMIAL_COEFFICIENTS / 8);
 
-    assert!( (internalParams.params != PARAMS::MLKEM512)  || ((cbU + cbV) == CIPHERTEXT_SIZE_MLKEM512)  );
-    assert!( (internalParams.params != PARAMS::MLKEM768)  || ((cbU + cbV) == CIPHERTEXT_SIZE_MLKEM768)  );
-    assert!( (internalParams.params != PARAMS::MLKEM1024) || ((cbU + cbV) == CIPHERTEXT_SIZE_MLKEM1024) );
+    assert!(
+        (internalParams.params != PARAMS::MLKEM512) || ((cbU + cbV) == CIPHERTEXT_SIZE_MLKEM512)
+    );
+    assert!(
+        (internalParams.params != PARAMS::MLKEM768) || ((cbU + cbV) == CIPHERTEXT_SIZE_MLKEM768)
+    );
+    assert!(
+        (internalParams.params != PARAMS::MLKEM1024) || ((cbU + cbV) == CIPHERTEXT_SIZE_MLKEM1024)
+    );
 
     cbU + cbV
 }
 
 fn SymCryptMlKemkeyExpandPublicMatrixFromPublicSeed(
-    pkMlKemkey: & mut KEY,
-    pCompTemps: & mut INTERNAL_COMPUTATION_TEMPORARIES)
-{
+    pkMlKemkey: &mut KEY,
+    pCompTemps: &mut INTERNAL_COMPUTATION_TEMPORARIES,
+) {
     let mut coordinates = [0u8; 2];
 
     let pShakeStateBase = &mut pCompTemps.hashState0;
     let pShakeStateWork = &mut pCompTemps.hashState1;
     let nRows = pkMlKemkey.params.nRows;
 
-    crate::hash::shake128_init( pShakeStateBase );
+    crate::hash::shake128_init(pShakeStateBase);
     crate::hash::shake128_append(pShakeStateBase, &pkMlKemkey.publicSeed);
 
     c_for!(let mut i = 0u8; i<nRows; i += 1; {
@@ -102,26 +108,24 @@ fn SymCryptMlKemkeyExpandPublicMatrixFromPublicSeed(
     // no need to wipe; everything computed here is always public
 }
 
-fn
-SymCryptMlKemkeyComputeEncapsulationKeyHash(
+fn SymCryptMlKemkeyComputeEncapsulationKeyHash(
     pkMlKemkey: &mut KEY,
-    pCompTemps: &mut INTERNAL_COMPUTATION_TEMPORARIES,)
-{
+    pCompTemps: &mut INTERNAL_COMPUTATION_TEMPORARIES,
+) {
     let pState = &mut pCompTemps.hashState0;
     let cbEncodedVector = SIZEOF_ENCODED_UNCOMPRESSED_VECTOR(pkMlKemkey.params.nRows as usize);
-    crate::hash::sha3_256_init( pState );
-    crate::hash::sha3_256_append( pState, &pkMlKemkey.encodedT[0..cbEncodedVector]);
-    crate::hash::sha3_256_append( pState, &pkMlKemkey.publicSeed);
-    crate::hash::sha3_256_result( pState, &mut pkMlKemkey.encapsKeyHash );
+    crate::hash::sha3_256_init(pState);
+    crate::hash::sha3_256_append(pState, &pkMlKemkey.encodedT[0..cbEncodedVector]);
+    crate::hash::sha3_256_append(pState, &pkMlKemkey.publicSeed);
+    crate::hash::sha3_256_result(pState, &mut pkMlKemkey.encapsKeyHash);
 }
 
-fn
-SymCryptMlKemkeyExpandFromPrivateSeed(
+fn SymCryptMlKemkeyExpandFromPrivateSeed(
     pkMlKemkey: &mut KEY,
-    pCompTemps: &mut INTERNAL_COMPUTATION_TEMPORARIES )
-{
+    pCompTemps: &mut INTERNAL_COMPUTATION_TEMPORARIES,
+) {
     let mut privateSeedHash = [0u8; crate::hash::SHA3_512_RESULT_SIZE];
-    let mut CBDSampleBuffer = [0u8; 3*64 + 1];
+    let mut CBDSampleBuffer = [0u8; 3 * 64 + 1];
     // PVECTOR pvTmp;
     // PPOLYELEMENT_ACCUMULATOR paTmp;
     // UINT32 i;
@@ -132,8 +136,8 @@ SymCryptMlKemkeyExpandFromPrivateSeed(
     // const UINT32 cbPolyElement = pkMlKemkey->params.cbPolyElement;
     // const UINT32 cbVector = pkMlKemkey->params.cbVector;
 
-    assert!( pkMlKemkey.hasPrivateSeed );
-    assert!( (nEta1 == 2) || (nEta1 == 3) );
+    assert!(pkMlKemkey.hasPrivateSeed);
+    assert!((nEta1 == 2) || (nEta1 == 3));
 
     // Note(Rust): there's a whole lot of NULL-checking going on in C, which presumably does not
     // happen here -- the checks for NULL in the C code seem to be unreachable, because at the
@@ -143,18 +147,26 @@ SymCryptMlKemkeyExpandFromPrivateSeed(
     // use CBDSampleBuffer to concatenate the private seed and encoding of nRows
     CBDSampleBuffer[0..pkMlKemkey.privateSeed.len()].copy_from_slice(&pkMlKemkey.privateSeed);
     CBDSampleBuffer[pkMlKemkey.privateSeed.len() /* == 32 */] = nRows;
-    crate::hash::sha3_512(&CBDSampleBuffer[0..pkMlKemkey.privateSeed.len()+1], &mut privateSeedHash);
+    crate::hash::sha3_512(
+        &CBDSampleBuffer[0..pkMlKemkey.privateSeed.len() + 1],
+        &mut privateSeedHash,
+    );
 
     // copy public seed
     let pkLen = pkMlKemkey.publicSeed.len();
-    pkMlKemkey.publicSeed.copy_from_slice(&privateSeedHash[0..pkLen]);
+    pkMlKemkey
+        .publicSeed
+        .copy_from_slice(&privateSeedHash[0..pkLen]);
 
     // generate A from public seed
-    SymCryptMlKemkeyExpandPublicMatrixFromPublicSeed( pkMlKemkey, pCompTemps );
+    SymCryptMlKemkeyExpandPublicMatrixFromPublicSeed(pkMlKemkey, pCompTemps);
 
     // Initialize pShakeStateBase with sigma
     crate::hash::shake256_init(&mut pCompTemps.hashState0);
-    crate::hash::shake256_append(&mut pCompTemps.hashState0, &privateSeedHash[pkMlKemkey.publicSeed.len()..pkMlKemkey.publicSeed.len()+32]);
+    crate::hash::shake256_append(
+        &mut pCompTemps.hashState0,
+        &privateSeedHash[pkMlKemkey.publicSeed.len()..pkMlKemkey.publicSeed.len() + 32],
+    );
 
     // Expand s in place
     c_for!(let mut i = 0; i < nRows; i += 1; {
@@ -182,27 +194,33 @@ SymCryptMlKemkeyExpandFromPrivateSeed(
     });
 
     // Perform NTT on s and e
-    SymCryptMlKemVectorNTT( pkMlKemkey.s_mut() );
-    SymCryptMlKemVectorNTT( pkMlKemkey.t_mut() );
+    SymCryptMlKemVectorNTT(pkMlKemkey.s_mut());
+    SymCryptMlKemVectorNTT(pkMlKemkey.t_mut());
 
     // pvTmp = s .* R
     let pvTmp = &mut pCompTemps.abVectorBuffer0[0..nRows as usize];
-    SymCryptMlKemVectorMulR( pkMlKemkey.s_mut(), pvTmp);
+    SymCryptMlKemVectorMulR(pkMlKemkey.s_mut(), pvTmp);
 
     // t = ((A o (s .* R)) ./ R) + e = A o s + e
     let (a, t, _s) = pkMlKemkey.ats_mut();
-    let paTmp = &mut pCompTemps.abPolyElementAccumulatorBuffer; 
-    SymCryptMlKemMatrixVectorMontMulAndAdd(a, &pCompTemps.abVectorBuffer0[0..nRows as usize], t, paTmp, nRows);
+    let paTmp = &mut pCompTemps.abPolyElementAccumulatorBuffer;
+    SymCryptMlKemMatrixVectorMontMulAndAdd(
+        a,
+        &pCompTemps.abVectorBuffer0[0..nRows as usize],
+        t,
+        paTmp,
+        nRows,
+    );
 
     // transpose A
-    SymCryptMlKemMatrixTranspose( pkMlKemkey.atranspose_mut(), nRows);
+    SymCryptMlKemMatrixTranspose(pkMlKemkey.atranspose_mut(), nRows);
 
     // precompute byte-encoding of public vector t
     let (t, encodedT) = pkMlKemkey.t_encoded_t_mut();
-    SymCryptMlKemVectorCompressAndEncode(t, 12, &mut encodedT[0..cbEncodedVector] );
+    SymCryptMlKemVectorCompressAndEncode(t, 12, &mut encodedT[0..cbEncodedVector]);
 
     // precompute hash of encapsulation key blob
-    SymCryptMlKemkeyComputeEncapsulationKeyHash( pkMlKemkey, pCompTemps);
+    SymCryptMlKemkeyComputeEncapsulationKeyHash(pkMlKemkey, pCompTemps);
 
     // Cleanup!
     privateSeedHash.zeroize();
@@ -220,7 +238,6 @@ SymCryptMlKemkeyExpandFromPrivateSeed(
 // The specifics of what tests will be run are likely to change over time, as FIPS requirements and
 // our understanding of how best to implement them, change over time. Callers should not rely on
 // specific behavior.
-
 
 // Validation required by FIPS is enabled by default. This flag enables a caller to opt out of this
 // validation.
@@ -246,32 +263,27 @@ const FLAG_ECKEY_ECDH: u32 = 0x2000;
 const FLAG_RSAKEY_SIGN: u32 = 0x1000;
 const FLAG_RSAKEY_ENCRYPT: u32 = 0x2000;
 
-pub
-fn
-SymCryptMlKemkeySetValue(
+pub fn SymCryptMlKemkeySetValue(
     pbSrc: &[u8],
     mlKemkeyFormat: MLKEMKEY_FORMAT,
     flags: u32,
-    pkMlKemkey: &mut KEY ) -> ERROR
-{
+    pkMlKemkey: &mut KEY,
+) -> ERROR {
     // ERROR scError = NO_ERROR;
     let mut pbCurr: usize = 0;
     // PINTERNAL_COMPUTATION_TEMPORARIES pCompTemps = NULL;
     let nRows = pkMlKemkey.params.nRows;
-    let cbEncodedVector = SIZEOF_ENCODED_UNCOMPRESSED_VECTOR( nRows as usize);
+    let cbEncodedVector = SIZEOF_ENCODED_UNCOMPRESSED_VECTOR(nRows as usize);
 
     // Ensure only allowed flags are specified
     let allowedFlags: u32 = FLAG_KEY_NO_FIPS | FLAG_KEY_MINIMAL_VALIDATION;
 
-    if ( flags & !allowedFlags ) != 0
-    {
+    if (flags & !allowedFlags) != 0 {
         return ERROR::INVALID_ARGUMENT;
     }
 
     // Check that minimal validation flag only specified with no fips
-    if ( ( flags & FLAG_KEY_NO_FIPS ) == 0 ) &&
-         ( ( flags & FLAG_KEY_MINIMAL_VALIDATION ) != 0 )
-    {
+    if ((flags & FLAG_KEY_NO_FIPS) == 0) && ((flags & FLAG_KEY_MINIMAL_VALIDATION) != 0) {
         return ERROR::INVALID_ARGUMENT;
     }
 
@@ -281,8 +293,7 @@ SymCryptMlKemkeySetValue(
     //     return MLKEM_ERROR::INVALID_ARGUMENT;
     // }
 
-    if ( flags & FLAG_KEY_NO_FIPS ) == 0
-    {
+    if (flags & FLAG_KEY_NO_FIPS) == 0 {
         // FIXME
         // Ensure ML-KEM algorithm selftest is run before first use of ML-KEM algorithms;
         // notably _before_ first full KeyGen
@@ -296,117 +307,126 @@ SymCryptMlKemkeySetValue(
         abVectorBuffer1: [POLYELEMENT_ZERO; MATRIX_MAX_NROWS],
         abPolyElementBuffer0: POLYELEMENT_ZERO,
         abPolyElementBuffer1: POLYELEMENT_ZERO,
-        abPolyElementAccumulatorBuffer: [0; MLWE_POLYNOMIAL_COEFFICIENTS ],
+        abPolyElementAccumulatorBuffer: [0; MLWE_POLYNOMIAL_COEFFICIENTS],
         hashState0: crate::hash::UNINITIALIZED_HASH_STATE,
         hashState1: crate::hash::UNINITIALIZED_HASH_STATE,
     });
 
     let mut pCompTemps = match pCompTemps {
-        Result::Err(_) => { return ERROR::MEMORY_ALLOCATION_FAILURE },
-        Result::Ok(pCompTemps) => pCompTemps
+        Result::Err(_) => return ERROR::MEMORY_ALLOCATION_FAILURE,
+        Result::Ok(pCompTemps) => pCompTemps,
     };
 
     match mlKemkeyFormat {
-    MLKEMKEY_FORMAT::PRIVATE_SEED =>
-    {
-        if pbSrc.len() != SIZEOF_FORMAT_PRIVATE_SEED
-        {
-            return ERROR::WRONG_KEY_SIZE;
+        MLKEMKEY_FORMAT::PRIVATE_SEED => {
+            if pbSrc.len() != SIZEOF_FORMAT_PRIVATE_SEED {
+                return ERROR::WRONG_KEY_SIZE;
+            }
+
+            pkMlKemkey.hasPrivateSeed = true;
+            let l = pkMlKemkey.privateSeed.len();
+            pkMlKemkey.privateSeed.copy_from_slice(&pbSrc[0..l]);
+            pbCurr += l;
+
+            pkMlKemkey.hasPrivateKey = true;
+            let l = pkMlKemkey.privateRandom.len();
+            pkMlKemkey
+                .privateRandom
+                .copy_from_slice(&pbSrc[pbCurr..pbCurr + l]);
+            pbCurr += l;
+
+            SymCryptMlKemkeyExpandFromPrivateSeed(pkMlKemkey, &mut pCompTemps);
         }
 
-        pkMlKemkey.hasPrivateSeed = true;
-        let l = pkMlKemkey.privateSeed.len();
-        pkMlKemkey.privateSeed.copy_from_slice(&pbSrc[0..l]);
-        pbCurr += l;
+        MLKEMKEY_FORMAT::DECAPSULATION_KEY => {
+            if pbSrc.len() != SIZEOF_FORMAT_DECAPSULATION_KEY(nRows as usize) {
+                return ERROR::WRONG_KEY_SIZE;
+            }
 
-        pkMlKemkey.hasPrivateKey = true;
-        let l = pkMlKemkey.privateRandom.len();
-        pkMlKemkey.privateRandom.copy_from_slice(&pbSrc[pbCurr..pbCurr+l]);
-        pbCurr += l;
+            // decode s
+            let scError = SymCryptMlKemVectorDecodeAndDecompress(
+                &pbSrc[pbCurr..pbCurr + cbEncodedVector],
+                12,
+                pkMlKemkey.s_mut(),
+            );
+            if scError != ERROR::NO_ERROR {
+                return scError;
+            }
+            pbCurr += cbEncodedVector;
 
-        SymCryptMlKemkeyExpandFromPrivateSeed( pkMlKemkey, &mut pCompTemps );
-    },
+            // copy t and decode t
+            pkMlKemkey.encodedT[0..cbEncodedVector]
+                .copy_from_slice(&pbSrc[pbCurr..pbCurr + cbEncodedVector]);
+            pbCurr += cbEncodedVector;
+            let (t, encodedT) = pkMlKemkey.t_encoded_t_mut();
+            let scError =
+                SymCryptMlKemVectorDecodeAndDecompress(&encodedT[0..cbEncodedVector], 12, t);
+            if scError != ERROR::NO_ERROR {
+                return scError;
+            }
 
-    MLKEMKEY_FORMAT::DECAPSULATION_KEY =>
-    {
-        if pbSrc.len() != SIZEOF_FORMAT_DECAPSULATION_KEY( nRows as usize)
-        {
-            return ERROR::WRONG_KEY_SIZE;
+            // copy public seed and expand public matrix
+            let l = pkMlKemkey.publicSeed.len();
+            pkMlKemkey
+                .publicSeed
+                .copy_from_slice(&pbSrc[pbCurr..pbCurr + l]);
+            pbCurr += pkMlKemkey.publicSeed.len();
+            SymCryptMlKemkeyExpandPublicMatrixFromPublicSeed(pkMlKemkey, &mut pCompTemps);
+
+            // transpose A
+            SymCryptMlKemMatrixTranspose(pkMlKemkey.atranspose_mut(), nRows);
+
+            // copy hash of encapsulation key
+            let l = pkMlKemkey.encapsKeyHash.len();
+            pkMlKemkey
+                .encapsKeyHash
+                .copy_from_slice(&pbSrc[pbCurr..pbCurr + l]);
+            pbCurr += pkMlKemkey.encapsKeyHash.len();
+
+            // copy private random
+            let l = pkMlKemkey.privateRandom.len();
+            pkMlKemkey
+                .privateRandom
+                .copy_from_slice(&pbSrc[pbCurr..pbCurr + l]);
+            pbCurr += pkMlKemkey.privateRandom.len();
+
+            pkMlKemkey.hasPrivateSeed = false;
+            pkMlKemkey.hasPrivateKey = true;
         }
 
-        // decode s
-        let scError = SymCryptMlKemVectorDecodeAndDecompress( &pbSrc[pbCurr..pbCurr+cbEncodedVector], 12, pkMlKemkey.s_mut() );
-        if scError != ERROR::NO_ERROR
-        {
-            return scError;
+        MLKEMKEY_FORMAT::ENCAPSULATION_KEY => {
+            if pbSrc.len() != SIZEOF_FORMAT_ENCAPSULATION_KEY(nRows as usize) {
+                return ERROR::WRONG_KEY_SIZE;
+            }
+
+            // copy t and decode t
+            pkMlKemkey.encodedT[0..cbEncodedVector]
+                .copy_from_slice(&pbSrc[pbCurr..pbCurr + cbEncodedVector]);
+            pbCurr += cbEncodedVector;
+            let (t, encodedT) = pkMlKemkey.t_encoded_t_mut();
+            let scError =
+                SymCryptMlKemVectorDecodeAndDecompress(&encodedT[0..cbEncodedVector], 12, t);
+            if scError != ERROR::NO_ERROR {
+                return scError;
+            }
+
+            // copy public seed and expand public matrix
+            let l = pkMlKemkey.publicSeed.len();
+            pkMlKemkey
+                .publicSeed
+                .copy_from_slice(&pbSrc[pbCurr..pbCurr + l]);
+            pbCurr += pkMlKemkey.publicSeed.len();
+            SymCryptMlKemkeyExpandPublicMatrixFromPublicSeed(pkMlKemkey, &mut pCompTemps);
+
+            // transpose A
+            SymCryptMlKemMatrixTranspose(pkMlKemkey.atranspose_mut(), nRows);
+
+            // precompute hash of encapsulation key blob
+            SymCryptMlKemkeyComputeEncapsulationKeyHash(pkMlKemkey, &mut pCompTemps);
+
+            pkMlKemkey.hasPrivateSeed = false;
+            pkMlKemkey.hasPrivateKey = false;
         }
-        pbCurr += cbEncodedVector;
-
-        // copy t and decode t
-        pkMlKemkey.encodedT[0..cbEncodedVector].copy_from_slice(&pbSrc[pbCurr..pbCurr+cbEncodedVector]);
-        pbCurr += cbEncodedVector;
-        let (t, encodedT) = pkMlKemkey.t_encoded_t_mut();
-        let scError = SymCryptMlKemVectorDecodeAndDecompress( &encodedT[0..cbEncodedVector], 12, t );
-        if scError != ERROR::NO_ERROR
-        {
-            return scError;
-        }
-
-        // copy public seed and expand public matrix
-        let l = pkMlKemkey.publicSeed.len();
-        pkMlKemkey.publicSeed.copy_from_slice(&pbSrc[pbCurr..pbCurr+l] );
-        pbCurr += pkMlKemkey.publicSeed.len();
-        SymCryptMlKemkeyExpandPublicMatrixFromPublicSeed( pkMlKemkey, &mut pCompTemps );
-
-        // transpose A
-        SymCryptMlKemMatrixTranspose( pkMlKemkey.atranspose_mut(), nRows );
-
-        // copy hash of encapsulation key
-        let l = pkMlKemkey.encapsKeyHash.len();
-        pkMlKemkey.encapsKeyHash.copy_from_slice(&pbSrc[pbCurr..pbCurr+l]);
-        pbCurr += pkMlKemkey.encapsKeyHash.len();
-
-        // copy private random
-        let l = pkMlKemkey.privateRandom.len();
-        pkMlKemkey.privateRandom.copy_from_slice(&pbSrc[pbCurr..pbCurr+l]);
-        pbCurr += pkMlKemkey.privateRandom.len();
-
-        pkMlKemkey.hasPrivateSeed = false;
-        pkMlKemkey.hasPrivateKey  = true;
-    },
-
-    MLKEMKEY_FORMAT::ENCAPSULATION_KEY =>
-    {
-        if pbSrc.len() != SIZEOF_FORMAT_ENCAPSULATION_KEY( nRows as usize)
-        {
-            return ERROR::WRONG_KEY_SIZE;
-        }
-
-        // copy t and decode t
-        pkMlKemkey.encodedT[0..cbEncodedVector].copy_from_slice(&pbSrc[pbCurr..pbCurr+cbEncodedVector]);
-        pbCurr += cbEncodedVector;
-        let (t, encodedT) = pkMlKemkey.t_encoded_t_mut();
-        let scError = SymCryptMlKemVectorDecodeAndDecompress( &encodedT[0..cbEncodedVector], 12, t );
-        if scError != ERROR::NO_ERROR
-        {
-            return scError;
-        }
-
-        // copy public seed and expand public matrix
-        let l = pkMlKemkey.publicSeed.len();
-        pkMlKemkey.publicSeed.copy_from_slice(&pbSrc[pbCurr..pbCurr+l]);
-        pbCurr += pkMlKemkey.publicSeed.len();
-        SymCryptMlKemkeyExpandPublicMatrixFromPublicSeed( pkMlKemkey, &mut pCompTemps );
-
-        // transpose A
-        SymCryptMlKemMatrixTranspose( pkMlKemkey.atranspose_mut(), nRows );
-
-        // precompute hash of encapsulation key blob
-        SymCryptMlKemkeyComputeEncapsulationKeyHash( pkMlKemkey, &mut pCompTemps);
-
-        pkMlKemkey.hasPrivateSeed = false;
-        pkMlKemkey.hasPrivateKey  = false;
-    }
     };
     // Note (Rust): exhaustiveness
     // else
@@ -415,144 +435,141 @@ SymCryptMlKemkeySetValue(
     //     goto cleanup;
     // }
 
-    assert!( pbCurr == pbSrc.len() );
+    assert!(pbCurr == pbSrc.len());
 
     ERROR::NO_ERROR
-// cleanup:
-//     if( pCompTemps != NULL )
-//     {
-//         SymCryptWipe( pCompTemps, sizeof(*pCompTemps) );
-//         SymCryptCallbackFree( pCompTemps );
-//     }
+    // cleanup:
+    //     if( pCompTemps != NULL )
+    //     {
+    //         SymCryptWipe( pCompTemps, sizeof(*pCompTemps) );
+    //         SymCryptCallbackFree( pCompTemps );
+    //     }
 
-//     return scError;
+    //     return scError;
 }
 
-
-pub
-fn
-SymCryptMlKemkeyGetValue(
+pub fn SymCryptMlKemkeyGetValue(
     pkMlKemkey: &KEY,
-    pbDst: &mut[u8],
-                                // SIZE_T                      cbDst,
-                                mlKemkeyFormat: MLKEMKEY_FORMAT,
-                                _flags: u32 ) -> ERROR
-{
+    pbDst: &mut [u8],
+    // SIZE_T                      cbDst,
+    mlKemkeyFormat: MLKEMKEY_FORMAT,
+    _flags: u32,
+) -> ERROR {
     // ERROR scError = NO_ERROR;
     let mut pbCurr: usize = 0;
     let nRows = pkMlKemkey.params.nRows;
-    let cbEncodedVector = SIZEOF_ENCODED_UNCOMPRESSED_VECTOR( nRows as usize );
+    let cbEncodedVector = SIZEOF_ENCODED_UNCOMPRESSED_VECTOR(nRows as usize);
 
-//     if( mlKemkeyFormat == MLKEMKEY_FORMAT_NULL )
-//     {
-//         scError = INVALID_ARGUMENT;
-//         goto cleanup;
-//     }
+    //     if( mlKemkeyFormat == MLKEMKEY_FORMAT_NULL )
+    //     {
+    //         scError = INVALID_ARGUMENT;
+    //         goto cleanup;
+    //     }
 
     match mlKemkeyFormat {
-        MLKEMKEY_FORMAT::PRIVATE_SEED =>
-    {
-        if pbDst.len() != SIZEOF_FORMAT_PRIVATE_SEED
-        {
-            return ERROR::WRONG_KEY_SIZE;
+        MLKEMKEY_FORMAT::PRIVATE_SEED => {
+            if pbDst.len() != SIZEOF_FORMAT_PRIVATE_SEED {
+                return ERROR::WRONG_KEY_SIZE;
+            }
+
+            if !pkMlKemkey.hasPrivateSeed {
+                return ERROR::INCOMPATIBLE_FORMAT;
+            }
+
+            pbDst[pbCurr..pbCurr + pkMlKemkey.privateSeed.len()]
+                .copy_from_slice(&pkMlKemkey.privateSeed);
+            pbCurr += pkMlKemkey.privateSeed.len();
+
+            pbDst[pbCurr..pbCurr + pkMlKemkey.privateRandom.len()]
+                .copy_from_slice(&pkMlKemkey.privateRandom);
+            pbCurr += pkMlKemkey.privateRandom.len();
         }
 
-        if !pkMlKemkey.hasPrivateSeed
-        {
-            return ERROR::INCOMPATIBLE_FORMAT;
+        MLKEMKEY_FORMAT::DECAPSULATION_KEY => {
+            if pbDst.len() != SIZEOF_FORMAT_DECAPSULATION_KEY(nRows as usize) {
+                return ERROR::INVALID_ARGUMENT;
+            }
+
+            if !pkMlKemkey.hasPrivateKey {
+                return ERROR::INVALID_ARGUMENT;
+            }
+
+            // We don't precompute byte-encoding of private key as exporting decapsulation key is not a critical path operation
+            // All other fields are kept in memory
+            SymCryptMlKemVectorCompressAndEncode(
+                pkMlKemkey.s(),
+                12,
+                &mut pbDst[0..cbEncodedVector],
+            );
+            pbCurr += cbEncodedVector;
+
+            pbDst[pbCurr..pbCurr + cbEncodedVector]
+                .copy_from_slice(&pkMlKemkey.encodedT[0..cbEncodedVector]);
+            pbCurr += cbEncodedVector;
+
+            pbDst[pbCurr..pbCurr + pkMlKemkey.publicSeed.len()]
+                .copy_from_slice(&pkMlKemkey.publicSeed);
+            pbCurr += pkMlKemkey.publicSeed.len();
+
+            pbDst[pbCurr..pbCurr + pkMlKemkey.encapsKeyHash.len()]
+                .copy_from_slice(&pkMlKemkey.encapsKeyHash);
+            pbCurr += pkMlKemkey.encapsKeyHash.len();
+
+            pbDst[pbCurr..pbCurr + pkMlKemkey.privateRandom.len()]
+                .copy_from_slice(&pkMlKemkey.privateRandom);
+            pbCurr += pkMlKemkey.privateRandom.len();
         }
 
-        pbDst[pbCurr..pbCurr+pkMlKemkey.privateSeed.len()].copy_from_slice(&pkMlKemkey.privateSeed);
-        pbCurr += pkMlKemkey.privateSeed.len();
+        MLKEMKEY_FORMAT::ENCAPSULATION_KEY => {
+            if pbDst.len() != SIZEOF_FORMAT_ENCAPSULATION_KEY(nRows as usize) {
+                return ERROR::INVALID_ARGUMENT;
+            }
 
-        pbDst[pbCurr..pbCurr+pkMlKemkey.privateRandom.len()].copy_from_slice(&pkMlKemkey.privateRandom);
-        pbCurr += pkMlKemkey.privateRandom.len();
-    },
+            pbDst[pbCurr..pbCurr + cbEncodedVector]
+                .copy_from_slice(&pkMlKemkey.encodedT[0..cbEncodedVector]);
+            pbCurr += cbEncodedVector;
 
-    MLKEMKEY_FORMAT::DECAPSULATION_KEY =>
-    {
-        if pbDst.len() != SIZEOF_FORMAT_DECAPSULATION_KEY( nRows as usize)
-        {
-            return ERROR::INVALID_ARGUMENT;
+            pbDst[pbCurr..pbCurr + pkMlKemkey.publicSeed.len()]
+                .copy_from_slice(&pkMlKemkey.publicSeed);
+            pbCurr += pkMlKemkey.publicSeed.len();
         }
-
-        if !pkMlKemkey.hasPrivateKey
-        {
-            return ERROR::INVALID_ARGUMENT;
-        }
-
-        // We don't precompute byte-encoding of private key as exporting decapsulation key is not a critical path operation
-        // All other fields are kept in memory
-        SymCryptMlKemVectorCompressAndEncode( pkMlKemkey.s(), 12, &mut pbDst[0..cbEncodedVector] );
-        pbCurr += cbEncodedVector;
-
-        pbDst[pbCurr..pbCurr+cbEncodedVector].copy_from_slice(&pkMlKemkey.encodedT[0..cbEncodedVector]);
-        pbCurr += cbEncodedVector;
-
-        pbDst[pbCurr..pbCurr+pkMlKemkey.publicSeed.len()].copy_from_slice(&pkMlKemkey.publicSeed);
-        pbCurr += pkMlKemkey.publicSeed.len();
-
-        pbDst[pbCurr..pbCurr+pkMlKemkey.encapsKeyHash.len()].copy_from_slice(&pkMlKemkey.encapsKeyHash);
-        pbCurr += pkMlKemkey.encapsKeyHash.len();
-
-        pbDst[pbCurr..pbCurr+pkMlKemkey.privateRandom.len()].copy_from_slice(&pkMlKemkey.privateRandom);
-        pbCurr += pkMlKemkey.privateRandom.len();
-    },
-
-    MLKEMKEY_FORMAT::ENCAPSULATION_KEY =>
-    {
-        if pbDst.len() != SIZEOF_FORMAT_ENCAPSULATION_KEY( nRows as usize)
-        {
-            return ERROR::INVALID_ARGUMENT;
-        }
-
-        pbDst[pbCurr..pbCurr+cbEncodedVector].copy_from_slice(&pkMlKemkey.encodedT[0..cbEncodedVector]);
-        pbCurr += cbEncodedVector;
-
-        pbDst[pbCurr..pbCurr+pkMlKemkey.publicSeed.len()].copy_from_slice(&pkMlKemkey.publicSeed);
-        pbCurr += pkMlKemkey.publicSeed.len();
-    },
-    // else
-    // {
-    //     scError = NOT_IMPLEMENTED;
-    //     goto cleanup;
-    // }
+        // else
+        // {
+        //     scError = NOT_IMPLEMENTED;
+        //     goto cleanup;
+        // }
     };
 
-    assert!( pbCurr == pbDst.len() );
+    assert!(pbCurr == pbDst.len());
 
-// cleanup:
-//     return scError;
+    // cleanup:
+    //     return scError;
     ERROR::NO_ERROR
 }
 
-
-pub
-fn
-SymCryptMlKemkeyGenerate(
-    pkMlKemkey: &mut KEY,
-    flags : u32) -> ERROR
-{
+pub fn SymCryptMlKemkeyGenerate(pkMlKemkey: &mut KEY, flags: u32) -> ERROR {
     // ERROR scError = NO_ERROR;
     let mut privateSeed = [0u8; SIZEOF_FORMAT_PRIVATE_SEED];
 
     // Ensure only allowed flags are specified
     let allowedFlags: u32 = FLAG_KEY_NO_FIPS;
 
-    if ( flags & !allowedFlags ) != 0
-    {
+    if (flags & !allowedFlags) != 0 {
         return ERROR::INVALID_ARGUMENT;
     }
 
-    let scError = callback_random( &mut privateSeed );
-    if scError != ERROR::NO_ERROR
-    {
+    let scError = callback_random(&mut privateSeed);
+    if scError != ERROR::NO_ERROR {
         return scError;
     }
 
-    let scError = SymCryptMlKemkeySetValue( &privateSeed, MLKEMKEY_FORMAT::PRIVATE_SEED, flags, pkMlKemkey );
-    if scError != ERROR::NO_ERROR
-    {
+    let scError = SymCryptMlKemkeySetValue(
+        &privateSeed,
+        MLKEMKEY_FORMAT::PRIVATE_SEED,
+        flags,
+        pkMlKemkey,
+    );
+    if scError != ERROR::NO_ERROR {
         return scError;
     }
 
@@ -573,17 +590,16 @@ const SIZEOF_MAX_CIPHERTEXT: usize = 1568;
 const SIZEOF_AGREED_SECRET: usize = 32;
 const SIZEOF_ENCAPS_RANDOM: usize = 32;
 
-fn
-SymCryptMlKemEncapsulateInternal(
+fn SymCryptMlKemEncapsulateInternal(
     pkMlKemkey: &mut KEY,
-    pbAgreedSecret: &mut[u8],
-    pbCiphertext: &mut[u8],
+    pbAgreedSecret: &mut [u8],
+    pbCiphertext: &mut [u8],
     pbRandom: &[u8; SIZEOF_ENCAPS_RANDOM],
-    pCompTemps: &mut INTERNAL_COMPUTATION_TEMPORARIES ) -> ERROR
-{
+    pCompTemps: &mut INTERNAL_COMPUTATION_TEMPORARIES,
+) -> ERROR {
     let cbAgreedSecret = pbAgreedSecret.len();
     let cbCiphertext = pbCiphertext.len();
-    let mut CBDSampleBuffer = [0u8; 3*64 + 1];
+    let mut CBDSampleBuffer = [0u8; 3 * 64 + 1];
     // ERROR scError = NO_ERROR;
     // PVECTOR pvrInner;
     // PVECTOR pvTmp;
@@ -607,9 +623,7 @@ SymCryptMlKemEncapsulateInternal(
     // v polynomial encoded with nBitsOfV * MLWE_POLYNOMIAL_COEFFICIENTS bits
     let cbV = (nBitsOfV as usize) * (MLWE_POLYNOMIAL_COEFFICIENTS / 8);
 
-    if (cbAgreedSecret != SIZEOF_AGREED_SECRET) ||
-        (cbCiphertext != cbU + cbV) 
-    {
+    if (cbAgreedSecret != SIZEOF_AGREED_SECRET) || (cbCiphertext != cbU + cbV) {
         return ERROR::INVALID_ARGUMENT;
     }
 
@@ -620,19 +634,28 @@ SymCryptMlKemEncapsulateInternal(
     let paTmp = &mut pCompTemps.abPolyElementAccumulatorBuffer;
 
     // CBDSampleBuffer = (K || rOuter) = SHA3-512(pbRandom || encapsKeyHash)
-    crate::hash::sha3_512_init( &mut pCompTemps.hashState0 );
-    crate::hash::sha3_512_append( &mut pCompTemps.hashState0, pbRandom );
-    crate::hash::sha3_512_append( &mut pCompTemps.hashState0, &pkMlKemkey.encapsKeyHash);
+    crate::hash::sha3_512_init(&mut pCompTemps.hashState0);
+    crate::hash::sha3_512_append(&mut pCompTemps.hashState0, pbRandom);
+    crate::hash::sha3_512_append(&mut pCompTemps.hashState0, &pkMlKemkey.encapsKeyHash);
     // Note (Rust): should we have a type that is less strict for the output of sha3_512_result?
     // Note (Rust): no assert!(SIZEOF_AGREED_SECRET < SHA3_512_RESULT_SIZE)?
-    crate::hash::sha3_512_result( &mut pCompTemps.hashState0, (&mut CBDSampleBuffer[0..crate::hash::SHA3_512_RESULT_SIZE]).try_into().unwrap() );
+    crate::hash::sha3_512_result(
+        &mut pCompTemps.hashState0,
+        (&mut CBDSampleBuffer[0..crate::hash::SHA3_512_RESULT_SIZE])
+            .try_into()
+            .unwrap(),
+    );
 
     // Write K to pbAgreedSecret
-    pbAgreedSecret[0..SIZEOF_AGREED_SECRET].copy_from_slice(&CBDSampleBuffer[0..SIZEOF_AGREED_SECRET]);
+    pbAgreedSecret[0..SIZEOF_AGREED_SECRET]
+        .copy_from_slice(&CBDSampleBuffer[0..SIZEOF_AGREED_SECRET]);
 
     // Initialize pShakeStateBase with rOuter
-    crate::hash::shake256_init( &mut pCompTemps.hashState0 );
-    crate::hash::shake256_append( &mut pCompTemps.hashState0, &CBDSampleBuffer[cbAgreedSecret..cbAgreedSecret+32]);
+    crate::hash::shake256_init(&mut pCompTemps.hashState0);
+    crate::hash::shake256_append(
+        &mut pCompTemps.hashState0,
+        &CBDSampleBuffer[cbAgreedSecret..cbAgreedSecret + 32],
+    );
 
     // Expand rInner vector
     c_for!(let mut i=0u8; i<nRows; i += 1;
@@ -647,7 +670,7 @@ SymCryptMlKemEncapsulateInternal(
     });
 
     // Perform NTT on rInner
-    SymCryptMlKemVectorNTT( pvrInner );
+    SymCryptMlKemVectorNTT(pvrInner);
 
     // Set pvTmp to 0
     // TODO: write a helper function -- any way to do this better?
@@ -655,10 +678,16 @@ SymCryptMlKemEncapsulateInternal(
     // SymCryptMlKemVectorSetZero( pvTmp );
 
     // pvTmp = (Atranspose o rInner) ./ R
-    SymCryptMlKemMatrixVectorMontMulAndAdd( pkMlKemkey.atranspose_mut(), pvrInner, pvTmp, paTmp, nRows );
+    SymCryptMlKemMatrixVectorMontMulAndAdd(
+        pkMlKemkey.atranspose_mut(),
+        pvrInner,
+        pvTmp,
+        paTmp,
+        nRows,
+    );
 
     // pvTmp = INTT(Atranspose o rInner)
-    SymCryptMlKemVectorINTTAndMulR( pvTmp );
+    SymCryptMlKemVectorINTTAndMulR(pvTmp);
 
     // Expand e1 and add it to pvTmp - do addition PolyElement-wise to reduce memory usage
     c_for!(let mut i=0; i<nRows; i += 1; {
@@ -680,64 +709,63 @@ SymCryptMlKemEncapsulateInternal(
 
     // pvTmp = u = INTT(Atranspose o rInner) + e1
     // Compress and encode u into prefix of ciphertext
-    SymCryptMlKemVectorCompressAndEncode( pvTmp, nBitsOfU as u32, &mut pbCiphertext[0..cbU] );
+    SymCryptMlKemVectorCompressAndEncode(pvTmp, nBitsOfU as u32, &mut pbCiphertext[0..cbU]);
 
     // peTmp0 = (t o r) ./ R
-    SymCryptMlKemVectorMontDotProduct( pkMlKemkey.t_mut(), pvrInner, peTmp0, paTmp );
+    SymCryptMlKemVectorMontDotProduct(pkMlKemkey.t_mut(), pvrInner, peTmp0, paTmp);
 
     // peTmp0 = INTT(t o r)
-    SymCryptMlKemPolyElementINTTAndMulR( peTmp0 );
+    SymCryptMlKemPolyElementINTTAndMulR(peTmp0);
 
     // Expand e2 polynomial in peTmp1
-    CBDSampleBuffer[0] = 2*nRows;
-    crate::hash::shake256_state_copy( &mut pCompTemps.hashState0, &mut pCompTemps.hashState1 );
-    crate::hash::shake256_append( &mut pCompTemps.hashState1, &CBDSampleBuffer[0..1] );
+    CBDSampleBuffer[0] = 2 * nRows;
+    crate::hash::shake256_state_copy(&mut pCompTemps.hashState0, &mut pCompTemps.hashState1);
+    crate::hash::shake256_append(&mut pCompTemps.hashState1, &CBDSampleBuffer[0..1]);
 
-    crate::hash::shake256_extract( &mut pCompTemps.hashState1, &mut CBDSampleBuffer[0..64*(nEta2 as usize)], false );
+    crate::hash::shake256_extract(
+        &mut pCompTemps.hashState1,
+        &mut CBDSampleBuffer[0..64 * (nEta2 as usize)],
+        false,
+    );
 
-    SymCryptMlKemPolyElementSampleCBDFromBytes( &mut CBDSampleBuffer, nEta2 as u32, peTmp1 );
+    SymCryptMlKemPolyElementSampleCBDFromBytes(&mut CBDSampleBuffer, nEta2 as u32, peTmp1);
 
     // peTmp = INTT(t o r) + e2
     // Note (Rust): in-place operation, was:
     // SymCryptMlKemPolyElementAdd( peTmp0, peTmp1, peTmp0 );
     // FIXME (measure performance issues, adjust)
     let copy = *peTmp0;
-    SymCryptMlKemPolyElementAdd( &copy, peTmp1, peTmp0 );
+    SymCryptMlKemPolyElementAdd(&copy, peTmp1, peTmp0);
 
     // peTmp1 = mu
-    SymCryptMlKemPolyElementDecodeAndDecompress( pbRandom, 1, peTmp1 );
+    SymCryptMlKemPolyElementDecodeAndDecompress(pbRandom, 1, peTmp1);
 
     // peTmp0 = v = INTT(t o r) + e2 + mu
     let copy = *peTmp0;
     // FIXME (same as above)
-    SymCryptMlKemPolyElementAdd( &copy, peTmp1, peTmp0 );
+    SymCryptMlKemPolyElementAdd(&copy, peTmp1, peTmp0);
 
     // Compress and encode v into remainder of ciphertext
-    SymCryptMlKemPolyElementCompressAndEncode( peTmp0, nBitsOfV as u32, &mut pbCiphertext[cbU..] );
+    SymCryptMlKemPolyElementCompressAndEncode(peTmp0, nBitsOfV as u32, &mut pbCiphertext[cbU..]);
 
-// cleanup:
-//     SymCryptWipeKnownSize( CBDSampleBuffer, sizeof(CBDSampleBuffer) );
+    // cleanup:
+    //     SymCryptWipeKnownSize( CBDSampleBuffer, sizeof(CBDSampleBuffer) );
 
     ERROR::NO_ERROR
 }
 
-
-pub
-fn
-SymCryptMlKemEncapsulateEx(
+pub fn SymCryptMlKemEncapsulateEx(
     pkMlKemkey: &mut KEY,
     pbRandom: &[u8], // Note(Rust): we could statically require the right length, and have the FFI
-                     // wrapper enforce it
-    pbAgreedSecret: &mut[u8],
-    pbCiphertext: &mut[u8],
-) -> ERROR
-{
+    // wrapper enforce it
+    pbAgreedSecret: &mut [u8],
+    pbCiphertext: &mut [u8],
+) -> ERROR {
     let cbRandom = pbRandom.len();
     // let cbAgreedSecret = pbAgreedSecret.len();
     // let cbCiphertext = pbCiphertext.len();
 
-    if cbRandom != SIZEOF_ENCAPS_RANDOM
-    {
+    if cbRandom != SIZEOF_ENCAPS_RANDOM {
         return ERROR::INVALID_ARGUMENT;
     }
 
@@ -746,14 +774,14 @@ SymCryptMlKemEncapsulateEx(
         abVectorBuffer1: [POLYELEMENT_ZERO; MATRIX_MAX_NROWS],
         abPolyElementBuffer0: POLYELEMENT_ZERO,
         abPolyElementBuffer1: POLYELEMENT_ZERO,
-        abPolyElementAccumulatorBuffer: [0; MLWE_POLYNOMIAL_COEFFICIENTS ],
+        abPolyElementAccumulatorBuffer: [0; MLWE_POLYNOMIAL_COEFFICIENTS],
         hashState0: crate::hash::UNINITIALIZED_HASH_STATE,
         hashState1: crate::hash::UNINITIALIZED_HASH_STATE,
     });
 
     let mut pCompTemps = match pCompTemps {
-        Result::Err(_) => { return ERROR::MEMORY_ALLOCATION_FAILURE },
-        Result::Ok(pCompTemps) => pCompTemps
+        Result::Err(_) => return ERROR::MEMORY_ALLOCATION_FAILURE,
+        Result::Ok(pCompTemps) => pCompTemps,
     };
 
     SymCryptMlKemEncapsulateInternal(
@@ -761,32 +789,23 @@ SymCryptMlKemEncapsulateEx(
         pbAgreedSecret,
         pbCiphertext,
         pbRandom.try_into().unwrap(),
-        &mut pCompTemps )
+        &mut pCompTemps,
+    )
 }
 
-pub
-fn
-SymCryptMlKemEncapsulate(
+pub fn SymCryptMlKemEncapsulate(
     pkMlKemkey: &mut KEY,
-    pbAgreedSecret: &mut[u8],
-    pbCiphertext: &mut[u8],
-)
-    -> ERROR
-{
+    pbAgreedSecret: &mut [u8],
+    pbCiphertext: &mut [u8],
+) -> ERROR {
     let mut pbm = [0u8; SIZEOF_ENCAPS_RANDOM];
 
-    let scError = callback_random( &mut pbm );
-    if scError != ERROR::NO_ERROR
-    {
+    let scError = callback_random(&mut pbm);
+    if scError != ERROR::NO_ERROR {
         return scError;
     }
 
-    SymCryptMlKemEncapsulateEx(
-        pkMlKemkey,
-        &pbm,
-        pbAgreedSecret,
-        pbCiphertext,
-    )
+    SymCryptMlKemEncapsulateEx(pkMlKemkey, &pbm, pbAgreedSecret, pbCiphertext)
 }
 
 // cleanup:
@@ -795,14 +814,11 @@ SymCryptMlKemEncapsulate(
 //     return scError;
 // }
 
-pub
-fn
-SymCryptMlKemDecapsulate(
+pub fn SymCryptMlKemDecapsulate(
     pkMlKemkey: &mut KEY,
     pbCiphertext: &[u8],
     pbAgreedSecret: &mut [u8],
-) -> ERROR
-{
+) -> ERROR {
     let cbCiphertext = pbCiphertext.len();
     let cbAgreedSecret = pbAgreedSecret.len();
 
@@ -811,14 +827,14 @@ SymCryptMlKemDecapsulate(
         abVectorBuffer1: [POLYELEMENT_ZERO; MATRIX_MAX_NROWS],
         abPolyElementBuffer0: POLYELEMENT_ZERO,
         abPolyElementBuffer1: POLYELEMENT_ZERO,
-        abPolyElementAccumulatorBuffer: [0; MLWE_POLYNOMIAL_COEFFICIENTS ],
+        abPolyElementAccumulatorBuffer: [0; MLWE_POLYNOMIAL_COEFFICIENTS],
         hashState0: crate::hash::UNINITIALIZED_HASH_STATE,
         hashState1: crate::hash::UNINITIALIZED_HASH_STATE,
     });
 
     let mut pCompTemps = match pCompTemps {
-        Result::Err(_) => { return ERROR::MEMORY_ALLOCATION_FAILURE },
-        Result::Ok(pCompTemps) => pCompTemps
+        Result::Err(_) => return ERROR::MEMORY_ALLOCATION_FAILURE,
+        Result::Ok(pCompTemps) => pCompTemps,
     };
 
     let mut pbDecryptedRandom = [0u8; SIZEOF_ENCAPS_RANDOM];
@@ -833,22 +849,21 @@ SymCryptMlKemDecapsulate(
     // Note (Rust): rather than use the (simple) solution below, which does not allow catching
     // memory allocation failures, we instead use the experimental try_with_capacity API:
     // let pbCompCiphers = vec![0u8; 2*cbCiphertext].into_boxed_slice();
-    let pbCompCiphers = Vec::try_with_capacity(2*cbCiphertext);
+    let pbCompCiphers = Vec::try_with_capacity(2 * cbCiphertext);
     let mut pbCompCiphers = match pbCompCiphers {
         Result::Ok(pbCompCiphers) => pbCompCiphers,
-        Result::Err(_) => return ERROR::MEMORY_ALLOCATION_FAILURE
+        Result::Err(_) => return ERROR::MEMORY_ALLOCATION_FAILURE,
     };
-    pbCompCiphers.resize(2*cbCiphertext, 0u8);
+    pbCompCiphers.resize(2 * cbCiphertext, 0u8);
     let mut pbCompCiphers = pbCompCiphers.into_boxed_slice();
-    let (pbReadCiphertext, pbReencapsulatedCiphertext) =
-        pbCompCiphers.split_at_mut(cbCiphertext);
+    let (pbReadCiphertext, pbReencapsulatedCiphertext) = pbCompCiphers.split_at_mut(cbCiphertext);
 
-//     ERROR scError = NO_ERROR;
-//     SIZE_T cbU, cbV, cbCopy;
-//     PVECTOR pvu;
-//     PPOLYELEMENT peTmp0, peTmp1;
-//     PPOLYELEMENT_ACCUMULATOR paTmp;
-//     PSHAKE256_STATE pShakeState;
+    //     ERROR scError = NO_ERROR;
+    //     SIZE_T cbU, cbV, cbCopy;
+    //     PVECTOR pvu;
+    //     PPOLYELEMENT peTmp0, peTmp1;
+    //     PPOLYELEMENT_ACCUMULATOR paTmp;
+    //     PSHAKE256_STATE pShakeState;
     let nRows = pkMlKemkey.params.nRows;
     let nBitsOfU = pkMlKemkey.params.nBitsOfU;
     let nBitsOfV = pkMlKemkey.params.nBitsOfV;
@@ -860,9 +875,9 @@ SymCryptMlKemDecapsulate(
     // v polynomial encoded with nBitsOfV * MLWE_POLYNOMIAL_COEFFICIENTS bits
     let cbV = nBitsOfV as usize * (MLWE_POLYNOMIAL_COEFFICIENTS / 8);
 
-    if (cbAgreedSecret != SIZEOF_AGREED_SECRET) ||
-        (cbCiphertext != cbU + cbV) ||
-        !pkMlKemkey.hasPrivateKey
+    if (cbAgreedSecret != SIZEOF_AGREED_SECRET)
+        || (cbCiphertext != cbU + cbV)
+        || !pkMlKemkey.hasPrivateKey
     {
         return ERROR::INVALID_ARGUMENT;
     }
@@ -876,29 +891,34 @@ SymCryptMlKemDecapsulate(
     let paTmp = &mut pCompTemps.abPolyElementAccumulatorBuffer;
 
     // Decode and decompress u
-    let scError = SymCryptMlKemVectorDecodeAndDecompress( &mut pbReadCiphertext[0..cbU], nBitsOfU as u32, pvu );
-    assert!( scError == ERROR::NO_ERROR );
+    let scError =
+        SymCryptMlKemVectorDecodeAndDecompress(&mut pbReadCiphertext[0..cbU], nBitsOfU as u32, pvu);
+    assert!(scError == ERROR::NO_ERROR);
 
     // Perform NTT on u
-    SymCryptMlKemVectorNTT( pvu );
+    SymCryptMlKemVectorNTT(pvu);
 
     // peTmp0 = (s o NTT(u)) ./ R
-    SymCryptMlKemVectorMontDotProduct( pkMlKemkey.s_mut(), pvu, peTmp0, paTmp );
+    SymCryptMlKemVectorMontDotProduct(pkMlKemkey.s_mut(), pvu, peTmp0, paTmp);
 
     // peTmp0 = INTT(s o NTT(u))
-    SymCryptMlKemPolyElementINTTAndMulR( peTmp0 );
+    SymCryptMlKemPolyElementINTTAndMulR(peTmp0);
 
     // Decode and decompress v
-    let scError = SymCryptMlKemPolyElementDecodeAndDecompress(&mut pbReadCiphertext[cbU..], nBitsOfV as u32, peTmp1 );
-    assert!( scError == ERROR::NO_ERROR );
+    let scError = SymCryptMlKemPolyElementDecodeAndDecompress(
+        &mut pbReadCiphertext[cbU..],
+        nBitsOfV as u32,
+        peTmp1,
+    );
+    assert!(scError == ERROR::NO_ERROR);
 
     // peTmp0 = w = v - INTT(s o NTT(u))
     // FIXME
     let copy = *peTmp0;
-    SymCryptMlKemPolyElementSub( peTmp1, &copy, peTmp0 );
+    SymCryptMlKemPolyElementSub(peTmp1, &copy, peTmp0);
 
     // pbDecryptedRandom = m' = Encoding of w
-    SymCryptMlKemPolyElementCompressAndEncode( peTmp0, 1, &mut pbDecryptedRandom );
+    SymCryptMlKemPolyElementCompressAndEncode(peTmp0, 1, &mut pbDecryptedRandom);
 
     // Compute:
     //  pbDecapsulatedSecret = K' = Decapsulated secret (without implicit rejection)
@@ -908,16 +928,17 @@ SymCryptMlKemDecapsulate(
         &mut pbDecapsulatedSecret,
         pbReencapsulatedCiphertext,
         &mut pbDecryptedRandom,
-        &mut pCompTemps );
-    assert!( scError == ERROR::NO_ERROR );
+        &mut pCompTemps,
+    );
+    assert!(scError == ERROR::NO_ERROR);
 
     // Compute the secret we will return if using implicit rejection
     // pbImplicitRejectionSecret = K_bar = SHAKE256( z || c )
     let pShakeState = &mut pCompTemps.hashState0;
-    crate::hash::shake256_init( pShakeState );
-    crate::hash::shake256_append( pShakeState, & pkMlKemkey.privateRandom);
-    crate::hash::shake256_append( pShakeState, pbReadCiphertext );
-    crate::hash::shake256_extract( pShakeState, &mut pbImplicitRejectionSecret, false );
+    crate::hash::shake256_init(pShakeState);
+    crate::hash::shake256_append(pShakeState, &pkMlKemkey.privateRandom);
+    crate::hash::shake256_append(pShakeState, pbReadCiphertext);
+    crate::hash::shake256_extract(pShakeState, &mut pbImplicitRejectionSecret, false);
 
     // Constant time test if re-encryption successful
     let successfulReencrypt = pbReencapsulatedCiphertext == pbReadCiphertext;
@@ -931,16 +952,16 @@ SymCryptMlKemDecapsulate(
     // Write agreed secret (with implicit rejection) to pbAgreedSecret
     pbAgreedSecret.copy_from_slice(&pbDecapsulatedSecret);
 
-// cleanup:
-//     if( pbAlloc != NULL )
-//     {
-//         SymCryptWipe( pbAlloc, cbAlloc );
-//         SymCryptCallbackFree( pbAlloc );
-//     }
+    // cleanup:
+    //     if( pbAlloc != NULL )
+    //     {
+    //         SymCryptWipe( pbAlloc, cbAlloc );
+    //         SymCryptCallbackFree( pbAlloc );
+    //     }
 
-//     SymCryptWipeKnownSize( pbDecryptedRandom, sizeof(pbDecryptedRandom) );
-//     SymCryptWipeKnownSize( pbDecapsulatedSecret, sizeof(pbDecapsulatedSecret) );
-//     SymCryptWipeKnownSize( pbImplicitRejectionSecret, sizeof(pbImplicitRejectionSecret) );
+    //     SymCryptWipeKnownSize( pbDecryptedRandom, sizeof(pbDecryptedRandom) );
+    //     SymCryptWipeKnownSize( pbDecapsulatedSecret, sizeof(pbDecapsulatedSecret) );
+    //     SymCryptWipeKnownSize( pbImplicitRejectionSecret, sizeof(pbImplicitRejectionSecret) );
 
     ERROR::NO_ERROR
 }

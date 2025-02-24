@@ -1,7 +1,6 @@
 #[derive(PartialEq, Debug)]
 #[repr(C)]
-pub
-enum ERROR {
+pub enum ERROR {
     NO_ERROR = 0,
     UNUSED = 0x8000, // Start our error codes here so they're easier to distinguish
     WRONG_KEY_SIZE,
@@ -46,8 +45,7 @@ extern "C" {
     fn SymCryptModuleInit(api: u32, minor: u32);
 }
 
-pub(crate)
-fn callback_random(dst: &mut [u8]) -> ERROR {
+pub(crate) fn callback_random(dst: &mut [u8]) -> ERROR {
     // #[cfg(not(feature = "dynamic"))]
     // unsafe {
     //     SymCryptCallbackRandom(dst.as_mut_ptr(), dst.len())
@@ -59,8 +57,7 @@ fn callback_random(dst: &mut [u8]) -> ERROR {
     }
 }
 
-pub(crate)
-fn init() {
+pub(crate) fn init() {
     unsafe {
         SymCryptModuleInit(103, 8);
     }

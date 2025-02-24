@@ -14,34 +14,33 @@
 
 #[repr(C)]
 #[repr(align(16))]
-struct 
-KECCAK_STATE
-{
-    state: [u64; 25],      // state for Keccak-f[1600] permutation
+struct KECCAK_STATE {
+    state: [u64; 25],    // state for Keccak-f[1600] permutation
     inputBlockSize: u32, // rate
     stateIndex: u32,     // position in the state for next merge/extract operation
-    paddingValue: u8,   // Keccak padding value
-    squeezeMode: bool,    // denotes whether the state is in squeeze mode
+    paddingValue: u8,    // Keccak padding value
+    squeezeMode: bool,   // denotes whether the state is in squeeze mode
 }
 
 #[repr(C)]
 #[repr(align(16))]
-pub(crate)
-struct HASH_STATE {
+pub(crate) struct HASH_STATE {
     ks: KECCAK_STATE,
     magic: usize,
 }
 
-pub(crate)
-const UNINITIALIZED_HASH_STATE: HASH_STATE = HASH_STATE {
+pub(crate) const UNINITIALIZED_HASH_STATE: HASH_STATE = HASH_STATE {
     ks: KECCAK_STATE {
-        state: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24],
+        state: [
+            0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
+            24,
+        ],
         inputBlockSize: 25,
         stateIndex: 26,
         paddingValue: 27,
         squeezeMode: false,
     },
-    magic: 28 // set by the various init* functions
+    magic: 28, // set by the various init* functions
 };
 
 pub(crate) const SHAKE128_RESULT_SIZE: usize = 32;
@@ -50,40 +49,66 @@ pub(crate) const SHAKE128_INPUT_BLOCK_SIZE: usize = 168;
 pub(crate) const SHAKE256_RESULT_SIZE: usize = 64;
 pub(crate) const SHAKE256_INPUT_BLOCK_SIZE: usize = 136;
 
-pub(crate) const SHA3_256_RESULT_SIZE: usize =         32;
-pub(crate) const SHA3_256_INPUT_BLOCK_SIZE: usize =    136;
+pub(crate) const SHA3_256_RESULT_SIZE: usize = 32;
+pub(crate) const SHA3_256_INPUT_BLOCK_SIZE: usize = 136;
 
-pub(crate) const SHA3_512_RESULT_SIZE: usize =         64;
-pub(crate) const SHA3_512_INPUT_BLOCK_SIZE: usize =    72;
+pub(crate) const SHA3_512_RESULT_SIZE: usize = 64;
+pub(crate) const SHA3_512_INPUT_BLOCK_SIZE: usize = 72;
 
 extern "C" {
-    fn SymCryptShake128Default(pbData: *const u8, cbData: usize, pbResult: &mut [u8; SHAKE128_RESULT_SIZE]);
+    fn SymCryptShake128Default(
+        pbData: *const u8,
+        cbData: usize,
+        pbResult: &mut [u8; SHAKE128_RESULT_SIZE],
+    );
     fn SymCryptShake128(pbData: *const u8, cbData: usize, pbResult: *mut u8, cbResult: usize);
     fn SymCryptShake128Init(pState: &mut HASH_STATE);
     fn SymCryptShake128Append(pState: &mut HASH_STATE, pbData: *const u8, cbData: usize);
-    fn SymCryptShake128Extract(pState: &mut HASH_STATE, pbResult: *mut u8, cbResult: usize, bWipe: bool);
+    fn SymCryptShake128Extract(
+        pState: &mut HASH_STATE,
+        pbResult: *mut u8,
+        cbResult: usize,
+        bWipe: bool,
+    );
     fn SymCryptShake128Result(pState: &mut HASH_STATE, pbResult: &mut [u8; SHAKE128_RESULT_SIZE]);
-    fn SymCryptShake128StateCopy(pSrc: & HASH_STATE, pDst: &mut HASH_STATE);
+    fn SymCryptShake128StateCopy(pSrc: &HASH_STATE, pDst: &mut HASH_STATE);
 
-    fn SymCryptShake256Default(pbData: *const u8, cbData: usize, pbResult: &mut [u8; SHAKE256_RESULT_SIZE]);
+    fn SymCryptShake256Default(
+        pbData: *const u8,
+        cbData: usize,
+        pbResult: &mut [u8; SHAKE256_RESULT_SIZE],
+    );
     fn SymCryptShake256(pbData: *const u8, cbData: usize, pbResult: *mut u8, cbResult: usize);
     fn SymCryptShake256Init(pState: &mut HASH_STATE);
     fn SymCryptShake256Append(pState: &mut HASH_STATE, pbData: *const u8, cbData: usize);
-    fn SymCryptShake256Extract(pState: &mut HASH_STATE, pbResult: *mut u8, cbResult: usize, bWipe: bool);
+    fn SymCryptShake256Extract(
+        pState: &mut HASH_STATE,
+        pbResult: *mut u8,
+        cbResult: usize,
+        bWipe: bool,
+    );
     fn SymCryptShake256Result(pState: &mut HASH_STATE, pbResult: &mut [u8; SHAKE256_RESULT_SIZE]);
-    fn SymCryptShake256StateCopy(pSrc: & HASH_STATE, pDst: &mut HASH_STATE);
+    fn SymCryptShake256StateCopy(pSrc: &HASH_STATE, pDst: &mut HASH_STATE);
 
-    fn SymCryptSha3_256(pbData: *const u8, cbData: usize, pbResult: &mut [u8; SHA3_256_RESULT_SIZE]);
+    fn SymCryptSha3_256(
+        pbData: *const u8,
+        cbData: usize,
+        pbResult: &mut [u8; SHA3_256_RESULT_SIZE],
+    );
     fn SymCryptSha3_256Init(pState: &mut HASH_STATE);
     fn SymCryptSha3_256Append(pState: &mut HASH_STATE, pbData: *const u8, cbData: usize);
     fn SymCryptSha3_256Result(pState: &mut HASH_STATE, pbResult: &mut [u8; SHA3_256_RESULT_SIZE]);
-    fn SymCryptSha3_256StateCopy(pSrc: & HASH_STATE, pDst: &mut HASH_STATE);
+    fn SymCryptSha3_256StateCopy(pSrc: &HASH_STATE, pDst: &mut HASH_STATE);
 
-    fn SymCryptSha3_512(pbData: *const u8, cbData: usize, pbResult: &mut [u8; SHA3_512_RESULT_SIZE]);
+    fn SymCryptSha3_512(
+        pbData: *const u8,
+        cbData: usize,
+        pbResult: &mut [u8; SHA3_512_RESULT_SIZE],
+    );
     fn SymCryptSha3_512Init(pState: &mut HASH_STATE);
     fn SymCryptSha3_512Append(pState: &mut HASH_STATE, pbData: *const u8, cbData: usize);
     fn SymCryptSha3_512Result(pState: &mut HASH_STATE, pbResult: &mut [u8; SHA3_512_RESULT_SIZE]);
-    fn SymCryptSha3_512StateCopy(pSrc: & HASH_STATE, pDst: &mut HASH_STATE);
+    fn SymCryptSha3_512StateCopy(pSrc: &HASH_STATE, pDst: &mut HASH_STATE);
 }
 
 // SHAKE128
@@ -96,14 +121,17 @@ pub(crate) fn shake128_default(data: &[u8], dst: &mut [u8; SHAKE128_RESULT_SIZE]
 
 pub(crate) fn shake128(pbData: &[u8], pbResult: &mut [u8]) {
     unsafe {
-        SymCryptShake128(pbData.as_ptr(), pbData.len(), pbResult.as_mut_ptr(), pbResult.len());
+        SymCryptShake128(
+            pbData.as_ptr(),
+            pbData.len(),
+            pbResult.as_mut_ptr(),
+            pbResult.len(),
+        );
     }
 }
 
 pub(crate) fn shake128_init(pState: &mut HASH_STATE) {
-    unsafe {
-        SymCryptShake128Init(pState)
-    }
+    unsafe { SymCryptShake128Init(pState) }
 }
 
 pub(crate) fn shake128_append(pState: &mut HASH_STATE, pbData: &[u8]) {
@@ -124,7 +152,7 @@ pub(crate) fn shake128_result(pState: &mut HASH_STATE, pbResult: &mut [u8; SHAKE
     }
 }
 
-pub(crate) fn shake128_state_copy(pSrc: & HASH_STATE, pDst: &mut HASH_STATE) {
+pub(crate) fn shake128_state_copy(pSrc: &HASH_STATE, pDst: &mut HASH_STATE) {
     unsafe {
         SymCryptShake128StateCopy(pSrc, pDst);
     }
@@ -140,14 +168,17 @@ pub(crate) fn shake256_default(data: &[u8], dst: &mut [u8; SHAKE256_RESULT_SIZE]
 
 pub(crate) fn shake256(pbData: &[u8], pbResult: &mut [u8]) {
     unsafe {
-        SymCryptShake256(pbData.as_ptr(), pbData.len(), pbResult.as_mut_ptr(), pbResult.len());
+        SymCryptShake256(
+            pbData.as_ptr(),
+            pbData.len(),
+            pbResult.as_mut_ptr(),
+            pbResult.len(),
+        );
     }
 }
 
 pub(crate) fn shake256_init(pState: &mut HASH_STATE) {
-    unsafe {
-        SymCryptShake256Init(pState)
-    }
+    unsafe { SymCryptShake256Init(pState) }
 }
 
 pub(crate) fn shake256_append(pState: &mut HASH_STATE, pbData: &[u8]) {
@@ -168,7 +199,7 @@ pub(crate) fn shake256_result(pState: &mut HASH_STATE, pbResult: &mut [u8; SHAKE
     }
 }
 
-pub(crate) fn shake256_state_copy(pSrc: & HASH_STATE, pDst: &mut HASH_STATE) {
+pub(crate) fn shake256_state_copy(pSrc: &HASH_STATE, pDst: &mut HASH_STATE) {
     unsafe {
         SymCryptShake256StateCopy(pSrc, pDst);
     }
@@ -183,9 +214,7 @@ pub(crate) fn sha3_256(pbData: &[u8], pbResult: &mut [u8; SHA3_256_RESULT_SIZE])
 }
 
 pub(crate) fn sha3_256_init(pState: &mut HASH_STATE) {
-    unsafe {
-        SymCryptSha3_256Init(pState)
-    }
+    unsafe { SymCryptSha3_256Init(pState) }
 }
 
 pub(crate) fn sha3_256_append(pState: &mut HASH_STATE, pbData: &[u8]) {
@@ -200,7 +229,7 @@ pub(crate) fn sha3_256_result(pState: &mut HASH_STATE, pbResult: &mut [u8; SHA3_
     }
 }
 
-pub(crate) fn sha3_256_state_copy(pSrc: & HASH_STATE, pDst: &mut HASH_STATE) {
+pub(crate) fn sha3_256_state_copy(pSrc: &HASH_STATE, pDst: &mut HASH_STATE) {
     unsafe {
         SymCryptSha3_256StateCopy(pSrc, pDst);
     }
@@ -215,9 +244,7 @@ pub(crate) fn sha3_512(pbData: &[u8], pbResult: &mut [u8; SHA3_512_RESULT_SIZE])
 }
 
 pub(crate) fn sha3_512_init(pState: &mut HASH_STATE) {
-    unsafe {
-        SymCryptSha3_512Init(pState)
-    }
+    unsafe { SymCryptSha3_512Init(pState) }
 }
 
 pub(crate) fn sha3_512_append(pState: &mut HASH_STATE, pbData: &[u8]) {
@@ -232,7 +259,7 @@ pub(crate) fn sha3_512_result(pState: &mut HASH_STATE, pbResult: &mut [u8; SHA3_
     }
 }
 
-pub(crate) fn sha3_512_state_copy(pSrc: & HASH_STATE, pDst: &mut HASH_STATE) {
+pub(crate) fn sha3_512_state_copy(pSrc: &HASH_STATE, pDst: &mut HASH_STATE) {
     unsafe {
         SymCryptSha3_512StateCopy(pSrc, pDst);
     }
