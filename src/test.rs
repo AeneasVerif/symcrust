@@ -48,7 +48,7 @@ pub fn test_api() -> Result<(), Box<dyn std::error::Error>> {
 
     // Allocate + key-gen
     let mut k = crate::key::key_allocate(crate::key::Params::MlKem768)?;
-    let r = crate::mlkem::SymCryptMlKemkeySetValue(&key_generation_seed, crate::key::Format::PrivateSeed, 0, &mut k);
+    let r = crate::mlkem::key_set_value(&key_generation_seed, crate::key::Format::PrivateSeed, 0, &mut k);
     // TODO: ideally these would use std::result so that we can use the ? operator like we do for
     // hex::decode, below.
     if r != Error::NoError {
@@ -56,8 +56,8 @@ pub fn test_api() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // Read secret (a.k.a. decapsulation) key
-    let mut secret_key = [0u8; crate::mlkem::SIZEOF_FORMAT_DECAPSULATION_KEY(3)];
-    let r = crate::mlkem::SymCryptMlKemkeyGetValue(&k, &mut secret_key, crate::key::Format::DecapsulationKey, 0);
+    let mut secret_key = [0u8; crate::mlkem::sizeof_format_decapsulation_key(3)];
+    let r = crate::mlkem::key_get_value(&k, &mut secret_key, crate::key::Format::DecapsulationKey, 0);
     if r != Error::NoError {
         return Err(Box::new(r))
     }
@@ -67,8 +67,8 @@ pub fn test_api() -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(sha3_256_hash_of_secret_key, actual_sha3_256_hash_of_secret_key);
 
     // Read public (a.k.a. encapsulation) key
-    let mut public_key = [0u8; crate::mlkem::SIZEOF_FORMAT_ENCAPSULATION_KEY(3)];
-    let r = crate::mlkem::SymCryptMlKemkeyGetValue(&k, &mut public_key, crate::key::Format::EncapsulationKey, 0);
+    let mut public_key = [0u8; crate::mlkem::sizeof_format_encapsulation_key(3)];
+    let r = crate::mlkem::key_get_value(&k, &mut public_key, crate::key::Format::EncapsulationKey, 0);
     if r != Error::NoError {
         return Err(Box::new(r))
     }
@@ -81,7 +81,7 @@ pub fn test_api() -> Result<(), Box<dyn std::error::Error>> {
     let encapsulation_seed = hex::decode("147c03f7a5bebba406c8fae1874d7f13c80efe79a3a9a874cc09fe76f6997615")?;
     let mut actual_shared_secret = [0u8; 32];
     let mut cipher_text = [0u8; 1088];
-    let r = crate::mlkem::SymCryptMlKemEncapsulateEx(&mut k, &encapsulation_seed, &mut actual_shared_secret, &mut cipher_text);
+    let r = crate::mlkem::encapsulate_ex(&mut k, &encapsulation_seed, &mut actual_shared_secret, &mut cipher_text);
     if r != Error::NoError {
         return Err(Box::new(r))
     }
@@ -94,7 +94,7 @@ pub fn test_api() -> Result<(), Box<dyn std::error::Error>> {
 
     // Exercise decapsulation, and assert consistency
     let mut shared_secret2 = [0u8; 32];
-    let r = crate::mlkem::SymCryptMlKemDecapsulate(&mut k, &cipher_text, &mut shared_secret2);
+    let r = crate::mlkem::decapsulate(&mut k, &cipher_text, &mut shared_secret2);
     if r != Error::NoError {
         return Err(Box::new(r))
     }
@@ -102,25 +102,25 @@ pub fn test_api() -> Result<(), Box<dyn std::error::Error>> {
 
     // Functional test -- should roundtrip!
     let mut k = crate::key::key_allocate(crate::key::Params::MlKem768)?;
-    crate::mlkem::SymCryptMlKemkeyGenerate(&mut k, 0);
+    crate::mlkem::key_generate(&mut k, 0);
     let mut secret = [0u8; 32];
     let mut cipher = [0u8; 1088];
-    crate::mlkem::SymCryptMlKemEncapsulate(&mut k, &mut secret, &mut cipher);
+    crate::mlkem::encapsulate(&mut k, &mut secret, &mut cipher);
 
     let mut secret2 = [0u8; 32];
-    crate::mlkem::SymCryptMlKemDecapsulate(&mut k, &cipher, &mut secret2);
+    crate::mlkem::decapsulate(&mut k, &cipher, &mut secret2);
     assert_eq!(secret, secret2);
 
     // Perf test -- simplistic
     let mut k = crate::key::key_allocate(crate::key::Params::MlKem768)?;
     for i in 0..1000u32 {
-        crate::mlkem::SymCryptMlKemkeyGenerate(&mut k, 0);
+        crate::mlkem::key_generate(&mut k, 0);
         let mut secret = [(i % 256) as u8; 32];
         let mut cipher = [0u8; 1088];
-        crate::mlkem::SymCryptMlKemEncapsulate(&mut k, &mut secret, &mut cipher);
+        crate::mlkem::encapsulate(&mut k, &mut secret, &mut cipher);
 
         let mut secret2 = [(i % 256) as u8; 32];
-        crate::mlkem::SymCryptMlKemDecapsulate(&mut k, &cipher, &mut secret2);
+        crate::mlkem::decapsulate(&mut k, &cipher, &mut secret2);
         assert_eq!(secret, secret2);
     }
 
