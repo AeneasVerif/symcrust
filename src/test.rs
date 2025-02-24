@@ -47,7 +47,7 @@ pub fn test_api() -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(key_generation_seed.len(), 64);
 
     // Allocate + key-gen
-    let mut k = crate::key::KeyAllocate(crate::key::Params::MlKem768)?;
+    let mut k = crate::key::key_allocate(crate::key::Params::MlKem768)?;
     let r = crate::mlkem::SymCryptMlKemkeySetValue(&key_generation_seed, crate::key::Format::PrivateSeed, 0, &mut k);
     // TODO: ideally these would use std::result so that we can use the ? operator like we do for
     // hex::decode, below.
@@ -101,7 +101,7 @@ pub fn test_api() -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(shared_secret2, actual_shared_secret);
 
     // Functional test -- should roundtrip!
-    let mut k = crate::key::KeyAllocate(crate::key::Params::MlKem768)?;
+    let mut k = crate::key::key_allocate(crate::key::Params::MlKem768)?;
     crate::mlkem::SymCryptMlKemkeyGenerate(&mut k, 0);
     let mut secret = [0u8; 32];
     let mut cipher = [0u8; 1088];
@@ -112,7 +112,7 @@ pub fn test_api() -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(secret, secret2);
 
     // Perf test -- simplistic
-    let mut k = crate::key::KeyAllocate(crate::key::Params::MlKem768)?;
+    let mut k = crate::key::key_allocate(crate::key::Params::MlKem768)?;
     for i in 0..1000u32 {
         crate::mlkem::SymCryptMlKemkeyGenerate(&mut k, 0);
         let mut secret = [(i % 256) as u8; 32];

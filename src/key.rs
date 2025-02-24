@@ -36,53 +36,53 @@ pub enum Params {
     MlKem1024 = 3,
 }
 
-const InternalParamsMlKem512: InternalParams = InternalParams {
+const INTERNAL_PARAMS_ML_KEM512: InternalParams = InternalParams {
     params: Params::MlKem512,
-    nRows: 2,
-    nEta1: 3,
-    nEta2: 2,
-    nBitsOfU: 10,
-    nBitsOfV: 4,
+    n_rows: 2,
+    n_eta1: 3,
+    n_eta2: 2,
+    n_bits_of_u: 10,
+    n_bits_of_v: 4,
 };
 
-const InternalParamsMlKem768: InternalParams = InternalParams {
+const INTERNAL_PARAMS_ML_KEM768: InternalParams = InternalParams {
     params: Params::MlKem768,
-    nRows: 3,
-    nEta1: 2,
-    nEta2: 2,
-    nBitsOfU: 10,
-    nBitsOfV: 4,
+    n_rows: 3,
+    n_eta1: 2,
+    n_eta2: 2,
+    n_bits_of_u: 10,
+    n_bits_of_v: 4,
 };
 
-const InternalParamsMlKem1024: InternalParams = InternalParams {
+const INTERNAL_PARAMS_ML_KEM1024: InternalParams = InternalParams {
     params: Params::MlKem1024,
-    nRows: 4,
-    nEta1: 2,
-    nEta2: 2,
-    nBitsOfU: 11,
-    nBitsOfV: 5,
+    n_rows: 4,
+    n_eta1: 2,
+    n_eta2: 2,
+    n_bits_of_u: 11,
+    n_bits_of_v: 5,
 };
 
-pub(crate) const fn SymCryptMlKemkeyGetInternalParamsFromParams(params: Params) -> InternalParams {
+pub(crate) const fn get_internal_params_from_params(params: Params) -> InternalParams {
     match params {
-        Params::MlKem512 => InternalParamsMlKem512,
-        Params::MlKem768 => InternalParamsMlKem768,
-        Params::MlKem1024 => InternalParamsMlKem1024,
+        Params::MlKem512 => INTERNAL_PARAMS_ML_KEM512,
+        Params::MlKem768 => INTERNAL_PARAMS_ML_KEM768,
+        Params::MlKem1024 => INTERNAL_PARAMS_ML_KEM1024,
     }
 }
 
 pub(crate) const MLWE_POLYNOMIAL_COEFFICIENTS: usize = 256;
 
-pub(crate) const POLYELEMENT_ZERO: POLYELEMENT = [0; MLWE_POLYNOMIAL_COEFFICIENTS];
+pub(crate) const POLYELEMENT_ZERO: PolyElement = [0; MLWE_POLYNOMIAL_COEFFICIENTS];
 
 // PolyElements just store the coefficients without any header.
-pub(crate) type POLYELEMENT = [u16; MLWE_POLYNOMIAL_COEFFICIENTS];
+pub(crate) type PolyElement = [u16; MLWE_POLYNOMIAL_COEFFICIENTS];
 
 // The slice length is between 1 and MATRIX_MAX_NROWS.
 // Note (Rust): unlike the original C code, we de-couple what we pass around (this type) vs. the
 // underlying allocation (handled by the caller).
 // Note (Rust): this already keeps the length -- no need for an additional field.
-pub(crate) type VECTOR = [POLYELEMENT];
+pub(crate) type Vector = [PolyElement];
 
 pub(crate) const KEY_MAX_SIZEOF_ENCODED_T: usize = 1536;
 
@@ -93,16 +93,16 @@ pub(crate) const KEY_MAX_SIZEOF_ENCODED_T: usize = 1536;
 pub(crate) struct InternalParams {
     pub(crate) params: Params, // parameter set of ML-KEM being used, takes a value from PARAMS
 
-    pub(crate) nRows: u8, // corresponds to k from FIPS 203; the number of rows and columns in the matrix A,
+    pub(crate) n_rows: u8, // corresponds to k from FIPS 203; the number of rows and columns in the matrix A,
     // and the number of rows in column vectors s and t
-    pub(crate) nEta1: u8, // corresponds to eta_1 from FIPS 203; number of coinflips used in generating s and e
+    pub(crate) n_eta1: u8, // corresponds to eta_1 from FIPS 203; number of coinflips used in generating s and e
     // pub(crate)
     // in keypair generation, and r in encapsulation
-    pub(crate) nEta2: u8, // corresponds to eta_2 from FIPS 203; number of coinflips used in generating e_1 and
+    pub(crate) n_eta2: u8, // corresponds to eta_2 from FIPS 203; number of coinflips used in generating e_1 and
     // e_2 in encapsulation
-    pub(crate) nBitsOfU: u8, // corresponds to d_u from FIPS 203; number of bits that the coefficients of the polynomial
+    pub(crate) n_bits_of_u: u8, // corresponds to d_u from FIPS 203; number of bits that the coefficients of the polynomial
     // ring elements of u are compressed to in encapsulation for encoding into ciphertext
-    pub(crate) nBitsOfV: u8, // corresponds to d_v from FIPS 203; number of bits that the coefficients of the polynomial
+    pub(crate) n_bits_of_v: u8, // corresponds to d_v from FIPS 203; number of bits that the coefficients of the polynomial
                              // ring element v is compressed to in encapsulation for encoding into ciphertext
 }
 
@@ -120,31 +120,33 @@ pub(crate) struct InternalParams {
 //
 // Note (Rust): again, allocation to be handled by the caller or the owner.
 // Note (Rust): to avoid a const-generic, the array of pointers to elements is possibly oversized
-pub(crate) struct MATRIX1 {
-    pub(crate) nRows: usize,
-    pub(crate) apPolyElements: Box<[POLYELEMENT]>,
+#[allow(dead_code)]
+pub(crate) struct Matrix1 {
+    pub(crate) n_rows: usize,
+    pub(crate) ap_poly_elements: Box<[PolyElement]>,
 }
 
-pub(crate) struct KEY1 {
-    pub(crate) fAlgorithmInfo: u32, // Tracks which algorithms the key can be used in
+#[allow(dead_code)]
+pub(crate) struct Key1 {
+    pub(crate) f_algorithm_info: u32, // Tracks which algorithms the key can be used in
     // Also tracks which per-key selftests have been performed on this key
     // A bitwise OR of FLAG_KEY_*, FLAG_MLKEMKEY_*, and
     // SELFTEST_KEY_* values
     pub(crate) params: InternalParams,
 
-    pub(crate) hasPrivateSeed: bool, // Set to true if key has the private seed (d)
-    pub(crate) hasPrivateKey: bool,  // Set to true if key has the private key (s and z)
+    pub(crate) has_private_seed: bool, // Set to true if key has the private seed (d)
+    pub(crate) has_private_key: bool,  // Set to true if key has the private key (s and z)
 
     // seeds
-    pub(crate) privateSeed: [u8; 32], // private seed (d) from which entire private PKE key can be derived
-    pub(crate) privateRandom: [u8; 32], // private random (z) used in implicit rejection
+    pub(crate) private_seed: [u8; 32], // private seed (d) from which entire private PKE key can be derived
+    pub(crate) private_random: [u8; 32], // private random (z) used in implicit rejection
 
-    pub(crate) publicSeed: [u8; 32], // public seed (rho) from which A can be derived
+    pub(crate) public_seed: [u8; 32], // public seed (rho) from which A can be derived
 
     // misc fields
-    pub(crate) encodedT: [u8; KEY_MAX_SIZEOF_ENCODED_T], // byte-encoding of public vector
+    pub(crate) encoded_t: [u8; KEY_MAX_SIZEOF_ENCODED_T], // byte-encoding of public vector
     // may only use a prefix of this buffer
-    pub(crate) encapsKeyHash: [u8; 32], // Precomputed value of hash of ML-KEM's byte-encoding of encapsulation key
+    pub(crate) encaps_key_hash: [u8; 32], // Precomputed value of hash of ML-KEM's byte-encoding of encapsulation key
 
     // VARIABLE-LENGTH FIELDS, which we make private
     // 1. This forces clients to go through accessors, leaving us free to change the representation
@@ -153,60 +155,62 @@ pub(crate) struct KEY1 {
     //    fields, thus preserving our invariants.
 
     // A o s + e = t
-    pmAtranspose: MATRIX1, // public matrix in NTT form (derived from publicSeed)
-    pvt: Box<VECTOR>,      // public vector in NTT form
-    pvs: Box<VECTOR>,      // private vector in NTT form
+    pm_a_transpose: Matrix1, // public matrix in NTT form (derived from publicSeed)
+    pvt: Box<Vector>,      // public vector in NTT form
+    pvs: Box<Vector>,      // private vector in NTT form
 }
 
-impl KEY1 {
-    pub fn atranspose(&self) -> &[POLYELEMENT] {
-        &self.pmAtranspose.apPolyElements
+#[allow(dead_code)]
+impl Key1 {
+    pub fn atranspose(&self) -> &[PolyElement] {
+        &self.pm_a_transpose.ap_poly_elements
     }
-    pub fn t(&self) -> &[POLYELEMENT] {
+    pub fn t(&self) -> &[PolyElement] {
         &self.pvt
     }
-    pub fn s(&self) -> &[POLYELEMENT] {
+    pub fn s(&self) -> &[PolyElement] {
         &self.pvs
     }
-    pub fn atranspose_mut(&mut self) -> &mut [POLYELEMENT] {
-        &mut self.pmAtranspose.apPolyElements
+    pub fn atranspose_mut(&mut self) -> &mut [PolyElement] {
+        &mut self.pm_a_transpose.ap_poly_elements
     }
-    pub fn t_mut(&mut self) -> &mut [POLYELEMENT] {
+    pub fn t_mut(&mut self) -> &mut [PolyElement] {
         &mut self.pvt
     }
-    pub fn s_mut(&mut self) -> &mut [POLYELEMENT] {
+    pub fn s_mut(&mut self) -> &mut [PolyElement] {
         &mut self.pvs
     }
 }
 
-fn KeyAllocate1(params: Params) -> Result<Box<KEY1>, Error> {
+#[allow(dead_code)]
+fn key_allocate1(params: Params) -> Result<Box<Key1>, Error> {
     // Note (Rust): this function could previously fail. Now that we use an enum for the choice of
     // algorithm, match exhaustiveness checks obviate the need for an error code.
-    let params = SymCryptMlKemkeyGetInternalParamsFromParams(params);
-    let nRows = params.nRows;
+    let params = get_internal_params_from_params(params);
+    let n_rows = params.n_rows;
     // Note (Rust): previously, returned a heap-allocated key. We create a Box here, but could also
     // return a value if we wanted, relying on LLVM to optimize out the copies of a large value.
-    Result::Ok(Box::new(KEY1 {
-        fAlgorithmInfo: 0u32,
+    Result::Ok(Box::new(Key1 {
+        f_algorithm_info: 0u32,
         params,
-        hasPrivateSeed: false,
-        hasPrivateKey: false,
-        privateSeed: [0; 32],
-        privateRandom: [0; 32],
-        publicSeed: [0; 32],
+        has_private_seed: false,
+        has_private_key: false,
+        private_seed: [0; 32],
+        private_random: [0; 32],
+        public_seed: [0; 32],
         // Note (Rust): this generates four boxes, see ALLOCATION.md for discussion
         // Note (Rust): the original C code performs null-checks to see if the allocations
         // succeeded. We could presumably use an error monad (the ? operator), Box::try_new, and
         // return a std::result::Result for this function (and others who need to perform
         // comparable checks).
-        pmAtranspose: MATRIX1 {
-            nRows: nRows as usize,
-            apPolyElements: vec![POLYELEMENT_ZERO; (nRows * nRows) as usize].into(),
+        pm_a_transpose: Matrix1 {
+            n_rows: n_rows as usize,
+            ap_poly_elements: vec![POLYELEMENT_ZERO; (n_rows * n_rows) as usize].into(),
         },
-        pvt: vec![POLYELEMENT_ZERO; nRows as usize].into(),
-        pvs: vec![POLYELEMENT_ZERO; nRows as usize].into(),
-        encodedT: [0u8; KEY_MAX_SIZEOF_ENCODED_T],
-        encapsKeyHash: [0u8; 32],
+        pvt: vec![POLYELEMENT_ZERO; n_rows as usize].into(),
+        pvs: vec![POLYELEMENT_ZERO; n_rows as usize].into(),
+        encoded_t: [0u8; KEY_MAX_SIZEOF_ENCODED_T],
+        encaps_key_hash: [0u8; 32],
     }))
 }
 
@@ -219,18 +223,18 @@ fn KeyAllocate1(params: Params) -> Result<Box<KEY1>, Error> {
 // when the length of the variable part is not a compile-time constant.
 
 pub struct PreKey2<U: ?Sized> {
-    pub(crate) fAlgorithmInfo: u32,
+    pub(crate) algorithm_info: u32,
     pub(crate) params: InternalParams,
-    pub(crate) hasPrivateSeed: bool,
-    pub(crate) hasPrivateKey: bool,
-    pub(crate) privateSeed: [u8; 32],
-    pub(crate) privateRandom: [u8; 32],
-    pub(crate) publicSeed: [u8; 32],
-    pub(crate) encodedT: [u8; KEY_MAX_SIZEOF_ENCODED_T],
-    pub(crate) encapsKeyHash: [u8; 32],
+    pub(crate) has_private_seed: bool,
+    pub(crate) has_private_key: bool,
+    pub(crate) private_seed: [u8; 32],
+    pub(crate) private_random: [u8; 32],
+    pub(crate) public_seed: [u8; 32],
+    pub(crate) encoded_t: [u8; KEY_MAX_SIZEOF_ENCODED_T],
+    pub(crate) encaps_key_hash: [u8; 32],
 
     // VARIABLE-LENGTH FIELDS
-    nRows: usize, // note that this can be deduced from fAlgorithmInfo
+    n_rows: usize, // note that this can be deduced from fAlgorithmInfo
 
     // Instantiated with U = [PolyElement], contains:
     // Atranspose, of length nRows * nRows
@@ -239,121 +243,121 @@ pub struct PreKey2<U: ?Sized> {
     data: U,
 }
 
-pub type KEY2 = PreKey2<[POLYELEMENT]>;
+pub type Key2 = PreKey2<[PolyElement]>;
 
 // (of size nRows)
-type MATRIX2 = [POLYELEMENT];
+type Matrix2 = [PolyElement];
 
-impl KEY2 {
+impl Key2 {
     fn matrix_len(&self) -> usize {
-        self.nRows * self.nRows
+        self.n_rows * self.n_rows
     }
-    pub fn atranspose(&self) -> &[POLYELEMENT] {
+    pub fn atranspose(&self) -> &[PolyElement] {
         let m_len = self.matrix_len();
         &self.data[0..m_len]
     }
-    pub fn t(&self) -> &[POLYELEMENT] {
+    pub fn t(&self) -> &[PolyElement] {
         let m_len = self.matrix_len();
-        &self.data[m_len..m_len + self.nRows]
+        &self.data[m_len..m_len + self.n_rows]
     }
-    pub fn s(&self) -> &[POLYELEMENT] {
+    pub fn s(&self) -> &[PolyElement] {
         let m_len = self.matrix_len();
-        &self.data[m_len + self.nRows..m_len + 2 * self.nRows]
+        &self.data[m_len + self.n_rows..m_len + 2 * self.n_rows]
     }
-    pub fn atranspose_mut(&mut self) -> &mut [POLYELEMENT] {
+    pub fn atranspose_mut(&mut self) -> &mut [PolyElement] {
         let m_len = self.matrix_len();
         &mut self.data[0..m_len]
     }
-    pub fn t_mut(&mut self) -> &mut [POLYELEMENT] {
+    pub fn t_mut(&mut self) -> &mut [PolyElement] {
         let m_len = self.matrix_len();
-        &mut self.data[m_len..m_len + self.nRows]
+        &mut self.data[m_len..m_len + self.n_rows]
     }
-    pub fn s_mut(&mut self) -> &mut [POLYELEMENT] {
+    pub fn s_mut(&mut self) -> &mut [PolyElement] {
         let m_len = self.matrix_len();
-        &mut self.data[m_len + self.nRows..m_len + 2 * self.nRows]
+        &mut self.data[m_len + self.n_rows..m_len + 2 * self.n_rows]
     }
 
     // FIXME: slightly unpleasant, owing to the nature of the encoding; but perhaps this is
     // inevitable; alternatively, we could put all of the "public" fields in their own struct; and
     // then return that struct + a, s, t (so, a quadruple)
-    pub fn ats_mut(&mut self) -> (&mut [POLYELEMENT], &mut [POLYELEMENT], &mut [POLYELEMENT]) {
+    pub fn ats_mut(&mut self) -> (&mut [PolyElement], &mut [PolyElement], &mut [PolyElement]) {
         let m_len = self.matrix_len();
         let (a, ts) = self.data.split_at_mut(m_len);
-        let (t, s) = ts.split_at_mut(self.nRows);
+        let (t, s) = ts.split_at_mut(self.n_rows);
         (a, t, s)
     }
 
-    pub fn t_encoded_t_mut(&mut self) -> (&mut [POLYELEMENT], &mut [u8; KEY_MAX_SIZEOF_ENCODED_T]) {
+    pub fn t_encoded_t_mut(&mut self) -> (&mut [PolyElement], &mut [u8; KEY_MAX_SIZEOF_ENCODED_T]) {
         let m_len = self.matrix_len();
         (
-            &mut self.data[m_len..m_len + self.nRows],
-            &mut self.encodedT,
+            &mut self.data[m_len..m_len + self.n_rows],
+            &mut self.encoded_t,
         )
     }
 }
 
 // This works, at the expense of a big copy-paste because Rust does not allow creating DSTs when
 // the length of the data is not known at compile-time.
-fn KeyAllocate2(params: Params) -> Result<Box<KEY2>, Error> {
+fn key_allocate2(params: Params) -> Result<Box<Key2>, Error> {
     match params {
         Params::MlKem512 => {
-            const params: InternalParams =
-                SymCryptMlKemkeyGetInternalParamsFromParams(Params::MlKem512);
-            const nRows: usize = params.nRows as usize;
+            const PARAMS: InternalParams =
+                get_internal_params_from_params(Params::MlKem512);
+            const N_ROWS: usize = PARAMS.n_rows as usize;
             // !!! Make sure to build using &PreKey2, not &Key2, otherwise, the errors are really
             // hard to parse.
             Result::Ok(Box::new(PreKey2 {
-                fAlgorithmInfo: 0u32,
-                params,
-                hasPrivateSeed: false,
-                hasPrivateKey: false,
-                privateSeed: [0; 32],
-                privateRandom: [0; 32],
-                publicSeed: [0; 32],
-                encodedT: [0u8; KEY_MAX_SIZEOF_ENCODED_T],
-                encapsKeyHash: [0u8; 32],
-                nRows,
-                data: [POLYELEMENT_ZERO; nRows * nRows + 2 * nRows],
+                algorithm_info: 0u32,
+                params: PARAMS,
+                has_private_seed: false,
+                has_private_key: false,
+                private_seed: [0; 32],
+                private_random: [0; 32],
+                public_seed: [0; 32],
+                encoded_t: [0u8; KEY_MAX_SIZEOF_ENCODED_T],
+                encaps_key_hash: [0u8; 32],
+                n_rows: N_ROWS,
+                data: [POLYELEMENT_ZERO; N_ROWS * N_ROWS + 2 * N_ROWS],
             }))
         }
         Params::MlKem768 => {
-            const params: InternalParams =
-                SymCryptMlKemkeyGetInternalParamsFromParams(Params::MlKem768);
-            const nRows: usize = params.nRows as usize;
+            const PARAMS: InternalParams =
+                get_internal_params_from_params(Params::MlKem768);
+            const N_ROWS: usize = PARAMS.n_rows as usize;
             // !!! Make sure to build using &PreKey2, not &Key2, otherwise, the errors are really
             // hard to parse.
             Result::Ok(Box::new(PreKey2 {
-                fAlgorithmInfo: 0u32,
-                params,
-                hasPrivateSeed: false,
-                hasPrivateKey: false,
-                privateSeed: [0; 32],
-                privateRandom: [0; 32],
-                publicSeed: [0; 32],
-                encodedT: [0u8; KEY_MAX_SIZEOF_ENCODED_T],
-                encapsKeyHash: [0u8; 32],
-                nRows,
-                data: [POLYELEMENT_ZERO; nRows * nRows + 2 * nRows],
+                algorithm_info: 0u32,
+                params: PARAMS,
+                has_private_seed: false,
+                has_private_key: false,
+                private_seed: [0; 32],
+                private_random: [0; 32],
+                public_seed: [0; 32],
+                encoded_t: [0u8; KEY_MAX_SIZEOF_ENCODED_T],
+                encaps_key_hash: [0u8; 32],
+                n_rows: N_ROWS,
+                data: [POLYELEMENT_ZERO; N_ROWS * N_ROWS + 2 * N_ROWS],
             }))
         }
         Params::MlKem1024 => {
-            const params: InternalParams =
-                SymCryptMlKemkeyGetInternalParamsFromParams(Params::MlKem1024);
-            const nRows: usize = params.nRows as usize;
+            const PARAMS: InternalParams =
+                get_internal_params_from_params(Params::MlKem1024);
+            const N_ROWS: usize = PARAMS.n_rows as usize;
             // !!! Make sure to build using &PreKey2, not &Key2, otherwise, the errors are really
             // hard to parse.
             Result::Ok(Box::new(PreKey2 {
-                fAlgorithmInfo: 0u32,
-                params,
-                hasPrivateSeed: false,
-                hasPrivateKey: false,
-                privateSeed: [0; 32],
-                privateRandom: [0; 32],
-                publicSeed: [0; 32],
-                encodedT: [0u8; KEY_MAX_SIZEOF_ENCODED_T],
-                encapsKeyHash: [0u8; 32],
-                nRows,
-                data: [POLYELEMENT_ZERO; nRows * nRows + 2 * nRows],
+                algorithm_info: 0u32,
+                params: PARAMS,
+                has_private_seed: false,
+                has_private_key: false,
+                private_seed: [0; 32],
+                private_random: [0; 32],
+                public_seed: [0; 32],
+                encoded_t: [0u8; KEY_MAX_SIZEOF_ENCODED_T],
+                encaps_key_hash: [0u8; 32],
+                n_rows: N_ROWS,
+                data: [POLYELEMENT_ZERO; N_ROWS * N_ROWS + 2 * N_ROWS],
             }))
         }
     }
@@ -375,62 +379,64 @@ fn KeyAllocate2(params: Params) -> Result<Box<KEY2>, Error> {
 //   variable-length slide at the end of the DST, so as to over-align and never worry about alignment
 // - writing accessors requires the use of a cast
 
-pub(crate) type KEY3 = PreKey2<[u64]>;
+#[allow(dead_code)]
+pub(crate) type Key3 = PreKey2<[u64]>;
 
-impl KEY3 {
+#[allow(dead_code)]
+impl Key3 {
     // FIXME OFFSET COMPUTATIONS INCORRECT HERE SEE KEY2, ABOVE
-    pub fn atranspose(&self) -> &[POLYELEMENT] {
+    pub fn atranspose(&self) -> &[PolyElement] {
         unsafe {
-            std::slice::from_raw_parts((&raw const self.data).cast::<POLYELEMENT>(), 2 * self.nRows)
+            std::slice::from_raw_parts((&raw const self.data).cast::<PolyElement>(), 2 * self.n_rows)
         }
     }
-    pub fn t(&self) -> &[POLYELEMENT] {
+    pub fn t(&self) -> &[PolyElement] {
         // Align on an 8-byte boundary, naturally.
-        let t_start = (2 * self.nRows + 7) / 8;
+        let t_start = (2 * self.n_rows + 7) / 8;
         unsafe {
             std::slice::from_raw_parts(
-                (&raw const self.data[t_start..]).cast::<POLYELEMENT>(),
-                self.nRows,
+                (&raw const self.data[t_start..]).cast::<PolyElement>(),
+                self.n_rows,
             )
         }
     }
-    pub fn s(&self) -> &[POLYELEMENT] {
+    pub fn s(&self) -> &[PolyElement] {
         // Align on an 8-byte boundary, naturally.
-        let t_start = (2 * self.nRows + 7) / 8;
-        let s_start = t_start + (self.nRows + 7) / 8;
+        let t_start = (2 * self.n_rows + 7) / 8;
+        let s_start = t_start + (self.n_rows + 7) / 8;
         unsafe {
             std::slice::from_raw_parts(
-                (&raw const self.data[s_start..]).cast::<POLYELEMENT>(),
-                self.nRows,
+                (&raw const self.data[s_start..]).cast::<PolyElement>(),
+                self.n_rows,
             )
         }
     }
-    pub fn atranspose_mut(&mut self) -> &mut [POLYELEMENT] {
+    pub fn atranspose_mut(&mut self) -> &mut [PolyElement] {
         unsafe {
             std::slice::from_raw_parts_mut(
-                (&raw mut self.data).cast::<POLYELEMENT>(),
-                2 * self.nRows,
+                (&raw mut self.data).cast::<PolyElement>(),
+                2 * self.n_rows,
             )
         }
     }
-    pub fn t_mut(&mut self) -> &mut [POLYELEMENT] {
+    pub fn t_mut(&mut self) -> &mut [PolyElement] {
         // Align on an 8-byte boundary, naturally.
-        let t_start = (2 * self.nRows + 7) / 8;
+        let t_start = (2 * self.n_rows + 7) / 8;
         unsafe {
             std::slice::from_raw_parts_mut(
-                (&raw mut self.data[t_start..]).cast::<POLYELEMENT>(),
-                self.nRows,
+                (&raw mut self.data[t_start..]).cast::<PolyElement>(),
+                self.n_rows,
             )
         }
     }
-    pub fn s_mut(&mut self) -> &mut [POLYELEMENT] {
+    pub fn s_mut(&mut self) -> &mut [PolyElement] {
         // Align on an 8-byte boundary, naturally.
-        let t_start = (2 * self.nRows + 7) / 8;
-        let s_start = t_start + (self.nRows + 7) / 8;
+        let t_start = (2 * self.n_rows + 7) / 8;
+        let s_start = t_start + (self.n_rows + 7) / 8;
         unsafe {
             std::slice::from_raw_parts_mut(
-                (&raw mut self.data[s_start..]).cast::<POLYELEMENT>(),
-                self.nRows,
+                (&raw mut self.data[s_start..]).cast::<PolyElement>(),
+                self.n_rows,
             )
         }
     }
@@ -444,12 +450,12 @@ impl KEY3 {
 
 // Pick your favorite option here for the sake of benchmarking.
 
-pub(crate) type KEY = KEY2; // EDIT HERE
+pub(crate) type Key = Key2; // EDIT HERE
 
-pub(crate) type MATRIX = MATRIX2; // EDIT HERE
+pub(crate) type Matrix = Matrix2; // EDIT HERE
 
-pub fn KeyAllocate(params: Params) -> Result<Box<KEY>, Error> {
-    KeyAllocate2(params) // EDIT HERE
+pub fn key_allocate(params: Params) -> Result<Box<Key>, Error> {
+    key_allocate2(params) // EDIT HERE
 }
 
 // TODO: there is no free function, but it would presumably be needed by C callers -- can we figure

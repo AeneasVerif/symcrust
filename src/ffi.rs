@@ -24,7 +24,7 @@ type c_error = crate::common::Error;
 // So the dynamically-sized type (DST) comes back to bite us. The KEY type is a DST, meaning that
 // in Rust it's a fat pointer -- it does not implement the Thin trait, and as such cannot be passed
 // via the FFI. We add another layer of indirection.
-type c_key = *mut Box<crate::key::KEY>;
+type c_key = *mut Box<crate::key::Key>;
 
 // CONVERSIONS
 // -----------
@@ -62,7 +62,7 @@ impl TryFrom<c_int> for crate::key::Format {
 pub extern "C" fn SymCryptMlKemkeyAllocate(params: c_int) -> c_key {
     match crate::key::Params::try_from(params) {
         Result::Err(_) => std::ptr::null_mut(),
-        Result::Ok(params) => match crate::key::KeyAllocate(params) {
+        Result::Ok(params) => match crate::key::key_allocate(params) {
             Result::Err(_) => std::ptr::null_mut(),
             Result::Ok(k) => Box::into_raw(Box::new(k)),
         },

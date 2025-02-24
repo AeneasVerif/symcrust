@@ -5,11 +5,6 @@
 #![feature(allocator_api)]
 // To catch allocation failures when creating TEMPORARIES.
 #![feature(try_with_capacity)]
-// FIXME: these should eventually go
-#![allow(dead_code)]
-#![allow(non_snake_case)]
-#![allow(non_camel_case_types)]
-#![allow(non_upper_case_globals)]
 // Make crate::common::ERROR compose with the ? operator and the std::result::Result type.
 #![feature(try_trait_v2)]
 

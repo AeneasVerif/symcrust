@@ -82,7 +82,7 @@ pub(crate) fn random(dst: &mut [u8]) -> Error {
 }
 
 // TODO: manually kept in sync with C code -- can this be automated?
-pub(crate) fn init() {
+pub fn init() {
     unsafe {
         SymCryptModuleInit(103, 8);
     }
