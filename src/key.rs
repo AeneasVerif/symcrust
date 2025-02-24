@@ -12,32 +12,32 @@ use std::result::Result;
 //  -   The below formats apply **only to external formats**: When somebody is
 //      importing a key (from test vectors, for example) or exporting a key.
 //      The internal format of the keys is not visible to the caller.
-pub enum FORMAT {
+pub enum Format {
     // FORMAT_NULL               = 0,
-    PRIVATE_SEED = 1,
+    PrivateSeed = 1,
     // 64-byte concatenation of d || z from FIPS 203. Smallest representation of a full
     // ML-KEM key.
     // On its own it is ambiguous what type of ML-KEM key this represents; callers wanting to
     // store this format must track the key type alongside the key.
-    DECAPSULATION_KEY = 2,
+    DecapsulationKey = 2,
     // Standard byte encoding of an ML-KEM Decapsulation key, per FIPS 203.
     // Size is 1632, 2400, or 3168 bytes for ML-KEM 512, 768, and 1024 respectively.
-    ENCAPSULATION_KEY = 3,
+    EncapsulationKey = 3,
     // Standard byte encoding of an ML-KEM Encapsulation key, per FIPS 203.
     // Size is 800, 1184, or 1568 bytes for ML-KEM 512, 768, and 1024 respectively.
 }
 
 #[derive(PartialEq)]
-pub enum PARAMS {
+pub enum Params {
     // Rust: unclear if needed
     // PARAMS_NULL          = 0,
-    MLKEM512 = 1,
-    MLKEM768 = 2,
-    MLKEM1024 = 3,
+    MlKem512 = 1,
+    MlKem768 = 2,
+    MlKem1024 = 3,
 }
 
-const SymCryptMlKemInternalParamsMlKem512: INTERNAL_PARAMS = INTERNAL_PARAMS {
-    params: PARAMS::MLKEM512,
+const InternalParamsMlKem512: InternalParams = InternalParams {
+    params: Params::MlKem512,
     nRows: 2,
     nEta1: 3,
     nEta2: 2,
@@ -45,8 +45,8 @@ const SymCryptMlKemInternalParamsMlKem512: INTERNAL_PARAMS = INTERNAL_PARAMS {
     nBitsOfV: 4,
 };
 
-const SymCryptMlKemInternalParamsMlKem768: INTERNAL_PARAMS = INTERNAL_PARAMS {
-    params: PARAMS::MLKEM768,
+const InternalParamsMlKem768: InternalParams = InternalParams {
+    params: Params::MlKem768,
     nRows: 3,
     nEta1: 2,
     nEta2: 2,
@@ -54,8 +54,8 @@ const SymCryptMlKemInternalParamsMlKem768: INTERNAL_PARAMS = INTERNAL_PARAMS {
     nBitsOfV: 4,
 };
 
-const SymCryptMlKemInternalParamsMlKem1024: INTERNAL_PARAMS = INTERNAL_PARAMS {
-    params: PARAMS::MLKEM1024,
+const InternalParamsMlKem1024: InternalParams = InternalParams {
+    params: Params::MlKem1024,
     nRows: 4,
     nEta1: 2,
     nEta2: 2,
@@ -63,11 +63,11 @@ const SymCryptMlKemInternalParamsMlKem1024: INTERNAL_PARAMS = INTERNAL_PARAMS {
     nBitsOfV: 5,
 };
 
-pub(crate) const fn SymCryptMlKemkeyGetInternalParamsFromParams(params: PARAMS) -> INTERNAL_PARAMS {
+pub(crate) const fn SymCryptMlKemkeyGetInternalParamsFromParams(params: Params) -> InternalParams {
     match params {
-        PARAMS::MLKEM512 => SymCryptMlKemInternalParamsMlKem512,
-        PARAMS::MLKEM768 => SymCryptMlKemInternalParamsMlKem768,
-        PARAMS::MLKEM1024 => SymCryptMlKemInternalParamsMlKem1024,
+        Params::MlKem512 => InternalParamsMlKem512,
+        Params::MlKem768 => InternalParamsMlKem768,
+        Params::MlKem1024 => InternalParamsMlKem1024,
     }
 }
 
@@ -90,8 +90,8 @@ pub(crate) const KEY_MAX_SIZEOF_ENCODED_T: usize = 1536;
 // MLKEMKEY type
 //
 
-pub(crate) struct INTERNAL_PARAMS {
-    pub(crate) params: PARAMS, // parameter set of ML-KEM being used, takes a value from PARAMS
+pub(crate) struct InternalParams {
+    pub(crate) params: Params, // parameter set of ML-KEM being used, takes a value from PARAMS
 
     pub(crate) nRows: u8, // corresponds to k from FIPS 203; the number of rows and columns in the matrix A,
     // and the number of rows in column vectors s and t
@@ -130,7 +130,7 @@ pub(crate) struct KEY1 {
     // Also tracks which per-key selftests have been performed on this key
     // A bitwise OR of FLAG_KEY_*, FLAG_MLKEMKEY_*, and
     // SELFTEST_KEY_* values
-    pub(crate) params: INTERNAL_PARAMS,
+    pub(crate) params: InternalParams,
 
     pub(crate) hasPrivateSeed: bool, // Set to true if key has the private seed (d)
     pub(crate) hasPrivateKey: bool,  // Set to true if key has the private key (s and z)
@@ -179,7 +179,7 @@ impl KEY1 {
     }
 }
 
-fn KeyAllocate1(params: PARAMS) -> Result<Box<KEY1>, ERROR> {
+fn KeyAllocate1(params: Params) -> Result<Box<KEY1>, Error> {
     // Note (Rust): this function could previously fail. Now that we use an enum for the choice of
     // algorithm, match exhaustiveness checks obviate the need for an error code.
     let params = SymCryptMlKemkeyGetInternalParamsFromParams(params);
@@ -220,7 +220,7 @@ fn KeyAllocate1(params: PARAMS) -> Result<Box<KEY1>, ERROR> {
 
 pub struct PreKey2<U: ?Sized> {
     pub(crate) fAlgorithmInfo: u32,
-    pub(crate) params: INTERNAL_PARAMS,
+    pub(crate) params: InternalParams,
     pub(crate) hasPrivateSeed: bool,
     pub(crate) hasPrivateKey: bool,
     pub(crate) privateSeed: [u8; 32],
@@ -294,11 +294,11 @@ impl KEY2 {
 
 // This works, at the expense of a big copy-paste because Rust does not allow creating DSTs when
 // the length of the data is not known at compile-time.
-fn KeyAllocate2(params: PARAMS) -> Result<Box<KEY2>, ERROR> {
+fn KeyAllocate2(params: Params) -> Result<Box<KEY2>, Error> {
     match params {
-        PARAMS::MLKEM512 => {
-            const params: INTERNAL_PARAMS =
-                SymCryptMlKemkeyGetInternalParamsFromParams(PARAMS::MLKEM512);
+        Params::MlKem512 => {
+            const params: InternalParams =
+                SymCryptMlKemkeyGetInternalParamsFromParams(Params::MlKem512);
             const nRows: usize = params.nRows as usize;
             // !!! Make sure to build using &PreKey2, not &Key2, otherwise, the errors are really
             // hard to parse.
@@ -316,9 +316,9 @@ fn KeyAllocate2(params: PARAMS) -> Result<Box<KEY2>, ERROR> {
                 data: [POLYELEMENT_ZERO; nRows * nRows + 2 * nRows],
             }))
         }
-        PARAMS::MLKEM768 => {
-            const params: INTERNAL_PARAMS =
-                SymCryptMlKemkeyGetInternalParamsFromParams(PARAMS::MLKEM768);
+        Params::MlKem768 => {
+            const params: InternalParams =
+                SymCryptMlKemkeyGetInternalParamsFromParams(Params::MlKem768);
             const nRows: usize = params.nRows as usize;
             // !!! Make sure to build using &PreKey2, not &Key2, otherwise, the errors are really
             // hard to parse.
@@ -336,9 +336,9 @@ fn KeyAllocate2(params: PARAMS) -> Result<Box<KEY2>, ERROR> {
                 data: [POLYELEMENT_ZERO; nRows * nRows + 2 * nRows],
             }))
         }
-        PARAMS::MLKEM1024 => {
-            const params: INTERNAL_PARAMS =
-                SymCryptMlKemkeyGetInternalParamsFromParams(PARAMS::MLKEM1024);
+        Params::MlKem1024 => {
+            const params: InternalParams =
+                SymCryptMlKemkeyGetInternalParamsFromParams(Params::MlKem1024);
             const nRows: usize = params.nRows as usize;
             // !!! Make sure to build using &PreKey2, not &Key2, otherwise, the errors are really
             // hard to parse.
@@ -448,7 +448,7 @@ pub(crate) type KEY = KEY2; // EDIT HERE
 
 pub(crate) type MATRIX = MATRIX2; // EDIT HERE
 
-pub fn KeyAllocate(params: PARAMS) -> Result<Box<KEY>, ERROR> {
+pub fn KeyAllocate(params: Params) -> Result<Box<KEY>, Error> {
     KeyAllocate2(params) // EDIT HERE
 }
 

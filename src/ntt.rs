@@ -573,7 +573,7 @@ pub(crate) fn SymCryptMlKemPolyElementDecodeAndDecompress(
     pbSrc: &[u8],
     nBitsPerCoefficient: u32,
     peDst: &mut POLYELEMENT,
-) -> ERROR {
+) -> Error {
     let mut cbSrcRead: usize = 0;
     let mut accumulator: u32 = 0;
     let mut nBitsInAccumulator: u32 = 0;
@@ -644,7 +644,7 @@ pub(crate) fn SymCryptMlKemPolyElementDecodeAndDecompress(
             // input validation failure - this can happen with a malformed or corrupt encapsulation
             // or decapsulation key, but this validation failure only triggers on public data; we
             // do not need to be constant time
-            return ERROR::INVALID_BLOB;
+            return Error::InvalidBlob;
         }
 
         peDst[i] = coefficient as u16;
@@ -655,7 +655,7 @@ pub(crate) fn SymCryptMlKemPolyElementDecodeAndDecompress(
         cbSrcRead == (nBitsPerCoefficient * (MLWE_POLYNOMIAL_COEFFICIENTS as u32 / 8)) as usize
     );
 
-    ERROR::NO_ERROR
+    Error::NoError
 }
 
 pub(crate) fn SymCryptMlKemPolyElementSampleNTTFromShake128(
@@ -962,7 +962,7 @@ pub(crate) fn SymCryptMlKemVectorDecodeAndDecompress(
     pbSrc: &[u8],
     nBitsPerCoefficient: u32,
     pvDst: &mut VECTOR,
-) -> ERROR {
+) -> Error {
     let nRows = pvDst.len();
 
     assert!(nRows > 0);
@@ -977,7 +977,7 @@ pub(crate) fn SymCryptMlKemVectorDecodeAndDecompress(
     {
         let pbSrc_index = i * (nBitsPerCoefficient as usize)*(MLWE_POLYNOMIAL_COEFFICIENTS / 8);
         let scError = SymCryptMlKemPolyElementDecodeAndDecompress( &pbSrc[pbSrc_index..], nBitsPerCoefficient, &mut pvDst[i] );
-        match scError { ERROR::NO_ERROR => (), _ => return scError };
+        match scError { Error::NoError => (), _ => return scError };
     });
-    ERROR::NO_ERROR
+    Error::NoError
 }
