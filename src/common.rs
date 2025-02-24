@@ -1,9 +1,7 @@
-// FIXME: move this into a shared set of definitions, rename to SYMCRYPT_ERROR
-
 #[derive(PartialEq, Debug)]
 #[repr(C)]
 pub
-enum MLKEM_ERROR {
+enum ERROR {
     NO_ERROR = 0,
     UNUSED = 0x8000, // Start our error codes here so they're easier to distinguish
     WRONG_KEY_SIZE,
@@ -29,13 +27,13 @@ enum MLKEM_ERROR {
     HBS_PUBLIC_ROOT_MISMATCH,
 }
 
-impl std::fmt::Display for MLKEM_ERROR {
+impl std::fmt::Display for ERROR {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}", self)
     }
 }
 
-impl std::error::Error for MLKEM_ERROR {}
+impl std::error::Error for ERROR {}
 
 // #[cfg(not(feature = "dynamic"))]
 // extern "C" {
@@ -49,7 +47,7 @@ extern "C" {
 }
 
 pub(crate)
-fn callback_random(dst: &mut [u8]) -> MLKEM_ERROR {
+fn callback_random(dst: &mut [u8]) -> ERROR {
     // #[cfg(not(feature = "dynamic"))]
     // unsafe {
     //     SymCryptCallbackRandom(dst.as_mut_ptr(), dst.len())
@@ -57,7 +55,7 @@ fn callback_random(dst: &mut [u8]) -> MLKEM_ERROR {
     // #[cfg(feature = "dynamic")]
     unsafe {
         SymCryptRandom(dst.as_mut_ptr(), dst.len());
-        MLKEM_ERROR::NO_ERROR
+        ERROR::NO_ERROR
     }
 }
 

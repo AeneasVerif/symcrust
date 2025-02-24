@@ -207,7 +207,7 @@ impl KEY1 {
     }
 }
 
-fn KeyAllocate1(params: PARAMS) -> Result<Box<KEY1>,MLKEM_ERROR>
+fn KeyAllocate1(params: PARAMS) -> Result<Box<KEY1>,ERROR>
 {
     // Note (Rust): this function could previously fail. Now that we use an enum for the choice of
     // algorithm, match exhaustiveness checks obviate the need for an error code.
@@ -324,7 +324,7 @@ impl KEY2 {
 
 // This works, at the expense of a big copy-paste because Rust does not allow creating DSTs when
 // the length of the data is not known at compile-time.
-fn KeyAllocate2(params: PARAMS) -> Result<Box<KEY2>,MLKEM_ERROR> {
+fn KeyAllocate2(params: PARAMS) -> Result<Box<KEY2>,ERROR> {
     match params {
         PARAMS::MLKEM512 => {
             const params: INTERNAL_PARAMS = SymCryptMlKemkeyGetInternalParamsFromParams(PARAMS::MLKEM512);
@@ -465,7 +465,7 @@ pub(crate)
 type MATRIX = MATRIX2; // EDIT HERE
 
 pub
-fn KeyAllocate(params: PARAMS) -> Result<Box<KEY>,MLKEM_ERROR> {
+fn KeyAllocate(params: PARAMS) -> Result<Box<KEY>,ERROR> {
     KeyAllocate2(params) // EDIT HERE
 }
 

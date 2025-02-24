@@ -1,5 +1,5 @@
 // use std::io::Write;
-use crate::common::MLKEM_ERROR;
+use crate::common::ERROR;
 
 #[allow(dead_code)]
 #[test]
@@ -51,14 +51,14 @@ pub fn test_api() -> Result<(), Box<dyn std::error::Error>> {
     let r = crate::mlkem::SymCryptMlKemkeySetValue(&key_generation_seed, crate::mlkem::MLKEMKEY_FORMAT::PRIVATE_SEED, 0, &mut k);
     // TODO: ideally these would use std::result so that we can use the ? operator like we do for
     // hex::decode, below.
-    if r != MLKEM_ERROR::NO_ERROR {
+    if r != ERROR::NO_ERROR {
         return Err(Box::new(r))
     }
 
     // Read secret (a.k.a. decapsulation) key
     let mut secret_key = [0u8; crate::mlkem::SIZEOF_FORMAT_DECAPSULATION_KEY(3)];
     let r = crate::mlkem::SymCryptMlKemkeyGetValue(&k, &mut secret_key, crate::mlkem::MLKEMKEY_FORMAT::DECAPSULATION_KEY, 0);
-    if r != MLKEM_ERROR::NO_ERROR {
+    if r != ERROR::NO_ERROR {
         return Err(Box::new(r))
     }
     let sha3_256_hash_of_secret_key = hex::decode("7deef44965b03d76de543ad6ef9e74a2772fa5a9fa0e761120dac767cf0152ef")?;
@@ -69,7 +69,7 @@ pub fn test_api() -> Result<(), Box<dyn std::error::Error>> {
     // Read public (a.k.a. encapsulation) key
     let mut public_key = [0u8; crate::mlkem::SIZEOF_FORMAT_ENCAPSULATION_KEY(3)];
     let r = crate::mlkem::SymCryptMlKemkeyGetValue(&k, &mut public_key, crate::mlkem::MLKEMKEY_FORMAT::ENCAPSULATION_KEY, 0);
-    if r != MLKEM_ERROR::NO_ERROR {
+    if r != ERROR::NO_ERROR {
         return Err(Box::new(r))
     }
     let sha3_256_hash_of_public_key = hex::decode("f57262661358cde8d3ebf990e5fd1d5b896c992ccfaadb5256b68bbf5943b132")?;
@@ -82,7 +82,7 @@ pub fn test_api() -> Result<(), Box<dyn std::error::Error>> {
     let mut actual_shared_secret = [0u8; 32];
     let mut cipher_text = [0u8; 1088];
     let r = crate::mlkem::SymCryptMlKemEncapsulateEx(&mut k, &encapsulation_seed, &mut actual_shared_secret, &mut cipher_text);
-    if r != MLKEM_ERROR::NO_ERROR {
+    if r != ERROR::NO_ERROR {
         return Err(Box::new(r))
     }
     let sha3_256_hash_of_ciphertext = hex::decode("6e777e2cf8054659136a971d9e70252f301226930c19c470ee0688163a63c15b")?;
@@ -95,7 +95,7 @@ pub fn test_api() -> Result<(), Box<dyn std::error::Error>> {
     // Exercise decapsulation, and assert consistency
     let mut shared_secret2 = [0u8; 32];
     let r = crate::mlkem::SymCryptMlKemDecapsulate(&mut k, &cipher_text, &mut shared_secret2);
-    if r != MLKEM_ERROR::NO_ERROR {
+    if r != ERROR::NO_ERROR {
         return Err(Box::new(r))
     }
     assert_eq!(shared_secret2, actual_shared_secret);

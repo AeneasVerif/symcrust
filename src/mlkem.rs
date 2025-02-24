@@ -252,7 +252,7 @@ SymCryptMlKemkeySetValue(
     pbSrc: &[u8],
     mlKemkeyFormat: MLKEMKEY_FORMAT,
     flags: u32,
-    pkMlKemkey: &mut KEY ) -> MLKEM_ERROR
+    pkMlKemkey: &mut KEY ) -> ERROR
 {
     // ERROR scError = NO_ERROR;
     let mut pbCurr: usize = 0;
@@ -265,14 +265,14 @@ SymCryptMlKemkeySetValue(
 
     if ( flags & !allowedFlags ) != 0
     {
-        return MLKEM_ERROR::INVALID_ARGUMENT;
+        return ERROR::INVALID_ARGUMENT;
     }
 
     // Check that minimal validation flag only specified with no fips
     if ( ( flags & FLAG_KEY_NO_FIPS ) == 0 ) &&
          ( ( flags & FLAG_KEY_MINIMAL_VALIDATION ) != 0 )
     {
-        return MLKEM_ERROR::INVALID_ARGUMENT;
+        return ERROR::INVALID_ARGUMENT;
     }
 
     // Note (Rust): ruled out by typing
@@ -302,7 +302,7 @@ SymCryptMlKemkeySetValue(
     });
 
     let mut pCompTemps = match pCompTemps {
-        Result::Err(_) => { return MLKEM_ERROR::MEMORY_ALLOCATION_FAILURE },
+        Result::Err(_) => { return ERROR::MEMORY_ALLOCATION_FAILURE },
         Result::Ok(pCompTemps) => pCompTemps
     };
 
@@ -311,7 +311,7 @@ SymCryptMlKemkeySetValue(
     {
         if pbSrc.len() != SIZEOF_FORMAT_PRIVATE_SEED
         {
-            return MLKEM_ERROR::WRONG_KEY_SIZE;
+            return ERROR::WRONG_KEY_SIZE;
         }
 
         pkMlKemkey.hasPrivateSeed = true;
@@ -331,12 +331,12 @@ SymCryptMlKemkeySetValue(
     {
         if pbSrc.len() != SIZEOF_FORMAT_DECAPSULATION_KEY( nRows as usize)
         {
-            return MLKEM_ERROR::WRONG_KEY_SIZE;
+            return ERROR::WRONG_KEY_SIZE;
         }
 
         // decode s
         let scError = SymCryptMlKemVectorDecodeAndDecompress( &pbSrc[pbCurr..pbCurr+cbEncodedVector], 12, pkMlKemkey.s_mut() );
-        if scError != MLKEM_ERROR::NO_ERROR
+        if scError != ERROR::NO_ERROR
         {
             return scError;
         }
@@ -347,7 +347,7 @@ SymCryptMlKemkeySetValue(
         pbCurr += cbEncodedVector;
         let (t, encodedT) = pkMlKemkey.t_encoded_t_mut();
         let scError = SymCryptMlKemVectorDecodeAndDecompress( &encodedT[0..cbEncodedVector], 12, t );
-        if scError != MLKEM_ERROR::NO_ERROR
+        if scError != ERROR::NO_ERROR
         {
             return scError;
         }
@@ -379,7 +379,7 @@ SymCryptMlKemkeySetValue(
     {
         if pbSrc.len() != SIZEOF_FORMAT_ENCAPSULATION_KEY( nRows as usize)
         {
-            return MLKEM_ERROR::WRONG_KEY_SIZE;
+            return ERROR::WRONG_KEY_SIZE;
         }
 
         // copy t and decode t
@@ -387,7 +387,7 @@ SymCryptMlKemkeySetValue(
         pbCurr += cbEncodedVector;
         let (t, encodedT) = pkMlKemkey.t_encoded_t_mut();
         let scError = SymCryptMlKemVectorDecodeAndDecompress( &encodedT[0..cbEncodedVector], 12, t );
-        if scError != MLKEM_ERROR::NO_ERROR
+        if scError != ERROR::NO_ERROR
         {
             return scError;
         }
@@ -417,7 +417,7 @@ SymCryptMlKemkeySetValue(
 
     assert!( pbCurr == pbSrc.len() );
 
-    MLKEM_ERROR::NO_ERROR
+    ERROR::NO_ERROR
 // cleanup:
 //     if( pCompTemps != NULL )
 //     {
@@ -436,7 +436,7 @@ SymCryptMlKemkeyGetValue(
     pbDst: &mut[u8],
                                 // SIZE_T                      cbDst,
                                 mlKemkeyFormat: MLKEMKEY_FORMAT,
-                                _flags: u32 ) -> MLKEM_ERROR
+                                _flags: u32 ) -> ERROR
 {
     // ERROR scError = NO_ERROR;
     let mut pbCurr: usize = 0;
@@ -454,12 +454,12 @@ SymCryptMlKemkeyGetValue(
     {
         if pbDst.len() != SIZEOF_FORMAT_PRIVATE_SEED
         {
-            return MLKEM_ERROR::WRONG_KEY_SIZE;
+            return ERROR::WRONG_KEY_SIZE;
         }
 
         if !pkMlKemkey.hasPrivateSeed
         {
-            return MLKEM_ERROR::INCOMPATIBLE_FORMAT;
+            return ERROR::INCOMPATIBLE_FORMAT;
         }
 
         pbDst[pbCurr..pbCurr+pkMlKemkey.privateSeed.len()].copy_from_slice(&pkMlKemkey.privateSeed);
@@ -473,12 +473,12 @@ SymCryptMlKemkeyGetValue(
     {
         if pbDst.len() != SIZEOF_FORMAT_DECAPSULATION_KEY( nRows as usize)
         {
-            return MLKEM_ERROR::INVALID_ARGUMENT;
+            return ERROR::INVALID_ARGUMENT;
         }
 
         if !pkMlKemkey.hasPrivateKey
         {
-            return MLKEM_ERROR::INVALID_ARGUMENT;
+            return ERROR::INVALID_ARGUMENT;
         }
 
         // We don't precompute byte-encoding of private key as exporting decapsulation key is not a critical path operation
@@ -503,7 +503,7 @@ SymCryptMlKemkeyGetValue(
     {
         if pbDst.len() != SIZEOF_FORMAT_ENCAPSULATION_KEY( nRows as usize)
         {
-            return MLKEM_ERROR::INVALID_ARGUMENT;
+            return ERROR::INVALID_ARGUMENT;
         }
 
         pbDst[pbCurr..pbCurr+cbEncodedVector].copy_from_slice(&pkMlKemkey.encodedT[0..cbEncodedVector]);
@@ -523,7 +523,7 @@ SymCryptMlKemkeyGetValue(
 
 // cleanup:
 //     return scError;
-    MLKEM_ERROR::NO_ERROR
+    ERROR::NO_ERROR
 }
 
 
@@ -531,7 +531,7 @@ pub
 fn
 SymCryptMlKemkeyGenerate(
     pkMlKemkey: &mut KEY,
-    flags : u32) -> MLKEM_ERROR
+    flags : u32) -> ERROR
 {
     // ERROR scError = NO_ERROR;
     let mut privateSeed = [0u8; SIZEOF_FORMAT_PRIVATE_SEED];
@@ -541,17 +541,17 @@ SymCryptMlKemkeyGenerate(
 
     if ( flags & !allowedFlags ) != 0
     {
-        return MLKEM_ERROR::INVALID_ARGUMENT;
+        return ERROR::INVALID_ARGUMENT;
     }
 
     let scError = callback_random( &mut privateSeed );
-    if scError != MLKEM_ERROR::NO_ERROR
+    if scError != ERROR::NO_ERROR
     {
         return scError;
     }
 
     let scError = SymCryptMlKemkeySetValue( &privateSeed, MLKEMKEY_FORMAT::PRIVATE_SEED, flags, pkMlKemkey );
-    if scError != MLKEM_ERROR::NO_ERROR
+    if scError != ERROR::NO_ERROR
     {
         return scError;
     }
@@ -566,7 +566,7 @@ SymCryptMlKemkeyGenerate(
     // cleanup:
     //     SymCryptWipeKnownSize( privateSeed, sizeof(privateSeed) );
 
-    MLKEM_ERROR::NO_ERROR
+    ERROR::NO_ERROR
 }
 
 const SIZEOF_MAX_CIPHERTEXT: usize = 1568;
@@ -579,7 +579,7 @@ SymCryptMlKemEncapsulateInternal(
     pbAgreedSecret: &mut[u8],
     pbCiphertext: &mut[u8],
     pbRandom: &[u8; SIZEOF_ENCAPS_RANDOM],
-    pCompTemps: &mut INTERNAL_COMPUTATION_TEMPORARIES ) -> MLKEM_ERROR
+    pCompTemps: &mut INTERNAL_COMPUTATION_TEMPORARIES ) -> ERROR
 {
     let cbAgreedSecret = pbAgreedSecret.len();
     let cbCiphertext = pbCiphertext.len();
@@ -610,7 +610,7 @@ SymCryptMlKemEncapsulateInternal(
     if (cbAgreedSecret != SIZEOF_AGREED_SECRET) ||
         (cbCiphertext != cbU + cbV) 
     {
-        return MLKEM_ERROR::INVALID_ARGUMENT;
+        return ERROR::INVALID_ARGUMENT;
     }
 
     let pvrInner = &mut pCompTemps.abVectorBuffer0[0..nRows as usize];
@@ -718,7 +718,7 @@ SymCryptMlKemEncapsulateInternal(
 // cleanup:
 //     SymCryptWipeKnownSize( CBDSampleBuffer, sizeof(CBDSampleBuffer) );
 
-    MLKEM_ERROR::NO_ERROR
+    ERROR::NO_ERROR
 }
 
 
@@ -730,7 +730,7 @@ SymCryptMlKemEncapsulateEx(
                      // wrapper enforce it
     pbAgreedSecret: &mut[u8],
     pbCiphertext: &mut[u8],
-) -> MLKEM_ERROR
+) -> ERROR
 {
     let cbRandom = pbRandom.len();
     // let cbAgreedSecret = pbAgreedSecret.len();
@@ -738,7 +738,7 @@ SymCryptMlKemEncapsulateEx(
 
     if cbRandom != SIZEOF_ENCAPS_RANDOM
     {
-        return MLKEM_ERROR::INVALID_ARGUMENT;
+        return ERROR::INVALID_ARGUMENT;
     }
 
     let pCompTemps = Box::try_new(INTERNAL_COMPUTATION_TEMPORARIES {
@@ -752,7 +752,7 @@ SymCryptMlKemEncapsulateEx(
     });
 
     let mut pCompTemps = match pCompTemps {
-        Result::Err(_) => { return MLKEM_ERROR::MEMORY_ALLOCATION_FAILURE },
+        Result::Err(_) => { return ERROR::MEMORY_ALLOCATION_FAILURE },
         Result::Ok(pCompTemps) => pCompTemps
     };
 
@@ -771,12 +771,12 @@ SymCryptMlKemEncapsulate(
     pbAgreedSecret: &mut[u8],
     pbCiphertext: &mut[u8],
 )
-    -> MLKEM_ERROR
+    -> ERROR
 {
     let mut pbm = [0u8; SIZEOF_ENCAPS_RANDOM];
 
     let scError = callback_random( &mut pbm );
-    if scError != MLKEM_ERROR::NO_ERROR
+    if scError != ERROR::NO_ERROR
     {
         return scError;
     }
@@ -801,7 +801,7 @@ SymCryptMlKemDecapsulate(
     pkMlKemkey: &mut KEY,
     pbCiphertext: &[u8],
     pbAgreedSecret: &mut [u8],
-) -> MLKEM_ERROR
+) -> ERROR
 {
     let cbCiphertext = pbCiphertext.len();
     let cbAgreedSecret = pbAgreedSecret.len();
@@ -817,7 +817,7 @@ SymCryptMlKemDecapsulate(
     });
 
     let mut pCompTemps = match pCompTemps {
-        Result::Err(_) => { return MLKEM_ERROR::MEMORY_ALLOCATION_FAILURE },
+        Result::Err(_) => { return ERROR::MEMORY_ALLOCATION_FAILURE },
         Result::Ok(pCompTemps) => pCompTemps
     };
 
@@ -832,11 +832,11 @@ SymCryptMlKemDecapsulate(
     // do this, so we perform two allocations.
     // Note (Rust): rather than use the (simple) solution below, which does not allow catching
     // memory allocation failures, we instead use the experimental try_with_capacity API:
-    // let pbCompCiphers = vec![0u8; 2*cbCipherText].into_boxed_slice();
+    // let pbCompCiphers = vec![0u8; 2*cbCiphertext].into_boxed_slice();
     let pbCompCiphers = Vec::try_with_capacity(2*cbCiphertext);
     let mut pbCompCiphers = match pbCompCiphers {
         Result::Ok(pbCompCiphers) => pbCompCiphers,
-        Result::Err(_) => return MLKEM_ERROR::MEMORY_ALLOCATION_FAILURE
+        Result::Err(_) => return ERROR::MEMORY_ALLOCATION_FAILURE
     };
     pbCompCiphers.resize(2*cbCiphertext, 0u8);
     let mut pbCompCiphers = pbCompCiphers.into_boxed_slice();
@@ -864,7 +864,7 @@ SymCryptMlKemDecapsulate(
         (cbCiphertext != cbU + cbV) ||
         !pkMlKemkey.hasPrivateKey
     {
-        return MLKEM_ERROR::INVALID_ARGUMENT;
+        return ERROR::INVALID_ARGUMENT;
     }
 
     // Read the input ciphertext once to local pbReadCiphertext to ensure our view of ciphertext consistent
@@ -877,7 +877,7 @@ SymCryptMlKemDecapsulate(
 
     // Decode and decompress u
     let scError = SymCryptMlKemVectorDecodeAndDecompress( &mut pbReadCiphertext[0..cbU], nBitsOfU as u32, pvu );
-    assert!( scError == MLKEM_ERROR::NO_ERROR );
+    assert!( scError == ERROR::NO_ERROR );
 
     // Perform NTT on u
     SymCryptMlKemVectorNTT( pvu );
@@ -890,7 +890,7 @@ SymCryptMlKemDecapsulate(
 
     // Decode and decompress v
     let scError = SymCryptMlKemPolyElementDecodeAndDecompress(&mut pbReadCiphertext[cbU..], nBitsOfV as u32, peTmp1 );
-    assert!( scError == MLKEM_ERROR::NO_ERROR );
+    assert!( scError == ERROR::NO_ERROR );
 
     // peTmp0 = w = v - INTT(s o NTT(u))
     // FIXME
@@ -909,7 +909,7 @@ SymCryptMlKemDecapsulate(
         pbReencapsulatedCiphertext,
         &mut pbDecryptedRandom,
         &mut pCompTemps );
-    assert!( scError == MLKEM_ERROR::NO_ERROR );
+    assert!( scError == ERROR::NO_ERROR );
 
     // Compute the secret we will return if using implicit rejection
     // pbImplicitRejectionSecret = K_bar = SHAKE256( z || c )
@@ -942,5 +942,5 @@ SymCryptMlKemDecapsulate(
 //     SymCryptWipeKnownSize( pbDecapsulatedSecret, sizeof(pbDecapsulatedSecret) );
 //     SymCryptWipeKnownSize( pbImplicitRejectionSecret, sizeof(pbImplicitRejectionSecret) );
 
-    MLKEM_ERROR::NO_ERROR
+    ERROR::NO_ERROR
 }
