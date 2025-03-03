@@ -56,7 +56,7 @@ impl TryFrom<c_int> for crate::key::Format {
 // ---
 
 #[no_mangle]
-pub extern "C" fn keyAllocate(params: c_int) -> CKey {
+pub extern "C" fn SymCryptMlKemkeyAllocate(params: c_int) -> CKey {
     match crate::key::Params::try_from(params) {
         Result::Err(_) => std::ptr::null_mut(),
         Result::Ok(params) => match crate::key::key_allocate(params) {
@@ -67,13 +67,13 @@ pub extern "C" fn keyAllocate(params: c_int) -> CKey {
 }
 
 #[no_mangle]
-pub extern "C" fn KeyFree(k: CKey) {
+pub extern "C" fn SymCryptMlKemKeyFree(k: CKey) {
     let _ = unsafe { Box::from_raw(k) };
     // Drop trait gets called here, presumably.
 }
 
 #[no_mangle]
-pub extern "C" fn SizeofKeyFormatFromParams(
+pub extern "C" fn SymCryptMlKemSizeofKeyFormatFromParams(
     params: CParams,
     format: CFormat,
     sz: &mut size_t,
@@ -86,7 +86,7 @@ pub extern "C" fn SizeofKeyFormatFromParams(
 }
 
 #[no_mangle]
-pub extern "C" fn SizeofCiphertextFromParams(
+pub extern "C" fn SymCryptMlKemSizeofCiphertextFromParams(
     params: CParams,
     sz: &mut size_t,
 ) -> Error {
@@ -95,7 +95,7 @@ pub extern "C" fn SizeofCiphertextFromParams(
 }
 
 #[no_mangle]
-pub extern "C" fn keyGenerate(k: CKey, flags: u32) -> Error {
+pub extern "C" fn SymCryptMlKemkeyGenerate(k: CKey, flags: u32) -> Error {
     let mut k = unsafe { Box::from_raw(k) };
     // Note: the * can be inserted by Rust automatically
     let r = crate::mlkem::key_generate(&mut (*k), flags);
@@ -105,7 +105,7 @@ pub extern "C" fn keyGenerate(k: CKey, flags: u32) -> Error {
 }
 
 #[no_mangle]
-pub extern "C" fn keySetValue(
+pub extern "C" fn SymCryptMlKemkeySetValue(
     pb_src: *const u8,
     cb_src: size_t,
     format: CFormat,
@@ -121,7 +121,7 @@ pub extern "C" fn keySetValue(
 }
 
 #[no_mangle]
-pub extern "C" fn keyGetValue(
+pub extern "C" fn SymCryptMlKemkeyGetValue(
     k: CKey,
     pb_dst: *mut u8,
     cb_dst: size_t,
@@ -137,7 +137,7 @@ pub extern "C" fn keyGetValue(
 }
 
 #[no_mangle]
-pub extern "C" fn Encapsulate(
+pub extern "C" fn SymCryptMlKemEncapsulate(
     k: CKey,
     pb_agreed_secret: *mut u8,
     cb_agreed_secret: size_t,
@@ -154,7 +154,7 @@ pub extern "C" fn Encapsulate(
 }
 
 #[no_mangle]
-pub extern "C" fn EncapsulateEx(
+pub extern "C" fn SymCryptMlKemEncapsulateEx(
     k: CKey,
     pb_random: *mut u8,
     cb_random: size_t,
@@ -174,7 +174,7 @@ pub extern "C" fn EncapsulateEx(
 }
 
 #[no_mangle]
-pub extern "C" fn Decapsulate(
+pub extern "C" fn SymCryptMlKemDecapsulate(
     k: CKey,
     pb_ciphertext: *const u8,
     cb_ciphertext: size_t,
@@ -191,6 +191,6 @@ pub extern "C" fn Decapsulate(
 }
 
 #[no_mangle]
-pub extern "C" fn Selftest() {
+pub extern "C" fn SymCryptMlKemSelftest() {
     println!("SELF-TEST: DOING NOTHING");
 }
