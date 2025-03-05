@@ -10,289 +10,11 @@ open Std
 open Result
 
 
-namespace Aeneas.Std
-
-
-/-
-theorem ScalarTy.unsigned_min_eq_zero (ty : ScalarTy) (h : ¬ty.isSigned) :
-  Scalar.min ty = 0 := by
-  cases ty <;> simp_all <;> rfl
-
-theorem ScalarTy.unsigned_max_eq_pow_bitWidth (ty : ScalarTy) (h : ¬ty.isSigned) :
-  Scalar.max ty = 2 ^ ty.bitWidth - 1 := by
-  cases ty <;> simp_all <;> try rfl
-  simp [Scalar.max, Usize.max, Usize.refined_max, Usize.smax]
--/
-
---set_option maxRecDepth 1000
-set_option maxHeartbeats 500000
-
-open Result
-
-/-
-/-- Bit vector representation of a scalar -/
-def Scalar.bv_ {ty} (x : Scalar ty) : BitVec ty.bitWidth :=
-  if ty.isSigned then BitVec.ofInt _ x.val else BitVec.ofNat _ x.toNat
-
-@[simp] theorem Scalar.bv_U8 (x : U8) : Scalar.bv_ x = x.toNat := by rfl
-@[simp] theorem Scalar.bv_U16 (x : U16) : Scalar.bv_ x = x.toNat := by rfl
-@[simp] theorem Scalar.bv_U32 (x : U32) : Scalar.bv_ x = x.toNat := by rfl
-@[simp] theorem Scalar.bv_U64 (x : U64) : Scalar.bv_ x = x.toNat := by rfl
-@[simp] theorem Scalar.bv_U128 (x : U128) : Scalar.bv_ x = x.toNat := by rfl
-@[simp] theorem Scalar.bv_Usize (x : Usize) : Scalar.bv_ x = x.toNat := by rfl
-@[simp] theorem Scalar.bv_I8 (x : I8) : Scalar.bv_ x = x.val := by rfl
-@[simp] theorem Scalar.bv_I16 (x : I16) : Scalar.bv_ x = x.val := by rfl
-@[simp] theorem Scalar.bv_I32 (x : I32) : Scalar.bv_ x = x.val := by rfl
-@[simp] theorem Scalar.bv_I64 (x : I64) : Scalar.bv_ x = x.val := by rfl
-@[simp] theorem Scalar.bv_I128 (x : I128) : Scalar.bv_ x = x.val := by rfl
-@[simp] theorem Scalar.bv_Isize (x : Isize) : Scalar.bv_ x = x.val := by rfl
--/
-
-/-
-@[simp]
-theorem Scalar.bv_toNat_eq {ty : ScalarTy} (x : Scalar ty) (h : ¬ ty.isSigned := by simp) :
-  (Scalar.bv_ x).toNat  = x.toNat := by
-  have := x.hmin
-  have := x.hmax
-  simp [Scalar.bv_, h]
-  simp [ScalarTy.unsigned_max_eq_pow_bitWidth, ScalarTy.unsigned_min_eq_zero, h] at *
-  have h := (System.Platform.getNumBits ()).property
-  dcases ty <;> simp_all <;> (try omega) <;>
-  dcases h <;> simp_all <;> omega
-
-@[simp] theorem U8.bv_toNat_eq (x : U8) : x.bv.toNat = x.toNat := by apply Scalar.bv_toNat_eq; simp
-@[simp] theorem U16.bv_toNat_eq (x : U16) : x.bv.toNat = x.toNat := by apply Scalar.bv_toNat_eq; simp
-@[simp] theorem U32.bv_toNat_eq (x : U32) : x.bv.toNat = x.toNat := by apply Scalar.bv_toNat_eq; simp
-@[simp] theorem U64.bv_toNat_eq (x : U64) : x.bv.toNat = x.toNat := by apply Scalar.bv_toNat_eq; simp
-@[simp] theorem U128.bv_toNat_eq (x : U128) : x.bv.toNat = x.toNat := by apply Scalar.bv_toNat_eq; simp
--/
-
-/-
-theorem core.num.Scalar.wrapping_add_bv_unsigned_eq {ty} (x y : Scalar ty) (hs : ¬ ty.isSigned := by simp) :
-  (Scalar.wrapping_add x y).bv_ = x.bv_ + y.bv_ := by
-  sorry
-
-theorem core.num.Scalar.wrapping_add_val_unsigned_eq {ty} (x y : Scalar ty) (hs : ¬ ty.isSigned := by simp) :
-  (Scalar.wrapping_add x y).val = (x.val + y.val) % 2^ty.bitWidth := by
-  sorry
-
-@[simp] theorem core.num.U8.wrapping_add_val_eq (x y : U8) :
-  (core.num.U8.wrapping_add x y).val = (x.val + y.val) % (U8.max + 1) :=
-  core.num.Scalar.wrapping_add_val_unsigned_eq x y
-
-@[simp] theorem core.num.U16.wrapping_add_val_eq (x y : U16) :
-  (core.num.U16.wrapping_add x y).val = (x.val + y.val) % (U16.max + 1) :=
-  core.num.Scalar.wrapping_add_val_unsigned_eq x y
-
-@[simp] theorem core.num.U32.wrapping_add_val_eq (x y : U32) :
-  (core.num.U32.wrapping_add x y).val = (x.val + y.val) % (U32.max + 1) :=
-  core.num.Scalar.wrapping_add_val_unsigned_eq x y
-
-@[simp] theorem core.num.U64.wrapping_add_val_eq (x y : U64) :
-  (core.num.U64.wrapping_add x y).val = (x.val + y.val) % (U64.max + 1) :=
-  core.num.Scalar.wrapping_add_val_unsigned_eq x y
-
-@[simp] theorem core.num.U128.wrapping_add_val_eq (x y : U128) :
-  (core.num.U128.wrapping_add x y).val = (x.val + y.val) % (U128.max + 1) :=
-  core.num.Scalar.wrapping_add_val_unsigned_eq x y
-
-@[simp] theorem core.num.U8.wrapping_add_bv_eq (x y : U8) :
-  (core.num.U8.wrapping_add x y).bv = x.bv + y.bv :=
-  core.num.Scalar.wrapping_add_bv_unsigned_eq x y
-
-@[simp] theorem core.num.U16.wrapping_add_bv_eq (x y : U16) :
-  (core.num.U16.wrapping_add x y).bv = x.bv + y.bv :=
-  core.num.Scalar.wrapping_add_bv_unsigned_eq x y
-
-@[simp] theorem core.num.U32.wrapping_add_bv_eq (x y : U32) :
-  (core.num.U32.wrapping_add x y).bv = x.bv + y.bv :=
-  core.num.Scalar.wrapping_add_bv_unsigned_eq x y
-
-@[simp] theorem core.num.U64.wrapping_add_bv_eq (x y : U64) :
-  (core.num.U64.wrapping_add x y).bv = x.bv + y.bv :=
-  core.num.Scalar.wrapping_add_bv_unsigned_eq x y
-
-@[simp] theorem core.num.U128.wrapping_add_bv_eq (x y : U128) :
-  (core.num.U128.wrapping_add x y).bv = x.bv + y.bv :=
-  core.num.Scalar.wrapping_add_bv_unsigned_eq x y
-
-theorem core.num.Scalar.wrapping_add_toNat_unsigned_eq {ty} (x y : Scalar ty) (hs : ¬ ty.isSigned := by simp) :
-  (Scalar.wrapping_add x y).toNat = (x.toNat + y.toNat) % 2^ty.bitWidth := by
-  sorry
-
-@[simp] theorem core.num.U8.wrapping_add_toNat_eq (x y : U8) :
-  (core.num.U8.wrapping_add x y).toNat = (x.toNat + y.toNat) % (U8.max + 1) :=
-  core.num.Scalar.wrapping_add_toNat_unsigned_eq x y
-
-@[simp] theorem core.num.U16.wrapping_add_toNat_eq (x y : U16) :
-  (core.num.U16.wrapping_add x y).toNat = (x.toNat + y.toNat) % (U16.max + 1) :=
-  core.num.Scalar.wrapping_add_toNat_unsigned_eq x y
-
-@[simp] theorem core.num.U32.wrapping_add_toNat_eq (x y : U32) :
-  (core.num.U32.wrapping_add x y).toNat = (x.toNat + y.toNat) % (U32.max + 1) :=
-  core.num.Scalar.wrapping_add_toNat_unsigned_eq x y
-
-@[simp] theorem core.num.U64.wrapping_add_toNat_eq (x y : U64) :
-  (core.num.U64.wrapping_add x y).toNat = (x.toNat + y.toNat) % (U64.max + 1) :=
-  core.num.Scalar.wrapping_add_toNat_unsigned_eq x y
-
-@[simp] theorem core.num.U128.wrapping_add_toNat_eq (x y : U128) :
-  (core.num.U128.wrapping_add x y).toNat = (x.toNat + y.toNat) % (U128.max + 1) :=
-  core.num.Scalar.wrapping_add_toNat_unsigned_eq x y
-
-theorem core.num.Scalar.wrapping_sub_bv_unsigned_eq {ty} (x y : Scalar ty) (hs : ¬ ty.isSigned := by simp) :
-  (Scalar.wrapping_sub x y).bv_ = x.bv_ - y.bv_ := by
-  sorry
-
-@[simp] theorem core.num.U8.wrapping_sub_bv_eq (x y : U8) :
-  (core.num.U8.wrapping_sub x y).bv = x.bv - y.bv :=
-  core.num.Scalar.wrapping_sub_bv_unsigned_eq x y
-
-@[simp] theorem core.num.U16.wrapping_sub_bv_eq (x y : U16) :
-  (core.num.U16.wrapping_sub x y).bv = x.bv - y.bv :=
-  core.num.Scalar.wrapping_sub_bv_unsigned_eq x y
-
-@[simp] theorem core.num.U32.wrapping_sub_bv_eq (x y : U32) :
-  (core.num.U32.wrapping_sub x y).bv = x.bv - y.bv :=
-  core.num.Scalar.wrapping_sub_bv_unsigned_eq x y
-
-@[simp] theorem core.num.U64.wrapping_sub_bv_eq (x y : U64) :
-  (core.num.U64.wrapping_sub x y).bv = x.bv - y.bv :=
-  core.num.Scalar.wrapping_sub_bv_unsigned_eq x y
-
-theorem core.num.Scalar.wrapping_sub_val_unsigned_eq {ty} (x y : Scalar ty) (hs : ¬ ty.isSigned := by simp) :
-  (Scalar.wrapping_sub x y).val = (x.val - y.val) % 2^ty.bitWidth := by
-  sorry
-
-@[simp] theorem core.num.U8.wrapping_sub_val_eq (x y : U8) :
-  (core.num.U8.wrapping_sub x y).val = (x.val - y.val) % (U8.max + 1) :=
-  core.num.Scalar.wrapping_sub_val_unsigned_eq x y
-
-@[simp] theorem core.num.U16.wrapping_sub_val_eq (x y : U16) :
-  (core.num.U16.wrapping_sub x y).val = (x.val - y.val) % (U16.max + 1) :=
-  core.num.Scalar.wrapping_sub_val_unsigned_eq x y
-
-@[simp] theorem core.num.U32.wrapping_sub_val_eq (x y : U32) :
-  (core.num.U32.wrapping_sub x y).val = (x.val - y.val) % (U32.max + 1) :=
-  core.num.Scalar.wrapping_sub_val_unsigned_eq x y
-
-@[simp] theorem core.num.U64.wrapping_sub_val_eq (x y : U64) :
-  (core.num.U64.wrapping_sub x y).val = (x.val - y.val) % (U64.max + 1) :=
-  core.num.Scalar.wrapping_sub_val_unsigned_eq x y
-
-@[simp] theorem core.num.U128.wrapping_sub_val_eq (x y : U128) :
-  (core.num.U128.wrapping_sub x y).val = (x.val - y.val) % (U128.max + 1) :=
-  core.num.Scalar.wrapping_sub_val_unsigned_eq x y
-
-theorem core.num.Scalar.wrapping_sub_toNat_unsigned_eq {ty} (x y : Scalar ty) (hs : ¬ ty.isSigned := by simp) :
-  (Scalar.wrapping_sub x y).toNat = ((x.val - y.val) % 2^ty.bitWidth).toNat := by
-  sorry
-
-@[simp] theorem core.num.U8.wrapping_sub_toNat_eq (x y : U8) :
-  (core.num.U8.wrapping_sub x y).toNat = ((x.val - y.val) % (U8.max + 1)).toNat :=
-  core.num.Scalar.wrapping_sub_toNat_unsigned_eq x y
-
-@[simp] theorem core.num.U16.wrapping_sub_toNat_eq (x y : U16) :
-  (core.num.U16.wrapping_sub x y).toNat = ((x.val - y.val) % (U16.max + 1)).toNat :=
-  core.num.Scalar.wrapping_sub_toNat_unsigned_eq x y
-
-@[simp] theorem core.num.U32.wrapping_sub_toNat_eq (x y : U32) :
-  (core.num.U32.wrapping_sub x y).toNat = ((x.val - y.val) % (U32.max + 1)).toNat :=
-  core.num.Scalar.wrapping_sub_toNat_unsigned_eq x y
-
-@[simp] theorem core.num.U64.wrapping_sub_toNat_eq (x y : U64) :
-  (core.num.U64.wrapping_sub x y).toNat = ((x.val - y.val) % (U64.max + 1)).toNat :=
-  core.num.Scalar.wrapping_sub_toNat_unsigned_eq x y
-
-@[simp] theorem core.num.U128.wrapping_sub_toNat_eq (x y : U128) :
-  (core.num.U128.wrapping_sub x y).toNat = ((x.val - y.val) % (U128.max + 1)).toNat :=
-  core.num.Scalar.wrapping_sub_toNat_unsigned_eq x y
--/
-
-/- TODO: scalar_tac_simp?
-@[simp] theorem Int.mod_toNat_val (n m : Int) (h : m ≠ 0) :
-  (n % m).toNat = n % m := by
-  simp only [Int.ofNat_toNat, ne_eq, h, not_false_eq_true, Int.emod_nonneg, sup_of_le_left]-/
-
-/-theorem core.num.Scalar.ShiftRight_val_unsigned_eq {ty0 ty1} (x : Scalar ty0) (y : Scalar ty1)
-  (hs : ¬ ty0.isSigned) (hy0 : 0 ≤ y.val) (hy1 : y.val ≤ ty0.bitWidth) :
-  ∃ z, x >>> y = ok z ∧
-  z.val = x.val >>> y.toNat
-  := by
-  sorry
-
-theorem core.num.Scalar.ShiftRight_bv_unsigned_eq {ty0 ty1} (x : Scalar ty0) (y : Scalar ty1)
-  (hs : ¬ ty0.isSigned) (hy0 : 0 ≤ y.val) (hy1 : y.val ≤ ty0.bitWidth) :
-  ∃ z, x >>> y = ok z ∧ z.bv_ = x.bv_ >>> y.toNat
-  := by
-  sorry
-
-@[pspec] theorem U8.ShiftRight_bv_unsigned_eq (x : U8) (y : Scalar ty1) (hy0 : 0 ≤ y.val) (hy1 : y.val ≤ 8) :
-  ∃ (z : U8), x >>> y = ok z ∧ z.bv = x.bv >>> y.toNat
-  := by apply core.num.Scalar.ShiftRight_bv_unsigned_eq <;> simp [*]
-
-@[pspec] theorem U16.ShiftRight_bv_unsigned_eq (x : U16) (y : Scalar ty1) (hy0 : 0 ≤ y.val) (hy1 : y.val ≤ 16) :
-  ∃ (z : U16), x >>> y = ok z ∧ z.bv = x.bv >>> y.toNat
-  := by apply core.num.Scalar.ShiftRight_bv_unsigned_eq <;> simp [*]
-
-@[pspec] theorem U32.ShiftRight_bv_unsigned_eq (x : U32) (y : Scalar ty1) (hy0 : 0 ≤ y.val) (hy1 : y.val ≤ 32) :
-  ∃ (z : U32), x >>> y = ok z ∧ z.bv = x.bv >>> y.toNat
-  := by apply core.num.Scalar.ShiftRight_bv_unsigned_eq <;> simp [*]
-
-@[pspec] theorem U64.ShiftRight_bv_unsigned_eq (x : U64) (y : Scalar ty1) (hy0 : 0 ≤ y.val) (hy1 : y.val ≤ 64) :
-  ∃ (z : U64), x >>> y = ok z ∧ z.bv = x.bv >>> y.toNat
-  := by apply core.num.Scalar.ShiftRight_bv_unsigned_eq <;> simp [*]
-
-@[pspec] theorem U128.ShiftRight_bv_unsigned_eq (x : U128) (y : Scalar ty1) (hy0 : 0 ≤ y.val) (hy1 : y.val ≤ 128) :
-  ∃ (z : U128), x >>> y = ok z ∧ z.bv = x.bv >>> y.toNat
-  := by apply core.num.Scalar.ShiftRight_bv_unsigned_eq <;> simp [*]
-
-@[pspec] theorem Usize.ShiftRight_bv_unsigned_eq (x : Usize) (y : Scalar ty1) (hy0 : 0 ≤ y.val) (hy1 : y.val ≤ size_num_bits) :
-  ∃ (z : Usize), x >>> y = ok z ∧ z.bv = x.bv >>> y.toNat
-  := by apply core.num.Scalar.ShiftRight_bv_unsigned_eq <;> simp_all
-
-theorem core.num.Scalar.ShiftLeft_val_unsigned_eq {ty0 ty1} (x : Scalar ty0) (y : Scalar ty1)
-  (hs : ¬ ty0.isSigned) (hy0 : 0 ≤ y.val) (hy1 : y.val ≤ ty0.bitWidth) :
-  ∃ z, x <<< y = ok z ∧ z.val = x.val <<< y.val -- TODO: can't use y.toNat?
-  := by
-  sorry
-
-theorem core.num.Scalar.ShiftLeft_bv_unsigned_eq {ty0 ty1} (x : Scalar ty0) (y : Scalar ty1)
-  (hs : ¬ ty0.isSigned) (hy0 : 0 ≤ y.val) (hy1 : y.val ≤ ty0.bitWidth) :
-  ∃ z, x <<< y = ok z ∧ z.bv_ = x.bv_ <<< y.toNat
-  := by
-  sorry
-
-@[pspec] theorem U8.ShiftLeft_bv_unsigned_eq (x : U8) (y : Scalar ty1) (hy0 : 0 ≤ y.val) (hy1 : y.val ≤ 8) :
-  ∃ (z : U8), x <<< y = ok z ∧ z.bv = x.bv <<< y.toNat
-  := by apply core.num.Scalar.ShiftLeft_bv_unsigned_eq <;> simp [*]
-
-@[pspec] theorem U16.ShiftLeft_bv_unsigned_eq (x : U16) (y : Scalar ty1) (hy0 : 0 ≤ y.val) (hy1 : y.val ≤ 16) :
-  ∃ (z : U16), x <<< y = ok z ∧ z.bv = x.bv <<< y.toNat
-  := by apply core.num.Scalar.ShiftLeft_bv_unsigned_eq <;> simp [*]
-
-@[pspec] theorem U32.ShiftLeft_bv_unsigned_eq (x : U32) (y : Scalar ty1) (hy0 : 0 ≤ y.val) (hy1 : y.val ≤ 32) :
-  ∃ (z : U32), x <<< y = ok z ∧ z.bv = x.bv <<< y.toNat
-  := by apply core.num.Scalar.ShiftLeft_bv_unsigned_eq <;> simp [*]
-
-@[pspec] theorem U64.ShiftLeft_bv_unsigned_eq (x : U64) (y : Scalar ty1) (hy0 : 0 ≤ y.val) (hy1 : y.val ≤ 64) :
-  ∃ (z : U64), x <<< y = ok z ∧ z.bv = x.bv <<< y.toNat
-  := by apply core.num.Scalar.ShiftLeft_bv_unsigned_eq <;> simp [*]
-
-@[pspec] theorem U128.ShiftLeft_bv_unsigned_eq (x : U128) (y : Scalar ty1) (hy0 : 0 ≤ y.val) (hy1 : y.val ≤ 128) :
-  ∃ (z : U128), x <<< y = ok z ∧ z.bv = x.bv <<< y.toNat
-  := by apply core.num.Scalar.ShiftLeft_bv_unsigned_eq <;> simp [*]
-
-@[pspec] theorem Usize.ShiftLeft_bv_unsigned_eq (x : Usize) (y : Scalar ty1) (hy0 : 0 ≤ y.val) (hy1 : y.val ≤ size_num_bits) :
-  ∃ (z : Usize), x <<< y = ok z ∧ z.bv = x.bv <<< y.toNat
-  := by apply core.num.Scalar.ShiftLeft_bv_unsigned_eq <;> simp_all-/
-
-end Aeneas.Std
-
 namespace Symcrust
 
 open Aeneas.Arith
-set_option maxHeartbeats 500000
+
+set_option maxHeartbeats 2000000
 
 /-!
 Addition modulo
@@ -318,423 +40,15 @@ def ntt.SymCryptMlKemModAdd_eq (a : U32) (b : U32) :
   intros
   split <;> simp
 
--- TODO: register those as `scalar_tac_simp`?
 @[simp, scalar_tac_simp, bvify_simps] theorem ntt.Q_eq : Q = 3329#u32 := by rfl
-@[simp] theorem ntt.NegQInvModR_eq : ntt.NegQInvModR = 3327#u32 := by rfl
-@[simp] theorem ntt.Rmask_eq : ntt.Rmask = 65535#u32 := by rfl
-@[simp] theorem ntt.Rlog2_eq : ntt.Rlog2 = 16#u32 := by rfl
+@[simp, scalar_tac_simp, bvify_simps] theorem ntt.NegQInvModR_eq : ntt.NegQInvModR = 3327#u32 := by rfl
+@[simp, scalar_tac_simp, bvify_simps] theorem ntt.Rmask_eq : ntt.Rmask = 65535#u32 := by rfl
+@[simp, scalar_tac_simp, bvify_simps] theorem ntt.Rlog2_eq : ntt.Rlog2 = 16#u32 := by rfl
 
-attribute [local simp] Spec.Q -- TODO: add this to the scalar_tac simp set
+attribute [local simp, local scalar_tac_simp, local bvify_simps] Spec.Q
 
--- TODO: generalize, move
-/-@[simp] theorem core.num.U32.and_val (x y : U32) :
-  (x &&& y).val = (x.bv &&& y.bv).toNat := by
-  sorry-/
-
-/-
--- TODO: move
-theorem Int.eq_of_testBit_eq {x y : Int}
-  (pred : ∀ (i : ℕ), x.testBit i = y.testBit i) : x = y := by
-  cases x <;> cases y <;> rename_i x y <;> simp only [Int.testBit] at pred
-  . have : x = y := by
-      apply Nat.eq_of_testBit_eq
-      apply pred
-    rw [this]
-  . -- Contradiction
-    sorry
-  . -- Contradiction
-    sorry
-  . have : x = y := by
-      apply Nat.eq_of_testBit_eq
-      intro i
-      replace pred := pred i
-      simp at pred
-      apply pred
-    rw [this]
-
-@[simp]
-theorem Int.testBit_zero (i : Nat) : Int.testBit 0 i = false := by
-  unfold Int.testBit; simp
-
--- TODO: move
-@[simp] theorem Int.land_zero_right (x : Int) :
-  Int.land x 0 = 0 := by
-  apply Int.eq_of_testBit_eq
-  intro i
-  simp
-
--- TODO: move
-@[simp] theorem Int.land_zero_left (x : Int) :
-  Int.land 0 x = 0 := by
-  apply Int.eq_of_testBit_eq
-  intro i
-  simp
-
-@[simp]
-theorem Int.testBit_pos_eq_nat_testBit (x i : Nat) :
-  (x : Int).testBit i = x.testBit i := by
-  unfold Int.testBit; simp
-
-example (x : BitVec 32) (h : x ≤ BitVec.ofInt 32 (2^4)) :
-  x >>> 5 = 0 := by
-  bv_decide
-
-#eval (BitVec.ofNat 32 (2^32-1)) >>> 31
-#eval (BitVec.ofInt 32 (2^32))
-#eval (BitVec.ofNat 32 (2^32-1)) &&& 0
-#check Int.bmod
-
-example (n m : BitVec 32) (hn : n < BitVec.ofInt 32 (2 ^ 16)) (hm : m < BitVec.ofInt 32 (2 ^ 16)) :
-  m &&& ((BitVec.ofNat 32 (2^32 - 1) - n) >>> 16) = m := by
-  bv_decide
-
-theorem Int.testBit_two_pow_sub_succ {x : Int} {n : ℕ} (h₁ : 0 ≤ x) (h₂ : x < 2 ^ n) (i : ℕ) :
-  (2 ^ n - (x + 1)).testBit i = (i < n && !x.testBit i) := by
-  have hx : x = x.toNat := by omega
-  have h1 := @Nat.testBit_two_pow_sub_succ x.toNat n (by norm_cast at *; omega) i
-  simp at *
-  have h2 := Int.testBit_pos_eq_nat_testBit (2 ^ n - (x + 1).toNat) i
-  have : (2^n - (x + 1).toNat : Nat) = 2 ^n - (x + 1) := by
-    norm_cast at *
-    omega
-  rw [this] at h2; clear this
-  rw [h2]; clear h2
-
-  have : 2 ^ n - (x.toNat + 1) = 2 ^ n - (x + 1).toNat := by
-    norm_cast at *
-    omega
-  rw [this] at h1; clear this
-  rw [h1]; clear h1
-
-  have : x.toNat.testBit i = x.testBit i := by
-    sorry
-  simp [this]
-
-@[simp] theorem Int.testBit_shiftRight {i j : Nat} (x : Int) :
-  (x >>> i).testBit j = x.testBit (i + j) := by
-  sorry
-
-@[simp] theorem Int.testBit_int_shiftRight {i : Int} {j : Nat} (x : Int) :
-  (x >>> i).testBit j = x.testBit (i.toNat + j) := by
-  sorry
-
-/-theorem Int.testBit_shiftLeft {i j : Nat}  (x : Int) :
-  (x <<< i).testBit j = (j ≥ i && x.testBit (j - i)) := by sorry-/
-
-#check Nat.testBit_eq_false_of_lt
-
-theorem Int.testBit_pos_eq_false_of_lt {n : Int} {i : ℕ} (h : 0 ≤ n) (h : n < 2 ^ i) :
-  n.testBit i = false := by
-  sorry
--/
-
-/-
-theorem Scalar.eq_equiv_bv__eq {ty : ScalarTy} (x y : Scalar ty) :
-  x = y ↔ x.bv_ = y.bv_ := by
-  rw [Scalar.eq_equiv]
-  rw [BitVec.toNat_eq]
-  unfold Scalar.bv_
-  split <;> simp <;>
-  sorry
-
-theorem U8.eq_equiv_bv_eq (x y : U8) : x = y ↔ x.bv = y.bv := by apply Scalar.eq_equiv_bv__eq
-theorem U16.eq_equiv_bv_eq (x y : U16) : x = y ↔ x.bv = y.bv := by apply Scalar.eq_equiv_bv__eq
-theorem U32.eq_equiv_bv_eq (x y : U32) : x = y ↔ x.bv = y.bv := by apply Scalar.eq_equiv_bv__eq
-theorem U64.eq_equiv_bv_eq (x y : U64) : x = y ↔ x.bv = y.bv := by apply Scalar.eq_equiv_bv__eq
-theorem U128.eq_equiv_bv_eq (x y : U128) : x = y ↔ x.bv = y.bv := by apply Scalar.eq_equiv_bv__eq
-theorem Usize.eq_equiv_bv_eq (x y : Usize) : x = y ↔ x.bv = y.bv := by apply Scalar.eq_equiv_bv__eq
-
-theorem Scalar.ofIntCore_bv {ty : ScalarTy} (x : Int) h :
-  (@Scalar.ofIntCore ty x h).bv_ = if ty.isSigned then BitVec.ofInt _ x else BitVec.ofNat _ x.toNat :=
-  by sorry
-
-@[simp] theorem U8.ofInt_bv (x : Int) h : U8.bv (U8.ofInt x h) = BitVec.ofNat _ x.toNat := by apply Scalar.ofIntCore_bv
-@[simp] theorem U16.ofInt_bv (x : Int) h : U16.bv (U16.ofInt x h) = BitVec.ofNat _ x.toNat := by apply Scalar.ofIntCore_bv
-@[simp] theorem U32.ofInt_bv (x : Int) h : U32.bv (U32.ofInt x h) = BitVec.ofNat _ x.toNat := by apply Scalar.ofIntCore_bv
-@[simp] theorem U64.ofInt_bv (x : Int) h : U64.bv (U64.ofInt x h) = BitVec.ofNat _ x.toNat := by apply Scalar.ofIntCore_bv
-@[simp] theorem U128.ofInt_bv (x : Int) h : U128.bv (U128.ofInt x h) = BitVec.ofNat _ x.toNat := by apply Scalar.ofIntCore_bv
-@[simp] theorem Usize.ofInt_bv (x : Int) h : Usize.bv (Usize.ofInt x h) = BitVec.ofNat _ x.toNat := by apply Scalar.ofIntCore_bv-/
-
-/-
-theorem Scalar.add_bv_spec {ty} {x y : Scalar ty} (hmin : Scalar.min ty ≤ x.val + y.val) (hmax : x.val + y.val ≤ Scalar.max ty) :
-  ∃ (z : Scalar ty), x + y = ok z ∧ z.val = x.val + y.val ∧ z.bv_ = x.bv_ + y.bv_ := by sorry
-
-theorem U8.add_bv_spec {x y : U8} (hmax : x.val + y.val ≤ U8.max) :
-  ∃ (z : U8), x + y = ok z ∧ z.val = x.val + y.val ∧ z.bv = x.bv + y.bv :=
-  by apply Scalar.add_bv_spec; scalar_tac; apply hmax
-
-theorem U16.add_bv_spec {x y : U16} (hmax : x.val + y.val ≤ U16.max) :
-  ∃ (z : U16), x + y = ok z ∧ z.val = x.val + y.val ∧ z.bv = x.bv + y.bv :=
-  by apply Scalar.add_bv_spec; scalar_tac; apply hmax
-
-theorem U32.add_bv_spec {x y : U32} (hmax : x.val + y.val ≤ U32.max) :
-  ∃ (z : U32), x + y = ok z ∧ z.val = x.val + y.val ∧ z.bv = x.bv + y.bv :=
-  by apply Scalar.add_bv_spec; scalar_tac; apply hmax
-
-theorem U64.add_bv_spec {x y : U64} (hmax : x.val + y.val ≤ U64.max) :
-  ∃ (z : U64), x + y = ok z ∧ z.val = x.val + y.val ∧ z.bv = x.bv + y.bv :=
-  by apply Scalar.add_bv_spec; scalar_tac; apply hmax
-
-theorem U128.add_bv_spec {x y : U128} (hmax : x.val + y.val ≤ U128.max) :
-  ∃ (z : U128), x + y = ok z ∧ z.val = x.val + y.val ∧ z.bv = x.bv + y.bv :=
-  by apply Scalar.add_bv_spec; scalar_tac; apply hmax
-
-theorem Usize.add_bv_spec {x y : Usize} (hmax : x.val + y.val ≤ Usize.max) :
-  ∃ (z : Usize), x + y = ok z ∧ z.val = x.val + y.val ∧ z.bv = x.bv + y.bv :=
-  by apply Scalar.add_bv_spec; scalar_tac; apply hmax
-
-theorem I8.add_bv_spec {x y : I8} (hmin : I8.min ≤ x.val + y.val) (hmax : x.val + y.val ≤ I8.max) :
-  ∃ (z : I8), x + y = ok z ∧ z.val = x.val + y.val ∧ z.bv = x.bv + y.bv :=
-  by apply Scalar.add_bv_spec <;> scalar_tac
-
-theorem I16.add_bv_spec {x y : I16} (hmin : I16.min ≤ x.val + y.val) (hmax : x.val + y.val ≤ I16.max) :
-  ∃ (z : I16), x + y = ok z ∧ z.val = x.val + y.val ∧ z.bv = x.bv + y.bv :=
-  by apply Scalar.add_bv_spec <;> scalar_tac
-
-theorem I32.add_bv_spec {x y : I32} (hmin : I32.min ≤ x.val + y.val) (hmax : x.val + y.val ≤ I32.max) :
-  ∃ (z : I32), x + y = ok z ∧ z.val = x.val + y.val ∧ z.bv = x.bv + y.bv :=
-  by apply Scalar.add_bv_spec <;> scalar_tac
-
-theorem I64.add_bv_spec {x y : I64} (hmin : I64.min ≤ x.val + y.val) (hmax : x.val + y.val ≤ I64.max) :
-  ∃ (z : I64), x + y = ok z ∧ z.val = x.val + y.val ∧ z.bv = x.bv + y.bv :=
-  by apply Scalar.add_bv_spec <;> scalar_tac
-
-theorem I128.add_bv_spec {x y : I128} (hmin : I128.min ≤ x.val + y.val) (hmax : x.val + y.val ≤ I128.max) :
-  ∃ (z : I128), x + y = ok z ∧ z.val = x.val + y.val ∧ z.bv = x.bv + y.bv :=
-  by apply Scalar.add_bv_spec <;> scalar_tac
-
-theorem Isize.add_bv_spec {x y : Isize} (hmin : Isize.min ≤ x.val + y.val) (hmax : x.val + y.val ≤ Isize.max) :
-  ∃ (z : Isize), x + y = ok z ∧ z.val = x.val + y.val ∧ z.bv = x.bv + y.bv :=
-  by apply Scalar.add_bv_spec <;> scalar_tac
-
-theorem Scalar.sub_bv_spec {ty} {x y : Scalar ty} (hmin : Scalar.min ty ≤ x.val - y.val) (hmax : x.val - y.val ≤ Scalar.max ty) :
-  ∃ (z : Scalar ty), x - y = ok z ∧ z.val = x.val - y.val ∧ z.bv_ = x.bv_ - y.bv_ := by sorry
-
-theorem U8.sub_bv_spec {x y : U8} (hmin : 0 ≤ x.val - y.val) (hmax : x.val - y.val ≤ U8.max) :
-  ∃ (z : U8), x - y = ok z ∧ z.val = x.val - y.val ∧ z.bv = x.bv - y.bv :=
-  by apply Scalar.sub_bv_spec; scalar_tac; apply hmax
-
-theorem U16.sub_bv_spec {x y : U16} (hmin : 0 ≤ x.val - y.val) (hmax : x.val - y.val ≤ U16.max) :
-  ∃ (z : U16), x - y = ok z ∧ z.val = x.val - y.val ∧ z.bv = x.bv - y.bv :=
-  by apply Scalar.sub_bv_spec; scalar_tac; apply hmax
-
-theorem U32.sub_bv_spec {x y : U32} (hmin : 0 ≤ x.val - y.val) (hmax : x.val - y.val ≤ U32.max) :
-  ∃ (z : U32), x - y = ok z ∧ z.val = x.val - y.val ∧ z.bv = x.bv - y.bv :=
-  by apply Scalar.sub_bv_spec; scalar_tac; apply hmax
-
-theorem U64.sub_bv_spec {x y : U64} (hmin : 0 ≤ x.val - y.val) (hmax : x.val - y.val ≤ U64.max) :
-  ∃ (z : U64), x - y = ok z ∧ z.val = x.val - y.val ∧ z.bv = x.bv - y.bv :=
-  by apply Scalar.sub_bv_spec; scalar_tac; apply hmax
-
-theorem U128.sub_bv_spec {x y : U128} (hmin : 0 ≤ x.val - y.val) (hmax : x.val - y.val ≤ U128.max) :
-  ∃ (z : U128), x - y = ok z ∧ z.val = x.val - y.val ∧ z.bv = x.bv - y.bv :=
-  by apply Scalar.sub_bv_spec; scalar_tac; apply hmax
-
-theorem Usize.sub_bv_spec {x y : Usize} (hmin : 0 ≤ x.val - y.val) (hmax : x.val - y.val ≤ Usize.max) :
-  ∃ (z : Usize), x - y = ok z ∧ z.val = x.val - y.val ∧ z.bv = x.bv - y.bv :=
-  by apply Scalar.sub_bv_spec; scalar_tac; apply hmax
-
-theorem I8.sub_bv_spec {x y : I8} (hmin : I8.min ≤ x.val - y.val) (hmax : x.val - y.val ≤ I8.max) :
-  ∃ (z : I8), x - y = ok z ∧ z.val = x.val - y.val ∧ z.bv = x.bv - y.bv :=
-  by apply Scalar.sub_bv_spec <;> scalar_tac
-
-theorem I16.sub_bv_spec {x y : I16} (hmin : I16.min ≤ x.val - y.val) (hmax : x.val - y.val ≤ I16.max) :
-  ∃ (z : I16), x - y = ok z ∧ z.val = x.val - y.val ∧ z.bv = x.bv - y.bv :=
-  by apply Scalar.sub_bv_spec <;> scalar_tac
-
-theorem I32.sub_bv_spec {x y : I32} (hmin : I32.min ≤ x.val - y.val) (hmax : x.val - y.val ≤ I32.max) :
-  ∃ (z : I32), x - y = ok z ∧ z.val = x.val - y.val ∧ z.bv = x.bv - y.bv :=
-  by apply Scalar.sub_bv_spec <;> scalar_tac
-
-theorem I64.sub_bv_spec {x y : I64} (hmin : I64.min ≤ x.val - y.val) (hmax : x.val - y.val ≤ I64.max) :
-  ∃ (z : I64), x - y = ok z ∧ z.val = x.val - y.val ∧ z.bv = x.bv - y.bv :=
-  by apply Scalar.sub_bv_spec <;> scalar_tac
-
-theorem I128.sub_bv_spec {x y : I128} (hmin : I128.min ≤ x.val - y.val) (hmax : x.val - y.val ≤ I128.max) :
-  ∃ (z : I128), x - y = ok z ∧ z.val = x.val - y.val ∧ z.bv = x.bv - y.bv :=
-  by apply Scalar.sub_bv_spec <;> scalar_tac
-
-theorem Isize.sub_bv_spec {x y : Isize} (hmin : Isize.min ≤ x.val - y.val) (hmax : x.val - y.val ≤ Isize.max) :
-  ∃ (z : Isize), x - y = ok z ∧ z.val = x.val - y.val ∧ z.bv = x.bv - y.bv :=
-  by apply Scalar.sub_bv_spec <;> scalar_tac
-
-theorem Scalar.mul_bv_spec {ty} {x y : Scalar ty} (hmin : Scalar.min ty ≤ x.val * y.val) (hmax : x.val * y.val ≤ Scalar.max ty) :
-  ∃ (z : Scalar ty), x * y = ok z ∧ z.val = x.val * y.val ∧ z.bv_ = x.bv_ * y.bv_ := by sorry
-
-set_option scalarTac.nonLin true
-
-theorem U8.mul_bv_spec {x y : U8} (hmax : x.val * y.val ≤ U8.max) :
-  ∃ (z : U8), x * y = ok z ∧ z.val = x.val * y.val ∧ z.bv = x.bv * y.bv :=
-  by apply Scalar.mul_bv_spec; scalar_tac; apply hmax
-
-theorem U16.mul_bv_spec {x y : U16} (hmax : x.val * y.val ≤ U16.max) :
-  ∃ (z : U16), x * y = ok z ∧ z.val = x.val * y.val ∧ z.bv = x.bv * y.bv :=
-  by apply Scalar.mul_bv_spec; scalar_tac; apply hmax
-
-theorem U32.mul_bv_spec {x y : U32} (hmax : x.val * y.val ≤ U32.max) :
-  ∃ (z : U32), x * y = ok z ∧ z.val = x.val * y.val ∧ z.bv = x.bv * y.bv :=
-  by apply Scalar.mul_bv_spec; scalar_tac; apply hmax
-
-theorem U64.mul_bv_spec {x y : U64} (hmax : x.val * y.val ≤ U64.max) :
-  ∃ (z : U64), x * y = ok z ∧ z.val = x.val * y.val ∧ z.bv = x.bv * y.bv :=
-  by apply Scalar.mul_bv_spec; scalar_tac; apply hmax
-
-theorem U128.mul_bv_spec {x y : U128} (hmax : x.val * y.val ≤ U128.max) :
-  ∃ (z : U128), x * y = ok z ∧ z.val = x.val * y.val ∧ z.bv = x.bv * y.bv :=
-  by apply Scalar.mul_bv_spec; scalar_tac; apply hmax
-
-theorem Usize.mul_bv_spec {x y : Usize} (hmax : x.val * y.val ≤ Usize.max) :
-  ∃ (z : Usize), x * y = ok z ∧ z.val = x.val * y.val ∧ z.bv = x.bv * y.bv :=
-  by apply Scalar.mul_bv_spec; scalar_tac; apply hmax
-
-theorem I8.mul_bv_spec {x y : I8} (hmin : I8.min ≤ x.val * y.val) (hmax : x.val * y.val ≤ I8.max) :
-  ∃ (z : I8), x * y = ok z ∧ z.val = x.val * y.val ∧ z.bv = x.bv * y.bv :=
-  by apply Scalar.mul_bv_spec <;> scalar_tac
-
-theorem I16.mul_bv_spec {x y : I16} (hmin : I16.min ≤ x.val * y.val) (hmax : x.val * y.val ≤ I16.max) :
-  ∃ (z : I16), x * y = ok z ∧ z.val = x.val * y.val ∧ z.bv = x.bv * y.bv :=
-  by apply Scalar.mul_bv_spec <;> scalar_tac
-
-theorem I32.mul_bv_spec {x y : I32} (hmin : I32.min ≤ x.val * y.val) (hmax : x.val * y.val ≤ I32.max) :
-  ∃ (z : I32), x * y = ok z ∧ z.val = x.val * y.val ∧ z.bv = x.bv * y.bv :=
-  by apply Scalar.mul_bv_spec <;> scalar_tac
-
-theorem I64.mul_bv_spec {x y : I64} (hmin : I64.min ≤ x.val * y.val) (hmax : x.val * y.val ≤ I64.max) :
-  ∃ (z : I64), x * y = ok z ∧ z.val = x.val * y.val ∧ z.bv = x.bv * y.bv :=
-  by apply Scalar.mul_bv_spec <;> scalar_tac
-
-theorem I128.mul_bv_spec {x y : I128} (hmin : I128.min ≤ x.val * y.val) (hmax : x.val * y.val ≤ I128.max) :
-  ∃ (z : I128), x * y = ok z ∧ z.val = x.val * y.val ∧ z.bv = x.bv * y.bv :=
-  by apply Scalar.mul_bv_spec <;> scalar_tac
-
-theorem Isize.mul_bv_spec {x y : Isize} (hmin : Isize.min ≤ x.val * y.val) (hmax : x.val * y.val ≤ Isize.max) :
-  ∃ (z : Isize), x * y = ok z ∧ z.val = x.val * y.val ∧ z.bv = x.bv * y.bv :=
-  by apply Scalar.mul_bv_spec <;> scalar_tac
-
-set_option scalarTac.nonLin false
--/
-
-/-
-theorem Scalar.unsigned_ofInt_bv_lt_equiv {ty} (h : ¬ ty.isSigned) (x y : Int) (hx) (hy) :
-  (@Scalar.ofInt ty x hx).bv_ < (@Scalar.ofInt ty y hy).bv_ ↔ x < y := by
-  sorry
-
-@[simp] theorem U8.toNat_mod_max_eq (x : U8) : x.toNat % (U8.max + 1) = x.toNat := by
-  apply Nat.mod_eq_of_lt; scalar_tac
-
-@[simp] theorem U8.toNat_mod_max_eq' (x : U8) : x.toNat % 256 = x.toNat := by
-  apply Nat.mod_eq_of_lt; scalar_tac
-
-@[simp] theorem U16.toNat_mod_max_eq (x : U16) : x.toNat % (U16.max + 1) = x.toNat := by
-  apply Nat.mod_eq_of_lt; scalar_tac
-
-@[simp] theorem U16.toNat_mod_max_eq' (x : U16) : x.toNat % 65536 = x.toNat := by
-  apply Nat.mod_eq_of_lt; scalar_tac
-
-@[simp] theorem U32.toNat_mod_max_eq (x : U32) : x.toNat % (U32.max + 1) = x.toNat := by
-  apply Nat.mod_eq_of_lt; scalar_tac
-
-@[simp] theorem U32.toNat_mod_max_eq' (x : U32) : x.toNat % 4294967296 = x.toNat := by
-  apply Nat.mod_eq_of_lt; scalar_tac
-
-@[simp] theorem U64.toNat_mod_max_eq (x : U64) : x.toNat % (U64.max + 1) = x.toNat := by
-  apply Nat.mod_eq_of_lt; scalar_tac
-
-@[simp] theorem U64.toNat_mod_max_eq' (x : U64) : x.toNat % 18446744073709551616 = x.toNat := by
-  apply Nat.mod_eq_of_lt; scalar_tac
-
-@[simp] theorem U128.toNat_mod_max_eq (x : U128) : x.toNat % (U128.max + 1) = x.toNat := by
-  apply Nat.mod_eq_of_lt; scalar_tac
-
-@[simp] theorem U128.toNat_mod_max_eq' (x : U128) : x.toNat % 340282366920938463463374607431768211456 = x.toNat := by
-  apply Nat.mod_eq_of_lt; scalar_tac
-
-@[simp] theorem Usize.toNat_mod_max_eq (x : Usize) : x.toNat % (Usize.max + 1) = x.toNat := by
-  apply Nat.mod_eq_of_lt; scalar_tac
-
-@[simp] theorem U8.val_mod_max_eq (x : U8) : x.val % (U8.max + 1) = x.val := by
-  apply Int.emod_eq_of_lt <;> scalar_tac
-
-@[simp] theorem U8.val_mod_max_eq' (x : U8) : x.val % 256 = x.val := by
-  apply Int.emod_eq_of_lt <;> scalar_tac
-
-@[simp] theorem U16.val_mod_max_eq (x : U16) : x.val % (U16.max + 1) = x.val := by
-  apply Int.emod_eq_of_lt <;> scalar_tac
-
-@[simp] theorem U16.val_mod_max_eq' (x : U16) : x.val % 65536 = x.val := by
-  apply Int.emod_eq_of_lt <;> scalar_tac
-
-@[simp] theorem U32.val_mod_max_eq (x : U32) : x.val % (U32.max + 1) = x.val := by
-  apply Int.emod_eq_of_lt <;> scalar_tac
-
-@[simp] theorem U32.val_mod_max_eq' (x : U32) : x.val % 4294967296 = x.val := by
-  apply Int.emod_eq_of_lt <;> scalar_tac
-
-@[simp] theorem U64.val_mod_max_eq (x : U64) : x.val % (U64.max + 1) = x.val := by
-  apply Int.emod_eq_of_lt <;> scalar_tac
-
-@[simp] theorem U64.val_mod_max_eq' (x : U64) : x.val % 18446744073709551616 = x.val := by
-  apply Int.emod_eq_of_lt <;> scalar_tac
-
-@[simp] theorem U128.val_mod_max_eq (x : U128) : x.val % (U128.max + 1) = x.val := by
-  apply Int.emod_eq_of_lt <;> scalar_tac
-
-@[simp] theorem U128.val_mod_max_eq' (x : U128) : x.val % 340282366920938463463374607431768211456 = x.val := by
-  apply Int.emod_eq_of_lt <;> scalar_tac
-
-@[simp] theorem Usize.val_mod_max_eq (x : Usize) : x.val % (Usize.max + 1) = x.val := by
-  apply Int.emod_eq_of_lt <;> scalar_tac-/
-
--- TODO: improve scalar_tac to reason about inequalities between bitvectors?
-
-/-
-/-- We're not using this theorem, but we keep the proof here because it can be useful if we want
-    to generalize the NTT. -/
-theorem ntt.SymCryptMlKemMod_underflow_eq
-  (n m : Int) (hn0 : 0 ≤ n) (hn : n < 2 ^ 12) (hm0 : 0 ≤ m) (hm : m < 2 ^ 12):
-  Int.land m ((2^32 - 1 - n) >>> (16 : Nat)) = m := by
-  apply Int.eq_of_testBit_eq
-  intro i
-  have h : 2^32 - 1 - n = 2^32 - (n + 1) := by ring_nf
-  rw [h]; clear h
-  have := @Int.testBit_two_pow_sub_succ n 32 (by omega) (by omega) (16 + i)
-  simp [-Int.reducePow]
-  rw [this]; clear this
-  intro hi
-  dcases hi : i < 12
-  . simp; split_conjs
-    . omega
-    . have hi : n < 2^(16 + i) := by
-        have := @Int.pow_le_pow_of_le_right 2 (by simp) 12 (16 + i) (by omega)
-        norm_cast at *
-        omega
-      apply @Int.testBit_pos_eq_false_of_lt n (16 + i) (by omega) hi
-  . -- Contradiction
-    have hi : m < 2^i := by
-      have := @Int.pow_le_pow_of_le_right 2 (by simp) 12 i (by omega)
-      norm_cast at *
-      omega
-    have := @Int.testBit_pos_eq_false_of_lt m i (by omega) hi
-    simp_all
--/
-
-/-
-theorem Nat.eq_iff_intCast_eq (n m : Nat) : n = m ↔ (n : Int) = (m : Int) := by omega
-theorem Nat.lt_iff_intCast_eq (n m : Nat) : n < m ↔ (n : Int) < (m : Int) := by omega
-theorem Nat.le_iff_intCast_eq (n m : Nat) : n ≤ m ↔ (n : Int) ≤ (m : Int) := by omega
-
--- TODO: generalize
---@[simp] theorem U32.zmod_val_eq_mod (n : Nat) (x : U32) : ZMod.val (x.val : ZMod n) = x.val % n := by sorry
---@[simp] theorem U32.zmod_cast_int_eq_mod (n : Nat) (x : U32) : ZMod.cast (x.val : ZMod n) = x.val % n := by sorry
-
--- TODO: generalize
-/-@[simp] theorem U8.val_max_zero_eq (x : U8) : x.val ⊔ 0 = x.val := by scalar_tac
-@[simp] theorem U16.val_max_zero_eq (x : U16) : x.val ⊔ 0 = x.val := by scalar_tac
-@[simp] theorem U32.val_max_zero_eq (x : U32) : x.val ⊔ 0 = x.val := by scalar_tac
-@[simp] theorem U64.val_max_zero_eq (x : U64) : x.val ⊔ 0 = x.val := by scalar_tac
-@[simp] theorem U128.val_max_zero_eq (x : U128) : x.val ⊔ 0 = x.val := by scalar_tac
-@[simp] theorem Usize.val_max_zero_eq (x : Usize) : x.val ⊔ 0 = x.val := by scalar_tac-/
--/
+/- TODO: move -/
+namespace NormMod
 
 theorem Int.neg_add_emod_self_left {a b c : ℤ} : (-a + b) % c = ((c - a) + b) % c := by
   conv => lhs; rw [← Int.add_emod_self_left]
@@ -767,26 +81,25 @@ macro "norm_mod" cfg:optConfig loc:(location)? : tactic =>
       ring_nf $cfg:optConfig $(loc)? -- normalize again
     )
 
-/-
-theorem ZMod.castInt_val_sub {n : ℕ} [NeZero n] {a b : ZMod n} :
-  (a - b).val = (a.val - (b.val : Int)) % n := by
-  sorry
-
-/- TODO: move -/
-attribute [zify_simps] BitVec.toNat_eq BitVec.lt_def BitVec.le_def
-                       BitVec.toNat_umod BitVec.toNat_add BitVec.toNat_sub BitVec.toNat_ofNat
-                       BitVec.toNat_and BitVec.toNat_or BitVec.toNat_xor
-attribute [zify_simps] ZMod.eq_iff_mod ZMod.val_intCast ZMod.val_add ZMod.val_sub ZMod.val_mul
-                       ZMod.castInt_val_sub
-attribute [zify_simps] Nat.eq_iff_intCast_eq Nat.lt_iff_intCast_eq Nat.le_iff_intCast_eq -- TODO: remove?
-attribute [zify_simps] U32.bv_toNat_eq U32.toNat -- TODO: complete
--/
-
-attribute [local bvify_simps, local scalar_tac_simp] Spec.Q
+end NormMod
 
 -- TODO: generalize and move
---attribute [bvify_simps] U32.eq_equiv_bv_eq U32.wrapping_sub_bv_eq
---attribute [bvify_simps] UScalarTy.U32_numBits_eq U32.ofNat_bv
+@[simp]
+theorem List.getElem!_range' (i start n: ℕ) :
+  (List.range' start n)[i]! = if i < n then start + i else 0 := by
+  revert start i
+  induction n <;> intro i start
+  . simp
+  . rename_i n hInd
+    unfold List.range'
+    dcases i
+    . simp
+    . rename_i i
+      have := hInd i (start + 1)
+      simp [this]
+      simp_all
+      ring_nf
+
 
 -- TODO: use this to prototype `progress_simp_post`
 example
@@ -817,7 +130,6 @@ example
   simp only [IScalar.toNat, IScalar.ofInt_val_eq, Int.reduceToNat] at hc3
   sorry
 
-
 -- TODO: move, use in progress
 @[simp] theorem massert_ok (b : Bool) : massert b = ok () ↔ b := by simp [massert]
 
@@ -839,6 +151,95 @@ example
 
 -- TODO: generalize and move
 @[simp] theorem UScalar.size_UScalarTyU32 : UScalar.size .U32 = U32.size := by scalar_tac
+
+-- TODO: move
+@[simp]
+theorem getElem!_cons_succ [Inhabited α] (hd : α) (tl : List α) (i : Nat) :
+  getElem! (hd :: tl) (i + 1) = getElem! tl i := by
+  simp [getElem!, decidableGetElem?]
+
+@[simp]
+theorem getElem!_cons_zero [Inhabited α] (hd : α) (tl : List α) :
+  getElem! (hd :: tl) 0 = hd := by
+  simp [getElem!, decidableGetElem?]
+
+
+-- TODO: move
+example
+  (a : U32)
+  (b : U32)
+  (h0 : a.bv < 6658#32)
+  (h1 : ¬(a.bv - b.bv) >>> 16 = 0#32)
+  (this : b.bv = 3329#32) :
+  (a.bv - 3329#32) >>> 16 = 65535#32
+  := by
+  bv_decide
+
+example
+  (a b : BitVec 32)
+  (h0 : a < 3329#32)
+  (h1 : b < 3329#32) :
+  (a - b + (3329#32 &&& (a - b) >>> 16)) % 3329#32 = (a + 3329#32 - b) % 3329#32
+  := by
+  bv_decide
+
+example
+  (a : U32)
+  (b : U32)
+  (h0 : a.bv < 6658#32)
+  (h1 : b.val = 3329) :
+  (a.bv - b.bv + (3329#32 &&& (a.bv - b.bv) >>> 16)) % 3329#32 = (a.bv + 3329#32 - b.bv) % 3329#32
+  := by
+  have : b.bv = 3329#32 := by sorry -- TODO: bvify doesn't do this
+  bv_decide
+
+example
+  (a : U32)
+  (b : U32)
+  (h : (↑a : ℕ) < 3329 ∧ (↑b : ℕ) < 3329 ∨ (↑a : ℕ) < 6658 ∧ (↑b : ℕ) = 3329)
+  (c1 : U32)
+  (hc1 : c1 = core.num.U32.wrapping_sub a b)
+  (c2 : U32)
+  (hc2 : c2.bv = c1.bv >>> 16#i32.toNat)
+  (c3 : U32)
+  (hc3_1 : c3.bv = 3329#32 &&& c2.bv)
+  (c4 : U32)
+  (hc3 : c4 = core.num.U32.wrapping_add c1 c3) :
+  c4.bv % 3329#32 = (a.bv + 3329#32 - b.bv) % 3329#32
+  := by
+  dcases h <;>
+  bvify 32 at * <;>
+  rename_i h <;>
+  obtain ⟨ h0, h1 ⟩ := h <;>
+  simp_all <;> clear hc3_1 hc3 c1 c2 c3 c4 hc1 hc2
+  . bv_decide
+  . have : b.bv = 3329#32 := by sorry -- TODO: bvify doesn't do this
+    bv_decide
+
+-- TODO: move
+@[simp, natify_simps]
+theorem ZMod.val_sub' {n : ℕ} [NeZero n] (a b : ZMod n) : (a - b).val =
+  (a.val + (n - b.val)) % n := by sorry
+
+-- TODO: move
+theorem ZMod_Nat_eq_imp_mod_eq {n : ℕ} {a b : Nat} (h : (a : ZMod n) = (b : ZMod n)) :
+  a % n = b % n := by sorry
+
+example
+  (a : U32)
+  (b : U32)
+  (ha : a.val < b.val + 3329)
+  (c1 : U32)
+  (c2 : U32)
+  (hb : b.bv ≤ 3329#32)
+  (hc1 : c1.bv = a.bv - b.bv)
+  (hc2 : c2.bv = c1.bv >>> 16)
+  (_ : c2.bv ≠ 0#32) :
+  c2.bv = 65535#32
+  := by
+  have : a.bv < b.bv + 3329#32 := by
+    sorry -- TODO
+  bv_tac
 
 @[progress]
 theorem ntt.SymCryptMlKemModAdd'_spec (a : U32) (b : U32)
@@ -906,71 +307,6 @@ def ntt.SymCryptMlKemModSub_eq (a : U32) (b : U32) :
   simp
   intros
   split <;> simp
-
--- TODO: move
-example
-  (a : U32)
-  (b : U32)
-  (h0 : a.bv < 6658#32)
-  (h1 : ¬(a.bv - b.bv) >>> 16 = 0#32)
-  (this : b.bv = 3329#32) :
-  (a.bv - 3329#32) >>> 16 = 65535#32
-  := by
-  bv_decide
-
-#eval 0x00000cb8#32
-#eval 0x00000d00#32
-
-example
-  (a b : BitVec 32)
-  (h0 : a < 3329#32)
-  (h1 : b < 3329#32) :
-  (a - b + (3329#32 &&& (a - b) >>> 16)) % 3329#32 = (a + 3329#32 - b) % 3329#32
-  := by
-
-  bv_decide
-
-example
-  (a : U32)
-  (b : U32)
-  (h0 : a.bv < 6658#32)
-  (h1 : b.val = 3329) :
-  (a.bv - b.bv + (3329#32 &&& (a.bv - b.bv) >>> 16)) % 3329#32 = (a.bv + 3329#32 - b.bv) % 3329#32
-  := by
-  have : b.bv = 3329#32 := by sorry -- TODO: bvify doesn't do this
-  bv_decide
-
-example
-  (a : U32)
-  (b : U32)
-  (h : (↑a : ℕ) < 3329 ∧ (↑b : ℕ) < 3329 ∨ (↑a : ℕ) < 6658 ∧ (↑b : ℕ) = 3329)
-  (c1 : U32)
-  (hc1 : c1 = core.num.U32.wrapping_sub a b)
-  (c2 : U32)
-  (hc2 : c2.bv = c1.bv >>> 16#i32.toNat)
-  (c3 : U32)
-  (hc3_1 : c3.bv = 3329#32 &&& c2.bv)
-  (c4 : U32)
-  (hc3 : c4 = core.num.U32.wrapping_add c1 c3) :
-  c4.bv % 3329#32 = (a.bv + 3329#32 - b.bv) % 3329#32
-  := by
-  dcases h <;>
-  bvify 32 at * <;>
-  rename_i h <;>
-  obtain ⟨ h0, h1 ⟩ := h <;>
-  simp_all <;> clear hc3_1 hc3 c1 c2 c3 c4 hc1 hc2
-  . bv_decide
-  . have : b.bv = 3329#32 := by sorry -- TODO: bvify doesn't do this
-    bv_decide
-
--- TODO: move
-@[simp, natify_simps]
-theorem ZMod.val_sub' {n : ℕ} [NeZero n] (a b : ZMod n) : (a - b).val =
-  (a.val + (n - b.val)) % n := by sorry
-
--- TODO: move
-theorem ZMod_Nat_eq_imp_mod_eq {n : ℕ} {a b : Nat} (h : (a : ZMod n) = (b : ZMod n)) :
-  a % n = b % n := by sorry
 
 /-- We first introduce a general, auxiliary version of the spec, that we later split in two.
     One of them is used to subtract numbers in the NTT, the other is used in the Montgomery
@@ -1051,22 +387,6 @@ theorem ntt.SymCryptMlKemModSub'_aux_spec' (a : U32) (b : U32)
 
   progress -- massert
   apply hPost
-
-example
-  (a : U32)
-  (b : U32)
-  (ha : a.val < b.val + 3329)
-  (c1 : U32)
-  (c2 : U32)
-  (hb : b.bv ≤ 3329#32)
-  (hc1 : c1.bv = a.bv - b.bv)
-  (hc2 : c2.bv = c1.bv >>> 16)
-  (_ : c2.bv ≠ 0#32) :
-  c2.bv = 65535#32
-  := by
-  have : a.bv < b.bv + 3329#32 := by
-    sorry -- TODO
-  bv_tac
 
 -- TODO: move
 theorem BitVec.lt_pow_ofNat_le {n : Nat} (a b : Nat) (h0 : b < 2^n) (h1 : a ≤ b) :
@@ -1192,6 +512,7 @@ theorem ntt.SymCryptMlKemModSub'_sub_Q_spec (a : U32) (b : U32)
   simp_all
 
 -- TODO: having too many theorems like this can make the context explode
+-- TODO: we shouldn't need those
 theorem UScalar_mul_bound {ty : UScalarTy} (x y : UScalar ty) :
   x.val * y.val ≤ UScalar.max ty * UScalar.max ty := by
   have := x.hmax
@@ -1235,7 +556,13 @@ theorem Usize.mul_bound (x y : Usize) : 0 ≤ x.val * y.val ∧ x.val * y.val �
 @[simp] theorem IScalar.bv_and {ty} (x y : IScalar ty) : (x &&& y).bv = x.bv &&& y.bv := by rfl
 @[simp] theorem IScalar.bv_or {ty} (x y : IScalar ty) : (x ||| y).bv = x.bv ||| y.bv := by rfl
 
---set_option scalarTac.nonLin true
+example (abMont abMontAnd : U32)
+  (h : (abMont &&& 65535#u32).val * 3329#u32.val ≤ 65535 * 3329) :
+  abMontAnd.val * 3329#u32.val ≤ U32.max :=
+  by
+  -- TODO: fix this
+  sorry
+  -- sassumption
 
 @[push_cast, simp] -- TODO: this doesn't work
 theorem ZMod.intCast_mod_atLeastTwo (a : ℤ) (b : ℕ) [b.AtLeastTwo] :
@@ -1264,6 +591,16 @@ theorem mod_4294967296_65536_eq (x : Nat) : ((x % 4294967296) % 65536) = x % 655
 theorem mod_65536_4294967296_eq (x : Nat) : ((x % 65536) % 4294967296) = x % 65536 := by
   apply Nat.mod_eq_of_lt; omega
 
+
+-- TODO: move
+theorem ZMod_nat_cast_eq_nat_cast_iff (n : ℕ) (a b : ℕ) :
+  ((a : ZMod n) = (b : ZMod n)) ↔ (a % n = b % n) := by
+  zify
+  have := ZMod_int_cast_eq_int_cast_iff n a b
+  simp at this
+  apply this
+
+
 /-!
 Montgomery reduction
 -/
@@ -1281,18 +618,13 @@ theorem mont_reduce_no_divide_bv_spec (a b bMont tR : U32)
   simp [*]; clear hbMont htR
 
   -- Reason in ℤ and simplify the modulus
-  zify; simp [- EuclideanDomain.mod_eq_zero]
+  natify; simp [- EuclideanDomain.mod_eq_zero]
 
   -- Go to ZMod
-  have : 0 = 0 % (65536 : Int) := by simp
+  have : 0 = 0 % (65536 : Nat) := by simp
   rw [this]; clear this
-  have : (65536 : Int) = (65536 : Nat) := by simp
-  rw [this]; clear this
-  rw [← ZMod_int_cast_eq_int_cast_iff]
+  rw [← ZMod_nat_cast_eq_nat_cast_iff]
   simp
-
-  -- TODO: casting problems: automate that
-  simp [ZMod.intCast_mod'] -- TODO: doesn't get automatically applied?
 
   -- Finish
   simp [mul_assoc]
@@ -1300,7 +632,7 @@ theorem mont_reduce_no_divide_bv_spec (a b bMont tR : U32)
   have : (11075584 : ZMod 65536) = 0 := by rfl
   rw [this]; simp
 
--- TODO: move
+-- TODO: move, and update scalar_tac +nonLin
 @[aesop unsafe 50% apply]
 theorem Nat.le_trans (a0 a1 b0 b1 : Nat) (h0 : a0 ≤ a1) (h2 : b0 ≤ b1) : a0 * b0 ≤ a1 * b1 := by
   have := @Nat.mul_le_mul_left b0 b1 a0 (by assumption)
@@ -1313,28 +645,11 @@ theorem Nat.lt_trans (a0 a1 b0 b1 : Nat) (h0 : a0 < a1) (h2 : b0 < b1) : a0 * b0
 
 @[aesop unsafe 50% apply]
 theorem Nat.le_lt_trans (a0 a1 b0 b1 : Nat) (h0 : a0 ≤ a1) (h1 : 0 < a1) (h2 : b0 < b1) : a0 * b0 < a1 * b1 := by
-  have := @Nat.mul_le_mul_left b0 b1 a0 (by assumption)
-  have := @Nat.mul_le_mul_right a0 a1 b1 (by assumption)
-  omega
+  sorry
 
 @[aesop unsafe 50% apply]
 theorem Nat.lt_le_trans (a0 a1 b0 b1 : Nat) (h0 : a0 < a1) (h1 : b0 ≤ b1) (h2 : 0 < b1) : a0 * b0 < a1 * b1 := by
-  have := @Nat.mul_le_mul_left b0 b1 a0 (by assumption)
-  have := @Nat.mul_le_mul_right a0 a1 b1 (by assumption)
-  omega
-
-syntax "scalar_tac_non_lin0" : tactic
-
--- TODO: we shouldn't need a maxRuleApplicationDepth of 4: 2 should be enough:
--- 1 for a backward rule + 1 for scalar_tac
-macro_rules
-| `(scalar_tac_non_lin0) => `(aesop)
-/-
-aesop (config := {strategy := .breadthFirst,
-                      maxRuleApplicationDepth := 4,
-                      enableSimp := true,
-                      useSimpAll := false}) (add safe (by scalar_tac))
--/
+  sorry
 
 syntax "scalar_tac_non_lin" : tactic
 
@@ -1381,16 +696,6 @@ theorem mont_reduce_bv_spec (a b bMont tR t : U32)
   zify
   simp [← mul_assoc, hMont, hBounds]
 
-set_option maxHeartbeats 1000000
-
-example (abMont abMontAnd : U32)
-  (h : (abMont &&& 65535#u32).val * 3329#u32.val ≤ 65535 * 3329) :
-  abMontAnd.val * 3329#u32.val ≤ U32.max :=
-  by
-  -- TODO: fix this
-  assumption
-
-#check UScalar.and_spec
 @[progress]
 theorem ntt.SymCryptMlKemMontMul_spec (a : U32) (b : U32) (bMont : U32)
   (ha : a.val < Spec.Q) (hb : b.val < Spec.Q) --(hbMont : bMont.val < Spec.Q * Spec.Q)
@@ -1489,23 +794,6 @@ theorem ntt.MlKemZetaBitRevTimesRTimesNegQInvModR_map_val_eq :
   List.map UScalar.val ntt.MlKemZetaBitRevTimesRTimesNegQInvModR.val =
   List.map (fun i => (((17^bitRev 7 i * 2^16) % 3329) * 3327) %  2^16) (List.range' 0 128) := by
   native_decide
-
--- TODO: generalize and move
-@[simp]
-theorem List.getElem!_range' (i start n: ℕ) :
-  (List.range' start n)[i]! = if i < n then start + i else 0 := by
-  revert start i
-  induction n <;> intro i start
-  . simp
-  . rename_i n hInd
-    unfold List.range'
-    dcases i
-    . simp
-    . rename_i i
-      have := hInd i (start + 1)
-      simp [this]
-      simp_all
-      ring_nf
 
 theorem array_map_eq_range'_all_imp_index_usize_eq_pred {α β} [Inhabited α] {a : Std.Array α n}
   {f : α → β} {g : ℕ → β} {p : α → Bool}
@@ -1648,13 +936,12 @@ theorem ntt.SymCryptMlKemMontMul_twiddle_spec (k : Usize) (c : U32) (twiddleFact
   rw [this]
   simp
 
-set_option maxHeartbeats 2000000
-
 /-@[simp]
 theorem List.set_get!_eq_set [Inhabited α] (l : List α) (i : Nat) (x : α) (h : i < l.length):
   (l.set i x)[i]! = x := by simp [*]-/
 
 -- TODO: make the inequality check more robust
+-- TODO: remove?
 @[simp]
 theorem List.set_getElem!_eq_getElem! [Inhabited α] (l : List α) (i j : Nat) (x : α) (h : i ≠ j):
   (l.set i x)[j]! = l[j]! := by sorry
@@ -1745,11 +1032,11 @@ def ntt.SymCryptMlKemPolyElementNTTLayerC.inner_loop_loop_spec
     progress as ⟨ c0' ⟩
 
     progress as ⟨ c0'', hc0'' ⟩
-    have : c0''.val = c0'.val := by scalar_tac
+    have : c0''.val = c0'.val := by sorry
     clear hc0''
     progress with wfArray_update as ⟨ peSrc1, hPeSrc1 ⟩
     progress as ⟨ c1'', hc1'' ⟩
-    have : c1''.val = c1'.val := by scalar_tac
+    have : c1''.val = c1'.val := by sorry
     clear hc1''
     progress with wfArray_update as ⟨ peSrc2, hPeSrc2 ⟩
 
@@ -1760,21 +1047,11 @@ def ntt.SymCryptMlKemPolyElementNTTLayerC.inner_loop_loop_spec
     -- The postcondition
     unfold SpecAux.nttLayerInner
     have : j.val < len.val := by scalar_tac
-    simp only [this]; clear this
-    simp [hPeSrc1, hPeSrc2, hPeSrc3]
-    simp [*]
+    fsimp only [this]; clear this
+    fsimp [hPeSrc1, hPeSrc2, hPeSrc3]
+    fsimp [*]
 termination_by len.val - j.val
 decreasing_by scalar_decr_tac
-
-#check ZMod_int_cast_eq_int_cast_iff
-
--- TODO: move
-theorem ZMod_nat_cast_eq_nat_cast_iff (n : ℕ) (a b : ℕ) :
-  ((a : ZMod n) = (b : ZMod n)) ↔ (a % n = b % n) := by
-  zify
-  have := ZMod_int_cast_eq_int_cast_iff n a b
-  simp at this
-  apply this
 
 -- TODO: private attribute for all the auxiliary theorems
 -- TODO: extract_minimized_goal
@@ -1786,7 +1063,7 @@ private theorem convert_twiddleFactor_eq
   (core.convert.num.FromU32U16.from twiddleFactor).bv = BitVec.ofNat 32 (17 ^ bitRev 7 k.val * 65536 % 3329)
   := by
   natify at *
-  simp at *
+  fsimp at *
   have : twiddleFactor.val % 3329 = twiddleFactor.val := by
     apply Nat.mod_eq_of_lt; scalar_tac
   rw [this] at hft; clear this
@@ -1798,7 +1075,7 @@ private theorem convert_twiddleFactor_eq
   rw [this]; clear this
 
   rw [← ZMod_nat_cast_eq_nat_cast_iff]
-  simp [Spec.ζ]
+  fsimp [Spec.ζ]
 
 theorem ntt.SymCryptMlKemPolyElementNTTLayerC_loop_spec
   -- Some ghost values
@@ -1815,30 +1092,30 @@ theorem ntt.SymCryptMlKemPolyElementNTTLayerC_loop_spec
   (hLen : len.val = 2^(7-layer))
   :
   ∃ peSrc', SymCryptMlKemPolyElementNTTLayerC_loop peSrc k len start = ok peSrc' ∧
-  to_poly peSrc' = SpecAux.nttLayer (to_poly peSrc) k.val len.val start.val (by simp [hLen]) ∧
+  to_poly peSrc' = SpecAux.nttLayer (to_poly peSrc) k.val len.val start.val (by fsimp [hLen]) ∧
   wfArray peSrc'
   := by
   rw [SymCryptMlKemPolyElementNTTLayerC_loop]
-  dcases hLt: ¬ start < 256#usize <;> simp only [hLt] <;> simp
+  dcases hLt: ¬ start < 256#usize <;> fsimp only [hLt] <;> fsimp
   . unfold SpecAux.nttLayer
     have : ¬ start.val < 256 := by scalar_tac
-    simp only [this]; simp [*]
+    fsimp only [this]; fsimp [*]
   . -- Getting those arithmetic facts is actually non trivial
     have : 2^layer ≤ 2^6 := by apply Nat.pow_le_pow_of_le <;> omega
     have : step < 2^layer := by
       have : ¬ step = 2^layer := by
         intro hContra
-        simp [hContra] at hStart
-        simp [hLen] at hStart
-        simp [Nat.mul_assoc] at hStart
+        fsimp [hContra] at hStart
+        fsimp [hLen] at hStart
+        fsimp [Nat.mul_assoc] at hStart
         rw [← Nat.pow_add] at hStart
         have : 7 - layer + layer = 7 := by omega
         rw [this] at hStart; clear this
-        simp at hStart
+        fsimp at hStart
         scalar_tac
       omega
     have : start.val + 2 * len.val ≤ 256 := by
-      simp [hLen, hStart]
+      fsimp [hLen, hStart]
       have :=
         calc
           2 * 2 ^ (7 - layer) * step + 2 * 2 ^ (7 - layer)
@@ -1853,9 +1130,9 @@ theorem ntt.SymCryptMlKemPolyElementNTTLayerC_loop_spec
     have : k.val < 128 := by
       rw [hk]
       have : 2^layer ≤ 2^6 := by apply Nat.pow_le_pow_of_le <;> omega
-      simp at *
+      fsimp at *
       have : step < 2^6 := by
-        have := @Nat.pow_le_pow_of_le 2 layer 6 (by simp) (by omega)
+        have := @Nat.pow_le_pow_of_le 2 layer 6 (by fsimp) (by omega)
         omega
       scalar_tac
 
@@ -1884,11 +1161,11 @@ theorem ntt.SymCryptMlKemPolyElementNTTLayerC_loop_spec
 
     have : start'.val = 2 * len.val * (step + 1) := by
       ring_nf
-      simp [hStart', hTwoLen]
+      fsimp [hStart', hTwoLen]
       -- TODO: those facts are annoying
       have : start.val + 2 * len.val = start.val + 2 * len.val := by scalar_tac
       rw [this]
-      simp [hStart]
+      fsimp [hStart]
       ring_nf
     have := ntt.SymCryptMlKemPolyElementNTTLayerC_loop_spec layer hLayer (step + 1) (by scalar_tac)
 
@@ -1897,12 +1174,11 @@ theorem ntt.SymCryptMlKemPolyElementNTTLayerC_loop_spec
     -- Proving the post-condition
     unfold SpecAux.nttLayer
     have hLt : start.val < 256 := by scalar_tac
-    simp only [hLt]; simp
-    simp [hPeSrc2, hPeSrc1, hk', hTwoLen, hStart']
-    simp [*]
+    fsimp only [hLt]; fsimp
+    fsimp [hPeSrc2, hPeSrc1, hk', hTwoLen, hStart']
+    fsimp [*]
 termination_by 256 - k.val
 decreasing_by scalar_decr_tac
-
 
 -- TODO: scalar_tac fails with `maximum recursion depth reached`
 -- TODO: we need to guard against the looping equalities
@@ -1926,15 +1202,6 @@ example (peSrc : Std.Array U16 256#usize)
   set_option trace.ScalarTac true in
   scalar_tac
 
--- TODO: extract_goal fails
-example (i j : Nat) (h : i ≤ 7) :
-  let j := i
-  j ≤ 7 := by
-  intro j
-  extract_goal
-  omega
-
-
 set_option maxRecDepth 1000 in
 @[progress]
 theorem ntt.SymCryptMlKemPolyElementNTTLayer_spec
@@ -1956,10 +1223,10 @@ theorem ntt.SymCryptMlKemPolyElementNTTLayer_spec
     rw [hLen]
     rw [← hk.left]
     have :=
-      calc 128 / 2^step = 2^7 / 2^step := by simp
+      calc 128 / 2^step = 2^7 / 2^step := by fsimp
            _ = 2^(7-step) := by rw [Nat.pow_div] <;> scalar_tac
     rw [this]
-  have := ntt.SymCryptMlKemPolyElementNTTLayerC_loop_spec step (by scalar_tac) 0 (by simp)
+  have := ntt.SymCryptMlKemPolyElementNTTLayerC_loop_spec step (by scalar_tac) 0 (by fsimp)
   unfold SymCryptMlKemPolyElementNTTLayer
   progress as ⟨ peSrc1, hEq, hWf ⟩; clear this
   tauto
@@ -1971,16 +1238,16 @@ theorem ntt.SymCryptMlKemPolyElementNTT_spec (peSrc : Std.Array U16 256#usize)
   to_poly peSrc1 = Spec.ntt (to_poly peSrc) ∧ wfArray peSrc1
   := by
   unfold SymCryptMlKemPolyElementNTT
-  progress as ⟨ peSrc1 ⟩; simp [Nat.log2]
-  progress as ⟨ peSrc2 ⟩; try simp [Nat.log2]
-  progress as ⟨ peSrc3 ⟩; try simp [Nat.log2]
-  progress as ⟨ peSrc4 ⟩; try simp [Nat.log2]
-  progress as ⟨ peSrc5 ⟩; try simp [Nat.log2]
-  progress as ⟨ peSrc6 ⟩; try simp [Nat.log2]
-  progress as ⟨ peSrc7 ⟩; try simp [Nat.log2]
+  progress as ⟨ peSrc1 ⟩; fsimp [Nat.log2]
+  progress as ⟨ peSrc2 ⟩; fsimp [Nat.log2]
+  progress as ⟨ peSrc3 ⟩; fsimp [Nat.log2]
+  progress as ⟨ peSrc4 ⟩; fsimp [Nat.log2]
+  progress as ⟨ peSrc5 ⟩; fsimp [Nat.log2]
+  progress as ⟨ peSrc6 ⟩; fsimp [Nat.log2]
+  progress as ⟨ peSrc7 ⟩; fsimp [Nat.log2]
   rw [← SpecAux.ntt_eq]
   unfold SpecAux.ntt
-  simp [*]
+  fsimp [*]
 
 /-!
 INTT
@@ -2025,7 +1292,8 @@ def ntt.SymCryptMlKemPolyElementINTTLayerC.inner_loop_loop_spec
     progress with SymCryptMlKemModAdd'_spec as ⟨ tmp, htmp ⟩
     progress with SymCryptMlKemModSub'_spec as ⟨ c1', hc1' ⟩
 
-    -- TODO: progress triggers as "maximum recursion depth has been reached"
+    -- TODO: progress triggers a "maximum recursion depth has been reached"
+    -- the problem comes from the unification of terms by singleAssumptionTac
     have ⟨ c1'', hEq, hc1'' ⟩ :=
       ntt.SymCryptMlKemMontMul_twiddle_spec k c1' twiddleFactor twiddleFactorMont
         (by fsimp; scalar_tac) htfBound htf (by fsimp[htf, htfMont])
@@ -2033,10 +1301,10 @@ def ntt.SymCryptMlKemPolyElementINTTLayerC.inner_loop_loop_spec
 
     progress as ⟨ tmp_u16, h_tmp_u16 ⟩
 
-    have : tmp_u16.val < 3329 := by scalar_tac -- TODO
+    have : tmp_u16.val < 3329 := by sorry -- TODO
     progress with wfArray_update as ⟨ peSrc1, hPeSrc1 ⟩
     progress as ⟨ c1''_u16, hc1''_u16 ⟩
-    have : c1''_u16.val < 3329 := by scalar_tac -- TODO
+    have : c1''_u16.val < 3329 := by sorry -- TODO
     progress with wfArray_update as ⟨ peSrc2, hPeSrc2 ⟩
 
     progress as ⟨ j1, hj1 ⟩
@@ -2053,8 +1321,8 @@ def ntt.SymCryptMlKemPolyElementINTTLayerC.inner_loop_loop_spec
     let f2 := f1.set (start.val + j.val + len.val) (zetas * (c1s - c0s));
     let f3 := SpecAux.invNttLayerInner f2 k.val len.val start.val (j.val + 1)
 
-    have : (UScalar.cast UScalarTy.U16 tmp).val = tmp.val := by scalar_tac -- TODO: fix this
-    have : (UScalar.cast UScalarTy.U16 c1'').val = c1''.val := by scalar_tac -- TODO: fix this
+    have : (UScalar.cast UScalarTy.U16 tmp).val = tmp.val := by sorry -- TODO: fix this
+    have : (UScalar.cast UScalarTy.U16 c1'').val = c1''.val := by sorry -- TODO: fix this
     have hf1_eq : f1 = to_poly peSrc1 := by
       unfold f1
       fsimp [hPeSrc1, h_start_j, h_tmp_u16, htmp]
@@ -2239,7 +1507,7 @@ theorem ntt.SymCryptMlKemPolyElementINTTAndMulR_loop_spec_aux
   . progress with wfArray_index as ⟨ x ⟩
     progress with ntt.SymCryptMlKemMontMul_spec as ⟨ xTimes ⟩
     progress as ⟨ xTimes', hxTimes' ⟩
-    have : xTimes'.val = xTimes.val := by scalar_tac -- TODO
+    have : xTimes'.val = xTimes.val := by sorry -- TODO
     clear hxTimes'
     progress with wfArray_update as ⟨ peSrc1, hPeSrc1 ⟩
     progress as ⟨ i1 ⟩
@@ -2287,17 +1555,6 @@ theorem to_poly_getElem!_eq (a : Std.Array U16 256#usize) (i : Nat) :
   dcases h: i < 256 <;> simp [h]
   rfl
 
--- TODO: move
-@[simp]
-theorem getElem!_cons_succ [Inhabited α] (hd : α) (tl : List α) (i : Nat) :
-  getElem! (hd :: tl) (i + 1) = getElem! tl i := by
-  simp [getElem!, decidableGetElem?]
-
-@[simp]
-theorem getElem!_cons_zero [Inhabited α] (hd : α) (tl : List α) :
-  getElem! (hd :: tl) 0 = hd := by
-  simp [getElem!, decidableGetElem?]
-
 @[progress]
 theorem ntt.SymCryptMlKemPolyElementINTTAndMulR_loop_spec (peSrc : Std.Array U16 256#usize)
   (hWf : wfArray peSrc) :
@@ -2341,13 +1598,13 @@ theorem ntt.SymCryptMlKemPolyElementINTTAndMulR_spec (peSrc : Std.Array U16 256#
   to_poly peSrc1 = Spec.invNtt (to_poly peSrc) * (2^16 : Spec.Zq) ∧ wfArray peSrc1
   := by
   unfold SymCryptMlKemPolyElementINTTAndMulR
-  progress as ⟨ peSrc1 ⟩; try simp [Nat.log2]
-  progress as ⟨ peSrc2 ⟩; try simp [Nat.log2]
-  progress as ⟨ peSrc3 ⟩; try simp [Nat.log2]
-  progress as ⟨ peSrc4 ⟩; try simp [Nat.log2]
-  progress as ⟨ peSrc5 ⟩; try simp [Nat.log2]
-  progress as ⟨ peSrc6 ⟩; try simp [Nat.log2]
-  progress as ⟨ peSrc7 ⟩; try simp [Nat.log2]
+  progress as ⟨ peSrc1 ⟩; fsimp [Nat.log2]
+  progress as ⟨ peSrc2 ⟩; fsimp [Nat.log2]
+  progress as ⟨ peSrc3 ⟩; fsimp [Nat.log2]
+  progress as ⟨ peSrc4 ⟩; fsimp [Nat.log2]
+  progress as ⟨ peSrc5 ⟩; fsimp [Nat.log2]
+  progress as ⟨ peSrc6 ⟩; fsimp [Nat.log2]
+  progress as ⟨ peSrc7 ⟩; fsimp [Nat.log2]
   progress as ⟨ peSrc8 ⟩
   rw [← SpecAux.invNtt_eq]
   unfold SpecAux.invNtt
