@@ -16,7 +16,101 @@ open Aeneas.Arith
 
 set_option maxHeartbeats 2000000
 
-attribute [local simp] Spec.Polynomial.set Spec.Polynomial.get! -- TODO: remove this?
+-- TODO: move, and update scalar_tac +nonLin
+@[aesop unsafe 50% apply]
+theorem Nat.le_trans (a0 a1 b0 b1 : Nat) (h0 : a0 ≤ a1) (h2 : b0 ≤ b1) : a0 * b0 ≤ a1 * b1 := by
+  have := @Nat.mul_le_mul_left b0 b1 a0 (by assumption)
+  have := @Nat.mul_le_mul_right a0 a1 b1 (by assumption)
+  omega
+
+@[aesop unsafe 50% apply]
+theorem Nat.lt_trans (a0 a1 b0 b1 : Nat) (h0 : a0 < a1) (h2 : b0 < b1) : a0 * b0 < a1 * b1 := by
+  apply Nat.mul_lt_mul_of_lt_of_lt <;> assumption
+
+@[aesop unsafe 50% apply]
+theorem Nat.le_lt_trans (a0 a1 b0 b1 : Nat) (h0 : a0 ≤ a1) (h1 : 0 < a1) (h2 : b0 < b1) : a0 * b0 < a1 * b1 := by
+  sorry
+
+@[aesop unsafe 50% apply]
+theorem Nat.lt_le_trans (a0 a1 b0 b1 : Nat) (h0 : a0 < a1) (h1 : b0 ≤ b1) (h2 : 0 < b1) : a0 * b0 < a1 * b1 := by
+  sorry
+
+syntax "scalar_tac_non_lin" : tactic
+
+macro_rules
+| `(tactic|scalar_tac_non_lin) =>
+  `(tactic|(first | apply Nat.le_trans <;> scalar_tac
+                  | apply Nat.lt_trans <;> scalar_tac
+                  | apply Nat.le_lt_trans <;> scalar_tac
+                  | apply Nat.lt_le_trans <;> scalar_tac))
+
+-- TODO: scalar_tac fails with `maximum recursion depth reached`
+-- TODO: we need to guard against the looping equalities
+example (peSrc : Std.Array U16 256#usize)
+  (k len : Usize)
+  (hk : k.val = 2 ^ k.val.log2 ∧ -- This is the problem
+        k.val.log2 < 7)
+  :
+  k.val.log2 ≤ 7 := by
+  set_option trace.ScalarTac true in
+  scalar_tac
+
+example (peSrc : Std.Array U16 256#usize)
+  (k len : Usize)
+  (hk : k.val = 2 ^ k.val.log2 ∧ k.val.log2 < 7)
+  (hLen : len.val = 128 / k.val)
+  (hLenPos : 0 < len.val) :
+  k.val.log2 ≤ 7 := by
+  set_option trace.ScalarTac true in
+  scalar_tac
+
+
+-- TODO: move
+
+example (abMont abMontAnd : U32)
+  (h : (abMont &&& 65535#u32).val * 3329#u32.val ≤ 65535 * 3329) :
+  abMontAnd.val * 3329#u32.val ≤ U32.max :=
+  by
+  -- TODO: fix this
+  sorry
+  -- sassumption
+
+@[push_cast, simp] -- TODO: this doesn't work
+theorem ZMod.intCast_mod_atLeastTwo (a : ℤ) (b : ℕ) [b.AtLeastTwo] :
+  ((a % (@OfNat.ofNat ℤ b instOfNatAtLeastTwo) : ℤ) : ZMod b) = (a : ZMod b) := by
+  have : @OfNat.ofNat ℤ b instOfNatAtLeastTwo = b := by
+    unfold OfNat.ofNat instOfNatAtLeastTwo
+    fsimp
+  rw [this]
+  fsimp
+
+@[local push_cast, local simp] -- TODO: doesn't get automatically applied!?
+theorem ZMod.intCast_mod' (a : ℤ) (b : ℕ) (bz : Int) (h : bz = b) :
+  ((a % bz) : ZMod b) = (a : ZMod b) := by
+  fsimp [*]
+
+
+@[local simp] theorem bv_and_65535_eq_mod (x : BitVec 32) : x &&& 65535#32 = x % 65536#32 := by bv_decide
+@[local simp] theorem bv_shift_16_eq_div (x : BitVec 32) : x >>> 16 = x / 65536#32 := by bv_decide
+
+-- TODO: we need a reduceZMod simproc
+@[local simp]
+theorem mod_4294967296_65536_eq (x : Nat) : ((x % 4294967296) % 65536) = x % 65536 := by
+  rw [Nat.mod_mod_of_dvd]; omega
+
+@[local simp]
+theorem mod_65536_4294967296_eq (x : Nat) : ((x % 65536) % 4294967296) = x % 65536 := by
+  apply Nat.mod_eq_of_lt; omega
+
+@[local simp]
+theorem mod_int_4294967296_65536_eq (x : Int) : ((x % 4294967296) % 65536) = x % 65536 := by
+  rw [Int.emod_emod_of_dvd]; omega
+
+@[local simp]
+theorem mod_int_65536_4294967296_eq (x : Int) : ((x % 65536) % 4294967296) = x % 65536 := by
+  apply Int.emod_eq_of_lt <;> omega
+
+attribute [local simp] Spec.Polynomial.set Spec.Polynomial.get!
 attribute [-simp] List.getElem!_eq_getElem?_getD
 
 @[simp, scalar_tac_simp, bvify_simps] theorem ntt.Q_eq : Q = 3329#u32 := by rfl
@@ -34,6 +128,36 @@ attribute [-simp] List.getElem!_eq_getElem?_getD
 @[simp] theorem ntt.INTTFixupTimesRsqrTimesNegQInvModR_bv_eq : INTTFixupTimesRsqrTimesNegQInvModR.bv = 10079#32 := by rfl
 
 attribute [local simp, local scalar_tac_simp, local bvify_simps] Spec.Q
+
+def to_poly (a : Array U16 256#usize) : Spec.Polynomial :=
+  ⟨ List.map (fun x => (x.val : Spec.Zq)) a.val, by simp ⟩
+
+@[simp]
+theorem getElem!_to_poly (a : Array U16 256#usize) (i : ℕ) :
+  (to_poly a)[i]! = ((a.val[i]!) : Spec.Zq) := by
+  simp [to_poly]
+  dcases hi : i < a.val.length <;> simp_all
+  rfl
+
+@[simp]
+theorem to_poly_set (a : Array U16 256#usize) (i : Usize) (x : U16) :
+  to_poly (Std.Array.set a i x) = Spec.Polynomial.set (to_poly a) i.val (x.val : Spec.Zq) := by
+  simp only [to_poly, Spec.Q, id_eq, Array.set_val_eq, List.map_set, Spec.Polynomial.set]
+
+@[simp]
+theorem to_poly_getElem!_eq (a : Std.Array U16 256#usize) (i : Nat) :
+  (to_poly a)[i]! = a.val[i]! := by
+  fsimp [to_poly]
+  fsimp [getElem!, decidableGetElem?]
+  conv => lhs; simp only [getElem, Spec.Polynomial.get!]
+  fsimp [getElem!, decidableGetElem?]
+  dcases h: i < 256 <;> simp [h]
+  rfl
+
+@[local simp]
+theorem mod_3329_mod_4294967296_eq (x : Int) :
+  x % 3329 % 4294967296 = x % 3329 := by
+  apply Int.emod_eq_of_lt <;> omega
 
 /-!
 Addition modulo
@@ -58,7 +182,6 @@ def ntt.SymCryptMlKemModAdd_eq (a : U32) (b : U32) :
   fsimp
   intros
   split <;> fsimp
-
 
 -- TODO: use this to prototype `progress_simp_post`
 example
@@ -331,51 +454,6 @@ theorem ntt.SymCryptMlKemModSub'_sub_Q_spec (a : U32) (b : U32)
   progress with SymCryptMlKemModSub'_aux_spec
   fsimp_all
 
--- TODO: move
-
-example (abMont abMontAnd : U32)
-  (h : (abMont &&& 65535#u32).val * 3329#u32.val ≤ 65535 * 3329) :
-  abMontAnd.val * 3329#u32.val ≤ U32.max :=
-  by
-  -- TODO: fix this
-  sorry
-  -- sassumption
-
-@[push_cast, simp] -- TODO: this doesn't work
-theorem ZMod.intCast_mod_atLeastTwo (a : ℤ) (b : ℕ) [b.AtLeastTwo] :
-  ((a % (@OfNat.ofNat ℤ b instOfNatAtLeastTwo) : ℤ) : ZMod b) = (a : ZMod b) := by
-  have : @OfNat.ofNat ℤ b instOfNatAtLeastTwo = b := by
-    unfold OfNat.ofNat instOfNatAtLeastTwo
-    fsimp
-  rw [this]
-  fsimp
-
-@[local push_cast, local simp] -- TODO: doesn't get automatically applied!?
-theorem ZMod.intCast_mod' (a : ℤ) (b : ℕ) (bz : Int) (h : bz = b) :
-  ((a % bz) : ZMod b) = (a : ZMod b) := by
-  fsimp [*]
-
-
-@[local simp] theorem bv_and_65535_eq_mod (x : BitVec 32) : x &&& 65535#32 = x % 65536#32 := by bv_decide
-@[local simp] theorem bv_shift_16_eq_div (x : BitVec 32) : x >>> 16 = x / 65536#32 := by bv_decide
-
--- TODO: we need a reduceZMod simproc
-@[local simp]
-theorem mod_4294967296_65536_eq (x : Nat) : ((x % 4294967296) % 65536) = x % 65536 := by
-  rw [Nat.mod_mod_of_dvd]; omega
-
-@[local simp]
-theorem mod_65536_4294967296_eq (x : Nat) : ((x % 65536) % 4294967296) = x % 65536 := by
-  apply Nat.mod_eq_of_lt; omega
-
-@[local simp]
-theorem mod_int_4294967296_65536_eq (x : Int) : ((x % 4294967296) % 65536) = x % 65536 := by
-  rw [Int.emod_emod_of_dvd]; omega
-
-@[local simp]
-theorem mod_int_65536_4294967296_eq (x : Int) : ((x % 65536) % 4294967296) = x % 65536 := by
-  apply Int.emod_eq_of_lt <;> omega
-
 /-!
 Montgomery reduction
 -/
@@ -406,34 +484,6 @@ theorem mont_reduce_no_divide_bv_spec (a b bMont tR : U32)
   ring_nf
   have : (11075584 : ZMod 65536) = 0 := by rfl
   rw [this]; fsimp
-
--- TODO: move, and update scalar_tac +nonLin
-@[aesop unsafe 50% apply]
-theorem Nat.le_trans (a0 a1 b0 b1 : Nat) (h0 : a0 ≤ a1) (h2 : b0 ≤ b1) : a0 * b0 ≤ a1 * b1 := by
-  have := @Nat.mul_le_mul_left b0 b1 a0 (by assumption)
-  have := @Nat.mul_le_mul_right a0 a1 b1 (by assumption)
-  omega
-
-@[aesop unsafe 50% apply]
-theorem Nat.lt_trans (a0 a1 b0 b1 : Nat) (h0 : a0 < a1) (h2 : b0 < b1) : a0 * b0 < a1 * b1 := by
-  apply Nat.mul_lt_mul_of_lt_of_lt <;> assumption
-
-@[aesop unsafe 50% apply]
-theorem Nat.le_lt_trans (a0 a1 b0 b1 : Nat) (h0 : a0 ≤ a1) (h1 : 0 < a1) (h2 : b0 < b1) : a0 * b0 < a1 * b1 := by
-  sorry
-
-@[aesop unsafe 50% apply]
-theorem Nat.lt_le_trans (a0 a1 b0 b1 : Nat) (h0 : a0 < a1) (h1 : b0 ≤ b1) (h2 : 0 < b1) : a0 * b0 < a1 * b1 := by
-  sorry
-
-syntax "scalar_tac_non_lin" : tactic
-
-macro_rules
-| `(tactic|scalar_tac_non_lin) =>
-  `(tactic|(first | apply Nat.le_trans <;> scalar_tac
-                  | apply Nat.lt_trans <;> scalar_tac
-                  | apply Nat.le_lt_trans <;> scalar_tac
-                  | apply Nat.lt_le_trans <;> scalar_tac))
 
 theorem mont_reduce_bv_spec (a b bMont tR t : U32)
   (haBound : a.val < 3329)
@@ -648,26 +698,6 @@ theorem ntt.MlKemZetaBitRevTimesRTimesNegQInvModR_index_spec' (k : Usize) (h : k
   natify
   rw [hv]
   fsimp
-
-def to_poly (a : Array U16 256#usize) : Spec.Polynomial :=
-  ⟨ List.map (fun x => (x.val : Spec.Zq)) a.val, by simp ⟩
-
-@[simp]
-theorem getElem!_to_poly (a : Array U16 256#usize) (i : ℕ) :
-  (to_poly a)[i]! = ((a.val[i]!) : Spec.Zq) := by
-  simp [to_poly]
-  dcases hi : i < a.val.length <;> simp_all
-  rfl
-
-@[simp]
-theorem to_poly_set (a : Array U16 256#usize) (i : Usize) (x : U16) :
-  to_poly (Std.Array.set a i x) = Spec.Polynomial.set (to_poly a) i.val (x.val : Spec.Zq) := by
-  simp [to_poly]
-
-@[local simp]
-theorem mod_3329_mod_4294967296_eq (x : Int) :
-  x % 3329 % 4294967296 = x % 3329 := by
-  apply Int.emod_eq_of_lt <;> omega
 
 @[progress]
 theorem ntt.SymCryptMlKemMontMul_twiddle_spec (k : Usize) (c : U32) (twiddleFactor : U32) (twiddleFactorMont : U32)
@@ -925,29 +955,6 @@ theorem ntt.SymCryptMlKemPolyElementNTTLayerC_loop_spec
 termination_by 256 - k.val
 decreasing_by scalar_decr_tac
 
--- TODO: scalar_tac fails with `maximum recursion depth reached`
--- TODO: we need to guard against the looping equalities
-example (peSrc : Std.Array U16 256#usize)
-  (k len : Usize)
-  (hWf : wfArray peSrc)
-  (hk : k.val = 2 ^ k.val.log2 ∧ -- This is the problem
-        k.val.log2 < 7)
-  :
-  k.val.log2 ≤ 7 := by
-  set_option trace.ScalarTac true in
-  scalar_tac
-
-example (peSrc : Std.Array U16 256#usize)
-  (k len : Usize)
-  (hWf : wfArray peSrc)
-  (hk : k.val = 2 ^ k.val.log2 ∧ k.val.log2 < 7)
-  (hLen : len.val = 128 / k.val)
-  (hLenPos : 0 < len.val) :
-  k.val.log2 ≤ 7 := by
-  set_option trace.ScalarTac true in
-  scalar_tac
-
-set_option maxRecDepth 1000 in
 @[progress]
 theorem ntt.SymCryptMlKemPolyElementNTTLayer_spec
   (peSrc : Array U16 256#usize)
@@ -1277,17 +1284,6 @@ theorem ntt.SymCryptMlKemPolyElementINTTAndMulR_loop_spec_aux
     omega
 termination_by 256 - i.val
 decreasing_by scalar_decr_tac
-
--- TODO: move up
-@[simp]
-theorem to_poly_getElem!_eq (a : Std.Array U16 256#usize) (i : Nat) :
-  (to_poly a)[i]! = a.val[i]! := by
-  fsimp [to_poly]
-  fsimp [getElem!, decidableGetElem?]
-  conv => lhs; simp only [getElem, Spec.Polynomial.get!]
-  fsimp [getElem!, decidableGetElem?]
-  dcases h: i < 256 <;> simp [h]
-  rfl
 
 @[progress]
 theorem ntt.SymCryptMlKemPolyElementINTTAndMulR_loop_spec (peSrc : Std.Array U16 256#usize)
