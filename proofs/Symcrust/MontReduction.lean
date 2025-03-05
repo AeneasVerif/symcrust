@@ -1,13 +1,10 @@
-import Symcrust.Arith
-
 import Aeneas
 
 namespace Symcrust
 
-set_option maxHeartbeats 1000000
+open Aeneas.Arith
 
--- We have to prove a few inequalities involving non-linear arithmetic
-set_option scalarTac.nonLin true
+set_option maxHeartbeats 1000000
 
 /-- Montegomery reduction -/
 def mont_reduce (q R : Nat) (minus_q_minus_1 : Int) (a : Nat) : Int :=
@@ -42,17 +39,14 @@ def mont_reduce_spec
       id_eq, t, f]
     rw [div_to_ZMod]
     . simp
-    . rw [Int.dvd_iff_emod_eq_zero]
-      have hZero : 0 = 0 % (R : Int) := by simp
-      rw [hZero]
-      apply ZMod_eq_imp_mod_eq
+    . simp only [Int.cast_add, Int.cast_natCast, Int.cast_mul, ZMod.intCast_mod, f, t]
       simp only [Int.reduceNeg, ← ZMod_int_cast_eq_int_cast_iff, Int.cast_mul, Int.cast_natCast,
-        Int.cast_neg, Int.cast_one, t, f] at h_q_minus_1
+        Int.cast_neg, Int.cast_one, f, t] at h_q_minus_1
       simp [mul_assoc, h_q_minus_1]
     . simp [← Nat.coprime_iff_gcd_eq_one, *]
 
   -- Secondary goals
-  have h_t1 : 0 ≤ t := by int_tac
+  have h_t1 : 0 ≤ t := by scalar_tac +nonLin
 
   have h_t2 : t < 2 * q := by
     simp +zetaDelta only [gt_iff_lt, Int.reduceNeg, ZMod.natCast_val] at *; clear t f
@@ -63,12 +57,12 @@ def mont_reduce_spec
         rw [Int.mul_comm]
         simp [*]
       . apply mul_lt_mul_of_pos_right
-        . int_tac
+        . scalar_tac +nonLin
         . simp [*]
     apply Int.ediv_lt_of_lt_mul
-    . int_tac
+    . scalar_tac
     . conv => rhs; rw [Int.mul_assoc]; rhs; rw [Int.mul_comm]
-      int_tac
+      scalar_tac
 
   simp +zetaDelta [mont_reduce, *]
 

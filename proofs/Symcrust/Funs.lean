@@ -3,7 +3,7 @@
 import Aeneas
 import Symcrust.Types
 import Symcrust.FunsExternal
-open Aeneas.Std
+open Aeneas.Std Result Error
 set_option linter.dupNamespace false
 set_option linter.hashCommand false
 set_option linter.unusedVariables false
@@ -12,73 +12,73 @@ namespace Symcrust
 
 /- [symcrust::ntt::MLWE_POLYNOMIAL_COEFFICIENTS]
    Source: 'src/ntt.rs', lines 52:0-52:48 -/
-def ntt.MLWE_POLYNOMIAL_COEFFICIENTS_body : Result Usize := Result.ok 256#usize
+def ntt.MLWE_POLYNOMIAL_COEFFICIENTS_body : Result Usize := ok 256#usize
 def ntt.MLWE_POLYNOMIAL_COEFFICIENTS : Usize :=
   eval_global ntt.MLWE_POLYNOMIAL_COEFFICIENTS_body
 
 /- [symcrust::ntt::MATRIX_MAX_NROWS]
    Source: 'src/ntt.rs', lines 64:0-64:34 -/
-def ntt.MATRIX_MAX_NROWS_body : Result Usize := Result.ok 4#usize
+def ntt.MATRIX_MAX_NROWS_body : Result Usize := ok 4#usize
 def ntt.MATRIX_MAX_NROWS : Usize := eval_global ntt.MATRIX_MAX_NROWS_body
 
 /- [symcrust::ntt::KEY_MAX_SIZEOF_ENCODED_T]
    Source: 'src/ntt.rs', lines 91:0-91:45 -/
-def ntt.KEY_MAX_SIZEOF_ENCODED_T_body : Result Usize := Result.ok 1536#usize
+def ntt.KEY_MAX_SIZEOF_ENCODED_T_body : Result Usize := ok 1536#usize
 def ntt.KEY_MAX_SIZEOF_ENCODED_T : Usize :=
   eval_global ntt.KEY_MAX_SIZEOF_ENCODED_T_body
 
 /- [symcrust::ntt::Q]
    Source: 'src/ntt.rs', lines 147:0-147:20 -/
-def ntt.Q_body : Result U32 := Result.ok 3329#u32
+def ntt.Q_body : Result U32 := ok 3329#u32
 def ntt.Q : U32 := eval_global ntt.Q_body
 
 /- [symcrust::ntt::SIZEOF_MAX_CIPHERTEXT]
    Source: 'src/ntt.rs', lines 156:0-156:42 -/
-def ntt.SIZEOF_MAX_CIPHERTEXT_body : Result Usize := Result.ok 1568#usize
+def ntt.SIZEOF_MAX_CIPHERTEXT_body : Result Usize := ok 1568#usize
 def ntt.SIZEOF_MAX_CIPHERTEXT : Usize :=
   eval_global ntt.SIZEOF_MAX_CIPHERTEXT_body
 
 /- [symcrust::ntt::SIZEOF_AGREED_SECRET]
    Source: 'src/ntt.rs', lines 157:0-157:39 -/
-def ntt.SIZEOF_AGREED_SECRET_body : Result Usize := Result.ok 32#usize
+def ntt.SIZEOF_AGREED_SECRET_body : Result Usize := ok 32#usize
 def ntt.SIZEOF_AGREED_SECRET : Usize :=
   eval_global ntt.SIZEOF_AGREED_SECRET_body
 
 /- [symcrust::ntt::SIZEOF_ENCAPS_RANDOM]
    Source: 'src/ntt.rs', lines 158:0-158:39 -/
-def ntt.SIZEOF_ENCAPS_RANDOM_body : Result Usize := Result.ok 32#usize
+def ntt.SIZEOF_ENCAPS_RANDOM_body : Result Usize := ok 32#usize
 def ntt.SIZEOF_ENCAPS_RANDOM : Usize :=
   eval_global ntt.SIZEOF_ENCAPS_RANDOM_body
 
 /- [symcrust::ntt::Rlog2]
    Source: 'src/ntt.rs', lines 216:0-216:22 -/
-def ntt.Rlog2_body : Result U32 := Result.ok 16#u32
+def ntt.Rlog2_body : Result U32 := ok 16#u32
 def ntt.Rlog2 : U32 := eval_global ntt.Rlog2_body
 
 /- [symcrust::ntt::Rmask]
    Source: 'src/ntt.rs', lines 217:0-217:26 -/
-def ntt.Rmask_body : Result U32 := Result.ok 65535#u32
+def ntt.Rmask_body : Result U32 := ok 65535#u32
 def ntt.Rmask : U32 := eval_global ntt.Rmask_body
 
 /- [symcrust::ntt::NegQInvModR]
    Source: 'src/ntt.rs', lines 220:0-220:30 -/
-def ntt.NegQInvModR_body : Result U32 := Result.ok 3327#u32
+def ntt.NegQInvModR_body : Result U32 := ok 3327#u32
 def ntt.NegQInvModR : U32 := eval_global ntt.NegQInvModR_body
 
 /- [symcrust::ntt::Rsqr]
    Source: 'src/ntt.rs', lines 223:0-223:23 -/
-def ntt.Rsqr_body : Result U32 := Result.ok 1353#u32
+def ntt.Rsqr_body : Result U32 := ok 1353#u32
 def ntt.Rsqr : U32 := eval_global ntt.Rsqr_body
 
 /- [symcrust::ntt::RsqrTimesNegQInvModR]
    Source: 'src/ntt.rs', lines 225:0-225:40 -/
-def ntt.RsqrTimesNegQInvModR_body : Result U32 := Result.ok 44983#u32
+def ntt.RsqrTimesNegQInvModR_body : Result U32 := ok 44983#u32
 def ntt.RsqrTimesNegQInvModR : U32 := eval_global ntt.RsqrTimesNegQInvModR_body
 
 /- [symcrust::ntt::MlKemZetaBitRevTimesR]
    Source: 'src/ntt.rs', lines 240:0-257:2 -/
 def ntt.MlKemZetaBitRevTimesR_body : Result (Array U16 128#usize) :=
-  Result.ok
+  ok
   (Array.make 128#usize [
     2285#u16, 2571#u16, 2970#u16, 1812#u16, 1493#u16, 1422#u16, 287#u16,
     202#u16, 3158#u16, 622#u16, 1577#u16, 182#u16, 962#u16, 2127#u16, 1855#u16,
@@ -99,14 +99,14 @@ def ntt.MlKemZetaBitRevTimesR_body : Result (Array U16 128#usize) :=
     794#u16, 1819#u16, 2475#u16, 2459#u16, 478#u16, 3221#u16, 3021#u16,
     996#u16, 991#u16, 958#u16, 1869#u16, 1522#u16, 1628#u16
     ])
-def ntt.MlKemZetaBitRevTimesR : Array U16 128#usize :=
+irreducible_def ntt.MlKemZetaBitRevTimesR : Array U16 128#usize :=
   eval_global ntt.MlKemZetaBitRevTimesR_body
 
 /- [symcrust::ntt::MlKemZetaBitRevTimesRTimesNegQInvModR]
    Source: 'src/ntt.rs', lines 263:0-280:2 -/
 def ntt.MlKemZetaBitRevTimesRTimesNegQInvModR_body
   : Result (Array U16 128#usize) :=
-  Result.ok
+  ok
   (Array.make 128#usize [
     19#u16, 34037#u16, 50790#u16, 64748#u16, 52011#u16, 12402#u16, 37345#u16,
     16694#u16, 20906#u16, 37778#u16, 3799#u16, 15690#u16, 54846#u16, 64177#u16,
@@ -129,13 +129,13 @@ def ntt.MlKemZetaBitRevTimesRTimesNegQInvModR_body
     33899#u16, 23859#u16, 36892#u16, 20257#u16, 41538#u16, 57779#u16,
     17422#u16, 42404#u16
     ])
-def ntt.MlKemZetaBitRevTimesRTimesNegQInvModR : Array U16 128#usize :=
+irreducible_def ntt.MlKemZetaBitRevTimesRTimesNegQInvModR : Array U16 128#usize :=
   eval_global ntt.MlKemZetaBitRevTimesRTimesNegQInvModR_body
 
 /- [symcrust::ntt::zetaTwoTimesBitRevPlus1TimesR]
    Source: 'src/ntt.rs', lines 286:0-303:2 -/
 def ntt.zetaTwoTimesBitRevPlus1TimesR_body : Result (Array U16 128#usize) :=
-  Result.ok
+  ok
   (Array.make 128#usize [
     2226#u16, 1103#u16, 430#u16, 2899#u16, 555#u16, 2774#u16, 843#u16,
     2486#u16, 2078#u16, 1251#u16, 871#u16, 2458#u16, 1550#u16, 1779#u16,
@@ -156,7 +156,7 @@ def ntt.zetaTwoTimesBitRevPlus1TimesR_body : Result (Array U16 128#usize) :=
     996#u16, 2333#u16, 991#u16, 2338#u16, 958#u16, 2371#u16, 1869#u16,
     1460#u16, 1522#u16, 1807#u16, 1628#u16, 1701#u16
     ])
-def ntt.zetaTwoTimesBitRevPlus1TimesR : Array U16 128#usize :=
+irreducible_def ntt.zetaTwoTimesBitRevPlus1TimesR : Array U16 128#usize :=
   eval_global ntt.zetaTwoTimesBitRevPlus1TimesR_body
 
 /- [symcrust::ntt::SymCryptMlKemModAdd]:
@@ -166,20 +166,22 @@ def ntt.SymCryptMlKemModAdd (a : U32) (b : U32) : Result U32 :=
   massert (a < ntt.Q)
   massert (b < ntt.Q)
   let i ← a + b
-  let res := core.num.U32.wrapping_sub i ntt.Q
+  let (res : U32) ← ↑(core.num.U32.wrapping_sub i ntt.Q)
   let i1 ← res >>> 16#i32
   if i1 = 0#u32
   then
     do
-    let res1 := core.num.U32.wrapping_add res (ntt.Q &&& i1)
+    let (i2 : U32) ← ↑(ntt.Q &&& i1)
+    let (res1 : U32) ← ↑(core.num.U32.wrapping_add res i2)
     massert (res1 < ntt.Q)
-    Result.ok res1
+    ok res1
   else
     do
     massert (i1 = 65535#u32)
-    let res1 := core.num.U32.wrapping_add res (ntt.Q &&& i1)
+    let (i2 : U32) ← ↑(ntt.Q &&& i1)
+    let (res1 : U32) ← ↑(core.num.U32.wrapping_add res i2)
     massert (res1 < ntt.Q)
-    Result.ok res1
+    ok res1
 
 /- [symcrust::ntt::SymCryptMlKemModSub]:
    Source: 'src/ntt.rs', lines 322:0-344:1 -/
@@ -188,20 +190,22 @@ def ntt.SymCryptMlKemModSub (a : U32) (b : U32) : Result U32 :=
   let i ← 2#u32 * ntt.Q
   massert (a < i)
   massert (b <= ntt.Q)
-  let res := core.num.U32.wrapping_sub a b
+  let (res : U32) ← ↑(core.num.U32.wrapping_sub a b)
   let i1 ← res >>> 16#i32
   if i1 = 0#u32
   then
     do
-    let res1 := core.num.U32.wrapping_add res (ntt.Q &&& i1)
+    let (i2 : U32) ← ↑(ntt.Q &&& i1)
+    let (res1 : U32) ← ↑(core.num.U32.wrapping_add res i2)
     massert (res1 < ntt.Q)
-    Result.ok res1
+    ok res1
   else
     do
     massert (i1 = 65535#u32)
-    let res1 := core.num.U32.wrapping_add res (ntt.Q &&& i1)
+    let (i2 : U32) ← ↑(ntt.Q &&& i1)
+    let (res1 : U32) ← ↑(core.num.U32.wrapping_add res i2)
     massert (res1 < ntt.Q)
-    Result.ok res1
+    ok res1
 
 /- [symcrust::ntt::SymCryptMlKemMontMul]:
    Source: 'src/ntt.rs', lines 353:0-367:1 -/
@@ -211,12 +215,15 @@ def ntt.SymCryptMlKemMontMul (a : U32) (b : U32) (bMont : U32) : Result U32 :=
   massert (b < ntt.Q)
   massert (bMont <= ntt.Rmask)
   let i ← b * ntt.NegQInvModR
-  massert (bMont = (i &&& ntt.Rmask))
+  let (i1 : U32) ← ↑(i &&& ntt.Rmask)
+  massert (bMont = i1)
   let res ← a * b
-  let i1 ← a * bMont
-  let i2 ← (i1 &&& ntt.Rmask) * ntt.Q
-  let res1 ← res + i2
-  massert ((res1 &&& ntt.Rmask) = 0#u32)
+  let i2 ← a * bMont
+  let (inv : U32) ← ↑(i2 &&& ntt.Rmask)
+  let i3 ← inv * ntt.Q
+  let res1 ← res + i3
+  let (i4 : U32) ← ↑(res1 &&& ntt.Rmask)
+  massert (i4 = 0#u32)
   let res2 ← res1 >>> ntt.Rlog2
   ntt.SymCryptMlKemModSub res2 ntt.Q
 
@@ -242,15 +249,15 @@ divergent def ntt.SymCryptMlKemPolyElementNTTLayerC.inner_loop_loop
       ntt.SymCryptMlKemMontMul c1 twiddleFactor twiddleFactorMont
     let c11 ← ntt.SymCryptMlKemModSub c0 c1TimesTwiddle
     let c01 ← ntt.SymCryptMlKemModAdd c0 c1TimesTwiddle
-    let i4 ← Scalar.cast .U16 c01
-    let peSrc1 ← Array.update_usize peSrc i i4
+    let (i4 : U16) ← ↑(UScalar.cast .U16 c01)
+    let peSrc1 ← Array.update peSrc i i4
     let i5 ← i + len
-    let i6 ← Scalar.cast .U16 c11
-    let peSrc2 ← Array.update_usize peSrc1 i5 i6
+    let (i6 : U16) ← ↑(UScalar.cast .U16 c11)
+    let peSrc2 ← Array.update peSrc1 i5 i6
     let j1 ← j + 1#usize
     ntt.SymCryptMlKemPolyElementNTTLayerC.inner_loop_loop peSrc2 len start
       twiddleFactor twiddleFactorMont j1
-  else Result.ok peSrc
+  else ok peSrc
 
 /- [symcrust::ntt::SymCryptMlKemPolyElementNTTLayerC::inner_loop]:
    Source: 'src/ntt.rs', lines 380:8-403:9 -/
@@ -284,7 +291,7 @@ divergent def ntt.SymCryptMlKemPolyElementNTTLayerC_loop
     let i2 ← 2#usize * len
     let start1 ← start + i2
     ntt.SymCryptMlKemPolyElementNTTLayerC_loop peSrc1 k1 len start1
-  else Result.ok peSrc
+  else ok peSrc
 
 /- [symcrust::ntt::SymCryptMlKemPolyElementNTTLayerC]:
    Source: 'src/ntt.rs', lines 369:0-406:1 -/
@@ -316,18 +323,19 @@ divergent def ntt.SymCryptMlKemPolyElementINTTLayerC.inner_loop_loop
     let tmp ← ntt.SymCryptMlKemModAdd c0 c1
     let c11 ← ntt.SymCryptMlKemModSub c1 c0
     let c12 ← ntt.SymCryptMlKemMontMul c11 twiddleFactor twiddleFactorMont
-    let i4 ← Scalar.cast .U16 tmp
-    let peSrc1 ← Array.update_usize peSrc i i4
+    let (i4 : U16) ← ↑(UScalar.cast .U16 tmp)
+    let peSrc1 ← Array.update peSrc i i4
     let i5 ← i + len
-    let i6 ← Scalar.cast .U16 c12
-    let peSrc2 ← Array.update_usize peSrc1 i5 i6
+    let (i6 : U16) ← ↑(UScalar.cast .U16 c12)
+    let peSrc2 ← Array.update peSrc1 i5 i6
     let j1 ← j + 1#usize
     ntt.SymCryptMlKemPolyElementINTTLayerC.inner_loop_loop peSrc2 len start
       twiddleFactor twiddleFactorMont j1
-  else Result.ok peSrc
+  else ok peSrc
 
 /- [symcrust::ntt::SymCryptMlKemPolyElementINTTLayerC::inner_loop]:
    Source: 'src/ntt.rs', lines 420:8-435:9 -/
+@[reducible]
 def ntt.SymCryptMlKemPolyElementINTTLayerC.inner_loop
   (peSrc : Array U16 256#usize) (len : Usize) (start : Usize)
   (twiddleFactor : U32) (twiddleFactorMont : U32) :
@@ -357,7 +365,7 @@ divergent def ntt.SymCryptMlKemPolyElementINTTLayerC_loop
     let i2 ← 2#usize * len
     let start1 ← start + i2
     ntt.SymCryptMlKemPolyElementINTTLayerC_loop peSrc1 k1 len start1
-  else Result.ok peSrc
+  else ok peSrc
 
 /- [symcrust::ntt::SymCryptMlKemPolyElementINTTLayerC]:
    Source: 'src/ntt.rs', lines 408:0-437:1 -/
@@ -429,12 +437,13 @@ divergent def ntt.SymCryptMlKemPolyElementMulAndAccumulate_loop
     let a0b1 ← a0 * b1
     let a1b0 ← a1 * b0
     let i18 ← a1b1 * ntt.NegQInvModR
-    let i19 ← (i18 &&& ntt.Rmask) * ntt.Q
+    let (inv : U32) ← ↑(i18 &&& ntt.Rmask)
+    let i19 ← inv * ntt.Q
     let i20 ← a1b1 + i19
     let a1b11 ← i20 >>> ntt.Rlog2
     massert (a1b11 <= 3494#u32)
     let i21 ← Array.index_usize ntt.zetaTwoTimesBitRevPlus1TimesR i
-    let i22 ← Scalar.cast .U32 i21
+    let (i22 : U32) ← ↑(UScalar.cast .U32 i21)
     let a1b1zetapow ← a1b11 * i22
     let a0b01 ← a0b0 + a1b1zetapow
     let i23 ← i10 + i11
@@ -458,12 +467,12 @@ divergent def ntt.SymCryptMlKemPolyElementMulAndAccumulate_loop
     let i34 ← i33 * 3312#u32
     let i35 ← i32 + i34
     massert (c11 < i35)
-    let paDst1 ← Array.update_usize paDst i2 c01
+    let paDst1 ← Array.update paDst i2 c01
     let i36 ← i2 + 1#usize
-    let paDst2 ← Array.update_usize paDst1 i36 c11
+    let paDst2 ← Array.update paDst1 i36 c11
     let i37 ← i + 1#usize
     ntt.SymCryptMlKemPolyElementMulAndAccumulate_loop peSrc1 peSrc2 paDst2 i37
-  else Result.ok paDst
+  else ok paDst
 
 /- [symcrust::ntt::SymCryptMlKemPolyElementMulAndAccumulate]:
    Source: 'src/ntt.rs', lines 447:0-512:1 -/
@@ -495,7 +504,8 @@ divergent def
     let c ← core.convert.IntoFrom.into core.convert.FromU32U16 i5
     massert (c < ntt.Q)
     let i6 ← a * ntt.NegQInvModR
-    let i7 ← (i6 &&& ntt.Rmask) * ntt.Q
+    let (inv : U32) ← ↑(i6 &&& ntt.Rmask)
+    let i7 ← inv * ntt.Q
     let i8 ← a + i7
     let a1 ← i8 >>> ntt.Rlog2
     massert (a1 <= 4711#u32)
@@ -503,72 +513,80 @@ divergent def
     massert (c1 <= 8039#u32)
     let i9 ← 2#u32 * ntt.Q
     let c2 ← c1 - i9
-    let i10 ← Scalar.cast .I32 ntt.Q
+    let (i10 : I32) ← ↑(UScalar.hcast .I32 ntt.Q)
     let i11 ← (-2)#i32 * i10
-    let i12 ← Scalar.cast .U32 i11
+    let (i12 : U32) ← ↑(IScalar.hcast .U32 i11)
     if c2 >= i12
     then
       do
       let i13 ← c2 >>> 16#i32
-      let c3 ← c2 + (ntt.Q &&& i13)
-      let i14 ← -. i10
-      let i15 ← Scalar.cast .U32 i14
-      if c3 >= i15
+      let (i14 : U32) ← ↑(ntt.Q &&& i13)
+      let c3 ← c2 + i14
+      let (i15 : I32) ← ↑(UScalar.hcast .I32 ntt.Q)
+      let i16 ← -. i15
+      let (i17 : U32) ← ↑(IScalar.hcast .U32 i16)
+      if c3 >= i17
       then
         do
-        let i16 ← c3 >>> 16#i32
-        let c4 ← c3 + (ntt.Q &&& i16)
+        let i18 ← c3 >>> 16#i32
+        let (i19 : U32) ← ↑(ntt.Q &&& i18)
+        let c4 ← c3 + i19
         massert (c4 < ntt.Q)
-        let i17 ← Scalar.cast .U16 c4
-        let peDst1 ← Array.update_usize peDst i i17
-        let i18 ← i + 1#usize
-        let paSrc1 ← Array.update_usize paSrc i 0#u32
+        let (i20 : U16) ← ↑(UScalar.cast .U16 c4)
+        let peDst1 ← Array.update peDst i i20
+        let i21 ← i + 1#usize
+        let paSrc1 ← Array.update paSrc i 0#u32
         ntt.SymCryptMlKemMontgomeryReduceAndAddPolyElementAccumulatorToPolyElement_loop
-          paSrc1 peDst1 i18
+          paSrc1 peDst1 i21
       else
         do
         massert (c3 < ntt.Q)
-        let i16 ← c3 >>> 16#i32
-        let c4 ← c3 + (ntt.Q &&& i16)
+        let i18 ← c3 >>> 16#i32
+        let (i19 : U32) ← ↑(ntt.Q &&& i18)
+        let c4 ← c3 + i19
         massert (c4 < ntt.Q)
-        let i17 ← Scalar.cast .U16 c4
-        let peDst1 ← Array.update_usize peDst i i17
-        let i18 ← i + 1#usize
-        let paSrc1 ← Array.update_usize paSrc i 0#u32
+        let (i20 : U16) ← ↑(UScalar.cast .U16 c4)
+        let peDst1 ← Array.update peDst i i20
+        let i21 ← i + 1#usize
+        let paSrc1 ← Array.update paSrc i 0#u32
         ntt.SymCryptMlKemMontgomeryReduceAndAddPolyElementAccumulatorToPolyElement_loop
-          paSrc1 peDst1 i18
+          paSrc1 peDst1 i21
     else
       do
       massert (c2 < 1381#u32)
       let i13 ← c2 >>> 16#i32
-      let c3 ← c2 + (ntt.Q &&& i13)
-      let i14 ← -. i10
-      let i15 ← Scalar.cast .U32 i14
-      if c3 >= i15
+      let (i14 : U32) ← ↑(ntt.Q &&& i13)
+      let c3 ← c2 + i14
+      let (i15 : I32) ← ↑(UScalar.hcast .I32 ntt.Q)
+      let i16 ← -. i15
+      let (i17 : U32) ← ↑(IScalar.hcast .U32 i16)
+      if c3 >= i17
       then
         do
-        let i16 ← c3 >>> 16#i32
-        let c4 ← c3 + (ntt.Q &&& i16)
+        let i18 ← c3 >>> 16#i32
+        let (i19 : U32) ← ↑(ntt.Q &&& i18)
+        let c4 ← c3 + i19
         massert (c4 < ntt.Q)
-        let i17 ← Scalar.cast .U16 c4
-        let peDst1 ← Array.update_usize peDst i i17
-        let i18 ← i + 1#usize
-        let paSrc1 ← Array.update_usize paSrc i 0#u32
+        let (i20 : U16) ← ↑(UScalar.cast .U16 c4)
+        let peDst1 ← Array.update peDst i i20
+        let i21 ← i + 1#usize
+        let paSrc1 ← Array.update paSrc i 0#u32
         ntt.SymCryptMlKemMontgomeryReduceAndAddPolyElementAccumulatorToPolyElement_loop
-          paSrc1 peDst1 i18
+          paSrc1 peDst1 i21
       else
         do
         massert (c3 < ntt.Q)
-        let i16 ← c3 >>> 16#i32
-        let c4 ← c3 + (ntt.Q &&& i16)
+        let i18 ← c3 >>> 16#i32
+        let (i19 : U32) ← ↑(ntt.Q &&& i18)
+        let c4 ← c3 + i19
         massert (c4 < ntt.Q)
-        let i17 ← Scalar.cast .U16 c4
-        let peDst1 ← Array.update_usize peDst i i17
-        let i18 ← i + 1#usize
-        let paSrc1 ← Array.update_usize paSrc i 0#u32
+        let (i20 : U16) ← ↑(UScalar.cast .U16 c4)
+        let peDst1 ← Array.update peDst i i20
+        let i21 ← i + 1#usize
+        let paSrc1 ← Array.update paSrc i 0#u32
         ntt.SymCryptMlKemMontgomeryReduceAndAddPolyElementAccumulatorToPolyElement_loop
-          paSrc1 peDst1 i18
-  else Result.ok (paSrc, peDst)
+          paSrc1 peDst1 i21
+  else ok (paSrc, peDst)
 
 /- [symcrust::ntt::SymCryptMlKemMontgomeryReduceAndAddPolyElementAccumulatorToPolyElement]:
    Source: 'src/ntt.rs', lines 514:0-547:1 -/
@@ -592,11 +610,11 @@ divergent def ntt.SymCryptMlKemPolyElementMulR_loop
     let i1 ← Array.index_usize peSrc i
     let i2 ← core.convert.IntoFrom.into core.convert.FromU32U16 i1
     let i3 ← ntt.SymCryptMlKemMontMul i2 ntt.Rsqr ntt.RsqrTimesNegQInvModR
-    let i4 ← Scalar.cast .U16 i3
-    let peDst1 ← Array.update_usize peDst i i4
+    let (i4 : U16) ← ↑(UScalar.cast .U16 i3)
+    let peDst1 ← Array.update peDst i i4
     let i5 ← i + 1#usize
     ntt.SymCryptMlKemPolyElementMulR_loop peSrc peDst1 i5
-  else Result.ok peDst
+  else ok peDst
 
 /- [symcrust::ntt::SymCryptMlKemPolyElementMulR]:
    Source: 'src/ntt.rs', lines 549:0-559:1 -/
@@ -622,11 +640,11 @@ divergent def ntt.SymCryptMlKemPolyElementAdd_loop
     let i3 ← Array.index_usize peSrc2 i
     let i4 ← core.convert.IntoFrom.into core.convert.FromU32U16 i3
     let i5 ← ntt.SymCryptMlKemModAdd i2 i4
-    let i6 ← Scalar.cast .U16 i5
-    let peDst1 ← Array.update_usize peDst i i6
+    let (i6 : U16) ← ↑(UScalar.cast .U16 i5)
+    let peDst1 ← Array.update peDst i i6
     let i7 ← i + 1#usize
     ntt.SymCryptMlKemPolyElementAdd_loop peSrc1 peSrc2 peDst1 i7
-  else Result.ok peDst
+  else ok peDst
 
 /- [symcrust::ntt::SymCryptMlKemPolyElementAdd]:
    Source: 'src/ntt.rs', lines 561:0-571:1 -/
@@ -653,11 +671,11 @@ divergent def ntt.SymCryptMlKemPolyElementSub_loop
     let i3 ← Array.index_usize peSrc2 i
     let i4 ← core.convert.IntoFrom.into core.convert.FromU32U16 i3
     let i5 ← ntt.SymCryptMlKemModSub i2 i4
-    let i6 ← Scalar.cast .U16 i5
-    let peDst1 ← Array.update_usize peDst i i6
+    let (i6 : U16) ← ↑(UScalar.cast .U16 i5)
+    let peDst1 ← Array.update peDst i i6
     let i7 ← i + 1#usize
     ntt.SymCryptMlKemPolyElementSub_loop peSrc1 peSrc2 peDst1 i7
-  else Result.ok peDst
+  else ok peDst
 
 /- [symcrust::ntt::SymCryptMlKemPolyElementSub]:
    Source: 'src/ntt.rs', lines 573:0-582:1 -/
@@ -684,13 +702,12 @@ def ntt.SymCryptMlKemPolyElementNTT
 
 /- [symcrust::ntt::INTTFixupTimesRsqr]
    Source: 'src/ntt.rs', lines 599:0-599:37 -/
-def ntt.INTTFixupTimesRsqr_body : Result U32 := Result.ok 1441#u32
+def ntt.INTTFixupTimesRsqr_body : Result U32 := ok 1441#u32
 def ntt.INTTFixupTimesRsqr : U32 := eval_global ntt.INTTFixupTimesRsqr_body
 
 /- [symcrust::ntt::INTTFixupTimesRsqrTimesNegQInvModR]
    Source: 'src/ntt.rs', lines 600:0-600:54 -/
-def ntt.INTTFixupTimesRsqrTimesNegQInvModR_body : Result U32 :=
-  Result.ok 10079#u32
+def ntt.INTTFixupTimesRsqrTimesNegQInvModR_body : Result U32 := ok 10079#u32
 def ntt.INTTFixupTimesRsqrTimesNegQInvModR : U32 :=
   eval_global ntt.INTTFixupTimesRsqrTimesNegQInvModR_body
 
@@ -706,11 +723,11 @@ divergent def ntt.SymCryptMlKemPolyElementINTTAndMulR_loop
     let i3 ←
       ntt.SymCryptMlKemMontMul i2 ntt.INTTFixupTimesRsqr
         ntt.INTTFixupTimesRsqrTimesNegQInvModR
-    let i4 ← Scalar.cast .U16 i3
-    let peSrc1 ← Array.update_usize peSrc i i4
+    let (i4 : U16) ← ↑(UScalar.cast .U16 i3)
+    let peSrc1 ← Array.update peSrc i i4
     let i5 ← i + 1#usize
     ntt.SymCryptMlKemPolyElementINTTAndMulR_loop peSrc1 i5
-  else Result.ok peSrc
+  else ok peSrc
 
 /- [symcrust::ntt::SymCryptMlKemPolyElementINTTAndMulR]:
    Source: 'src/ntt.rs', lines 602:0-618:1 -/
@@ -728,12 +745,12 @@ def ntt.SymCryptMlKemPolyElementINTTAndMulR
 
 /- [symcrust::ntt::COMPRESS_MULCONSTANT]
    Source: 'src/ntt.rs', lines 626:0-626:43 -/
-def ntt.COMPRESS_MULCONSTANT_body : Result U32 := Result.ok 10321339#u32
+def ntt.COMPRESS_MULCONSTANT_body : Result U32 := ok 10321339#u32
 def ntt.COMPRESS_MULCONSTANT : U32 := eval_global ntt.COMPRESS_MULCONSTANT_body
 
 /- [symcrust::ntt::COMPRESS_SHIFTCONSTANT]
    Source: 'src/ntt.rs', lines 627:0-627:39 -/
-def ntt.COMPRESS_SHIFTCONSTANT_body : Result U32 := Result.ok 35#u32
+def ntt.COMPRESS_SHIFTCONSTANT_body : Result U32 := ok 35#u32
 def ntt.COMPRESS_SHIFTCONSTANT : U32 :=
   eval_global ntt.COMPRESS_SHIFTCONSTANT_body
 
@@ -741,8 +758,8 @@ def ntt.COMPRESS_SHIFTCONSTANT : U32 :=
    Source: 'src/ntt.rs', lines 631:0-631:60 -/
 def ntt.min (x : U32) (y : U32) : Result U32 :=
   if x <= y
-  then Result.ok x
-  else Result.ok y
+  then ok x
+  else ok y
 
 /- [symcrust::ntt::SymCryptMlKemPolyElementCompressAndEncode::inner_loop]: loop 0:
    Source: 'src/ntt.rs', lines 679:12-696:16 -/
@@ -756,9 +773,11 @@ divergent def ntt.SymCryptMlKemPolyElementCompressAndEncode.inner_loop_loop
   let nBitsToEncode ← ntt.min nBitsInCoefficient i
   let i1 ← 1#u32 <<< nBitsToEncode
   let i2 ← i1 - 1#u32
+  let (bitsToEncode : U32) ← ↑(coefficient &&& i2)
   let coefficient1 ← coefficient >>> nBitsToEncode
   let nBitsInCoefficient1 ← nBitsInCoefficient - nBitsToEncode
-  let i3 ← (coefficient &&& i2) <<< nBitsInAccumulator
+  let i3 ← bitsToEncode <<< nBitsInAccumulator
+  let (accumulator1 : U32) ← ↑(accumulator ||| i3)
   let nBitsInAccumulator1 ← nBitsInAccumulator + nBitsToEncode
   if nBitsInAccumulator1 = 32#u32
   then
@@ -766,10 +785,10 @@ divergent def ntt.SymCryptMlKemPolyElementCompressAndEncode.inner_loop_loop
     let i4 ← cbDstWritten + 4#usize
     let (s, index_mut_back) ←
       core.slice.index.Slice.index_mut
-        (core.slice.index.SliceIndexRangeUsizeSliceTInst U8) pbDst
+        (core.slice.index.SliceIndexRangeUsizeSliceInst U8) pbDst
         { start := cbDstWritten, end_ := i4 }
-    let a := core.num.U32.to_le_bytes (accumulator ||| i3)
-    let s1 ← Array.to_slice a
+    let (a : Array U8 4#usize) ← ↑(core.num.U32.to_le_bytes accumulator1)
+    let (s1 : Slice U8) ← ↑(Array.to_slice a)
     let s2 ← core.slice.Slice.copy_from_slice core.marker.CopyU8 s s1
     if nBitsInCoefficient1 > 0#u32
     then
@@ -778,15 +797,15 @@ divergent def ntt.SymCryptMlKemPolyElementCompressAndEncode.inner_loop_loop
         0#u32 0#u32 nBitsInCoefficient1 coefficient1
     else
       let pbDst1 := index_mut_back s2
-      Result.ok (pbDst1, i4, 0#u32, 0#u32, nBitsInCoefficient1, coefficient1)
+      ok (pbDst1, i4, 0#u32, 0#u32, nBitsInCoefficient1, coefficient1)
   else
     if nBitsInCoefficient1 > 0#u32
     then
       ntt.SymCryptMlKemPolyElementCompressAndEncode.inner_loop_loop pbDst
-        cbDstWritten (accumulator ||| i3) nBitsInAccumulator1
-        nBitsInCoefficient1 coefficient1
+        cbDstWritten accumulator1 nBitsInAccumulator1 nBitsInCoefficient1
+        coefficient1
     else
-      Result.ok (pbDst, cbDstWritten, accumulator ||| i3, nBitsInAccumulator1,
+      ok (pbDst, cbDstWritten, accumulator1, nBitsInAccumulator1,
         nBitsInCoefficient1, coefficient1)
 
 /- [symcrust::ntt::SymCryptMlKemPolyElementCompressAndEncode::inner_loop]:
@@ -817,23 +836,24 @@ divergent def ntt.SymCryptMlKemPolyElementCompressAndEncode_loop
     if nBitsPerCoefficient < 12#u32
     then
       do
-      let i2 ← Scalar.cast .U64 coefficient
-      let i3 ← Scalar.cast .U64 ntt.COMPRESS_MULCONSTANT
+      let (i2 : U64) ← ↑(UScalar.cast .U64 coefficient)
+      let (i3 : U64) ← ↑(UScalar.cast .U64 ntt.COMPRESS_MULCONSTANT)
       let multiplication ← i2 * i3
       let i4 ← nBitsPerCoefficient + 1#u32
       let i5 ← ntt.COMPRESS_SHIFTCONSTANT - i4
       let i6 ← multiplication >>> i5
-      let coefficient1 ← Scalar.cast .U32 i6
+      let (coefficient1 : U32) ← ↑(UScalar.cast .U32 i6)
       let coefficient2 ← coefficient1 + 1#u32
       let coefficient3 ← coefficient2 >>> 1#i32
       let i7 ← 1#u32 <<< nBitsPerCoefficient
       massert (coefficient3 <= i7)
       let i8 ← i7 - 1#u32
-      massert ((coefficient3 &&& i8) < i7)
+      let (coefficient4 : U32) ← ↑(coefficient3 &&& i8)
+      massert (coefficient4 < i7)
       let (pbDst1, cbDstWritten1, accumulator1, nBitsInAccumulator1, _, _) ←
         ntt.SymCryptMlKemPolyElementCompressAndEncode.inner_loop pbDst
           cbDstWritten accumulator nBitsInAccumulator nBitsPerCoefficient
-          (coefficient3 &&& i8)
+          coefficient4
       let i9 ← i + 1#usize
       ntt.SymCryptMlKemPolyElementCompressAndEncode_loop peSrc
         nBitsPerCoefficient pbDst1 cbDstWritten1 accumulator1
@@ -851,12 +871,12 @@ divergent def ntt.SymCryptMlKemPolyElementCompressAndEncode_loop
   else
     do
     massert (nBitsInAccumulator = 0#u32)
-    let i1 ← Scalar.cast .U32 ntt.MLWE_POLYNOMIAL_COEFFICIENTS
+    let (i1 : U32) ← ↑(UScalar.cast .U32 ntt.MLWE_POLYNOMIAL_COEFFICIENTS)
     let i2 ← i1 / 8#u32
     let i3 ← nBitsPerCoefficient * i2
-    let i4 ← Scalar.cast .Usize i3
+    let (i4 : Usize) ← ↑(UScalar.cast .Usize i3)
     massert (cbDstWritten = i4)
-    Result.ok pbDst
+    ok pbDst
 
 /- [symcrust::ntt::SymCryptMlKemPolyElementCompressAndEncode]:
    Source: 'src/ntt.rs', lines 633:0-703:1 -/
@@ -883,25 +903,27 @@ divergent def ntt.SymCryptMlKemPolyElementDecodeAndDecompress.inner_loop_loop
   then
     do
     let a ← ntt.slice_to_sub_array 4#usize pbSrc cbSrcRead
-    let accumulator1 := core.num.U32.from_le_bytes a
+    let (accumulator1 : U32) ← ↑(core.num.U32.from_le_bytes a)
     let cbSrcRead1 ← cbSrcRead + 4#usize
     let i ← nBitsPerCoefficient - nBitsInCoefficient
     let nBitsToDecode ← ntt.min i 32#u32
     massert (nBitsToDecode <= 32#u32)
     let i1 ← 1#u32 <<< nBitsToDecode
     let i2 ← i1 - 1#u32
+    let (bitsToDecode : U32) ← ↑(accumulator1 &&& i2)
     let accumulator2 ← accumulator1 >>> nBitsToDecode
     let nBitsInAccumulator1 ← 32#u32 - nBitsToDecode
-    let i3 ← (accumulator1 &&& i2) <<< nBitsInCoefficient
+    let i3 ← bitsToDecode <<< nBitsInCoefficient
+    let (coefficient1 : U32) ← ↑(coefficient ||| i3)
     let nBitsInCoefficient1 ← nBitsInCoefficient + nBitsToDecode
     if nBitsPerCoefficient > nBitsInCoefficient1
     then
       ntt.SymCryptMlKemPolyElementDecodeAndDecompress.inner_loop_loop pbSrc
         nBitsPerCoefficient cbSrcRead1 accumulator2 nBitsInAccumulator1
-        (coefficient ||| i3) nBitsInCoefficient1
+        coefficient1 nBitsInCoefficient1
     else
-      Result.ok (cbSrcRead1, accumulator2, nBitsInAccumulator1, coefficient |||
-        i3, nBitsInCoefficient1)
+      ok (cbSrcRead1, accumulator2, nBitsInAccumulator1, coefficient1,
+        nBitsInCoefficient1)
   else
     do
     let i ← nBitsPerCoefficient - nBitsInCoefficient
@@ -909,18 +931,20 @@ divergent def ntt.SymCryptMlKemPolyElementDecodeAndDecompress.inner_loop_loop
     massert (nBitsToDecode <= nBitsInAccumulator)
     let i1 ← 1#u32 <<< nBitsToDecode
     let i2 ← i1 - 1#u32
+    let (bitsToDecode : U32) ← ↑(accumulator &&& i2)
     let accumulator1 ← accumulator >>> nBitsToDecode
     let nBitsInAccumulator1 ← nBitsInAccumulator - nBitsToDecode
-    let i3 ← (accumulator &&& i2) <<< nBitsInCoefficient
+    let i3 ← bitsToDecode <<< nBitsInCoefficient
+    let (coefficient1 : U32) ← ↑(coefficient ||| i3)
     let nBitsInCoefficient1 ← nBitsInCoefficient + nBitsToDecode
     if nBitsPerCoefficient > nBitsInCoefficient1
     then
       ntt.SymCryptMlKemPolyElementDecodeAndDecompress.inner_loop_loop pbSrc
         nBitsPerCoefficient cbSrcRead accumulator1 nBitsInAccumulator1
-        (coefficient ||| i3) nBitsInCoefficient1
+        coefficient1 nBitsInCoefficient1
     else
-      Result.ok (cbSrcRead, accumulator1, nBitsInAccumulator1, coefficient |||
-        i3, nBitsInCoefficient1)
+      ok (cbSrcRead, accumulator1, nBitsInAccumulator1, coefficient1,
+        nBitsInCoefficient1)
 
 /- [symcrust::ntt::SymCryptMlKemPolyElementDecodeAndDecompress::inner_loop]:
    Source: 'src/ntt.rs', lines 737:8-763:9 -/
@@ -962,19 +986,19 @@ divergent def ntt.SymCryptMlKemPolyElementDecodeAndDecompress_loop
       let coefficient4 ← coefficient3 >>> 1#i32
       let coefficient5 ← ntt.SymCryptMlKemModSub coefficient4 ntt.Q
       massert (coefficient5 < ntt.Q)
-      let i2 ← Scalar.cast .U16 coefficient5
-      let peDst1 ← Array.update_usize peDst i i2
+      let (i2 : U16) ← ↑(UScalar.cast .U16 coefficient5)
+      let peDst1 ← Array.update peDst i i2
       let i3 ← i + 1#usize
       ntt.SymCryptMlKemPolyElementDecodeAndDecompress_loop pbSrc
         nBitsPerCoefficient peDst1 cbSrcRead1 accumulator1 nBitsInAccumulator1
         i3
     else
       if coefficient > ntt.Q
-      then Result.ok (ntt.MLKEM_ERROR.INVALID_BLOB, peDst)
+      then ok (ntt.MLKEM_ERROR.INVALID_BLOB, peDst)
       else
         do
-        let i1 ← Scalar.cast .U16 coefficient
-        let peDst1 ← Array.update_usize peDst i i1
+        let (i1 : U16) ← ↑(UScalar.cast .U16 coefficient)
+        let peDst1 ← Array.update peDst i i1
         let i2 ← i + 1#usize
         ntt.SymCryptMlKemPolyElementDecodeAndDecompress_loop pbSrc
           nBitsPerCoefficient peDst1 cbSrcRead1 accumulator1
@@ -982,12 +1006,12 @@ divergent def ntt.SymCryptMlKemPolyElementDecodeAndDecompress_loop
   else
     do
     massert (nBitsInAccumulator = 0#u32)
-    let i1 ← Scalar.cast .U32 ntt.MLWE_POLYNOMIAL_COEFFICIENTS
+    let (i1 : U32) ← ↑(UScalar.cast .U32 ntt.MLWE_POLYNOMIAL_COEFFICIENTS)
     let i2 ← i1 / 8#u32
     let i3 ← nBitsPerCoefficient * i2
-    let i4 ← Scalar.cast .Usize i3
+    let (i4 : Usize) ← ↑(UScalar.cast .Usize i3)
     massert (cbSrcRead = i4)
-    Result.ok (ntt.MLKEM_ERROR.NO_ERROR, peDst)
+    ok (ntt.MLKEM_ERROR.NO_ERROR, peDst)
 
 /- [symcrust::ntt::SymCryptMlKemPolyElementDecodeAndDecompress]:
    Source: 'src/ntt.rs', lines 715:0-802:1 -/
@@ -1012,70 +1036,77 @@ divergent def ntt.SymCryptMlKemPolyElementSampleNTTFromShake128_loop
   if i < ntt.MLWE_POLYNOMIAL_COEFFICIENTS
   then
     do
-    let s ← Array.to_slice shakeOutputBuf
+    let (s : Slice U8) ← ↑(Array.to_slice shakeOutputBuf)
     let i1 := Slice.len s
     massert (currBufIndex <= i1)
-    let i2 := Slice.len s
+    let (s1 : Slice U8) ← ↑(Array.to_slice shakeOutputBuf)
+    let i2 := Slice.len s1
     if currBufIndex = i2
     then
       do
-      let (s1, to_slice_mut_back) ← Array.to_slice_mut shakeOutputBuf
-      let (pState1, s2) ← ntt.SymCryptShake128Extract pState s1 false
-      let shakeOutputBuf1 := to_slice_mut_back s2
-      let s3 ← Array.to_slice shakeOutputBuf1
-      let a ← ntt.slice_to_sub_array 2#usize s3 0#usize
-      let i3 := core.num.U16.from_le_bytes a
+      let ((s2, to_slice_mut_back) : ((Slice U8) × (Slice U8 → Array U8
+        24#usize))) ← ↑(Array.to_slice_mut shakeOutputBuf)
+      let (pState1, s3) ← ntt.SymCryptShake128Extract pState s2 false
+      let shakeOutputBuf1 := to_slice_mut_back s3
+      let (s4 : Slice U8) ← ↑(Array.to_slice shakeOutputBuf1)
+      let a ← ntt.slice_to_sub_array 2#usize s4 0#usize
+      let (i3 : U16) ← ↑(core.num.U16.from_le_bytes a)
+      let (sample0 : U16) ← ↑(i3 &&& 4095#u16)
+      let (s5 : Slice U8) ← ↑(Array.to_slice shakeOutputBuf1)
       let i4 ← 0#usize + 1#usize
-      let a1 ← ntt.slice_to_sub_array 2#usize s3 i4
-      let i5 := core.num.U16.from_le_bytes a1
+      let a1 ← ntt.slice_to_sub_array 2#usize s5 i4
+      let (i5 : U16) ← ↑(core.num.U16.from_le_bytes a1)
       let sample1 ← i5 >>> 4#i32
       let currBufIndex1 ← 0#usize + 3#usize
-      let i6 ← Scalar.cast .U32 (i3 &&& 4095#u16)
-      let i7 ← Scalar.cast_bool .Usize (i6 < ntt.Q)
+      let (i6 : U32) ← ↑(UScalar.cast .U32 sample0)
+      let (i7 : Usize) ← ↑(UScalar.cast_fromBool .Usize (i6 < ntt.Q))
       let i8 ← i + i7
       if i8 < ntt.MLWE_POLYNOMIAL_COEFFICIENTS
       then
         do
-        let peDst1 ← Array.update_usize peDst i (i3 &&& 4095#u16)
-        let peDst2 ← Array.update_usize peDst1 i8 sample1
-        let i9 ← Scalar.cast .U32 sample1
-        let i10 ← Scalar.cast_bool .Usize (i9 < ntt.Q)
+        let peDst1 ← Array.update peDst i sample0
+        let peDst2 ← Array.update peDst1 i8 sample1
+        let (i9 : U32) ← ↑(UScalar.cast .U32 sample1)
+        let (i10 : Usize) ← ↑(UScalar.cast_fromBool .Usize (i9 < ntt.Q))
         let i11 ← i8 + i10
         ntt.SymCryptMlKemPolyElementSampleNTTFromShake128_loop pState1 peDst2
           i11 shakeOutputBuf1 currBufIndex1
       else
         do
-        let peDst1 ← Array.update_usize peDst i (i3 &&& 4095#u16)
+        let peDst1 ← Array.update peDst i sample0
         ntt.SymCryptMlKemPolyElementSampleNTTFromShake128_loop pState1 peDst1
           i8 shakeOutputBuf1 currBufIndex1
     else
       do
-      let a ← ntt.slice_to_sub_array 2#usize s currBufIndex
-      let i3 := core.num.U16.from_le_bytes a
+      let (s2 : Slice U8) ← ↑(Array.to_slice shakeOutputBuf)
+      let a ← ntt.slice_to_sub_array 2#usize s2 currBufIndex
+      let (i3 : U16) ← ↑(core.num.U16.from_le_bytes a)
+      let (sample0 : U16) ← ↑(i3 &&& 4095#u16)
+      let (s3 : Slice U8) ← ↑(Array.to_slice shakeOutputBuf)
       let i4 ← currBufIndex + 1#usize
-      let a1 ← ntt.slice_to_sub_array 2#usize s i4
-      let i5 := core.num.U16.from_le_bytes a1
+      let a1 ← ntt.slice_to_sub_array 2#usize s3 i4
+      let (i5 : U16) ← ↑(core.num.U16.from_le_bytes a1)
       let sample1 ← i5 >>> 4#i32
       let currBufIndex1 ← currBufIndex + 3#usize
-      let i6 ← Scalar.cast .U32 (i3 &&& 4095#u16)
-      let i7 ← Scalar.cast_bool .Usize (i6 < ntt.Q)
+      let (i6 : U32) ← ↑(UScalar.cast .U32 sample0)
+      let (i7 : Usize) ← ↑(UScalar.cast_fromBool .Usize (i6 < ntt.Q))
       let i8 ← i + i7
       if i8 < ntt.MLWE_POLYNOMIAL_COEFFICIENTS
       then
         do
-        let peDst1 ← Array.update_usize peDst i (i3 &&& 4095#u16)
-        let peDst2 ← Array.update_usize peDst1 i8 sample1
-        let i9 ← Scalar.cast .U32 sample1
-        let i10 ← Scalar.cast_bool .Usize (i9 < ntt.Q)
+        let peDst1 ← Array.update peDst i sample0
+        let peDst2 ← Array.update peDst1 i8 sample1
+        let (i9 : U32) ← ↑(UScalar.cast .U32 sample1)
+        let (i10 : Usize) ← ↑(UScalar.cast_fromBool .Usize (i9 < ntt.Q))
         let i11 ← i8 + i10
         ntt.SymCryptMlKemPolyElementSampleNTTFromShake128_loop pState peDst2
           i11 shakeOutputBuf currBufIndex1
       else
         do
-        let peDst1 ← Array.update_usize peDst i (i3 &&& 4095#u16)
+        let peDst1 ← Array.update peDst i sample0
         ntt.SymCryptMlKemPolyElementSampleNTTFromShake128_loop pState peDst1 i8
           shakeOutputBuf currBufIndex1
-  else Result.ok (pState, peDst)
+  else ok (pState, peDst)
 
 /- [symcrust::ntt::SymCryptMlKemPolyElementSampleNTTFromShake128]:
    Source: 'src/ntt.rs', lines 814:0-846:1 -/
@@ -1085,7 +1116,7 @@ def ntt.SymCryptMlKemPolyElementSampleNTTFromShake128
   :=
   do
   let shakeOutputBuf := Array.repeat 24#usize 0#u8
-  let s ← Array.to_slice shakeOutputBuf
+  let (s : Slice U8) ← ↑(Array.to_slice shakeOutputBuf)
   let currBufIndex := Slice.len s
   ntt.SymCryptMlKemPolyElementSampleNTTFromShake128_loop pState peDst 0#usize
     shakeOutputBuf currBufIndex
@@ -1100,38 +1131,43 @@ divergent def
   if j < 8#usize
   then
     do
+    let (coefficient : U32) ← ↑(sampleBits &&& 15#u32)
     let sampleBits1 ← sampleBits >>> 4#i32
-    let i1 ← (sampleBits &&& 15#u32) >>> 2#i32
-    let coefficient ← ((sampleBits &&& 15#u32) &&& 3#u32) - i1
-    let i2 ← Scalar.cast .U32 (-2)#i32
-    if coefficient >= i2
+    let (i1 : U32) ← ↑(coefficient &&& 3#u32)
+    let i2 ← coefficient >>> 2#i32
+    let coefficient1 ← i1 - i2
+    let (i3 : U32) ← ↑(IScalar.hcast .U32 (-2)#i32)
+    if coefficient1 >= i3
     then
       do
-      let i3 ← coefficient >>> 16#i32
-      let coefficient1 ← coefficient + (ntt.Q &&& i3)
-      massert (coefficient1 < ntt.Q)
-      let i4 ← i + j
-      let i5 ← Scalar.cast .U16 coefficient1
-      let peDst1 ← Array.update_usize peDst i4 i5
+      let i4 ← coefficient1 >>> 16#i32
+      let (i5 : U32) ← ↑(ntt.Q &&& i4)
+      let coefficient2 ← coefficient1 + i5
+      massert (coefficient2 < ntt.Q)
+      let i6 ← i + j
+      let (i7 : U16) ← ↑(UScalar.cast .U16 coefficient2)
+      let peDst1 ← Array.update peDst i6 i7
       let j1 ← j + 1#usize
       ntt.SymCryptMlKemPolyElementSampleCBDFromBytes.else_inner_loop_loop
         peDst1 i sampleBits1 j1
     else
       do
-      massert (coefficient <= 2#u32)
-      let i3 ← coefficient >>> 16#i32
-      let coefficient1 ← coefficient + (ntt.Q &&& i3)
-      massert (coefficient1 < ntt.Q)
-      let i4 ← i + j
-      let i5 ← Scalar.cast .U16 coefficient1
-      let peDst1 ← Array.update_usize peDst i4 i5
+      massert (coefficient1 <= 2#u32)
+      let i4 ← coefficient1 >>> 16#i32
+      let (i5 : U32) ← ↑(ntt.Q &&& i4)
+      let coefficient2 ← coefficient1 + i5
+      massert (coefficient2 < ntt.Q)
+      let i6 ← i + j
+      let (i7 : U16) ← ↑(UScalar.cast .U16 coefficient2)
+      let peDst1 ← Array.update peDst i6 i7
       let j1 ← j + 1#usize
       ntt.SymCryptMlKemPolyElementSampleCBDFromBytes.else_inner_loop_loop
         peDst1 i sampleBits1 j1
-  else Result.ok (peDst, sampleBits)
+  else ok (peDst, sampleBits)
 
 /- [symcrust::ntt::SymCryptMlKemPolyElementSampleCBDFromBytes::else_inner_loop]:
    Source: 'src/ntt.rs', lines 901:12-916:13 -/
+@[reducible]
 def ntt.SymCryptMlKemPolyElementSampleCBDFromBytes.else_inner_loop
   (peDst : Array U16 256#usize) (i : Usize) (sampleBits : U32) :
   Result ((Array U16 256#usize) × U32)
@@ -1149,38 +1185,43 @@ divergent def
   if j < 4#usize
   then
     do
+    let (coefficient : U32) ← ↑(sampleBits &&& 63#u32)
     let sampleBits1 ← sampleBits >>> 6#i32
-    let i1 ← (sampleBits &&& 63#u32) >>> 3#i32
-    let coefficient ← ((sampleBits &&& 63#u32) &&& 3#u32) - i1
-    let i2 ← Scalar.cast .U32 (-3)#i32
-    if coefficient >= i2
+    let (i1 : U32) ← ↑(coefficient &&& 3#u32)
+    let i2 ← coefficient >>> 3#i32
+    let coefficient1 ← i1 - i2
+    let (i3 : U32) ← ↑(IScalar.hcast .U32 (-3)#i32)
+    if coefficient1 >= i3
     then
       do
-      let i3 ← coefficient >>> 16#i32
-      let coefficient1 ← coefficient + (ntt.Q &&& i3)
-      massert (coefficient1 < ntt.Q)
-      let i4 ← i + j
-      let i5 ← Scalar.cast .U16 coefficient1
-      let peDst1 ← Array.update_usize peDst i4 i5
+      let i4 ← coefficient1 >>> 16#i32
+      let (i5 : U32) ← ↑(ntt.Q &&& i4)
+      let coefficient2 ← coefficient1 + i5
+      massert (coefficient2 < ntt.Q)
+      let i6 ← i + j
+      let (i7 : U16) ← ↑(UScalar.cast .U16 coefficient2)
+      let peDst1 ← Array.update peDst i6 i7
       let j1 ← j + 1#usize
       ntt.SymCryptMlKemPolyElementSampleCBDFromBytes.then_inner_loop_loop
         peDst1 i sampleBits1 j1
     else
       do
-      massert (coefficient <= 3#u32)
-      let i3 ← coefficient >>> 16#i32
-      let coefficient1 ← coefficient + (ntt.Q &&& i3)
-      massert (coefficient1 < ntt.Q)
-      let i4 ← i + j
-      let i5 ← Scalar.cast .U16 coefficient1
-      let peDst1 ← Array.update_usize peDst i4 i5
+      massert (coefficient1 <= 3#u32)
+      let i4 ← coefficient1 >>> 16#i32
+      let (i5 : U32) ← ↑(ntt.Q &&& i4)
+      let coefficient2 ← coefficient1 + i5
+      massert (coefficient2 < ntt.Q)
+      let i6 ← i + j
+      let (i7 : U16) ← ↑(UScalar.cast .U16 coefficient2)
+      let peDst1 ← Array.update peDst i6 i7
       let j1 ← j + 1#usize
       ntt.SymCryptMlKemPolyElementSampleCBDFromBytes.then_inner_loop_loop
         peDst1 i sampleBits1 j1
-  else Result.ok (peDst, sampleBits)
+  else ok (peDst, sampleBits)
 
 /- [symcrust::ntt::SymCryptMlKemPolyElementSampleCBDFromBytes::then_inner_loop]:
    Source: 'src/ntt.rs', lines 870:12-885:13 -/
+@[reducible]
 def ntt.SymCryptMlKemPolyElementSampleCBDFromBytes.then_inner_loop
   (peDst : Array U16 256#usize) (i : Usize) (sampleBits : U32) :
   Result ((Array U16 256#usize) × U32)
@@ -1199,18 +1240,21 @@ divergent def ntt.SymCryptMlKemPolyElementSampleCBDFromBytes_loop0
   then
     do
     let a ← ntt.slice_to_sub_array 4#usize pbSrc src_i
-    let sampleBits := core.num.U32.from_le_bytes a
+    let (sampleBits : U32) ← ↑(core.num.U32.from_le_bytes a)
     let src_i1 ← src_i + 3#usize
-    let i1 ← sampleBits >>> 1#i32
-    let i2 ← (sampleBits &&& 2396745#u32) + (i1 &&& 2396745#u32)
-    let i3 ← sampleBits >>> 2#i32
-    let sampleBits1 ← i2 + (i3 &&& 2396745#u32)
+    let (i1 : U32) ← ↑(sampleBits &&& 2396745#u32)
+    let i2 ← sampleBits >>> 1#i32
+    let (i3 : U32) ← ↑(i2 &&& 2396745#u32)
+    let i4 ← i1 + i3
+    let i5 ← sampleBits >>> 2#i32
+    let (i6 : U32) ← ↑(i5 &&& 2396745#u32)
+    let sampleBits1 ← i4 + i6
     let (peDst1, _) ←
       ntt.SymCryptMlKemPolyElementSampleCBDFromBytes.then_inner_loop peDst i
         sampleBits1
-    let i4 ← i + 1#usize
-    ntt.SymCryptMlKemPolyElementSampleCBDFromBytes_loop0 pbSrc peDst1 src_i1 i4
-  else Result.ok peDst
+    let i7 ← i + 1#usize
+    ntt.SymCryptMlKemPolyElementSampleCBDFromBytes_loop0 pbSrc peDst1 src_i1 i7
+  else ok peDst
 
 /- [symcrust::ntt::SymCryptMlKemPolyElementSampleCBDFromBytes]: loop 1:
    Source: 'src/ntt.rs', lines 44:8-918:9 -/
@@ -1223,17 +1267,18 @@ divergent def ntt.SymCryptMlKemPolyElementSampleCBDFromBytes_loop1
   then
     do
     let a ← ntt.slice_to_sub_array 4#usize pbSrc src_i
-    let sampleBits := core.num.U32.from_le_bytes a
+    let (sampleBits : U32) ← ↑(core.num.U32.from_le_bytes a)
     let src_i1 ← src_i + 4#usize
-    let i1 ← sampleBits >>> 1#i32
-    let sampleBits1 ← (sampleBits &&& 1431655765#u32) + (i1 &&&
-      1431655765#u32)
+    let (i1 : U32) ← ↑(sampleBits &&& 1431655765#u32)
+    let i2 ← sampleBits >>> 1#i32
+    let (i3 : U32) ← ↑(i2 &&& 1431655765#u32)
+    let sampleBits1 ← i1 + i3
     let (peDst1, _) ←
       ntt.SymCryptMlKemPolyElementSampleCBDFromBytes.else_inner_loop peDst i
         sampleBits1
-    let i2 ← i + 1#usize
-    ntt.SymCryptMlKemPolyElementSampleCBDFromBytes_loop1 pbSrc peDst1 src_i1 i2
-  else Result.ok peDst
+    let i4 ← i + 1#usize
+    ntt.SymCryptMlKemPolyElementSampleCBDFromBytes_loop1 pbSrc peDst1 src_i1 i4
+  else ok peDst
 
 /- [symcrust::ntt::SymCryptMlKemPolyElementSampleCBDFromBytes]: loop 2:
    Source: 'src/ntt.rs', lines 44:8-887:9 -/
@@ -1246,18 +1291,21 @@ divergent def ntt.SymCryptMlKemPolyElementSampleCBDFromBytes_loop2
   then
     do
     let a ← ntt.slice_to_sub_array 4#usize pbSrc src_i
-    let sampleBits := core.num.U32.from_le_bytes a
+    let (sampleBits : U32) ← ↑(core.num.U32.from_le_bytes a)
     let src_i1 ← src_i + 3#usize
-    let i1 ← sampleBits >>> 1#i32
-    let i2 ← (sampleBits &&& 2396745#u32) + (i1 &&& 2396745#u32)
-    let i3 ← sampleBits >>> 2#i32
-    let sampleBits1 ← i2 + (i3 &&& 2396745#u32)
+    let (i1 : U32) ← ↑(sampleBits &&& 2396745#u32)
+    let i2 ← sampleBits >>> 1#i32
+    let (i3 : U32) ← ↑(i2 &&& 2396745#u32)
+    let i4 ← i1 + i3
+    let i5 ← sampleBits >>> 2#i32
+    let (i6 : U32) ← ↑(i5 &&& 2396745#u32)
+    let sampleBits1 ← i4 + i6
     let (peDst1, _) ←
       ntt.SymCryptMlKemPolyElementSampleCBDFromBytes.then_inner_loop peDst i
         sampleBits1
-    let i4 ← i + 1#usize
-    ntt.SymCryptMlKemPolyElementSampleCBDFromBytes_loop2 pbSrc peDst1 src_i1 i4
-  else Result.ok peDst
+    let i7 ← i + 1#usize
+    ntt.SymCryptMlKemPolyElementSampleCBDFromBytes_loop2 pbSrc peDst1 src_i1 i7
+  else ok peDst
 
 /- [symcrust::ntt::SymCryptMlKemPolyElementSampleCBDFromBytes]: loop 3:
    Source: 'src/ntt.rs', lines 44:8-918:9 -/
@@ -1270,17 +1318,18 @@ divergent def ntt.SymCryptMlKemPolyElementSampleCBDFromBytes_loop3
   then
     do
     let a ← ntt.slice_to_sub_array 4#usize pbSrc src_i
-    let sampleBits := core.num.U32.from_le_bytes a
+    let (sampleBits : U32) ← ↑(core.num.U32.from_le_bytes a)
     let src_i1 ← src_i + 4#usize
-    let i1 ← sampleBits >>> 1#i32
-    let sampleBits1 ← (sampleBits &&& 1431655765#u32) + (i1 &&&
-      1431655765#u32)
+    let (i1 : U32) ← ↑(sampleBits &&& 1431655765#u32)
+    let i2 ← sampleBits >>> 1#i32
+    let (i3 : U32) ← ↑(i2 &&& 1431655765#u32)
+    let sampleBits1 ← i1 + i3
     let (peDst1, _) ←
       ntt.SymCryptMlKemPolyElementSampleCBDFromBytes.else_inner_loop peDst i
         sampleBits1
-    let i2 ← i + 1#usize
-    ntt.SymCryptMlKemPolyElementSampleCBDFromBytes_loop3 pbSrc peDst1 src_i1 i2
-  else Result.ok peDst
+    let i4 ← i + 1#usize
+    ntt.SymCryptMlKemPolyElementSampleCBDFromBytes_loop3 pbSrc peDst1 src_i1 i4
+  else ok peDst
 
 /- [symcrust::ntt::SymCryptMlKemPolyElementSampleCBDFromBytes]:
    Source: 'src/ntt.rs', lines 848:0-920:1 -/
@@ -1332,10 +1381,10 @@ divergent def ntt.SymCryptMlKemMatrixTranspose.inner_loop_loop
       fun ret =>
         let a1 := back ret
         (swap_back { m with apPolyElements := a1 }).apPolyElements
-    Result.ok (m1, back1)
+    ok (m1, back1)
   else
     let back := fun ret => ret.apPolyElements
-    Result.ok ({ nRows := i, apPolyElements := a }, back)
+    ok ({ nRows := i, apPolyElements := a }, back)
 
 /- [symcrust::ntt::SymCryptMlKemMatrixTranspose::inner_loop]:
    Source: 'src/ntt.rs', lines 948:8-954:9 -/
@@ -1350,7 +1399,7 @@ def ntt.SymCryptMlKemMatrixTranspose.inner_loop
       pmSrc.apPolyElements nRows i j
   let back1 := fun ret => let a := back ret
                           { pmSrc with apPolyElements := a }
-  Result.ok (m, back1)
+  ok (m, back1)
 
 /- [symcrust::ntt::SymCryptMlKemMatrixTranspose]: loop 0:
    Source: 'src/ntt.rs', lines 44:8-956:5 -/
@@ -1372,10 +1421,10 @@ divergent def ntt.SymCryptMlKemMatrixTranspose_loop
       fun ret =>
         let a1 := back ret
         (inner_loop_back { m with apPolyElements := a1 }).apPolyElements
-    Result.ok (m1, back1)
+    ok (m1, back1)
   else
     let back := fun ret => ret.apPolyElements
-    Result.ok ({ nRows, apPolyElements := a }, back)
+    ok ({ nRows, apPolyElements := a }, back)
 
 /- [symcrust::ntt::SymCryptMlKemMatrixTranspose]:
    Source: 'src/ntt.rs', lines 936:0-958:1 -/
@@ -1389,7 +1438,7 @@ def ntt.SymCryptMlKemMatrixTranspose
       pmSrc.nRows 0#usize
   let back1 := fun ret => let a := back ret
                           { pmSrc with apPolyElements := a }
-  Result.ok (m, back1)
+  ok (m, back1)
 
 /- [symcrust::ntt::SymCryptMlKemMatrixVectorMontMulAndAdd::inner_loop]: loop 0:
    Source: 'src/ntt.rs', lines 44:8-1008:13 -/
@@ -1416,10 +1465,10 @@ divergent def ntt.SymCryptMlKemMatrixVectorMontMulAndAdd.inner_loop_loop
         let a2 := back'a ret
         (SymCryptMlKemPolyElementMulAndAccumulate_aux_back
            { m with apPolyElements := a2 }).apPolyElements
-    Result.ok (m1, back'a1, paTmp2)
+    ok (m1, back'a1, paTmp2)
   else
     let back'a := fun ret => ret.apPolyElements
-    Result.ok ({ nRows := i, apPolyElements := a }, back'a, paTmp)
+    ok ({ nRows := i, apPolyElements := a }, back'a, paTmp)
 
 /- [symcrust::ntt::SymCryptMlKemMatrixVectorMontMulAndAdd::inner_loop]:
    Source: 'src/ntt.rs', lines 999:8-1010:9 -/
@@ -1435,7 +1484,7 @@ def ntt.SymCryptMlKemMatrixVectorMontMulAndAdd.inner_loop
   let back'a1 :=
     fun ret => let a := back'a ret
                { pmSrc1 with apPolyElements := a }
-  Result.ok (m, back'a1, paTmp1)
+  ok (m, back'a1, paTmp1)
 
 /- [symcrust::ntt::SymCryptMlKemMatrixVectorMontMulAndAdd]: loop 0:
    Source: 'src/ntt.rs', lines 44:8-1015:5 -/
@@ -1465,10 +1514,10 @@ divergent def ntt.SymCryptMlKemMatrixVectorMontMulAndAdd_loop
       fun ret =>
         let a3 := back'a ret
         (inner_loop_back { m with apPolyElements := a3 }).apPolyElements
-    Result.ok (m1, back'a1, pvDst2, paTmp3)
+    ok (m1, back'a1, pvDst2, paTmp3)
   else
     let back'a := fun ret => ret.apPolyElements
-    Result.ok ({ nRows, apPolyElements := a }, back'a, pvDst, paTmp)
+    ok ({ nRows, apPolyElements := a }, back'a, pvDst, paTmp)
 
 /- [symcrust::ntt::SymCryptMlKemMatrixVectorMontMulAndAdd]:
    Source: 'src/ntt.rs', lines 977:0-1017:1 -/
@@ -1491,7 +1540,7 @@ def ntt.SymCryptMlKemMatrixVectorMontMulAndAdd
   let back'a1 :=
     fun ret => let a := back'a ret
                { pmSrc1 with apPolyElements := a }
-  Result.ok (m, back'a1, pvDst1, paTmp1)
+  ok (m, back'a1, pvDst1, paTmp1)
 
 /- [symcrust::ntt::SymCryptMlKemVectorMontDotProduct]: loop 0:
    Source: 'src/ntt.rs', lines 44:8-1041:5 -/
@@ -1515,7 +1564,7 @@ divergent def ntt.SymCryptMlKemVectorMontDotProduct_loop
     let (paTmp1, _) ←
       ntt.SymCryptMlKemMontgomeryReduceAndAddPolyElementAccumulatorToPolyElement
         paTmp peDst
-    Result.ok paTmp1
+    ok paTmp1
 
 /- [symcrust::ntt::SymCryptMlKemVectorMontDotProduct]:
    Source: 'src/ntt.rs', lines 1020:0-1045:1 -/
@@ -1534,7 +1583,7 @@ def ntt.SymCryptMlKemVectorMontDotProduct
   let paTmp1 ←
     ntt.SymCryptMlKemVectorMontDotProduct_loop pvSrc1 pvSrc2 peDst paTmp nRows
       0#usize
-  Result.ok (pvSrc1, pvSrc2, peDst, paTmp1)
+  ok (pvSrc1, pvSrc2, peDst, paTmp1)
 
 /- [symcrust::ntt::SymCryptMlKemVectorSetZero]:
    Source: 'src/ntt.rs', lines 1047:0-1059:1 -/
@@ -1546,7 +1595,7 @@ def ntt.SymCryptMlKemVectorSetZero
   let nRows := Slice.len pvSrc
   massert (nRows > 0#usize)
   massert (nRows <= ntt.MATRIX_MAX_NROWS)
-  Result.ok pvSrc
+  ok pvSrc
 
 /- [symcrust::ntt::SymCryptMlKemVectorMulR]: loop 0:
    Source: 'src/ntt.rs', lines 44:8-1075:5 -/
@@ -1564,7 +1613,7 @@ divergent def ntt.SymCryptMlKemVectorMulR_loop
     let i1 ← i + 1#usize
     let pvDst1 := index_mut_back a2
     ntt.SymCryptMlKemVectorMulR_loop pvSrc pvDst1 nRows i1
-  else Result.ok pvDst
+  else ok pvDst
 
 /- [symcrust::ntt::SymCryptMlKemVectorMulR]:
    Source: 'src/ntt.rs', lines 1061:0-1076:1 -/
@@ -1597,7 +1646,7 @@ divergent def ntt.SymCryptMlKemVectorAdd_loop
     let i1 ← i + 1#usize
     let pvDst1 := index_mut_back a3
     ntt.SymCryptMlKemVectorAdd_loop pvSrc1 pvSrc2 pvDst1 nRows i1
-  else Result.ok pvDst
+  else ok pvDst
 
 /- [symcrust::ntt::SymCryptMlKemVectorAdd]:
    Source: 'src/ntt.rs', lines 1078:0-1095:1 -/
@@ -1633,7 +1682,7 @@ divergent def ntt.SymCryptMlKemVectorSub_loop
     let i1 ← i + 1#usize
     let pvDst1 := index_mut_back a3
     ntt.SymCryptMlKemVectorSub_loop pvSrc1 pvSrc2 pvDst1 nRows i1
-  else Result.ok pvDst
+  else ok pvDst
 
 /- [symcrust::ntt::SymCryptMlKemVectorSub]:
    Source: 'src/ntt.rs', lines 1097:0-1114:1 -/
@@ -1666,7 +1715,7 @@ divergent def ntt.SymCryptMlKemVectorNTT_loop
     let i1 ← i + 1#usize
     let pvSrc1 := index_mut_back a1
     ntt.SymCryptMlKemVectorNTT_loop pvSrc1 nRows i1
-  else Result.ok pvSrc
+  else ok pvSrc
 
 /- [symcrust::ntt::SymCryptMlKemVectorNTT]:
    Source: 'src/ntt.rs', lines 1116:0-1129:1 -/
@@ -1694,7 +1743,7 @@ divergent def ntt.SymCryptMlKemVectorINTTAndMulR_loop
     let i1 ← i + 1#usize
     let pvSrc1 := index_mut_back a1
     ntt.SymCryptMlKemVectorINTTAndMulR_loop pvSrc1 nRows i1
-  else Result.ok pvSrc
+  else ok pvSrc
 
 /- [symcrust::ntt::SymCryptMlKemVectorINTTAndMulR]:
    Source: 'src/ntt.rs', lines 1131:0-1144:1 -/
@@ -1718,14 +1767,14 @@ divergent def ntt.SymCryptMlKemVectorCompressAndEncode_loop
   if i < nRows
   then
     do
-    let i1 ← Scalar.cast .Usize nBitsPerCoefficient
+    let (i1 : Usize) ← ↑(UScalar.cast .Usize nBitsPerCoefficient)
     let i2 ← i * i1
     let i3 ← ntt.MLWE_POLYNOMIAL_COEFFICIENTS / 8#usize
     let pbDst_index ← i2 * i3
     let a ← Slice.index_usize pvSrc i
     let (s, index_mut_back) ←
       core.slice.index.Slice.index_mut
-        (core.slice.index.SliceIndexcoreopsrangeRangeFromUsizeSlice U8) pbDst
+        (core.slice.index.SliceIndexRangeFromUsizeSlice U8) pbDst
         { start := pbDst_index }
     let s1 ←
       ntt.SymCryptMlKemPolyElementCompressAndEncode a nBitsPerCoefficient s
@@ -1733,7 +1782,7 @@ divergent def ntt.SymCryptMlKemVectorCompressAndEncode_loop
     let pbDst1 := index_mut_back s1
     ntt.SymCryptMlKemVectorCompressAndEncode_loop pvSrc nBitsPerCoefficient
       pbDst1 nRows i4
-  else Result.ok pbDst
+  else ok pbDst
 
 /- [symcrust::ntt::SymCryptMlKemVectorCompressAndEncode]:
    Source: 'src/ntt.rs', lines 1146:0-1168:1 -/
@@ -1748,10 +1797,10 @@ def ntt.SymCryptMlKemVectorCompressAndEncode
   massert (nRows <= ntt.MATRIX_MAX_NROWS)
   massert (nBitsPerCoefficient > 0#u32)
   massert (nBitsPerCoefficient <= 12#u32)
-  let i ← Scalar.cast .U32 ntt.MLWE_POLYNOMIAL_COEFFICIENTS
+  let (i : U32) ← ↑(UScalar.cast .U32 ntt.MLWE_POLYNOMIAL_COEFFICIENTS)
   let i1 ← i / 8#u32
   let i2 ← nBitsPerCoefficient * i1
-  let i3 ← Scalar.cast .Usize i2
+  let (i3 : Usize) ← ↑(UScalar.cast .Usize i2)
   let i4 ← nRows * i3
   massert (cbDst = i4)
   ntt.SymCryptMlKemVectorCompressAndEncode_loop pvSrc nBitsPerCoefficient pbDst
@@ -1767,13 +1816,13 @@ divergent def ntt.SymCryptMlKemVectorDecodeAndDecompress_loop
   if i < nRows
   then
     do
-    let i1 ← Scalar.cast .Usize nBitsPerCoefficient
+    let (i1 : Usize) ← ↑(UScalar.cast .Usize nBitsPerCoefficient)
     let i2 ← i * i1
     let i3 ← ntt.MLWE_POLYNOMIAL_COEFFICIENTS / 8#usize
     let pbSrc_index ← i2 * i3
     let s ←
       core.slice.index.Slice.index
-        (core.slice.index.SliceIndexcoreopsrangeRangeFromUsizeSlice U8) pbSrc
+        (core.slice.index.SliceIndexRangeFromUsizeSlice U8) pbSrc
         { start := pbSrc_index }
     let (a, index_mut_back) ← Slice.index_mut_usize pvDst i
     let (scError, a1) ←
@@ -1781,14 +1830,14 @@ divergent def ntt.SymCryptMlKemVectorDecodeAndDecompress_loop
     match scError with
     | ntt.MLKEM_ERROR.NO_ERROR =>
       let pvDst1 := index_mut_back a1
-      Result.ok (ntt.MLKEM_ERROR.NO_ERROR, pvDst1)
+      ok (ntt.MLKEM_ERROR.NO_ERROR, pvDst1)
     | ntt.MLKEM_ERROR.INVALID_BLOB =>
       do
       let i4 ← i + 1#usize
       let pvDst1 := index_mut_back a1
       ntt.SymCryptMlKemVectorDecodeAndDecompress_loop pbSrc nBitsPerCoefficient
         pvDst1 nRows i4
-  else Result.ok (ntt.MLKEM_ERROR.NO_ERROR, pvDst)
+  else ok (ntt.MLKEM_ERROR.NO_ERROR, pvDst)
 
 /- [symcrust::ntt::SymCryptMlKemVectorDecodeAndDecompress]:
    Source: 'src/ntt.rs', lines 1170:0-1192:1 -/
@@ -1803,7 +1852,7 @@ def ntt.SymCryptMlKemVectorDecodeAndDecompress
   massert (nRows <= ntt.MATRIX_MAX_NROWS)
   massert (nBitsPerCoefficient > 0#u32)
   massert (nBitsPerCoefficient <= 12#u32)
-  let i ← Scalar.cast .Usize nBitsPerCoefficient
+  let (i : Usize) ← ↑(UScalar.cast .Usize nBitsPerCoefficient)
   let i1 ← nRows * i
   let i2 ← ntt.MLWE_POLYNOMIAL_COEFFICIENTS / 8#usize
   let i3 ← i1 * i2

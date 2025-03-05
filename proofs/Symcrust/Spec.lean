@@ -1,12 +1,8 @@
-import Aeneas
-import Aeneas.List
 import Mathlib.Data.List.Defs
 import Mathlib.Data.ZMod.Defs
 import Mathlib.Data.Nat.Bits
+import Aeneas
 
-import Symcrust.SRRange
-import Symcrust.DivRange
-import Symcrust.MulRange
 import Symcrust.NatBit
 
 /-!
@@ -40,6 +36,10 @@ def bitsToBytes (b : List Bool) : List Byte := Id.run do
     B := B.set (i/8) (B.get! (i/8) + ((b.get! i).toUInt8 * ((2 ^(i%8) : Nat).toUInt8)))
   pure B
 
+/--
+info: [10, 1]
+-/
+#guard_msgs in
 #eval bitsToBytes [false, true, false, true, false, false, false, false,
                    true, false, false, false, false, false, false, false]
 

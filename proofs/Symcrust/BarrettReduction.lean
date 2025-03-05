@@ -1,56 +1,13 @@
 import Mathlib.Tactic.Qify
 import Mathlib.Data.Rat.Floor
 
-import Symcrust.Arith
-
 import Aeneas
 
 namespace Symcrust
 
+open Aeneas.Arith
+
 set_option maxHeartbeats 1000000
-
--- We have to prove a few inequalities involving non-linear arithmetic
-set_option scalarTac.nonLin true
-
-theorem bmod_eq_emod_eq_iff (n: ℕ) (a b: ℤ) :
-  (a % n = b % n) ↔ (Int.bmod a n = Int.bmod b n) := by
-  simp only [Int.bmod]
-  apply Iff.intro <;> intro h
-  . rw [h]
-  . if h_a: a % n < (n + 1) / 2 then
-      if h_b: b % n < (n + 1) / 2 then
-        simp only [h_a, ↓reduceIte, h_b] at h
-        exact h
-      else
-        simp only [h_a, ↓reduceIte, h_b] at h
-        have ha' : 0 ≤ a % n := by apply Int.emod_nonneg; linarith
-        have hb' : b % n - n < 0 := by
-          have h : b % n < n := by apply Int.emod_lt_of_pos; linarith
-          linarith
-        linarith
-    else
-      if h_b: b % n < (n + 1) / 2 then
-        simp only [h_a, ↓reduceIte, h_b] at h
-        have ha' : 0 ≤ b % n := by apply Int.emod_nonneg; linarith
-        have hb' : a % n - n < 0 := by
-          have h : a % n < n := by apply Int.emod_lt_of_pos; linarith
-          linarith
-        linarith
-      else
-        simp only [h_a, ↓reduceIte, h_b, sub_left_inj] at h
-        exact h
-
-theorem ZMod_int_cast_eq_int_cast_bmod_iff (n : ℕ) (a b : ℤ) :
-  ((a : ZMod n) = (b : ZMod n)) ↔ (Int.bmod a n = Int.bmod b n) := by
-  apply Iff.trans
-  apply ZMod_int_cast_eq_int_cast_iff
-  apply bmod_eq_emod_eq_iff
-
-/- Admitted for now, proving equality equivalence between bmod and ZMod -/
-theorem ZMod_eq_imp_bmod_eq {n : ℕ} {a b : ℤ}
-  (h : (a : ZMod n) = (b : ZMod n)) :
-  Int.bmod a n = Int.bmod b n :=
-  (@ZMod_int_cast_eq_int_cast_bmod_iff n a b).mp h
 
 /-- The rounding of `x` to the nearest integer.
     If `x = y + 1/2` for some `y ∈ ℤ` then `round(x) = y + 1`
@@ -108,7 +65,7 @@ private theorem barrett_reduce_lemma (x: Int) (m: Nat) (h_m: 0 < m) :
         _ = 2 * (x % m) + m := by
           simp only [Int.add_emod_emod]
           apply Int.emod_eq_of_lt
-          . int_tac
+          . scalar_tac +nonLin
           . omega
 
       rw [h1] at heq; clear h1

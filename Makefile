@@ -22,12 +22,12 @@ build:
 
 .PHONY: extract
 extract: symcrust.llbc proofs/Symcrust/Funs.lean proofs/Symcrust/FunsExternal_Template.lean proofs/Symcrust/Types.lean
-	$(AENEAS_EXE) -backend lean symcrust.llbc $(AENEAS_OPTIONS) -dest proofs -split-files -no-gen-lib-entry
+	$(AENEAS_EXE) -backend lean symcrust.llbc $(AENEAS_OPTIONS) -dest proofs -split-files -no-gen-lib-entry -namespace Symcrust
 
 # Alternatively, this could be marked as a phony target, since cargo (and hence
 # charon) can skip recompilations if the sources have not changed.
 symcrust.llbc: $(wildcard */*.rs)
-	$(CHARON_EXE) --hide-marker-traits --exclude=core::fmt::Debug::fmt --opaque=core::fmt::Formatter
+	$(CHARON_EXE) --hide-marker-traits --exclude=core::fmt::Debug::fmt --opaque=core::fmt::Formatter --remove-associated-types="*"
 
 # 3. Transpiling to C via eurydice
 # --------------------------------

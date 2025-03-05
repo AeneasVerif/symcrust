@@ -3,11 +3,11 @@
 -- This is a template file: rename it to "FunsExternal.lean" and fill the holes.
 import Aeneas
 import Symcrust.Types
-open Aeneas.Std
+open Aeneas.Std Result Error
 set_option linter.dupNamespace false
 set_option linter.hashCommand false
 set_option linter.unusedVariables false
-open symcrust
+open Symcrust
 
 /- [symcrust::ntt::slice_to_sub_array]:
    Source: 'src/ntt.rs', lines 710:0-712:1 -/
