@@ -2,8 +2,8 @@ import Symcrust.BarrettReduction
 import Symcrust.MontReduction
 import Symcrust.SpecAux
 import Symcrust.NatBit
-
 import Symcrust.Funs
+import Symcrust.NormMod
 
 open Aeneas
 open Std
@@ -15,6 +15,25 @@ namespace Symcrust
 open Aeneas.Arith
 
 set_option maxHeartbeats 2000000
+
+attribute [local simp] Spec.Polynomial.set Spec.Polynomial.get! -- TODO: remove this?
+attribute [-simp] List.getElem!_eq_getElem?_getD
+
+@[simp, scalar_tac_simp, bvify_simps] theorem ntt.Q_eq : Q = 3329#u32 := by rfl
+@[simp, scalar_tac_simp, bvify_simps] theorem ntt.NegQInvModR_eq : ntt.NegQInvModR = 3327#u32 := by rfl
+@[simp, scalar_tac_simp, bvify_simps] theorem ntt.Rmask_eq : ntt.Rmask = 65535#u32 := by rfl
+@[simp, scalar_tac_simp, bvify_simps] theorem ntt.Rlog2_eq : ntt.Rlog2 = 16#u32 := by rfl
+
+-- TODO: rfl fails here because the number of bits is unknown
+@[simp] theorem ntt.MLWE_POLYNOMIAL_COEFFICIENTS_eq : ntt.MLWE_POLYNOMIAL_COEFFICIENTS.val = 256 := by
+  fsimp [ntt.MLWE_POLYNOMIAL_COEFFICIENTS, toResult, MLWE_POLYNOMIAL_COEFFICIENTS_body, eval_global]
+
+@[simp] theorem ntt.INTTFixupTimesRsqr_eq : ntt.INTTFixupTimesRsqr.val = 1441 := by rfl
+@[simp] theorem ntt.INTTFixupTimesRsqr_bv_eq : ntt.INTTFixupTimesRsqr.bv = 1441#32 := by rfl
+
+@[simp] theorem ntt.INTTFixupTimesRsqrTimesNegQInvModR_bv_eq : INTTFixupTimesRsqrTimesNegQInvModR.bv = 10079#32 := by rfl
+
+attribute [local simp, local scalar_tac_simp, local bvify_simps] Spec.Q
 
 /-!
 Addition modulo
@@ -36,69 +55,9 @@ def ntt.SymCryptMlKemModAdd' (a : U32) (b : U32) : Result U32 :=
 def ntt.SymCryptMlKemModAdd_eq (a : U32) (b : U32) :
   SymCryptMlKemModAdd a b = SymCryptMlKemModAdd' a b := by
   unfold SymCryptMlKemModAdd SymCryptMlKemModAdd'
-  simp
+  fsimp
   intros
-  split <;> simp
-
-@[simp, scalar_tac_simp, bvify_simps] theorem ntt.Q_eq : Q = 3329#u32 := by rfl
-@[simp, scalar_tac_simp, bvify_simps] theorem ntt.NegQInvModR_eq : ntt.NegQInvModR = 3327#u32 := by rfl
-@[simp, scalar_tac_simp, bvify_simps] theorem ntt.Rmask_eq : ntt.Rmask = 65535#u32 := by rfl
-@[simp, scalar_tac_simp, bvify_simps] theorem ntt.Rlog2_eq : ntt.Rlog2 = 16#u32 := by rfl
-
-attribute [local simp, local scalar_tac_simp, local bvify_simps] Spec.Q
-
-/- TODO: move -/
-namespace NormMod
-
-theorem Int.neg_add_emod_self_left {a b c : ℤ} : (-a + b) % c = ((c - a) + b) % c := by
-  conv => lhs; rw [← Int.add_emod_self_left]
-  ring_nf
-
-theorem Int.sub_eq_add_minus : ∀ (a b : Int), a - b = a + (-b) := by omega
-theorem Int.add_minus_add_eq_minus_add : ∀ (a b c : Int), a + (-b + c) = (-b) + (a + c) := by omega
-theorem Int.minus_add_minus_add_eq_minus_add : ∀ (a b c : Int), -a + (-b + c) = -(a + b) + c := by omega
-
-open Lean.Parser.Tactic in
-/-- A tactic to normalize modulo operations.
-
-    We do the following:
-    ```
-    (x + y - 12) % 16 = (-12 + x + y) % 16          -- push the negative constant to the left
-                      = (-12 + (x + y)) % 16        -- isolate it
-                      = ((16 - 12) + (x + y)) % 16  -- add the modulus itself
-                      = (4 + x + y) % 16
-    ```
-    TODO: it doesn't work well if we have `- x` somewhere in the expression
--/
-macro "norm_mod" cfg:optConfig loc:(location)? : tactic =>
-  `(tactic |
-    -- TODO: repeteadly performing the operation causes issues
-    -- repeat fail_if_no_progress
-      -- Push to the left and isolate
-      --ring_nf $cfg:optConfig $(loc)? <;> -- push to the left
-      (try simp only [Int.add_assoc, Int.sub_eq_add_minus, Int.add_minus_add_eq_minus_add, Int.minus_add_minus_add_eq_minus_add] $(loc)?) <;> -- isolate the constant
-      (try rw [Int.neg_add_emod_self_left] $(loc)?) <;> -- add the modulo
-      ring_nf $cfg:optConfig $(loc)? -- normalize again
-    )
-
-end NormMod
-
--- TODO: generalize and move
-@[simp]
-theorem List.getElem!_range' (i start n: ℕ) :
-  (List.range' start n)[i]! = if i < n then start + i else 0 := by
-  revert start i
-  induction n <;> intro i start
-  . simp
-  . rename_i n hInd
-    unfold List.range'
-    dcases i
-    . simp
-    . rename_i i
-      have := hInd i (start + 1)
-      simp [this]
-      simp_all
-      ring_nf
+  split <;> fsimp
 
 
 -- TODO: use this to prototype `progress_simp_post`
@@ -130,116 +89,8 @@ example
   simp only [IScalar.toNat, IScalar.ofInt_val_eq, Int.reduceToNat] at hc3
   sorry
 
--- TODO: move, use in progress
-@[simp] theorem massert_ok (b : Bool) : massert b = ok () ↔ b := by simp [massert]
-
--- TODO: minimize and move
-example
-  (a : U32)
-  (b : U32)
-  (ha : (↑a : ℕ) < 3329)
-  (hb : (↑b : ℕ) < 3329)
-  (c1 : U32)
-  (_ : c1.bv = a.bv + b.bv)
-  (c2 : U32)
-  (hc2 : c2 = core.num.U32.wrapping_sub c1 3329#u32)
-  (c3 : U32)
-  (hc3 : c3.bv = c2.bv >>> 16#i32.toNat) :
-  (c1.bv - 3329#32 + (3329#32 &&& c3.bv)) % 3329#32 = (a.bv + b.bv) % 3329#32
-  := by
-  bv_tac
-
 -- TODO: generalize and move
 @[simp] theorem UScalar.size_UScalarTyU32 : UScalar.size .U32 = U32.size := by scalar_tac
-
--- TODO: move
-@[simp]
-theorem getElem!_cons_succ [Inhabited α] (hd : α) (tl : List α) (i : Nat) :
-  getElem! (hd :: tl) (i + 1) = getElem! tl i := by
-  simp [getElem!, decidableGetElem?]
-
-@[simp]
-theorem getElem!_cons_zero [Inhabited α] (hd : α) (tl : List α) :
-  getElem! (hd :: tl) 0 = hd := by
-  simp [getElem!, decidableGetElem?]
-
-
--- TODO: move
-example
-  (a : U32)
-  (b : U32)
-  (h0 : a.bv < 6658#32)
-  (h1 : ¬(a.bv - b.bv) >>> 16 = 0#32)
-  (this : b.bv = 3329#32) :
-  (a.bv - 3329#32) >>> 16 = 65535#32
-  := by
-  bv_decide
-
-example
-  (a b : BitVec 32)
-  (h0 : a < 3329#32)
-  (h1 : b < 3329#32) :
-  (a - b + (3329#32 &&& (a - b) >>> 16)) % 3329#32 = (a + 3329#32 - b) % 3329#32
-  := by
-  bv_decide
-
-example
-  (a : U32)
-  (b : U32)
-  (h0 : a.bv < 6658#32)
-  (h1 : b.val = 3329) :
-  (a.bv - b.bv + (3329#32 &&& (a.bv - b.bv) >>> 16)) % 3329#32 = (a.bv + 3329#32 - b.bv) % 3329#32
-  := by
-  have : b.bv = 3329#32 := by sorry -- TODO: bvify doesn't do this
-  bv_decide
-
-example
-  (a : U32)
-  (b : U32)
-  (h : (↑a : ℕ) < 3329 ∧ (↑b : ℕ) < 3329 ∨ (↑a : ℕ) < 6658 ∧ (↑b : ℕ) = 3329)
-  (c1 : U32)
-  (hc1 : c1 = core.num.U32.wrapping_sub a b)
-  (c2 : U32)
-  (hc2 : c2.bv = c1.bv >>> 16#i32.toNat)
-  (c3 : U32)
-  (hc3_1 : c3.bv = 3329#32 &&& c2.bv)
-  (c4 : U32)
-  (hc3 : c4 = core.num.U32.wrapping_add c1 c3) :
-  c4.bv % 3329#32 = (a.bv + 3329#32 - b.bv) % 3329#32
-  := by
-  dcases h <;>
-  bvify 32 at * <;>
-  rename_i h <;>
-  obtain ⟨ h0, h1 ⟩ := h <;>
-  simp_all <;> clear hc3_1 hc3 c1 c2 c3 c4 hc1 hc2
-  . bv_decide
-  . have : b.bv = 3329#32 := by sorry -- TODO: bvify doesn't do this
-    bv_decide
-
--- TODO: move
-@[simp, natify_simps]
-theorem ZMod.val_sub' {n : ℕ} [NeZero n] (a b : ZMod n) : (a - b).val =
-  (a.val + (n - b.val)) % n := by sorry
-
--- TODO: move
-theorem ZMod_Nat_eq_imp_mod_eq {n : ℕ} {a b : Nat} (h : (a : ZMod n) = (b : ZMod n)) :
-  a % n = b % n := by sorry
-
-example
-  (a : U32)
-  (b : U32)
-  (ha : a.val < b.val + 3329)
-  (c1 : U32)
-  (c2 : U32)
-  (hb : b.bv ≤ 3329#32)
-  (hc1 : c1.bv = a.bv - b.bv)
-  (hc2 : c2.bv = c1.bv >>> 16)
-  (_ : c2.bv ≠ 0#32) :
-  c2.bv = 65535#32
-  := by
-  have : a.bv < b.bv + 3329#32 := by
-    sorry -- TODO
-  bv_tac
 
 @[progress]
 theorem ntt.SymCryptMlKemModAdd'_spec (a : U32) (b : U32)
@@ -304,9 +155,9 @@ def ntt.SymCryptMlKemModSub' (a : U32) (b : U32) : Result U32 := do
 def ntt.SymCryptMlKemModSub_eq (a : U32) (b : U32) :
   SymCryptMlKemModSub a b = SymCryptMlKemModSub' a b := by
   unfold SymCryptMlKemModSub SymCryptMlKemModSub'
-  simp
+  fsimp
   intros
-  split <;> simp
+  split <;> fsimp
 
 /-- We first introduce a general, auxiliary version of the spec, that we later split in two.
     One of them is used to subtract numbers in the NTT, the other is used in the Montgomery
@@ -320,7 +171,7 @@ theorem ntt.SymCryptMlKemModSub'_aux_spec' (a : U32) (b : U32)
   (c.val : Spec.Zq) = (a.val : Spec.Zq) - (b.val : Spec.Zq) ∧
   c.val < Spec.Q := by
   unfold SymCryptMlKemModSub'
-  simp at *
+  fsimp at *
   progress as ⟨ twoQ, hTwoQ ⟩
   progress -- massert
   clear twoQ hTwoQ
@@ -331,19 +182,7 @@ theorem ntt.SymCryptMlKemModSub'_aux_spec' (a : U32) (b : U32)
 
   have hIf : (if c2 = 0#u32 then ok () else massert (c2 = 65535#u32)) = ok () := by
     -- TODO: better precondition
-    -- TODO: simplify
-    dcases h <;>
-    split <;> simp <;>
-    bvify 32 at * <;>
-    simp only [Int.reduceToNat] at hc2 <;> -- TODO: add Int.reduceToNat to bvify, scalar_tac, etc.
-    simp_all
-    . bv_decide
-    . -- TODO: bvify needs to split the conjunctions!!
-      have : a.bv < 6658#32 := by simp [*] -- TODO
-      have : b.bv = 3329#32 := by sorry -- TODO: bvify
-      clear hc1 hc2 c1 c2
-      simp [*]
-      bv_decide
+    dcases h <;> split <;> bv_tac
 
   progress with hIf; clear hIf
 
@@ -357,23 +196,10 @@ theorem ntt.SymCryptMlKemModSub'_aux_spec' (a : U32) (b : U32)
 
     have ⟨ hbvEq, hbvLt ⟩ : c4.bv % 3329#32 = (a.bv + 3329#32 - b.bv) % 3329#32 ∧
                c4.bv < 3329#32 := by
-      -- TODO: add to bvify
-      simp only [IScalar.toNat, IScalar.ofInt_val_eq, Int.reduceToNat, UScalarTy.U32_numBits_eq,
-        U32.ofNat_bv] at *
-      dcases h
-      . bv_tac
-      . -- TODO: bvify needs to split the conjunctions
-        have ha : a.bv < 6658#32 := by bvify 32 at *; simp [*]
-        have hb : b.bv = 3329#32 := by sorry
-        simp_all
-        clear * - ha -- TODO: bv_decide sometimes fails when there are too many hypotheses: we should clear the useless ones
-        -- have : b.bv  6658#32 := by bvify 32 at * ; simp [*]
-        split_conjs
-        . bv_tac
-        . bv_tac
+      bv_tac
 
     natify at *
-    simp at *
+    fsimp at *
     norm_mod
 
     split_conjs
@@ -437,7 +263,7 @@ theorem ntt.SymCryptMlKemModSub'_aux_spec (a : U32) (b : U32)
   (c.val : Spec.Zq) = (a.val : Spec.Zq) - (b.val : Spec.Zq) ∧
   c.val < Spec.Q := by
   unfold SymCryptMlKemModSub'
-  simp at *
+  fsimp at *
   progress as ⟨ twoQ, hTwoQ ⟩
   progress -- massert
   clear twoQ hTwoQ
@@ -455,13 +281,7 @@ theorem ntt.SymCryptMlKemModSub'_aux_spec (a : U32) (b : U32)
     assumption
 
   have hIf : (if c2 = 0#u32 then ok () else massert (c2 = 65535#u32)) = ok () := by
-    -- TODO: better precondition
-    -- TODO: simplify
-    bvify 32 at *
-    simp at hc2
-    -- TODO:
-    split <;> simp
-    bv_tac
+    split <;> bv_tac
 
   progress with hIf; clear hIf
 
@@ -476,7 +296,7 @@ theorem ntt.SymCryptMlKemModSub'_aux_spec (a : U32) (b : U32)
     have ⟨ hbvEq, hbvLt ⟩ : c4.bv % 3329#32 = (a.bv + 3329#32 - b.bv) % 3329#32 ∧
                c4.bv < 3329#32 := by
       -- TODO: add to bvify
-      simp only [IScalar.toNat, IScalar.ofInt_val_eq, Int.reduceToNat, UScalarTy.U32_numBits_eq,
+      fsimp only [IScalar.toNat, IScalar.ofInt_val_eq, Int.reduceToNat, UScalarTy.U32_numBits_eq,
         U32.ofNat_bv] at *
       bv_tac
 
@@ -487,9 +307,9 @@ theorem ntt.SymCryptMlKemModSub'_aux_spec (a : U32) (b : U32)
     split_conjs
     . rw [hbvEq]
       have : (4294967296 - ↑b + (↑a + 3329)) % 4294967296 =
-             (a.val + (3329 - b.val)) := by scalar_tac +nonLin
+             (a.val + (3329 - b.val)) := by scalar_tac
       rw [this]
-      scalar_tac +nonLin
+      scalar_tac
     . apply hbvLt
 
   progress -- massert
@@ -501,7 +321,7 @@ theorem ntt.SymCryptMlKemModSub'_spec (a : U32) (b : U32)
   (c.val : Spec.Zq) = (a.val : Spec.Zq) - (b.val : Spec.Zq) ∧
   c.val < Spec.Q := by
   progress with SymCryptMlKemModSub'_aux_spec
-  simp_all
+  fsimp_all
 
 theorem ntt.SymCryptMlKemModSub'_sub_Q_spec (a : U32) (b : U32)
   (ha : a.val < 2 * Spec.Q) (hb : b.val = Spec.Q) :
@@ -509,52 +329,9 @@ theorem ntt.SymCryptMlKemModSub'_sub_Q_spec (a : U32) (b : U32)
   (c.val : Spec.Zq) = (a.val : Spec.Zq) - (b.val : Spec.Zq) ∧
   c.val < Spec.Q := by
   progress with SymCryptMlKemModSub'_aux_spec
-  simp_all
-
--- TODO: having too many theorems like this can make the context explode
--- TODO: we shouldn't need those
-theorem UScalar_mul_bound {ty : UScalarTy} (x y : UScalar ty) :
-  x.val * y.val ≤ UScalar.max ty * UScalar.max ty := by
-  have := x.hmax
-  have := y.hmax
-  have := @Int.mul_le_mul x.val y.val (UScalar.max ty) (UScalar.max ty) (by scalar_tac) (by scalar_tac)
-  omega
-
-@[nonlin_scalar_tac x.val * y.val]
-theorem U8.mul_bound (x y : U8) : 0 ≤ x.val * y.val ∧ x.val * y.val ≤ U8.max * U8.max := by
-  have := UScalar_mul_bound x y
-  scalar_tac
-
-@[nonlin_scalar_tac x.val * y.val]
-theorem U16.mul_bound (x y : U16) : 0 ≤ x.val * y.val ∧ x.val * y.val ≤ U16.max * U16.max := by
-  have := UScalar_mul_bound x y
-  scalar_tac
-
-@[nonlin_scalar_tac x.val * y.val]
-theorem U32.mul_bound (x y : U8) : 0 ≤ x.val * y.val ∧ x.val * y.val ≤ U32.max * U32.max := by
-  have := UScalar_mul_bound x y
-  scalar_tac
-
-@[nonlin_scalar_tac x.val * y.val]
-theorem U64.mul_bound (x y : U64) : 0 ≤ x.val * y.val ∧ x.val * y.val ≤ U64.max * U64.max := by
-  have := UScalar_mul_bound x y
-  scalar_tac
-
-@[nonlin_scalar_tac x.val * y.val]
-theorem U128.mul_bound (x y : U128) : 0 ≤ x.val * y.val ∧ x.val * y.val ≤ U128.max * U128.max := by
-  have := UScalar_mul_bound x y
-  scalar_tac
-
-@[nonlin_scalar_tac x.val * y.val]
-theorem Usize.mul_bound (x y : Usize) : 0 ≤ x.val * y.val ∧ x.val * y.val ≤ Usize.max * Usize.max := by
-  have := UScalar_mul_bound x y
-  scalar_tac
+  fsimp_all
 
 -- TODO: move
-@[simp] theorem UScalar.bv_and {ty} (x y : UScalar ty) : (x &&& y).bv = x.bv &&& y.bv := by rfl
-@[simp] theorem UScalar.bv_or {ty} (x y : UScalar ty) : (x ||| y).bv = x.bv ||| y.bv := by rfl
-@[simp] theorem IScalar.bv_and {ty} (x y : IScalar ty) : (x &&& y).bv = x.bv &&& y.bv := by rfl
-@[simp] theorem IScalar.bv_or {ty} (x y : IScalar ty) : (x ||| y).bv = x.bv ||| y.bv := by rfl
 
 example (abMont abMontAnd : U32)
   (h : (abMont &&& 65535#u32).val * 3329#u32.val ≤ 65535 * 3329) :
@@ -569,37 +346,35 @@ theorem ZMod.intCast_mod_atLeastTwo (a : ℤ) (b : ℕ) [b.AtLeastTwo] :
   ((a % (@OfNat.ofNat ℤ b instOfNatAtLeastTwo) : ℤ) : ZMod b) = (a : ZMod b) := by
   have : @OfNat.ofNat ℤ b instOfNatAtLeastTwo = b := by
     unfold OfNat.ofNat instOfNatAtLeastTwo
-    simp
+    fsimp
   rw [this]
-  simp
+  fsimp
 
 @[local push_cast, local simp] -- TODO: doesn't get automatically applied!?
 theorem ZMod.intCast_mod' (a : ℤ) (b : ℕ) (bz : Int) (h : bz = b) :
   ((a % bz) : ZMod b) = (a : ZMod b) := by
-  simp [*]
+  fsimp [*]
 
 
 @[local simp] theorem bv_and_65535_eq_mod (x : BitVec 32) : x &&& 65535#32 = x % 65536#32 := by bv_decide
 @[local simp] theorem bv_shift_16_eq_div (x : BitVec 32) : x >>> 16 = x / 65536#32 := by bv_decide
 
+-- TODO: we need a reduceZMod simproc
 @[local simp]
 theorem mod_4294967296_65536_eq (x : Nat) : ((x % 4294967296) % 65536) = x % 65536 := by
-  rw [Nat.mod_mod_of_dvd]
-  omega
+  rw [Nat.mod_mod_of_dvd]; omega
 
 @[local simp]
 theorem mod_65536_4294967296_eq (x : Nat) : ((x % 65536) % 4294967296) = x % 65536 := by
   apply Nat.mod_eq_of_lt; omega
 
+@[local simp]
+theorem mod_int_4294967296_65536_eq (x : Int) : ((x % 4294967296) % 65536) = x % 65536 := by
+  rw [Int.emod_emod_of_dvd]; omega
 
--- TODO: move
-theorem ZMod_nat_cast_eq_nat_cast_iff (n : ℕ) (a b : ℕ) :
-  ((a : ZMod n) = (b : ZMod n)) ↔ (a % n = b % n) := by
-  zify
-  have := ZMod_int_cast_eq_int_cast_iff n a b
-  simp at this
-  apply this
-
+@[local simp]
+theorem mod_int_65536_4294967296_eq (x : Int) : ((x % 65536) % 4294967296) = x % 65536 := by
+  apply Int.emod_eq_of_lt <;> omega
 
 /-!
 Montgomery reduction
@@ -614,23 +389,23 @@ theorem mont_reduce_no_divide_bv_spec (a b bMont tR : U32)
      - go to ℤ and simplify further
      - go to ZMod
    -/
-  simp at *
-  simp [*]; clear hbMont htR
+  fsimp at *
+  fsimp [*]; clear hbMont htR
 
   -- Reason in ℤ and simplify the modulus
-  natify; simp [- EuclideanDomain.mod_eq_zero]
+  natify; fsimp [- EuclideanDomain.mod_eq_zero]
 
   -- Go to ZMod
-  have : 0 = 0 % (65536 : Nat) := by simp
+  have : 0 = 0 % (65536 : Nat) := by fsimp
   rw [this]; clear this
   rw [← ZMod_nat_cast_eq_nat_cast_iff]
-  simp
+  fsimp
 
   -- Finish
-  simp [mul_assoc]
+  fsimp [mul_assoc]
   ring_nf
   have : (11075584 : ZMod 65536) = 0 := by rfl
-  rw [this]; simp
+  rw [this]; fsimp
 
 -- TODO: move, and update scalar_tac +nonLin
 @[aesop unsafe 50% apply]
@@ -673,17 +448,17 @@ theorem mont_reduce_bv_spec (a b bMont tR t : U32)
     scalar_tac_non_lin
 
   have hMont := mont_reduce_spec 3329 U16.size 3327 (a.val * b.val)
-    (by simp [U16.size, U16.numBits]; exists 16) (by simp [U16.size, U16.numBits]) (by simp)
-    (by scalar_tac_non_lin) (by simp [U16.size, U16.numBits]; constructor)
+    (by fsimp [U16.size, U16.numBits]; exists 16) (by fsimp [U16.size, U16.numBits]) (by fsimp)
+    (by scalar_tac_non_lin) (by fsimp [U16.size, U16.numBits]; constructor)
   -- Simplify the bit vector operations
-  simp [mont_reduce] at hMont
+  fsimp [mont_reduce] at hMont
 
   obtain ⟨ hMont, hBounds ⟩ := hMont
   rw [htR, hbMont] at ht
-  simp [bv_and_65535_eq_mod] at ht -- TODO: why is this theorem not automatically applied?
+  fsimp [bv_and_65535_eq_mod] at ht -- TODO: why is this theorem not automatically applied?
 
-  natify at ht; simp at ht
-  natify; simp
+  natify at ht; fsimp at ht
+  natify; fsimp
   rw [ht]
 
   have : (a.val * b.val + a.val * (b.val * 3327) % 65536 * 3329) % 4294967296 =
@@ -692,9 +467,9 @@ theorem mont_reduce_bv_spec (a b bMont tR t : U32)
     scalar_tac
   rw [this]; clear this
 
-  simp [U16.size, U16.numBits] at *
+  fsimp [U16.size, U16.numBits] at *
   zify
-  simp [← mul_assoc, hMont, hBounds]
+  fsimp [← mul_assoc, hMont, hBounds]
 
 @[progress]
 theorem ntt.SymCryptMlKemMontMul_spec (a : U32) (b : U32) (bMont : U32)
@@ -704,12 +479,6 @@ theorem ntt.SymCryptMlKemMontMul_spec (a : U32) (b : U32) (bMont : U32)
   (c.val : Spec.Zq) = (a.val : Spec.Zq) * (b.val : Spec.Zq) * (2^16)⁻¹ ∧
   c.val < Spec.Q := by
   unfold SymCryptMlKemMontMul
-  /-have : a.bv < 3329#32 := by -- TODO: bvfy?
-    simp [U32.bv]
-    scalar_tac
-  have : b.bv < 3329#32 := by -- TODO: bvfy?
-    simp [U32.bv]
-    scalar_tac-/
   fsimp at *
   progress
   progress
@@ -720,13 +489,13 @@ theorem ntt.SymCryptMlKemMontMul_spec (a : U32) (b : U32) (bMont : U32)
   progress
 
   progress with U32.mul_bv_spec as ⟨ b1, hb1, hb1' ⟩
-  simp at hb1'
+  fsimp at hb1'
 
   progress as ⟨ b2, hb2 ⟩
 
   have bMontLe : bMont = b2 := by
     bvify 32
-    simp [*]
+    fsimp [*]
   progress -- massert
 
   -- TODO: scalar_tac is not good at reasoning about upper bounds in the presence of multiplication
@@ -757,28 +526,28 @@ theorem ntt.SymCryptMlKemMontMul_spec (a : U32) (b : U32) (bMont : U32)
 
   progress as ⟨ res3, _, hres3bv ⟩
   have : res3 = 0#u32 := by
-    have := mont_reduce_no_divide_bv_spec a b bMont res2 (by simp [*]) (by simp [*])
-    simp at this
-    simp [U32.eq_equiv_bv_eq, hres3bv, this]
+    have := mont_reduce_no_divide_bv_spec a b bMont res2 (by fsimp [*]) (by fsimp [*])
+    fsimp at this
+    fsimp [U32.eq_equiv_bv_eq, hres3bv, this]
   progress
 
   progress as ⟨ res4, hRes4 ⟩
-  simp at hRes4
+  fsimp at hRes4
 
   -- Here we need to use the fact that we performed a Montgomery multiplication to get
   -- the bounds and the rest
   have hMontReduce :=
-    mont_reduce_bv_spec a b bMont res2 res4 (by omega) (by omega) (by simp [*])
-      (by simp[*]) (by simp[*])
+    mont_reduce_bv_spec a b bMont res2 res4 (by omega) (by omega) (by fsimp [*])
+      (by fsimp[*]) (by fsimp[*])
 
   progress with ntt.SymCryptMlKemModSub'_sub_Q_spec as ⟨ res4, hRes4Eq, hRes4Bound ⟩
-  simp at hRes4Bound
+  fsimp at hRes4Bound
 
-  simp [hRes4Eq, hRes4Bound]
-  simp [hMontReduce]
+  fsimp [hRes4Eq, hRes4Bound]
+  fsimp [hMontReduce]
   -- TODO: why does (3329 : ZMod 3329) doesn't get simplified?
   have : (3329 : ZMod 3329) = 0 := by rfl
-  simp [this, U16.size, U16.numBits]
+  fsimp [this, U16.size, U16.numBits]
   rfl
 
 theorem ntt.MlKemZetaBitRevTimesR_map_val_eq :
@@ -797,113 +566,103 @@ theorem ntt.MlKemZetaBitRevTimesRTimesNegQInvModR_map_val_eq :
 
 theorem array_map_eq_range'_all_imp_index_usize_eq_pred {α β} [Inhabited α] {a : Std.Array α n}
   {f : α → β} {g : ℕ → β} {p : α → Bool}
-  (hEq : List.map f a = List.map g (List.range' 0 n.val))
+  (hEq : List.map f a = List.map g (List.range' 0 n'))
   (hPred : List.all a p)
-  (i : Usize) (h : i.val < n.val) :
+  (i : Usize) (h : i.val < n.val)
+  (hn : n.val = n' := by simp) :
   ∃ v, Array.index_usize a i = ok v ∧
   f v = g i.val ∧ p v := by
   let rec aux1 (l : List α) (i : Nat) (hi : i < l.length) (start : Nat)
             (hEq : List.map f l = List.map g (List.range' start l.length)) :
             f (l[i]!) = g (start + i) := by
     match l with
-    | [] =>  simp at hi
+    | [] =>  fsimp at hi
     | hd :: l =>
-      simp at hEq
-      simp [List.range'] at hEq
+      fsimp at hEq
+      fsimp [List.range'] at hEq
       dcases i
-      . simp at *
-        simp [hEq]
+      . fsimp at *
+        fsimp [hEq]
       . rename_i i
-        simp at hi
-        simp [hi]
-        have := aux1 l i hi (start + 1) (by simp [hEq])
-        simp_all
+        fsimp at hi
+        fsimp [hi]
+        have := aux1 l i hi (start + 1) (by fsimp [hEq])
+        fsimp_all
         ring_nf
 
   progress as ⟨ v, hv ⟩
   rw [hv]
-  have h := aux1 a i.val (by scalar_tac) 0 (by simp[hEq])
-  simp at h
-  simp [h]
+  have h := aux1 a i.val (by scalar_tac) 0 (by fsimp [hn, hEq])
+  fsimp at h
+  fsimp [h]
 
   let rec aux2 (l : List α) (i : Nat) (hi : i < l.length) (start : Nat)
             (hPred : List.all l p) :
             p (l[i]!) := by
     match l with
-    | [] =>  simp at hi
+    | [] =>  fsimp at hi
     | hd :: l =>
       dcases i
-      . simp at *
-        simp [hPred]
+      . fsimp at *
+        fsimp [hPred]
       . rename_i i
-        simp at hi
-        simp [hi]
-        simp at hPred
-        have := aux2 l i hi (start + 1) (by simp; tauto)
-        simp_all
-  have := aux2 a i.val (by scalar_tac) 0 (by simp[hPred])
+        fsimp at hi
+        fsimp [hi]
+        fsimp at hPred
+        have := aux2 l i hi (start + 1) (by fsimp; tauto)
+        fsimp_all
+  have := aux2 a i.val (by scalar_tac) 0 (by fsimp[hPred])
   apply this
 
 theorem array_map_eq_range'_imp_index_usize_eq {α β} [Inhabited α] {a : Std.Array α n}
   {f : α → β} {g : ℕ → β}
-  (hEq : List.map f a = List.map g (List.range' 0 n.val))
-  (i : Usize) (h : i.val < n.val) :
+  (hEq : List.map f a = List.map g (List.range' 0 n'))
+  (i : Usize) (h : i.val < n.val) (hn : n.val = n' := by simp):
   ∃ v, Array.index_usize a i = ok v ∧
   f v = g i.val := by
-  have hPred : List.all a.val (fun _ => true) := by simp
+  have hPred : List.all a.val (fun _ => true) := by fsimp
   progress with array_map_eq_range'_all_imp_index_usize_eq_pred
-  simp [*]
+  fsimp [*]
 
-@[progress]
+@[local progress]
 theorem ntt.MlKemZetaBitRevTimesR_index_spec (k : Usize) (h : k.val < 128) :
   ∃ v, Array.index_usize ntt.MlKemZetaBitRevTimesR k = ok v ∧
   (v.val : ZMod Spec.Q) = Spec.ζ^(bitRev 7 k.val) * 65536 ∧
   v.val < 3329
   := by
-  have := array_map_eq_range'_all_imp_index_usize_eq_pred ntt.MlKemZetaBitRevTimesR_map_val_eq ntt.MlKemZetaBitRevTimesR_map_all_eq
-  progress as ⟨ v, hv, hv' ⟩
-  simp at hv'
-  simp only [hv']
-  simp [hv]
+  have h := array_map_eq_range'_all_imp_index_usize_eq_pred ntt.MlKemZetaBitRevTimesR_map_val_eq ntt.MlKemZetaBitRevTimesR_map_all_eq
+  progress with h as ⟨ v, hv, hv' ⟩
+  fsimp at hv'
+  fsimp only [hv']
+  fsimp [hv]
   simp [Spec.ζ]
-  simp [ZMod.intCast_mod']
 
-@[progress]
+@[local progress]
 theorem ntt.MlKemZetaBitRevTimesRTimesNegQInvModR_index_spec' (k : Usize) (h : k.val < 128) :
   ∃ v, Array.index_usize ntt.MlKemZetaBitRevTimesRTimesNegQInvModR k = ok v ∧
   BitVec.ofNat 32 v.val = (BitVec.ofNat _ ((17^(bitRev 7 k.val) * 65536) % 3329) * 3327#32) &&& 65535#32
   := by
-  have := array_map_eq_range'_imp_index_usize_eq ntt.MlKemZetaBitRevTimesRTimesNegQInvModR_map_val_eq
-  progress as ⟨ v, hv ⟩
-  simp only [bv_and_65535_eq_mod]
-  zify
+  have h := array_map_eq_range'_imp_index_usize_eq ntt.MlKemZetaBitRevTimesRTimesNegQInvModR_map_val_eq
+  progress with h as ⟨ v, hv ⟩
+  fsimp only [bv_and_65535_eq_mod]
+  natify
   rw [hv]
-  simp
+  fsimp
 
 def to_poly (a : Array U16 256#usize) : Spec.Polynomial :=
   ⟨ List.map (fun x => (x.val : Spec.Zq)) a.val, by simp ⟩
 
 @[simp]
-theorem index_to_poly (a : Array U16 256#usize) (i : ℕ) :
+theorem getElem!_to_poly (a : Array U16 256#usize) (i : ℕ) :
   (to_poly a)[i]! = ((a.val[i]!) : Spec.Zq) := by
   simp [to_poly]
+  dcases hi : i < a.val.length <;> simp_all
+  rfl
 
 @[simp]
-theorem to_poly_update (a : Array U16 256#usize) (i : Usize) (x : U16) :
+theorem to_poly_set (a : Array U16 256#usize) (i : Usize) (x : U16) :
   to_poly (Std.Array.set a i x) = Spec.Polynomial.set (to_poly a) i.val (x.val : Spec.Zq) := by
-  sorry
-
--- TODO: generalize
---@[simp] theorem core.convert.num.FromU32U16.val_from_eq x : (core.convert.num.FromU32U16.from x).val = x.val := by rfl
-
-attribute [local simp] Spec.Polynomial.set Spec.Polynomial.get!
-attribute [-simp] List.getElem!_eq_getElem?_getD
-
-@[simp]
-theorem to_poly_get!_eq (a : Array U16 256#usize) (i : Nat) :
-  (to_poly a)[i]! = ((a.val)[i]!.val : Spec.Zq) := by
-  simp [to_poly, Spec.Polynomial.get!, getElem!]
-  sorry
+  simp [to_poly]
 
 @[local simp]
 theorem mod_3329_mod_4294967296_eq (x : Int) :
@@ -919,34 +678,22 @@ theorem ntt.SymCryptMlKemMontMul_twiddle_spec (k : Usize) (c : U32) (twiddleFact
   (d.val : Spec.Zq) = (c.val : Spec.Zq) * (Spec.ζ^(bitRev 7 k.val)) ∧
   d.val < Spec.Q := by
   progress as ⟨ d, hEq, hLt ⟩
-  simp at htfMont
-  natify at htf; simp at htf
-  natify at htfMont; simp at htfMont
-  simp [*]
+  fsimp at htfMont
+  natify at htf; fsimp at htf
+  natify at htfMont; fsimp at htfMont
+  fsimp [*]
   ring_nf
-  simp [Spec.ζ]
+  fsimp [Spec.ζ]
   have : 17 ^ bitRev 7 ↑k * 65536 % 3329 % 4294967296 = 17 ^ bitRev 7 ↑k * 65536 % 3329 := by
     scalar_tac
   rw [this]; clear this
-  simp
+  fsimp
   have : (c.val : Spec.Zq) * (17 ^ bitRev 7 ↑k * 65536) * 65536⁻¹ =
           (c.val : Spec.Zq) * 17 ^ bitRev 7 k.val * (65536⁻¹ * 65536) := by ring_nf
   rw [this]; clear this
   have : (65536⁻¹ : Spec.Zq) * (65536 : Spec.Zq) = 1 := by native_decide
   rw [this]
-  simp
-
-/-@[simp]
-theorem List.set_get!_eq_set [Inhabited α] (l : List α) (i : Nat) (x : α) (h : i < l.length):
-  (l.set i x)[i]! = x := by simp [*]-/
-
--- TODO: make the inequality check more robust
--- TODO: remove?
-@[simp]
-theorem List.set_getElem!_eq_getElem! [Inhabited α] (l : List α) (i j : Nat) (x : α) (h : i ≠ j):
-  (l.set i x)[j]! = l[j]! := by sorry
-
--- TODO: U32.val should give a ℕ, not an ℤ (and the spec for sub should be: ∃ z, x - y = ok z ∧ x.val = y.val + z.val)
+  fsimp
 
 def wfArray {n} (a : Array U16 n) : Prop :=
   ∀ i, i < n.val → a.val[i]!.val < 3329
@@ -959,27 +706,24 @@ theorem wfArray_update {n : Usize} (v : Std.Array U16 n) (i : Usize) (x : U16)
   ∃ nv, v.update i x = ok nv ∧ nv = v.set i x ∧
   wfArray nv := by
   progress as ⟨ nv, hnv ⟩
-  simp [wfArray] at *
-  simp [hnv, toResult]
+  fsimp [wfArray] at *
+  fsimp [hnv, toResult]
   intro j hj
-  dcases hLt : j = i.val <;> simp [*]
+  dcases hLt : j = i.val <;> fsimp [*]
 
 theorem wfArray_index {n : Usize} (v : Std.Array U16 n) (i : Usize)
   (hbound : i.val < v.length)
   (hWf : wfArray v) :
   ∃ x, v.index_usize i = ok x ∧ x = v.val[i.val]! ∧ x.val < 3329 := by
   progress as ⟨ x ⟩
-  simp [wfArray] at hWf
-  simp [*]
+  fsimp [wfArray] at hWf
+  fsimp [*]
   replace hWf := hWf i.val (by scalar_tac)
   scalar_tac
 
 /-!
 NTT
 -/
-
--- TODO: generalize and move
-attribute [scalar_tac_simp] core.convert.num.FromU32U16.from_val_eq
 
 -- TODO: cast simp lemmas
 
@@ -1002,11 +746,11 @@ def ntt.SymCryptMlKemPolyElementNTTLayerC.inner_loop_loop_spec
   wfArray peSrc' := by
 
   rw [inner_loop_loop]
-  dcases hjLt : ¬ j < len <;> simp [hjLt]
+  dcases hjLt : ¬ j < len <;> fsimp [hjLt]
   . unfold SpecAux.nttLayerInner
     have : ¬ j.val < len.val := by scalar_tac
-    simp only [this]; clear this
-    simp [*]
+    fsimp only [this]; clear this
+    fsimp [*]
   . progress as ⟨ start_j, h_start_j ⟩
     progress with wfArray_index as ⟨ c0 ⟩
 
@@ -1024,8 +768,8 @@ def ntt.SymCryptMlKemPolyElementNTTLayerC.inner_loop_loop_spec
     -- TODO: progress triggers as "maximum recursion depth has been reached"
     have ⟨ c1TimesTwiddle, hEq, hC1TimesTwiddle ⟩ :=
       ntt.SymCryptMlKemMontMul_twiddle_spec k (core.convert.num.FromU32U16.from c1) twiddleFactor twiddleFactorMont
-        (by simp; scalar_tac) htfBound htf (by simp[htf, htfMont])
-    simp [hEq]; clear hEq
+        (by fsimp; scalar_tac) htfBound htf (by fsimp[htf, htfMont])
+    fsimp [hEq]; clear hEq
 
     progress with SymCryptMlKemModSub'_spec as ⟨ c1' ⟩
 
@@ -1145,7 +889,8 @@ theorem ntt.SymCryptMlKemPolyElementNTTLayerC_loop_spec
           the type!)
        2. mark the constant bodies as irreducible
     -/
-    progress as ⟨ twiddleFactor, hft, hftBound ⟩
+    set_option trace.Progress true in
+    progress? as ⟨ twiddleFactor, hft, hftBound ⟩
     progress as ⟨ twiddleFactorMont, hftMont ⟩
     progress as ⟨ k', hk' ⟩
 
@@ -1208,8 +953,8 @@ theorem ntt.SymCryptMlKemPolyElementNTTLayer_spec
   (peSrc : Array U16 256#usize)
   (k : Usize) (len : Usize)
   (hWf : wfArray peSrc)
-  -- Putting many preconditions to get rid of the ghost while making sure `progress`
-  -- goes through automatically
+  /- We could have less preconditions, but if we instantiate the variables with concrete parameters
+     we can discharge those with calls to the simplifer, so we take advantage of that (less proof work on our side). -/
   (hk : 2^(k.val.log2) = k.val ∧ k.val.log2 < 7)
   (hLen : len.val = 128 / k.val)
   (hLenPos : 0 < len.val)
@@ -1270,7 +1015,7 @@ def ntt.SymCryptMlKemPolyElementINTTLayerC.inner_loop_loop_spec
   wfArray peSrc' := by
 
   rw [inner_loop_loop]
-  dcases hjLt : ¬ j < len <;> simp [hjLt]
+  dcases hjLt : ¬ j < len <;> fsimp [hjLt]
   . unfold SpecAux.invNttLayerInner
     have : ¬ j.val < len.val := by scalar_tac
     fsimp only [this]; clear this
@@ -1366,7 +1111,7 @@ theorem ntt.SymCryptMlKemPolyElementINTTLayerC_loop_spec
   wfArray peSrc'
   := by
   rw [SymCryptMlKemPolyElementINTTLayerC_loop]
-  dcases hLt: ¬ start < 256#usize <;> simp only [hLt] <;> simp
+  dcases hLt: ¬ start < 256#usize <;> fsimp only [hLt] <;> fsimp
   . unfold SpecAux.invNttLayer
     have : ¬ start.val < 256 := by scalar_tac
     fsimp only [this]; fsimp [*]
@@ -1424,7 +1169,6 @@ theorem ntt.SymCryptMlKemPolyElementINTTLayerC_loop_spec
 
     -- Recursive call
     have hRec := ntt.SymCryptMlKemPolyElementINTTLayerC_loop_spec layer hLayer (step + 1) (by omega)
-    unfold SymCryptMlKemPolyElementINTTLayerC.inner_loop -- TODO: add the reducible attribute
 
     have : (core.convert.num.FromU32U16.from twiddleFactor).bv =
            BitVec.ofNat 32 (17 ^ bitRev 7 k.val * 65536 % 3329) :=
@@ -1453,8 +1197,8 @@ theorem ntt.SymCryptMlKemPolyElementINTTLayer_spec
   (peSrc : Array U16 256#usize)
   (k : Usize) (len : Usize)
   (hWf : wfArray peSrc)
-  -- Putting many preconditions to get rid of the ghost while making sure `progress`
-  -- goes through automatically
+  /- We could have less preconditions, but if we instantiate the variables with concrete parameters
+     we can discharge those with calls to the simplifer, so we take advantage of that (less proof work on our side). -/
   (hLen : 2^(len.val.log2) = len.val ∧ 1 ≤ len.val.log2 ∧ len.val.log2 ≤ 7)
   (hk : k.val + 1 = 256 / len.val)
   (hLenPos : 0 < len.val)
@@ -1468,12 +1212,12 @@ theorem ntt.SymCryptMlKemPolyElementINTTLayer_spec
     rw [hk]
     rw [← hLen.left]
     have :=
-      calc 256 / 2^len.val.log2 = 2^8 / 2^len.val.log2 := by simp [step]
+      calc 256 / 2^len.val.log2 = 2^8 / 2^len.val.log2 := by fsimp [step]
            _ = 2^(8-len.val.log2) := by rw [Nat.pow_div] <;> scalar_tac
     rw [this]
-    simp [step]
+    fsimp [step]
     scalar_tac
-  have := ntt.SymCryptMlKemPolyElementINTTLayerC_loop_spec step (by scalar_tac) 0 (by simp)
+  have := ntt.SymCryptMlKemPolyElementINTTLayerC_loop_spec step (by scalar_tac) 0 (by fsimp)
   unfold SymCryptMlKemPolyElementINTTLayer
   have : len.val = 2 ^ (len.val.log2 - 1 + 1) := by
     have : len.val.log2 - 1 + 1 = len.val.log2 := by omega
@@ -1481,16 +1225,6 @@ theorem ntt.SymCryptMlKemPolyElementINTTLayer_spec
     rw [hLen.left]
   progress as ⟨ peSrc1, hEq, hWf ⟩
   tauto
-
--- TODO: move
-@[simp] theorem ntt.MLWE_POLYNOMIAL_COEFFICIENTS_eq : ntt.MLWE_POLYNOMIAL_COEFFICIENTS.val = 256 := by
-  -- TODO: why does rfl fail here?
-  simp [ntt.MLWE_POLYNOMIAL_COEFFICIENTS, toResult, MLWE_POLYNOMIAL_COEFFICIENTS_body, eval_global]
-
-@[simp] theorem ntt.INTTFixupTimesRsqr_eq : ntt.INTTFixupTimesRsqr.val = 1441 := by rfl
-@[simp] theorem ntt.INTTFixupTimesRsqr_bv_eq : ntt.INTTFixupTimesRsqr.bv = 1441#32 := by rfl
-
-@[simp] theorem ntt.INTTFixupTimesRsqrTimesNegQInvModR_bv_eq : INTTFixupTimesRsqrTimesNegQInvModR.bv = 10079#32 := by rfl
 
 @[progress]
 theorem ntt.SymCryptMlKemPolyElementINTTAndMulR_loop_spec_aux
@@ -1502,7 +1236,7 @@ theorem ntt.SymCryptMlKemPolyElementINTTAndMulR_loop_spec_aux
     (to_poly peSrc')[j]! = (to_poly peSrc)[j]! * (3303 : Spec.Zq) * 2^16) ∧
   wfArray peSrc' := by
   rw [SymCryptMlKemPolyElementINTTAndMulR_loop]
-  simp
+  fsimp
   split <;> rename_i h
   . progress with wfArray_index as ⟨ x ⟩
     progress with ntt.SymCryptMlKemMontMul_spec as ⟨ xTimes ⟩
@@ -1519,7 +1253,7 @@ theorem ntt.SymCryptMlKemPolyElementINTTAndMulR_loop_spec_aux
       rw [this]; clear this
       fsimp [*]
     . intro j hj0 hj1
-      simp at *
+      fsimp at *
       dcases hij : j = i.val
       . have := h1 j (by scalar_tac)
         rw [this]; clear this
@@ -1534,8 +1268,8 @@ theorem ntt.SymCryptMlKemPolyElementINTTAndMulR_loop_spec_aux
       . have hij' : i1.val ≤ j := by scalar_tac
         have := h2 j (by scalar_tac) (by scalar_tac)
         fsimp [this, hPeSrc1]
-        simp [hij]
-    . simp [*]
+        fsimp [hij]
+    . fsimp [*]
   . have : i.val = 256 := by scalar_tac
     fsimp [*]
     intro j hj0 hj1
@@ -1548,10 +1282,10 @@ decreasing_by scalar_decr_tac
 @[simp]
 theorem to_poly_getElem!_eq (a : Std.Array U16 256#usize) (i : Nat) :
   (to_poly a)[i]! = a.val[i]! := by
-  simp [to_poly]
-  simp [getElem!, decidableGetElem?]
+  fsimp [to_poly]
+  fsimp [getElem!, decidableGetElem?]
   conv => lhs; simp only [getElem, Spec.Polynomial.get!]
-  simp [getElem!, decidableGetElem?]
+  fsimp [getElem!, decidableGetElem?]
   dcases h: i < 256 <;> simp [h]
   rfl
 
@@ -1562,33 +1296,33 @@ theorem ntt.SymCryptMlKemPolyElementINTTAndMulR_loop_spec (peSrc : Std.Array U16
   to_poly peSrc' = (to_poly peSrc) * (3303 : Spec.Zq) * (2^16 : Spec.Zq) ∧
   wfArray peSrc' := by
   progress as ⟨ peSrc', _, h ⟩
-  simp [HMul.hMul, Spec.Polynomial.scalarMul, to_poly, *]
+  fsimp [HMul.hMul, Spec.Polynomial.scalarMul, to_poly, *]
 
   have aux (f f' : List U16) (hLen : f'.length = f.length)
     (hEq : ∀ i, i < f.length → (f'[i]!.val : Spec.Zq) = f[i]!.val * 3303 * 2^16) :
     List.map (fun x => (x.val : Spec.Zq)) f' =
     List.map ((fun v => Mul.mul v (2^16 : Spec.Zq)) ∘ (fun v => Mul.mul v 3303) ∘ fun x => (x.val : Spec.Zq)) f := by
     revert f'; induction f
-    . simp_all
+    . fsimp_all
     . rename_i hd tl hInd
       intro f' hLen hi
       dcases f'
-      . simp at hLen
+      . fsimp at hLen
       . rename_i hd' tl'
-        simp at *
-        have := hInd tl' (by simp [*])
+        fsimp at *
+        have := hInd tl' (by fsimp [*])
           (by
             intro i hLen
             have := hi (i + 1) (by omega)
-            simp [hLen] at this
+            fsimp [hLen] at this
             apply this)
-        simp [*]
+        fsimp [*]
         have := hi 0 (by omega)
-        simp at this
+        fsimp at this
         apply this
 
-  rw [aux] <;> simp [*]
-  simp at h
+  rw [aux] <;> fsimp [*]
+  fsimp at h
   apply h
 
 @[progress]
@@ -1608,6 +1342,6 @@ theorem ntt.SymCryptMlKemPolyElementINTTAndMulR_spec (peSrc : Std.Array U16 256#
   progress as ⟨ peSrc8 ⟩
   rw [← SpecAux.invNtt_eq]
   unfold SpecAux.invNtt
-  simp [*]
+  fsimp [*]
 
 end Symcrust

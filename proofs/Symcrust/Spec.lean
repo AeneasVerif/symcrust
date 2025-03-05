@@ -86,6 +86,12 @@ def Polynomial.set (x : Polynomial) (n : ℕ) (v : Zq) : Polynomial :=
 instance : GetElem Polynomial Nat Zq (fun _ _ => True) where
   getElem p i _ := p.get! i
 
+@[simp]
+theorem Polynomial.cons_getElem! (l : List Zq) (h : l.length = 256) (i : Nat) :
+  (⟨ l, h ⟩ : Polynomial)[i]! = l[i]! := by
+  conv => lhs; simp [getElem!, getElem, get!]
+  conv => rhs; simp [getElem!]
+
 def Polynomial.scalarMul (x : Polynomial) (k : Zq) : Polynomial :=
   ⟨ x.val.map fun v => v * k,
     by cases x; simp_all ⟩
