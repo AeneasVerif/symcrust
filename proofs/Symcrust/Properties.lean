@@ -304,9 +304,7 @@ theorem ntt.SymCryptMlKemModSub'_aux_spec' (a : U32) (b : U32)
   progress as ⟨ c2, hc2 ⟩
 
   have hIf : (if c2 = 0#u32 then ok () else massert (c2 = 65535#u32)) = ok () := by
-    -- TODO: better precondition
     dcases h <;> split <;> bv_tac
-
   progress with hIf; clear hIf
 
   progress as ⟨ c3, hc3 ⟩
@@ -330,7 +328,6 @@ theorem ntt.SymCryptMlKemModSub'_aux_spec' (a : U32) (b : U32)
       have : (4294967296 - ↑b + (↑a + 3329)) % 4294967296 =
              (a.val + (3329 - b.val)) := by scalar_tac +nonLin
       rw [this]
-      -- TODO: zmodify
       scalar_tac +nonLin
     . apply hbvLt
 
@@ -418,9 +415,6 @@ theorem ntt.SymCryptMlKemModSub'_aux_spec (a : U32) (b : U32)
 
     have ⟨ hbvEq, hbvLt ⟩ : c4.bv % 3329#32 = (a.bv + 3329#32 - b.bv) % 3329#32 ∧
                c4.bv < 3329#32 := by
-      -- TODO: add to bvify
-      fsimp only [IScalar.toNat, IScalar.ofInt_val_eq, Int.reduceToNat, UScalarTy.U32_numBits_eq,
-        U32.ofNat_bv] at *
       bv_tac
 
     natify at *
@@ -674,7 +668,6 @@ theorem array_map_eq_range'_imp_index_usize_eq {α β} [Inhabited α] {a : Std.A
   progress with array_map_eq_range'_all_imp_index_usize_eq_pred
   fsimp [*]
 
-@[local progress]
 theorem ntt.MlKemZetaBitRevTimesR_index_spec (k : Usize) (h : k.val < 128) :
   ∃ v, Array.index_usize ntt.MlKemZetaBitRevTimesR k = ok v ∧
   (v.val : ZMod Spec.Q) = Spec.ζ^(bitRev 7 k.val) * 65536 ∧
@@ -687,7 +680,6 @@ theorem ntt.MlKemZetaBitRevTimesR_index_spec (k : Usize) (h : k.val < 128) :
   fsimp [hv]
   simp [Spec.ζ]
 
-@[local progress]
 theorem ntt.MlKemZetaBitRevTimesRTimesNegQInvModR_index_spec' (k : Usize) (h : k.val < 128) :
   ∃ v, Array.index_usize ntt.MlKemZetaBitRevTimesRTimesNegQInvModR k = ok v ∧
   BitVec.ofNat 32 v.val = (BitVec.ofNat _ ((17^(bitRev 7 k.val) * 65536) % 3329) * 3327#32) &&& 65535#32
@@ -698,6 +690,9 @@ theorem ntt.MlKemZetaBitRevTimesRTimesNegQInvModR_index_spec' (k : Usize) (h : k
   natify
   rw [hv]
   fsimp
+
+-- If we put the attribute directly on the declarations above, for some reason, the theorems do not get properly scoped
+attribute [local progress] ntt.MlKemZetaBitRevTimesR_index_spec ntt.MlKemZetaBitRevTimesRTimesNegQInvModR_index_spec'
 
 @[progress]
 theorem ntt.SymCryptMlKemMontMul_twiddle_spec (k : Usize) (c : U32) (twiddleFactor : U32) (twiddleFactorMont : U32)
@@ -728,7 +723,6 @@ theorem ntt.SymCryptMlKemMontMul_twiddle_spec (k : Usize) (c : U32) (twiddleFact
 def wfArray {n} (a : Array U16 n) : Prop :=
   ∀ i, i < n.val → a.val[i]!.val < 3329
 
--- TODO: local attribute for progress
 theorem wfArray_update {n : Usize} (v : Std.Array U16 n) (i : Usize) (x : U16)
   (hbound : i.val < v.length)
   (hx : x.val < 3329)
@@ -827,8 +821,6 @@ def ntt.SymCryptMlKemPolyElementNTTLayerC.inner_loop_loop_spec
 termination_by len.val - j.val
 decreasing_by scalar_decr_tac
 
--- TODO: private attribute for all the auxiliary theorems
--- TODO: extract_minimized_goal
 private theorem convert_twiddleFactor_eq
   (k : Usize)
   (twiddleFactor : U16)
@@ -919,8 +911,7 @@ theorem ntt.SymCryptMlKemPolyElementNTTLayerC_loop_spec
           the type!)
        2. mark the constant bodies as irreducible
     -/
-    set_option trace.Progress true in
-    progress? as ⟨ twiddleFactor, hft, hftBound ⟩
+    progress as ⟨ twiddleFactor, hft, hftBound ⟩
     progress as ⟨ twiddleFactorMont, hftMont ⟩
     progress as ⟨ k', hk' ⟩
 
@@ -937,9 +928,6 @@ theorem ntt.SymCryptMlKemPolyElementNTTLayerC_loop_spec
     have : start'.val = 2 * len.val * (step + 1) := by
       ring_nf
       fsimp [hStart', hTwoLen]
-      -- TODO: those facts are annoying
-      have : start.val + 2 * len.val = start.val + 2 * len.val := by scalar_tac
-      rw [this]
       fsimp [hStart]
       ring_nf
     have := ntt.SymCryptMlKemPolyElementNTTLayerC_loop_spec layer hLayer (step + 1) (by scalar_tac)
@@ -1014,7 +1002,6 @@ def ntt.SymCryptMlKemPolyElementINTTLayerC.inner_loop_loop_spec
   (htf : twiddleFactor.bv = BitVec.ofNat 32 (17 ^ bitRev 7 k.val * 65536 % 3329))
   (htfBound : twiddleFactor.val < 3329)
   (htfMont : twiddleFactorMont.bv = (BitVec.ofNat _ ((17^(bitRev 7 k.val) * 65536) % 3329) * 3327#32) &&& 65535#32)
-  -- TODO: use get notations
   (hBounds : wfArray peSrc)
   :
   ∃ peSrc', inner_loop_loop peSrc len start twiddleFactor twiddleFactorMont j = ok peSrc' ∧
