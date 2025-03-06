@@ -16,57 +16,6 @@ open Aeneas.Arith
 
 set_option maxHeartbeats 2000000
 
--- TODO: move, and update scalar_tac +nonLin
-@[aesop unsafe 50% apply]
-theorem Nat.le_trans (a0 a1 b0 b1 : Nat) (h0 : a0 ≤ a1) (h2 : b0 ≤ b1) : a0 * b0 ≤ a1 * b1 := by
-  have := @Nat.mul_le_mul_left b0 b1 a0 (by assumption)
-  have := @Nat.mul_le_mul_right a0 a1 b1 (by assumption)
-  omega
-
-@[aesop unsafe 50% apply]
-theorem Nat.lt_trans (a0 a1 b0 b1 : Nat) (h0 : a0 < a1) (h2 : b0 < b1) : a0 * b0 < a1 * b1 := by
-  apply Nat.mul_lt_mul_of_lt_of_lt <;> assumption
-
-@[aesop unsafe 50% apply]
-theorem Nat.le_lt_trans (a0 a1 b0 b1 : Nat) (h0 : a0 ≤ a1) (h1 : 0 < a1) (h2 : b0 < b1) : a0 * b0 < a1 * b1 := by
-  sorry
-
-@[aesop unsafe 50% apply]
-theorem Nat.lt_le_trans (a0 a1 b0 b1 : Nat) (h0 : a0 < a1) (h1 : b0 ≤ b1) (h2 : 0 < b1) : a0 * b0 < a1 * b1 := by
-  sorry
-
-syntax "scalar_tac_non_lin" : tactic
-
-macro_rules
-| `(tactic|scalar_tac_non_lin) =>
-  `(tactic|(first | apply Nat.le_trans <;> scalar_tac
-                  | apply Nat.lt_trans <;> scalar_tac
-                  | apply Nat.le_lt_trans <;> scalar_tac
-                  | apply Nat.lt_le_trans <;> scalar_tac))
-
--- TODO: scalar_tac fails with `maximum recursion depth reached`
--- TODO: we need to guard against the looping equalities
-example (peSrc : Std.Array U16 256#usize)
-  (k len : Usize)
-  (hk : k.val = 2 ^ k.val.log2 ∧ -- This is the problem
-        k.val.log2 < 7)
-  :
-  k.val.log2 ≤ 7 := by
-  set_option trace.ScalarTac true in
-  scalar_tac
-
-example (peSrc : Std.Array U16 256#usize)
-  (k len : Usize)
-  (hk : k.val = 2 ^ k.val.log2 ∧ k.val.log2 < 7)
-  (hLen : len.val = 128 / k.val)
-  (hLenPos : 0 < len.val) :
-  k.val.log2 ≤ 7 := by
-  set_option trace.ScalarTac true in
-  scalar_tac
-
-
--- TODO: move
-
 example (abMont abMontAnd : U32)
   (h : (abMont &&& 65535#u32).val * 3329#u32.val ≤ 65535 * 3329) :
   abMontAnd.val * 3329#u32.val ≤ U32.max :=
@@ -75,23 +24,8 @@ example (abMont abMontAnd : U32)
   sorry
   -- sassumption
 
-@[push_cast, simp] -- TODO: this doesn't work
-theorem ZMod.intCast_mod_atLeastTwo (a : ℤ) (b : ℕ) [b.AtLeastTwo] :
-  ((a % (@OfNat.ofNat ℤ b instOfNatAtLeastTwo) : ℤ) : ZMod b) = (a : ZMod b) := by
-  have : @OfNat.ofNat ℤ b instOfNatAtLeastTwo = b := by
-    unfold OfNat.ofNat instOfNatAtLeastTwo
-    fsimp
-  rw [this]
-  fsimp
-
-@[local push_cast, local simp] -- TODO: doesn't get automatically applied!?
-theorem ZMod.intCast_mod' (a : ℤ) (b : ℕ) (bz : Int) (h : bz = b) :
-  ((a % bz) : ZMod b) = (a : ZMod b) := by
-  fsimp [*]
-
-
-@[local simp] theorem bv_and_65535_eq_mod (x : BitVec 32) : x &&& 65535#32 = x % 65536#32 := by bv_decide
-@[local simp] theorem bv_shift_16_eq_div (x : BitVec 32) : x >>> 16 = x / 65536#32 := by bv_decide
+@[local simp, local bvify_simps] theorem bv_and_65535_eq_mod (x : BitVec 32) : x &&& 65535#32 = x % 65536#32 := by bv_decide
+@[local simp, local bvify_simps] theorem bv_shift_16_eq_div (x : BitVec 32) : x >>> 16 = x / 65536#32 := by bv_decide
 
 -- TODO: we need a reduceZMod simproc
 @[local simp]
@@ -489,11 +423,11 @@ theorem mont_reduce_bv_spec (a b bMont tR t : U32)
   t.val < 2 * Spec.Q := by
   have hEq := mont_reduce_no_divide_bv_spec a b bMont tR hbMont htR
   have habLt : a.val * b.val < 3329 * U16.size := by
-    scalar_tac_non_lin
+    scalar_tac +nonLin
 
   have hMont := mont_reduce_spec 3329 U16.size 3327 (a.val * b.val)
     (by fsimp [U16.size, U16.numBits]; exists 16) (by fsimp [U16.size, U16.numBits]) (by fsimp)
-    (by scalar_tac_non_lin) (by fsimp [U16.size, U16.numBits]; constructor)
+    (by scalar_tac +nonLin) (by fsimp [U16.size, U16.numBits]; constructor)
   -- Simplify the bit vector operations
   fsimp [mont_reduce] at hMont
 
@@ -543,26 +477,23 @@ theorem ntt.SymCryptMlKemMontMul_spec (a : U32) (b : U32) (bMont : U32)
   progress -- massert
 
   -- TODO: scalar_tac is not good at reasoning about upper bounds in the presence of multiplication
-  have : a.val * b.val ≤ 3329 * 3329 := by scalar_tac_non_lin
+  have : a.val * b.val ≤ 3329 * 3329 := by scalar_tac +nonLin
   progress with U32.mul_bv_spec as ⟨ ab, hab, hab' ⟩
 
-  have : a.val * bMont.val ≤ 3329 * 65535 := by scalar_tac_non_lin
+  have : a.val * bMont.val ≤ 3329 * 65535 := by scalar_tac +nonLin
   progress with U32.mul_bv_spec as ⟨ abMont, _, habMont ⟩
 
   progress as ⟨ abMontAnd, _, habMontAnd ⟩
 
   have : (abMont &&& 65535#u32).val ≤ 65535 := by
-    have : (U32.bv (abMont &&& 65535#u32)) ≤ 65535#32 := by
-      -- TODO: remove the simp
-      simp only [UScalar.bv_and, UScalarTy.U32_numBits_eq, U32.ofNat_bv, bv_and_65535_eq_mod]
-      bv_tac
+    have : (U32.bv (abMont &&& 65535#u32)) ≤ 65535#32 := by bv_tac
     natify at this; fsimp_all
 
   -- TODO: removing this assert makes progress fail below when attempting to
   -- unify expressions
   have : abMontAnd.val * (3329#u32).val ≤ U32.max := by
     have : abMontAnd.val * 3329 ≤ 65536 * 3329 := by
-      scalar_tac_non_lin
+      scalar_tac +nonLin
     scalar_tac
   progress with U32.mul_bv_spec as ⟨ res1 ⟩
 
@@ -749,10 +680,6 @@ theorem wfArray_index {n : Usize} (v : Std.Array U16 n) (i : Usize)
 NTT
 -/
 
--- TODO: cast simp lemmas
-
--- TODO: progress is too slow, probably because of scalar_tac
--- TODO: termination_by is too slow
 @[progress]
 def ntt.SymCryptMlKemPolyElementNTTLayerC.inner_loop_loop_spec
   (peSrc : Array U16 256#usize) (k : Usize) (len : Usize) (start : Usize)
@@ -762,7 +689,6 @@ def ntt.SymCryptMlKemPolyElementNTTLayerC.inner_loop_loop_spec
   (htf : twiddleFactor.bv = BitVec.ofNat 32 (17 ^ bitRev 7 k.val * 65536 % 3329))
   (htfBound : twiddleFactor.val < 3329)
   (htfMont : twiddleFactorMont.bv = (BitVec.ofNat _ ((17^(bitRev 7 k.val) * 65536) % 3329) * 3327#32) &&& 65535#32)
-  -- TODO: use get notations
   (hBounds : wfArray peSrc)
   :
   ∃ peSrc', inner_loop_loop peSrc len start twiddleFactor twiddleFactorMont j = ok peSrc' ∧
