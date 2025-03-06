@@ -16,14 +16,6 @@ open Aeneas.Arith
 
 set_option maxHeartbeats 2000000
 
-example (abMont abMontAnd : U32)
-  (h : (abMont &&& 65535#u32).val * 3329#u32.val ≤ 65535 * 3329) :
-  abMontAnd.val * 3329#u32.val ≤ U32.max :=
-  by
-  -- TODO: fix this
-  sorry
-  -- sassumption
-
 @[local simp, local bvify_simps] theorem bv_and_65535_eq_mod (x : BitVec 32) : x &&& 65535#32 = x % 65536#32 := by bv_decide
 @[local simp, local bvify_simps] theorem bv_shift_16_eq_div (x : BitVec 32) : x >>> 16 = x / 65536#32 := by bv_decide
 
@@ -476,7 +468,6 @@ theorem ntt.SymCryptMlKemMontMul_spec (a : U32) (b : U32) (bMont : U32)
     fsimp [*]
   progress -- massert
 
-  -- TODO: scalar_tac is not good at reasoning about upper bounds in the presence of multiplication
   have : a.val * b.val ≤ 3329 * 3329 := by scalar_tac +nonLin
   progress with U32.mul_bv_spec as ⟨ ab, hab, hab' ⟩
 
@@ -489,12 +480,6 @@ theorem ntt.SymCryptMlKemMontMul_spec (a : U32) (b : U32) (bMont : U32)
     have : (U32.bv (abMont &&& 65535#u32)) ≤ 65535#32 := by bv_tac
     natify at this; fsimp_all
 
-  -- TODO: removing this assert makes progress fail below when attempting to
-  -- unify expressions
-  have : abMontAnd.val * (3329#u32).val ≤ U32.max := by
-    have : abMontAnd.val * 3329 ≤ 65536 * 3329 := by
-      scalar_tac +nonLin
-    scalar_tac
   progress with U32.mul_bv_spec as ⟨ res1 ⟩
 
   progress with U32.add_bv_spec as ⟨ res2 ⟩
@@ -715,11 +700,11 @@ def ntt.SymCryptMlKemPolyElementNTTLayerC.inner_loop_loop_spec
     have hc1Bound := hBounds start_j_len.val (by scalar_tac)
     progress
 
-    -- TODO: progress triggers as "maximum recursion depth has been reached"
-    have ⟨ c1TimesTwiddle, hEq, hC1TimesTwiddle ⟩ :=
-      ntt.SymCryptMlKemMontMul_twiddle_spec k (core.convert.num.FromU32U16.from c1) twiddleFactor twiddleFactorMont
-        (by fsimp; scalar_tac) htfBound htf (by fsimp[htf, htfMont])
-    fsimp [hEq]; clear hEq
+    have : twiddleFactorMont.bv = twiddleFactor.bv * 3327#32 &&& 65535#32 := by
+      -- TODO: make progress prove this automatically?
+      fsimp[htf, htfMont]
+
+    progress as ⟨ c1TimesTwiddle, hC1TimesTwiddle ⟩
 
     progress with SymCryptMlKemModSub'_spec as ⟨ c1' ⟩
 
@@ -828,15 +813,6 @@ theorem ntt.SymCryptMlKemPolyElementNTTLayerC_loop_spec
         omega
       scalar_tac
 
-    /- TODO: progress fails here
-       `progress` attempts to use assumption `hLen : ↑len = 2 ^ (7 - layer)` (!?)
-       and it causes issues because the term in the goal is:
-       `MlKemZetaBitRevTimesR.index_usize k`
-       We should:
-       1. fix the assumption matching to only match the relevant assumptions (we should check
-          the type!)
-       2. mark the constant bodies as irreducible
-    -/
     progress as ⟨ twiddleFactor, hft, hftBound ⟩
     progress as ⟨ twiddleFactorMont, hftMont ⟩
     progress as ⟨ k', hk' ⟩
@@ -844,6 +820,10 @@ theorem ntt.SymCryptMlKemPolyElementNTTLayerC_loop_spec
     have : (core.convert.num.FromU32U16.from twiddleFactor).bv =
            BitVec.ofNat 32 (17 ^ bitRev 7 k.val * 65536 % 3329) :=
       convert_twiddleFactor_eq k twiddleFactor hft hftBound
+    -- TODO: improve the postcondition of `MlKemZetaBitRevTimesRTimesNegQInvModR.index_usize` to mention `bv`
+    have : (core.convert.num.FromU32U16.from twiddleFactorMont).bv =
+            BitVec.ofNat 32 (17 ^ bitRev 7 ↑k * 65536 % 3329) * 3327#32 &&& 65535#32 := by
+      apply hftMont
     progress as ⟨ peSrc1, _, hPeSrc1 ⟩
 
     progress as ⟨ twoLen, hTwoLen ⟩
@@ -957,12 +937,11 @@ def ntt.SymCryptMlKemPolyElementINTTLayerC.inner_loop_loop_spec
     progress with SymCryptMlKemModAdd'_spec as ⟨ tmp, htmp ⟩
     progress with SymCryptMlKemModSub'_spec as ⟨ c1', hc1' ⟩
 
-    -- TODO: progress triggers a "maximum recursion depth has been reached"
-    -- the problem comes from the unification of terms by singleAssumptionTac
-    have ⟨ c1'', hEq, hc1'' ⟩ :=
-      ntt.SymCryptMlKemMontMul_twiddle_spec k c1' twiddleFactor twiddleFactorMont
-        (by fsimp; scalar_tac) htfBound htf (by fsimp[htf, htfMont])
-    fsimp [hEq]; clear hEq
+    -- TODO: make progress automatically prove this?
+    have : twiddleFactorMont.bv = twiddleFactor.bv * 3327#32 &&& 65535#32 := by
+      fsimp [htf, htfMont]
+
+    progress as ⟨ c1'', hc1'' ⟩
 
     progress as ⟨ tmp_u16, h_tmp_u16 ⟩
 
@@ -1093,6 +1072,11 @@ theorem ntt.SymCryptMlKemPolyElementINTTLayerC_loop_spec
     have : (core.convert.num.FromU32U16.from twiddleFactor).bv =
            BitVec.ofNat 32 (17 ^ bitRev 7 k.val * 65536 % 3329) :=
       convert_twiddleFactor_eq k twiddleFactor hft hftBound
+    -- TODO: improve the postcondition of `MlKemZetaBitRevTimesRTimesNegQInvModR.index_usize` to mention `bv`
+    have :
+     (core.convert.num.FromU32U16.from twiddleFactorMont).bv =
+      BitVec.ofNat 32 (17 ^ bitRev 7 ↑k * 65536 % 3329) * 3327#32 &&& 65535#32 := by
+      apply hftMont
     progress as ⟨ peSrc1, _, hPeSrc1 ⟩
 
     progress as ⟨ twoLen, hTwoLen ⟩
@@ -1128,7 +1112,7 @@ theorem ntt.SymCryptMlKemPolyElementINTTLayer_spec
   wfArray peSrc'
   := by
   let step := len.val.log2 - 1
-  have : k.val + 1 = 2 ^ (7 - step) := by
+  have hk' : k.val + 1 = 2 ^ (7 - step) := by
     rw [hk]
     rw [← hLen.left]
     have :=
@@ -1144,7 +1128,9 @@ theorem ntt.SymCryptMlKemPolyElementINTTLayer_spec
     rw [this]
     rw [hLen.left]
   progress as ⟨ peSrc1, hEq, hWf ⟩
-  tauto
+  . -- TODO: progress should prove this automatically
+    apply hk'
+  . tauto
 
 @[progress]
 theorem ntt.SymCryptMlKemPolyElementINTTAndMulR_loop_spec_aux
