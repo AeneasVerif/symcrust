@@ -618,6 +618,9 @@ theorem ntt.SymCryptMlKemMontMul_twiddle_spec (k : Usize) (c : U32) (twiddleFact
   ∃ (d : U32), ntt.SymCryptMlKemMontMul c twiddleFactor twiddleFactorMont = ok d ∧
   (d.val : Spec.Zq) = (c.val : Spec.Zq) * (Spec.ζ^(bitRev 7 k.val)) ∧
   d.val < Spec.Q := by
+  -- TODO: progress should be able to prove this automatically
+  have : twiddleFactorMont.bv = twiddleFactor.bv * NegQInvModR.bv &&& Rmask.bv := by
+    simp [htfMont]
   progress as ⟨ d, hEq, hLt ⟩
   fsimp at htfMont
   natify at htf; fsimp at htf
