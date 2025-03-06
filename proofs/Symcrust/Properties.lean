@@ -618,9 +618,6 @@ theorem ntt.SymCryptMlKemMontMul_twiddle_spec (k : Usize) (c : U32) (twiddleFact
   ∃ (d : U32), ntt.SymCryptMlKemMontMul c twiddleFactor twiddleFactorMont = ok d ∧
   (d.val : Spec.Zq) = (c.val : Spec.Zq) * (Spec.ζ^(bitRev 7 k.val)) ∧
   d.val < Spec.Q := by
-  -- TODO: progress should be able to prove this automatically
-  have : twiddleFactorMont.bv = twiddleFactor.bv * NegQInvModR.bv &&& Rmask.bv := by
-    simp [htfMont]
   progress as ⟨ d, hEq, hLt ⟩
   fsimp at htfMont
   natify at htf; fsimp at htf
@@ -642,6 +639,7 @@ theorem ntt.SymCryptMlKemMontMul_twiddle_spec (k : Usize) (c : U32) (twiddleFact
 def wfArray {n} (a : Array U16 n) : Prop :=
   ∀ i, i < n.val → a.val[i]!.val < 3329
 
+-- TODO: local progress
 theorem wfArray_update {n : Usize} (v : Std.Array U16 n) (i : Usize) (x : U16)
   (hbound : i.val < v.length)
   (hx : x.val < 3329)
@@ -654,6 +652,7 @@ theorem wfArray_update {n : Usize} (v : Std.Array U16 n) (i : Usize) (x : U16)
   intro j hj
   dcases hLt : j = i.val <;> fsimp [*]
 
+-- TODO: local progress
 theorem wfArray_index {n : Usize} (v : Std.Array U16 n) (i : Usize)
   (hbound : i.val < v.length)
   (hWf : wfArray v) :
@@ -702,10 +701,6 @@ def ntt.SymCryptMlKemPolyElementNTTLayerC.inner_loop_loop_spec
     -- assert
     have hc1Bound := hBounds start_j_len.val (by scalar_tac)
     progress
-
-    have : twiddleFactorMont.bv = twiddleFactor.bv * 3327#32 &&& 65535#32 := by
-      -- TODO: make progress prove this automatically?
-      fsimp[htf, htfMont]
 
     progress as ⟨ c1TimesTwiddle, hC1TimesTwiddle ⟩
 
@@ -940,10 +935,6 @@ def ntt.SymCryptMlKemPolyElementINTTLayerC.inner_loop_loop_spec
     progress with SymCryptMlKemModAdd'_spec as ⟨ tmp, htmp ⟩
     progress with SymCryptMlKemModSub'_spec as ⟨ c1', hc1' ⟩
 
-    -- TODO: make progress automatically prove this?
-    have : twiddleFactorMont.bv = twiddleFactor.bv * 3327#32 &&& 65535#32 := by
-      fsimp [htf, htfMont]
-
     progress as ⟨ c1'', hc1'' ⟩
 
     progress as ⟨ tmp_u16, h_tmp_u16 ⟩
@@ -1126,14 +1117,12 @@ theorem ntt.SymCryptMlKemPolyElementINTTLayer_spec
     scalar_tac
   have := ntt.SymCryptMlKemPolyElementINTTLayerC_loop_spec step (by scalar_tac) 0 (by fsimp)
   unfold SymCryptMlKemPolyElementINTTLayer
-  have : len.val = 2 ^ (len.val.log2 - 1 + 1) := by
+  have hLen' : 2 ^ (len.val.log2 - 1 + 1) = len.val := by
     have : len.val.log2 - 1 + 1 = len.val.log2 := by omega
     rw [this]
     rw [hLen.left]
   progress as ⟨ peSrc1, hEq, hWf ⟩
-  . -- TODO: progress should prove this automatically
-    apply hk'
-  . tauto
+  fsimp [*]
 
 @[progress]
 theorem ntt.SymCryptMlKemPolyElementINTTAndMulR_loop_spec_aux
