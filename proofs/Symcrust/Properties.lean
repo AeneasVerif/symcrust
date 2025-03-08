@@ -109,38 +109,6 @@ def ntt.SymCryptMlKemModAdd_eq (a : U32) (b : U32) :
   intros
   split <;> fsimp
 
--- TODO: use this to prototype `progress_simp_post`
-example
-  (a : U32)
-  (b : U32)
-  (ha : (↑a : ℕ) < 3329)
-  (hb : (↑b : ℕ) < 3329)
-  (this_1 : a.bv < 3329#32)
-  (this : b.bv < 3329#32)
-  (c1 : U32)
-  (hc1 : (↑c1 : ℕ) = (↑a : ℕ) + (↑b : ℕ))
-  (_ : c1.bv = a.bv + b.bv)
-  (c2 : U32)
-  (hc2 : c2 = core.num.U32.wrapping_sub c1 3329#u32) :
-  ∃ c,
-  (do
-        let i1 ← c2 >>> 16#i32
-        if i1 = 0#u32 then ok () else massert (decide (i1 = 65535#u32))
-        let __discr ← (↑(3329#u32 &&& i1) : Result U32)
-        let __discr ← (↑(core.num.U32.wrapping_add c2 __discr) : Result U32)
-        massert (decide ((↑__discr : ℕ) < 3329))
-        ok __discr) =
-      ok c ∧
-    (↑(↑c : ℕ) : Spec.Zq) = (↑(↑a : ℕ) : Spec.Zq) + (↑(↑b : ℕ) : Spec.Zq) ∧ (↑c : ℕ) < 3329
-  := by
-  progress as ⟨ c3, hc3 ⟩
-  -- we want to reduce `16#i32.toNat` to `16`
-  simp only [IScalar.toNat, IScalar.ofInt_val_eq, Int.reduceToNat] at hc3
-  sorry
-
--- TODO: generalize and move
-@[simp] theorem UScalar.size_UScalarTyU32 : UScalar.size .U32 = U32.size := by scalar_tac
-
 @[progress]
 theorem ntt.SymCryptMlKemModAdd'_spec (a : U32) (b : U32)
   (ha : a.val < Spec.Q) (hb : b.val < Spec.Q) :
@@ -260,46 +228,6 @@ theorem ntt.SymCryptMlKemModSub'_aux_spec' (a : U32) (b : U32)
   progress -- massert
   apply hPost
 
--- TODO: move
-theorem BitVec.lt_pow_ofNat_le {n : Nat} (a b : Nat) (h0 : b < 2^n) (h1 : a ≤ b) :
-  BitVec.ofNat n a ≤ BitVec.ofNat n b := by
-  have : 0 < 2^n := by simp
-  have : a % 2^n = a := by apply Nat.mod_eq_of_lt; omega
-  have : b % 2^n = b := by apply Nat.mod_eq_of_lt; omega
-  simp [*]
-
-@[aesop safe forward (pattern := a ≤ b)]
-theorem BitVec.if_lt_pow_ofNat_le {n : Nat} (a b : Nat) (h0 : a ≤ b) :
-  if b < 2^n then BitVec.ofNat n a ≤ BitVec.ofNat n b else True := by
-  split
-  . apply BitVec.lt_pow_ofNat_le <;> assumption
-  . simp
-
--- TODO: move
-theorem BitVec.lt_pow_ofNat_lt {n : Nat} (a b : Nat) (h0 : b < 2^n) (h0 : a < b) :
-  BitVec.ofNat n a < BitVec.ofNat n b := by
-  have : 0 < 2^n := by simp
-  have : a % 2^n = a := by apply Nat.mod_eq_of_lt; omega
-  have : b % 2^n = b := by apply Nat.mod_eq_of_lt; omega
-  simp [*]
-
-@[aesop safe forward (pattern := a < b)]
-theorem BitVec.if_lt_pow_ofNat_lt {n : Nat} (a b : Nat) (h0 : a < b) :
-  if b < 2^n then BitVec.ofNat n a < BitVec.ofNat n b else True := by
-  split
-  . apply BitVec.lt_pow_ofNat_lt <;> assumption
-  . simp
-
-@[aesop safe forward]
-theorem BitVec'.if_lt_pow_ofNat_lt (a b : Nat) (h0 : a < b) :
-  if b < U32.max then BitVec.ofNat 32 a < BitVec.ofNat 32 b else True := by
-  split
-  . apply BitVec.lt_pow_ofNat_lt <;> scalar_tac
-  . simp
-
-theorem Nat.le_imp_if_le (a b : Nat) (h : a ≤ b) (p q : Prop) : (if a ≤ b then p else q) ↔ p := by simp [*]
-theorem Nat.lt_imp_if_lt (a b : Nat) (h : a < b) (p q : Prop) : (if a < b then p else q) ↔ p := by simp [*]
-
 -- TODO: remove the one above
 theorem ntt.SymCryptMlKemModSub'_aux_spec (a : U32) (b : U32)
   (_ : a.val ≤ 2*3329)
@@ -317,14 +245,6 @@ theorem ntt.SymCryptMlKemModSub'_aux_spec (a : U32) (b : U32)
 
   progress as ⟨ c1, hc1 ⟩
   progress as ⟨ c2, hc2 ⟩
-
-  -- TODO: automate this with bvify
-  have : a.bv < b.bv + 3329#32 := by
-    saturate
-    simp (maxDischargeDepth := 1) (disch := scalar_tac) only [Nat.le_imp_if_le, Nat.lt_imp_if_lt] at *
-    fsimp only [U32.BitVec_ofNat_val_eq] at *
-    fsimp [BitVec.ofNat_add, U32.BitVec_ofNat_val_eq] at *
-    assumption
 
   have hIf : (if c2 = 0#u32 then ok () else massert (c2 = 65535#u32)) = ok () := by
     split <;> bv_tac
