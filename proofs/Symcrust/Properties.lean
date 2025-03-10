@@ -16,8 +16,8 @@ open Aeneas.Arith
 
 set_option maxHeartbeats 2000000
 
-@[local simp, local bvify_simps] theorem bv_and_65535_eq_mod (x : BitVec 32) : x &&& 65535#32 = x % 65536#32 := by bv_decide
-@[local simp, local bvify_simps] theorem bv_shift_16_eq_div (x : BitVec 32) : x >>> 16 = x / 65536#32 := by bv_decide
+@[local simp] theorem bv_and_65535_eq_mod (x : BitVec 32) : x &&& 65535#32 = x % 65536#32 := by bv_decide
+@[local simp] theorem bv_shift_16_eq_div (x : BitVec 32) : x >>> 16 = x / 65536#32 := by bv_decide
 
 -- TODO: we need a reduceZMod simproc
 @[local simp]
@@ -95,7 +95,7 @@ def ntt.SymCryptMlKemModAdd' (a : U32) (b : U32) : Result U32 :=
   let i ← a + b
   let (res : U32) ← ↑(core.num.U32.wrapping_sub i ntt.Q)
   let i1 ← res >>> 16#i32
-  (if i1 = 0#u32 then ok () else massert (i1 = 65535#u32))
+  massert (i1 = 0#u32 ∨ i1 = 65535#u32)
   let (i2 : U32) ← ↑(ntt.Q &&& i1)
   let (res1 : U32) ← ↑(core.num.U32.wrapping_add res i2)
   massert (res1 < ntt.Q)
@@ -107,7 +107,7 @@ def ntt.SymCryptMlKemModAdd_eq (a : U32) (b : U32) :
   unfold SymCryptMlKemModAdd SymCryptMlKemModAdd'
   fsimp
   intros
-  split <;> fsimp
+  split <;> fsimp [*]
 
 @[progress]
 theorem ntt.SymCryptMlKemModAdd'_spec (a : U32) (b : U32)
@@ -123,34 +123,15 @@ theorem ntt.SymCryptMlKemModAdd'_spec (a : U32) (b : U32)
   progress as ⟨ c2, hc2 ⟩
   progress as ⟨ c3, hc3 ⟩
 
-  -- TODO: handle this properly with progress
-  have hIf : (if c3 = 0#u32 then ok () else massert (c3 = 65535#u32)) = ok () := by
-    split <;> simp
-    bv_tac
-  progress with hIf; clear hIf
+  progress -- massert
+  . bv_tac 32
 
   progress as ⟨ c4, hc4 ⟩
   progress as ⟨ c5, hc5 ⟩
-
-  -- Prove the post-condition (we also need this prove that the assert holds)
-  have hPost :
-    (c5.val : Spec.Zq) = (a.val : Spec.Zq) + (b.val : Spec.Zq) ∧
-    c5.val < Spec.Q := by
-
-    /- We use bitvectors to automate the proofs -/
-    have hc5' : c5.bv = (a.bv + b.bv) % 3329#32 ∧ c5.bv < 3329#32 := by
-      bv_tac
-
-    /- We need to convert the bit vectors and ZMod elements to ℕ -/
-    natify at *
-    fsimp_all [U32.size, U32.numBits]
-    /- There just remains simple arithmetic reasonings -/
-    scalar_tac
-
   -- Finish the proof
   progress
-  -- Post-condition
-  apply hPost
+  . bv_tac 32
+  . bv_tac 32
 
 /-!
 Subtraction modulo
@@ -162,7 +143,7 @@ def ntt.SymCryptMlKemModSub' (a : U32) (b : U32) : Result U32 := do
   massert (b <= ntt.Q)
   let (res : U32) ← ↑(core.num.U32.wrapping_sub a b)
   let i1 ← res >>> 16#i32
-  (if i1 = 0#u32 then ok () else massert (i1 = 65535#u32))
+  massert (i1 = 0#u32 ∨ i1 = 65535#u32)
   let (i2 : U32) ← ↑(ntt.Q &&& i1)
   let (res1 : U32) ← ↑(core.num.U32.wrapping_add res i2)
   massert (res1 < ntt.Q)
@@ -174,7 +155,7 @@ def ntt.SymCryptMlKemModSub_eq (a : U32) (b : U32) :
   unfold SymCryptMlKemModSub SymCryptMlKemModSub'
   fsimp
   intros
-  split <;> fsimp
+  split <;> fsimp [*]
 
 /-- We first introduce a general, auxiliary version of the spec, that we later split in two.
     One of them is used to subtract numbers in the NTT, the other is used in the Montgomery
@@ -197,36 +178,16 @@ theorem ntt.SymCryptMlKemModSub'_aux_spec' (a : U32) (b : U32)
   progress as ⟨ c1, hc1 ⟩
   progress as ⟨ c2, hc2 ⟩
 
-  have hIf : (if c2 = 0#u32 then ok () else massert (c2 = 65535#u32)) = ok () := by
-    dcases h <;> split <;> bv_tac
-  progress with hIf; clear hIf
+  progress -- massert
+  . bv_tac 32
 
   progress as ⟨ c3, hc3 ⟩
   progress as ⟨ c4, hc3 ⟩
 
-  -- Prove the post-condition (we also need this prove that the assert holds)
-  have hPost :
-    (c4.val : Spec.Zq) = (a.val : Spec.Zq) - (b.val : Spec.Zq) ∧
-    c4.val < Spec.Q := by
-
-    have ⟨ hbvEq, hbvLt ⟩ : c4.bv % 3329#32 = (a.bv + 3329#32 - b.bv) % 3329#32 ∧
-               c4.bv < 3329#32 := by
-      bv_tac
-
-    natify at *
-    fsimp at *
-    norm_mod
-
-    split_conjs
-    . rw [hbvEq]
-      have : (4294967296 - ↑b + (↑a + 3329)) % 4294967296 =
-             (a.val + (3329 - b.val)) := by scalar_tac +nonLin
-      rw [this]
-      scalar_tac +nonLin
-    . apply hbvLt
-
-  progress -- massert
-  apply hPost
+  -- massert
+  progress
+  . bv_tac 32
+  . bv_tac 32
 
 -- TODO: remove the one above
 theorem ntt.SymCryptMlKemModSub'_aux_spec (a : U32) (b : U32)
@@ -246,37 +207,15 @@ theorem ntt.SymCryptMlKemModSub'_aux_spec (a : U32) (b : U32)
   progress as ⟨ c1, hc1 ⟩
   progress as ⟨ c2, hc2 ⟩
 
-  have hIf : (if c2 = 0#u32 then ok () else massert (c2 = 65535#u32)) = ok () := by
-    split <;> bv_tac
-
-  progress with hIf; clear hIf
+  progress -- massert
+  . bv_tac 32
 
   progress as ⟨ c3, hc3 ⟩
   progress as ⟨ c4, hc3 ⟩
 
-  -- Prove the post-condition (we also need this prove that the assert holds)
-  have hPost :
-    (c4.val : Spec.Zq) = (a.val : Spec.Zq) - (b.val : Spec.Zq) ∧
-    c4.val < Spec.Q := by
-
-    have ⟨ hbvEq, hbvLt ⟩ : c4.bv % 3329#32 = (a.bv + 3329#32 - b.bv) % 3329#32 ∧
-               c4.bv < 3329#32 := by
-      bv_tac
-
-    natify at *
-    fsimp at *
-    norm_mod
-
-    split_conjs
-    . rw [hbvEq]
-      have : (4294967296 - ↑b + (↑a + 3329)) % 4294967296 =
-             (a.val + (3329 - b.val)) := by scalar_tac
-      rw [this]
-      scalar_tac
-    . apply hbvLt
-
   progress -- massert
-  apply hPost
+  . bv_tac 32
+  . bv_tac 32
 
 theorem ntt.SymCryptMlKemModSub'_spec (a : U32) (b : U32)
   (ha : a.val < Spec.Q) (hb : b.val < Spec.Q) :
@@ -313,7 +252,7 @@ theorem mont_reduce_no_divide_bv_spec (a b bMont tR : U32)
   -- Reason in ℤ and simplify the modulus
   natify; fsimp [- EuclideanDomain.mod_eq_zero]
 
-  -- Go to ZMod
+  -- Go to ZMod - TODO: a zmodify tactic would do this automatically
   have : 0 = 0 % (65536 : Nat) := by fsimp
   rw [this]; clear this
   rw [← ZMod_nat_cast_eq_nat_cast_iff]
