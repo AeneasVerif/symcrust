@@ -635,7 +635,7 @@ theorem SymCryptMlKemPolyElementNTTLayerC_loop_spec
     -- TODO: improve the postcondition of `MlKemZetaBitRevTimesRTimesNegQInvModR.index_usize` to mention `bv`
     have : (core.convert.num.FromU32U16.from twiddleFactorMont).bv =
             BitVec.ofNat 32 (17 ^ bitRev 7 ↑k * 65536 % 3329) * 3327#32 &&& 65535#32 := by
-      apply hftMont
+      simp at hftMont; simp; apply hftMont
     progress as ⟨ peSrc1, _, hPeSrc1 ⟩
 
     progress as ⟨ twoLen, hTwoLen ⟩
@@ -884,7 +884,7 @@ theorem SymCryptMlKemPolyElementINTTLayerC_loop_spec
     have :
      (core.convert.num.FromU32U16.from twiddleFactorMont).bv =
       BitVec.ofNat 32 (17 ^ bitRev 7 ↑k * 65536 % 3329) * 3327#32 &&& 65535#32 := by
-      apply hftMont
+      simp at hftMont; simp; apply hftMont
     progress as ⟨ peSrc1, _, hPeSrc1 ⟩
 
     progress as ⟨ twoLen, hTwoLen ⟩
