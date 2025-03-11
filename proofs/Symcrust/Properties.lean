@@ -55,6 +55,12 @@ attribute [-simp] List.getElem!_eq_getElem?_getD
 
 attribute [local simp, local scalar_tac_simp, local bvify_simps] Spec.Q
 
+/-!
+We want to use specifications which manipulate bit-vector representations
+-/
+attribute [-progress] U32.add_spec U32.mul_spec
+attribute [local progress] U32.add_bv_spec U32.mul_bv_spec
+
 def to_poly (a : Array U16 256#usize) : Spec.Polynomial :=
   ⟨ List.map (fun x => (x.val : Spec.Zq)) a.val, by simp ⟩
 
@@ -119,7 +125,7 @@ theorem ntt.SymCryptMlKemModAdd'_spec (a : U32) (b : U32)
   fsimp at *
   progress
   progress
-  progress with U32.add_bv_spec as ⟨ c1, hc1 ⟩
+  progress as ⟨ c1, hc1 ⟩
   progress as ⟨ c2, hc2 ⟩
   progress as ⟨ c3, hc3 ⟩
 
@@ -170,9 +176,9 @@ theorem ntt.SymCryptMlKemModSub'_aux_spec' (a : U32) (b : U32)
   c.val < Spec.Q := by
   unfold SymCryptMlKemModSub'
   fsimp at *
-  progress as ⟨ twoQ, hTwoQ ⟩
+  progress as ⟨ twoQ, hTwoQ, hTwoQ' ⟩
   progress -- massert
-  clear twoQ hTwoQ
+  clear twoQ hTwoQ hTwoQ'
   progress -- massert
 
   progress as ⟨ c1, hc1 ⟩
@@ -199,9 +205,9 @@ theorem ntt.SymCryptMlKemModSub'_aux_spec (a : U32) (b : U32)
   c.val < Spec.Q := by
   unfold SymCryptMlKemModSub'
   fsimp at *
-  progress as ⟨ twoQ, hTwoQ ⟩
+  progress as ⟨ twoQ, hTwoQ, hTwoQ' ⟩
   progress -- massert
-  clear twoQ hTwoQ
+  clear twoQ hTwoQ hTwoQ'
   progress -- massert
 
   progress as ⟨ c1, hc1 ⟩
@@ -259,7 +265,6 @@ theorem mont_reduce_no_divide_bv_spec (a b bMont tR : U32)
   fsimp
 
   -- Finish
-  fsimp [mul_assoc]
   ring_nf
   have : (11075584 : ZMod 65536) = 0 := by rfl
   rw [this]; fsimp
@@ -317,7 +322,7 @@ theorem ntt.SymCryptMlKemMontMul_spec (a : U32) (b : U32) (bMont : U32)
     natify at this; fsimp_all
   progress
 
-  progress with U32.mul_bv_spec as ⟨ b1, hb1, hb1' ⟩
+  progress as ⟨ b1, hb1, hb1' ⟩
   fsimp at hb1'
 
   progress as ⟨ b2, hb2 ⟩
@@ -328,10 +333,10 @@ theorem ntt.SymCryptMlKemMontMul_spec (a : U32) (b : U32) (bMont : U32)
   progress -- massert
 
   have : a.val * b.val ≤ 3329 * 3329 := by scalar_tac +nonLin
-  progress with U32.mul_bv_spec as ⟨ ab, hab, hab' ⟩
+  progress as ⟨ ab, hab, hab' ⟩
 
   have : a.val * bMont.val ≤ 3329 * 65535 := by scalar_tac +nonLin
-  progress with U32.mul_bv_spec as ⟨ abMont, _, habMont ⟩
+  progress as ⟨ abMont, _, habMont ⟩
 
   progress as ⟨ abMontAnd, _, habMontAnd ⟩
 
@@ -339,9 +344,9 @@ theorem ntt.SymCryptMlKemMontMul_spec (a : U32) (b : U32) (bMont : U32)
     have : (U32.bv (abMont &&& 65535#u32)) ≤ 65535#32 := by bv_tac
     natify at this; fsimp_all
 
-  progress with U32.mul_bv_spec as ⟨ res1 ⟩
+  progress as ⟨ res1 ⟩
 
-  progress with U32.add_bv_spec as ⟨ res2 ⟩
+  progress as ⟨ res2 ⟩
 
   progress as ⟨ res3, _, hres3bv ⟩
   have : res3 = 0#u32 := by
@@ -498,7 +503,7 @@ theorem ntt.SymCryptMlKemMontMul_twiddle_spec (k : Usize) (c : U32) (twiddleFact
 def wfArray {n} (a : Array U16 n) : Prop :=
   ∀ i, i < n.val → a.val[i]!.val < 3329
 
--- TODO: local progress
+@[local progress]
 theorem wfArray_update {n : Usize} (v : Std.Array U16 n) (i : Usize) (x : U16)
   (hbound : i.val < v.length)
   (hx : x.val < 3329)
@@ -511,7 +516,7 @@ theorem wfArray_update {n : Usize} (v : Std.Array U16 n) (i : Usize) (x : U16)
   intro j hj
   dcases hLt : j = i.val <;> fsimp [*]
 
--- TODO: local progress
+@[local progress]
 theorem wfArray_index {n : Usize} (v : Std.Array U16 n) (i : Usize)
   (hbound : i.val < v.length)
   (hWf : wfArray v) :
@@ -548,14 +553,14 @@ def ntt.SymCryptMlKemPolyElementNTTLayerC.inner_loop_loop_spec
     fsimp only [this]; clear this
     fsimp [*]
   . progress as ⟨ start_j, h_start_j ⟩
-    progress with wfArray_index as ⟨ c0 ⟩
+    progress as ⟨ c0 ⟩
 
     -- assert
     have hc0Bound := hBounds start_j.val (by scalar_tac)
     progress
 
     progress as ⟨ start_j_len, h_start_j_len ⟩
-    progress with wfArray_index as ⟨ c1 ⟩
+    progress as ⟨ c1 ⟩
 
     -- assert
     have hc1Bound := hBounds start_j_len.val (by scalar_tac)
@@ -570,11 +575,11 @@ def ntt.SymCryptMlKemPolyElementNTTLayerC.inner_loop_loop_spec
     progress as ⟨ c0'', hc0'' ⟩
     have : c0''.val = c0'.val := by sorry
     clear hc0''
-    progress with wfArray_update as ⟨ peSrc1, hPeSrc1 ⟩
+    progress as ⟨ peSrc1, hPeSrc1 ⟩
     progress as ⟨ c1'', hc1'' ⟩
     have : c1''.val = c1'.val := by sorry
     clear hc1''
-    progress with wfArray_update as ⟨ peSrc2, hPeSrc2 ⟩
+    progress as ⟨ peSrc2, hPeSrc2 ⟩
 
     progress as ⟨ j1 ⟩
 
@@ -778,14 +783,14 @@ def ntt.SymCryptMlKemPolyElementINTTLayerC.inner_loop_loop_spec
     fsimp only [this]; clear this
     fsimp [*]
   . progress as ⟨ start_j, h_start_j ⟩
-    progress with wfArray_index as ⟨ c0, hc0 ⟩
+    progress as ⟨ c0, hc0 ⟩
 
     -- assert
     have hc0Bound := hBounds start_j.val (by scalar_tac)
     progress
 
     progress as ⟨ start_j_len, h_start_j_len ⟩
-    progress with wfArray_index as ⟨ c1, hc1 ⟩
+    progress as ⟨ c1, hc1 ⟩
 
     -- assert
     have hc1Bound := hBounds start_j_len.val (by scalar_tac)
@@ -799,10 +804,10 @@ def ntt.SymCryptMlKemPolyElementINTTLayerC.inner_loop_loop_spec
     progress as ⟨ tmp_u16, h_tmp_u16 ⟩
 
     have : tmp_u16.val < 3329 := by sorry -- TODO
-    progress with wfArray_update as ⟨ peSrc1, hPeSrc1 ⟩
+    progress as ⟨ peSrc1, hPeSrc1 ⟩
     progress as ⟨ c1''_u16, hc1''_u16 ⟩
     have : c1''_u16.val < 3329 := by sorry -- TODO
-    progress with wfArray_update as ⟨ peSrc2, hPeSrc2 ⟩
+    progress as ⟨ peSrc2, hPeSrc2 ⟩
 
     progress as ⟨ j1, hj1 ⟩
 
@@ -995,12 +1000,12 @@ theorem ntt.SymCryptMlKemPolyElementINTTAndMulR_loop_spec_aux
   rw [SymCryptMlKemPolyElementINTTAndMulR_loop]
   fsimp
   split <;> rename_i h
-  . progress with wfArray_index as ⟨ x ⟩
+  . progress as ⟨ x ⟩
     progress with ntt.SymCryptMlKemMontMul_spec as ⟨ xTimes ⟩
     progress as ⟨ xTimes', hxTimes' ⟩
     have : xTimes'.val = xTimes.val := by sorry -- TODO
     clear hxTimes'
-    progress with wfArray_update as ⟨ peSrc1, hPeSrc1 ⟩
+    progress as ⟨ peSrc1, hPeSrc1 ⟩
     progress as ⟨ i1 ⟩
     progress as ⟨ peSrc2, h1, h2 ⟩
     split_conjs
