@@ -166,39 +166,6 @@ def SymCryptMlKemModSub_eq (a : U32) (b : U32) :
   intros
   split <;> fsimp [*]
 
-/-- We first introduce a general, auxiliary version of the spec, that we later split in two.
-    One of them is used to subtract numbers in the NTT, the other is used in the Montgomery
-    multiplication to put the number back in the bounds.
-
-    TODO: remove
- -/
-theorem SymCryptMlKemModSub'_aux_spec' (a : U32) (b : U32)
-  (h : (a.val < Spec.Q ∧ b.val < Spec.Q) ∨ (a.val < 2 * Spec.Q ∧ b.val = Spec.Q)) :
-  ∃ (c : U32), SymCryptMlKemModSub' a b = ok c ∧
-  (c.val : Spec.Zq) = (a.val : Spec.Zq) - (b.val : Spec.Zq) ∧
-  c.val < Spec.Q := by
-  unfold SymCryptMlKemModSub'
-  fsimp at *
-  progress as ⟨ twoQ, hTwoQ, hTwoQ' ⟩
-  progress -- massert
-  clear twoQ hTwoQ hTwoQ'
-  progress -- massert
-
-  progress as ⟨ c1, hc1 ⟩
-  progress as ⟨ c2, hc2 ⟩
-
-  progress -- massert
-  . bv_tac 32
-
-  progress as ⟨ c3, hc3 ⟩
-  progress as ⟨ c4, hc3 ⟩
-
-  -- massert
-  progress
-  . bv_tac 32
-  . bv_tac 32
-
--- TODO: remove the one above
 theorem SymCryptMlKemModSub'_spec (a : U32) (b : U32)
   (_ : a.val ≤ 2*3329)
   (ha : a.val < b.val + 3329)
