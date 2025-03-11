@@ -47,6 +47,14 @@ We want to use specifications which manipulate bit-vector representations
 attribute [-progress] U32.add_spec U32.mul_spec
 attribute [local progress] U32.add_bv_spec U32.mul_bv_spec
 
+/-!
+There are casts from `U32` to `U16` but the `U32` values then fit into `U16`: we can
+thus use a simpler version of the specification for the casts, which doesn't mention
+bit-vectos.
+-/
+attribute [-progress] UScalar.cast.progress_spec
+attribute [local progress] UScalar.cast_inBounds_spec
+
 def to_poly (a : Array U16 256#usize) : Spec.Polynomial :=
   ⟨ List.map (fun x => (x.val : Spec.Zq)) a.val, by simp ⟩
 
@@ -118,7 +126,7 @@ def SymCryptMlKemModAdd_eq (a : U32) (b : U32) :
   intros
   split <;> fsimp [*]
 
-@[progress]
+@[local progress]
 theorem SymCryptMlKemModAdd'_spec (a : U32) (b : U32)
   (ha : a.val < Spec.Q) (hb : b.val < Spec.Q) :
   ∃ (c : U32), SymCryptMlKemModAdd' a b = ok c ∧
@@ -481,12 +489,11 @@ theorem wfArray_index {n : Usize} (v : Std.Array U16 n) (i : Usize)
 NTT
 -/
 
-@[progress]
+@[progress] -- TODO: `local progress` doesn't work because Lean makes the spec local to namespace `SymCryptMlKemPolyElementNTTLayerC`
 def SymCryptMlKemPolyElementNTTLayerC.inner_loop_loop_spec
   (peSrc : Array U16 256#usize) (k : Usize) (len : Usize) (start : Usize)
   (twiddleFactor : U32) (twiddleFactorMont : U32) (j : Usize)
   (hStart : start.val + 2 * len.val ≤ 256)
-  (hjLe : j.val ≤ len.val)
   (htf : twiddleFactor.bv = BitVec.ofNat 32 (17 ^ bitRev 7 k.val * 65536 % 3329))
   (htfBound : twiddleFactor.val < 3329)
   (htfMont : twiddleFactorMont.bv = (BitVec.ofNat _ ((17^(bitRev 7 k.val) * 65536) % 3329) * 3327#32) &&& 65535#32)
@@ -523,12 +530,8 @@ def SymCryptMlKemPolyElementNTTLayerC.inner_loop_loop_spec
     progress as ⟨ c0' ⟩
 
     progress as ⟨ c0'', hc0'' ⟩
-    have : c0''.val = c0'.val := by sorry
-    clear hc0''
     progress as ⟨ peSrc1, hPeSrc1 ⟩
     progress as ⟨ c1'', hc1'' ⟩
-    have : c1''.val = c1'.val := by sorry
-    clear hc1''
     progress as ⟨ peSrc2, hPeSrc2 ⟩
 
     progress as ⟨ j1 ⟩
@@ -661,7 +664,7 @@ theorem SymCryptMlKemPolyElementNTTLayerC_loop_spec
 termination_by 256 - k.val
 decreasing_by scalar_decr_tac
 
-@[progress]
+@[local progress]
 theorem SymCryptMlKemPolyElementNTTLayer_spec
   (peSrc : Array U16 256#usize)
   (k : Usize) (len : Usize)
@@ -710,13 +713,11 @@ theorem SymCryptMlKemPolyElementNTT_spec (peSrc : Std.Array U16 256#usize)
 /-!
 INTT
 -/
-
-@[progress]
+@[progress] -- TODO: `local progress` doesn't work because Lean makes the spec local to namespace `SymCryptMlKemPolyElementNTTLayerC`
 def SymCryptMlKemPolyElementINTTLayerC.inner_loop_loop_spec
   (peSrc : Array U16 256#usize) (k : Usize) (len : Usize) (start : Usize)
   (twiddleFactor : U32) (twiddleFactorMont : U32) (j : Usize)
   (hStart : start.val + 2 * len.val ≤ 256)
-  (hjLe : j.val ≤ len.val)
   (htf : twiddleFactor.bv = BitVec.ofNat 32 (17 ^ bitRev 7 k.val * 65536 % 3329))
   (htfBound : twiddleFactor.val < 3329)
   (htfMont : twiddleFactorMont.bv = (BitVec.ofNat _ ((17^(bitRev 7 k.val) * 65536) % 3329) * 3327#32) &&& 65535#32)
@@ -753,10 +754,8 @@ def SymCryptMlKemPolyElementINTTLayerC.inner_loop_loop_spec
 
     progress as ⟨ tmp_u16, h_tmp_u16 ⟩
 
-    have : tmp_u16.val < 3329 := by sorry -- TODO
     progress as ⟨ peSrc1, hPeSrc1 ⟩
     progress as ⟨ c1''_u16, hc1''_u16 ⟩
-    have : c1''_u16.val < 3329 := by sorry -- TODO
     progress as ⟨ peSrc2, hPeSrc2 ⟩
 
     progress as ⟨ j1, hj1 ⟩
@@ -773,8 +772,6 @@ def SymCryptMlKemPolyElementINTTLayerC.inner_loop_loop_spec
     let f2 := f1.set (start.val + j.val + len.val) (zetas * (c1s - c0s));
     let f3 := SpecAux.invNttLayerInner f2 k.val len.val start.val (j.val + 1)
 
-    have : (UScalar.cast UScalarTy.U16 tmp).val = tmp.val := by sorry -- TODO: fix this
-    have : (UScalar.cast UScalarTy.U16 c1'').val = c1''.val := by sorry -- TODO: fix this
     have hf1_eq : f1 = to_poly peSrc1 := by
       unfold f1
       fsimp [hPeSrc1, h_start_j, h_tmp_u16, htmp]
@@ -904,7 +901,7 @@ theorem SymCryptMlKemPolyElementINTTLayerC_loop_spec
     fsimp [hPeSrc2, hPeSrc1, hk', hTwoLen, hStart']
     fsimp [*]
 
-@[progress]
+@[local progress]
 theorem SymCryptMlKemPolyElementINTTLayer_spec
   (peSrc : Array U16 256#usize)
   (k : Usize) (len : Usize)
@@ -938,7 +935,7 @@ theorem SymCryptMlKemPolyElementINTTLayer_spec
   progress as ⟨ peSrc1, hEq, hWf ⟩
   fsimp [*]
 
-@[progress]
+@[local progress]
 theorem SymCryptMlKemPolyElementINTTAndMulR_loop_spec_aux
   (peSrc : Std.Array U16 256#usize) (i : Usize)
   (hi : i.val ≤ 256) (hWf : wfArray peSrc) :
@@ -953,8 +950,6 @@ theorem SymCryptMlKemPolyElementINTTAndMulR_loop_spec_aux
   . progress as ⟨ x ⟩
     progress with SymCryptMlKemMontMul_spec as ⟨ xTimes ⟩
     progress as ⟨ xTimes', hxTimes' ⟩
-    have : xTimes'.val = xTimes.val := by sorry -- TODO
-    clear hxTimes'
     progress as ⟨ peSrc1, hPeSrc1 ⟩
     progress as ⟨ i1 ⟩
     progress as ⟨ peSrc2, h1, h2 ⟩
@@ -990,7 +985,7 @@ theorem SymCryptMlKemPolyElementINTTAndMulR_loop_spec_aux
 termination_by 256 - i.val
 decreasing_by scalar_decr_tac
 
-@[progress]
+@[local progress]
 theorem SymCryptMlKemPolyElementINTTAndMulR_loop_spec (peSrc : Std.Array U16 256#usize)
   (hWf : wfArray peSrc) :
   ∃ peSrc', SymCryptMlKemPolyElementINTTAndMulR_loop peSrc 0#usize = ok peSrc' ∧
