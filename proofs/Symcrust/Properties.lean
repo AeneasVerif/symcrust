@@ -245,7 +245,7 @@ theorem mont_reduce_bv_spec (a b bMont tR t : U32)
 
   have hMont := mont_reduce_spec 3329 U16.size 3327 (a.val * b.val)
     (by fsimp [U16.size, U16.numBits]; exists 16) (by fsimp [U16.size, U16.numBits]) (by fsimp)
-    (by scalar_tac +nonLin) (by fsimp [U16.size, U16.numBits]; constructor)
+    habLt (by fsimp [U16.size, U16.numBits]; constructor)
   -- Simplify the bit vector operations
   fsimp [mont_reduce] at hMont
 
@@ -278,9 +278,7 @@ theorem SymCryptMlKemMontMul_spec (a : U32) (b : U32) (bMont : U32)
   progress
   progress
 
-  have bMontLe : bMont.val ≤ 65535 := by
-    have : bMont.bv ≤ 65535#32 := by bv_decide
-    natify at this; fsimp_all
+  have bMontLe : bMont.val ≤ 65535 := by bv_tac 32
   progress
 
   progress as ⟨ b1, hb1, hb1' ⟩
@@ -288,9 +286,7 @@ theorem SymCryptMlKemMontMul_spec (a : U32) (b : U32) (bMont : U32)
 
   progress as ⟨ b2, hb2 ⟩
 
-  have bMontLe : bMont = b2 := by
-    bvify 32
-    fsimp [*]
+  have bMontLe : bMont = b2 := by bv_tac 32
   progress -- massert
 
   have : a.val * b.val ≤ 3329 * 3329 := by scalar_tac +nonLin
