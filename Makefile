@@ -38,6 +38,12 @@ c/symcrust.c: symcrust.llbc
 	mkdir -p $(dir $@)
 	$(EURYDICE_HOME)/eurydice $< --output $(dir $@) -fcomments
 
+# Replaying the proofs
+.PHONY: timed-lean
+timed-lean:
+	cd proofs && find Symcrust -type f -iname "*.lean" -exec printf "\n{}\n" \; -exec lake env time lean {} \; >& timing.out
+
+
 # Misc
 # ----
 
