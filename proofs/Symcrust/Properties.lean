@@ -81,9 +81,22 @@ theorem to_poly_getElem!_eq (a : Std.Array U16 256#usize) (i : Nat) :
   rfl
 
 @[local simp]
-theorem mod_3329_mod_4294967296_eq (x : Int) :
+theorem Nat_mod_3329_mod_4294967296_eq (x : Nat) :
+  x % 3329 % 4294967296 = x % 3329 := by
+  apply Nat.mod_eq_of_lt; omega
+
+@[local simp]
+theorem Int_mod_3329_mod_4294967296_eq (x : Int) :
   x % 3329 % 4294967296 = x % 3329 := by
   apply Int.emod_eq_of_lt <;> omega
+
+-- TODO: this should be taken care of by a simproc
+@[local simp]
+theorem zmod_65536_inv : (65536⁻¹ : Spec.Zq) = (169 : Spec.Zq) := by native_decide
+
+-- TODO: this should be taken care of by a simproc
+@[local simp]
+theorem zmod_pow2_16_inv : ((2 ^ 16)⁻¹ : Spec.Zq) = (169 : Spec.Zq) := by native_decide
 
 namespace ntt
 
@@ -326,7 +339,6 @@ theorem SymCryptMlKemMontMul_spec (a : U32) (b : U32) (bMont : U32)
   -- TODO: why does (3329 : ZMod 3329) doesn't get simplified?
   have : (3329 : ZMod 3329) = 0 := by rfl
   fsimp [this, U16.size, U16.numBits]
-  rfl
 
 theorem MlKemZetaBitRevTimesR_map_val_eq :
   List.map UScalar.val MlKemZetaBitRevTimesR.val =
@@ -443,14 +455,8 @@ theorem SymCryptMlKemMontMul_twiddle_spec (k : Usize) (c : U32) (twiddleFactor :
   fsimp [*]
   ring_nf
   fsimp [Spec.ζ]
-  have : 17 ^ bitRev 7 ↑k * 65536 % 3329 % 4294967296 = 17 ^ bitRev 7 ↑k * 65536 % 3329 := by
-    scalar_tac
-  rw [this]; clear this
-  fsimp
-  have : (c.val : Spec.Zq) * (17 ^ bitRev 7 ↑k * 65536) * 65536⁻¹ =
-          (c.val : Spec.Zq) * 17 ^ bitRev 7 k.val * (65536⁻¹ * 65536) := by ring_nf
-  rw [this]; clear this
-  have : (65536⁻¹ : Spec.Zq) * (65536 : Spec.Zq) = 1 := by native_decide
+  -- TODO: this should be taken care of by a simproc
+  have : (11075584 : Spec.Zq) = 1 := by native_decide
   rw [this]
   fsimp
 
@@ -499,24 +505,23 @@ def SymCryptMlKemPolyElementNTTLayerC.inner_loop_loop_spec
   to_poly peSrc' = SpecAux.nttLayerInner (to_poly peSrc) k.val len.val start.val j.val ∧
   wfArray peSrc' := by
 
-  rw [inner_loop_loop]
-  dcases hjLt : ¬ j < len <;> fsimp [hjLt]
+  rw [inner_loop_loop]; fsimp
+  split; swap
   . unfold SpecAux.nttLayerInner
     have : ¬ j.val < len.val := by scalar_tac
+    -- TODO: tactic to do this
     fsimp only [this]; clear this
     fsimp [*]
   . progress as ⟨ start_j, h_start_j ⟩
     progress as ⟨ c0 ⟩
 
     -- assert
-    have hc0Bound := hBounds start_j.val (by scalar_tac)
     progress
 
     progress as ⟨ start_j_len, h_start_j_len ⟩
     progress as ⟨ c1 ⟩
 
     -- assert
-    have hc1Bound := hBounds start_j_len.val (by scalar_tac)
     progress
 
     progress as ⟨ c1TimesTwiddle, hC1TimesTwiddle ⟩
@@ -536,6 +541,7 @@ def SymCryptMlKemPolyElementNTTLayerC.inner_loop_loop_spec
 
     -- The postcondition
     unfold SpecAux.nttLayerInner
+    -- TODO: tactic to do this
     have : j.val < len.val := by scalar_tac
     fsimp only [this]; clear this
     fsimp [hPeSrc1, hPeSrc2, hPeSrc3]
@@ -550,17 +556,12 @@ private theorem convert_twiddleFactor_eq
   (hftBound : twiddleFactor.val < 3329) :
   (core.convert.num.FromU32U16.from twiddleFactor).bv = BitVec.ofNat 32 (17 ^ bitRev 7 k.val * 65536 % 3329)
   := by
+  -- TODO: the proof should be `zmodify`
   natify at *
   fsimp at *
-  have : twiddleFactor.val % 3329 = twiddleFactor.val := by
-    apply Nat.mod_eq_of_lt; scalar_tac
+  have : twiddleFactor.val % 3329 = twiddleFactor.val := by scalar_tac
   rw [this] at hft; clear this
   rw [hft]
-
-  have : 17 ^ bitRev 7 ↑k * 65536 % 3329 % 4294967296 =
-         17 ^ bitRev 7 ↑k * 65536 % 3329 := by
-    scalar_tac
-  rw [this]; clear this
 
   rw [← ZMod_nat_cast_eq_nat_cast_iff]
   fsimp [Spec.ζ]
@@ -733,14 +734,12 @@ def SymCryptMlKemPolyElementINTTLayerC.inner_loop_loop_spec
     progress as ⟨ c0, hc0 ⟩
 
     -- assert
-    have hc0Bound := hBounds start_j.val (by scalar_tac)
     progress
 
     progress as ⟨ start_j_len, h_start_j_len ⟩
     progress as ⟨ c1, hc1 ⟩
 
     -- assert
-    have hc1Bound := hBounds start_j_len.val (by scalar_tac)
     progress
 
     progress with SymCryptMlKemModAdd'_spec as ⟨ tmp, htmp ⟩
@@ -949,9 +948,10 @@ theorem SymCryptMlKemPolyElementINTTAndMulR_loop_spec_aux
     progress as ⟨ peSrc1, hPeSrc1 ⟩
     progress as ⟨ i1 ⟩
     progress as ⟨ peSrc2, h1, h2 ⟩
+    -- TODO: this should be automated
     split_conjs
     . intro j hj
-      fsimp [Array.update] at *
+      fsimp at *
       have := h1 j (by omega)
       rw [this]; clear this
       fsimp [*]
@@ -962,22 +962,17 @@ theorem SymCryptMlKemPolyElementINTTAndMulR_loop_spec_aux
         rw [this]; clear this
         have : i.val < peSrc.val.length := by scalar_tac
         fsimp [*]
-        -- TODO: reduceZMod
-        have : ((2^16)⁻¹ : ZMod 3329) = 169 := by native_decide
-        rw [this]; clear this
         ring_nf
-        -- Here again, we want to reduce ZMod
+        -- TODO: this should be taken care of by a simproc
         rfl
       . have hij' : i1.val ≤ j := by scalar_tac
         have := h2 j (by scalar_tac) (by scalar_tac)
         fsimp [this, hPeSrc1]
         fsimp [hij]
     . fsimp [*]
-  . have : i.val = 256 := by scalar_tac
-    fsimp [*]
-    intro j hj0 hj1
+  . fsimp [*]
     -- Contradiction
-    omega
+    scalar_tac
 termination_by 256 - i.val
 decreasing_by scalar_decr_tac
 
