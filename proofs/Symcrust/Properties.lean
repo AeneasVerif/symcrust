@@ -39,7 +39,7 @@ theorem mod_int_65536_4294967296_eq (x : Int) : ((x % 65536) % 4294967296) = x %
 attribute [local simp] Spec.Polynomial.set Spec.Polynomial.get!
 attribute [-simp] List.getElem!_eq_getElem?_getD
 
-attribute [local simp, local scalar_tac_simp, local bvify_simps] Spec.Q
+attribute [local simp, local scalar_tac_simps, local bvify_simps] Spec.Q
 
 /-!
 We want to use specifications which manipulate bit-vector representations
@@ -100,10 +100,10 @@ theorem zmod_pow2_16_inv : ((2 ^ 16)⁻¹ : Spec.Zq) = (169 : Spec.Zq) := by nat
 
 namespace ntt
 
-@[simp, scalar_tac_simp, bvify_simps] theorem Q_eq : Q = 3329#u32 := by rfl
-@[simp, scalar_tac_simp, bvify_simps] theorem NegQInvModR_eq : NegQInvModR = 3327#u32 := by rfl
-@[simp, scalar_tac_simp, bvify_simps] theorem Rmask_eq : Rmask = 65535#u32 := by rfl
-@[simp, scalar_tac_simp, bvify_simps] theorem Rlog2_eq : Rlog2 = 16#u32 := by rfl
+@[simp, scalar_tac_simps, bvify_simps] theorem Q_eq : Q = 3329#u32 := by rfl
+@[simp, scalar_tac_simps, bvify_simps] theorem NegQInvModR_eq : NegQInvModR = 3327#u32 := by rfl
+@[simp, scalar_tac_simps, bvify_simps] theorem Rmask_eq : Rmask = 65535#u32 := by rfl
+@[simp, scalar_tac_simps, bvify_simps] theorem Rlog2_eq : Rlog2 = 16#u32 := by rfl
 
 -- TODO: rfl fails here because the number of bits is unknown
 @[simp] theorem MLWE_POLYNOMIAL_COEFFICIENTS_eq : MLWE_POLYNOMIAL_COEFFICIENTS.val = 256 := by
