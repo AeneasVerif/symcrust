@@ -2,7 +2,7 @@
 -- [symcrust]: external functions.
 -- This is a template file: rename it to "FunsExternal.lean" and fill the holes.
 import Aeneas
-import Symcrust.Types
+import Symcrust.Code.Types
 open Aeneas.Std Result Error
 set_option linter.dupNamespace false
 set_option linter.hashCommand false

@@ -1,4 +1,3 @@
-import Lean
 import Mathlib.Data.Nat.Bits
 import Mathlib.Data.Nat.Bitwise
 import Init.Data.Int.Bitwise.Lemmas

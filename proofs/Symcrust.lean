@@ -1,2 +1,3 @@
-import Symcrust.Funs
+import Symcrust.Code
 import Symcrust.Properties
+import Symcrust.Spec

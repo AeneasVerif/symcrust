@@ -21,8 +21,8 @@ build:
 # --------------------------------
 
 .PHONY: extract
-extract: symcrust.llbc proofs/Symcrust/Funs.lean proofs/Symcrust/FunsExternal_Template.lean proofs/Symcrust/Types.lean
-	$(AENEAS_EXE) -backend lean symcrust.llbc $(AENEAS_OPTIONS) -dest proofs -split-files -no-gen-lib-entry -namespace Symcrust
+extract: symcrust.llbc proofs/Symcrust/Code/Funs.lean proofs/Symcrust/Code/FunsExternal_Template.lean proofs/Symcrust/Code/Types.lean
+	$(AENEAS_EXE) -backend lean symcrust.llbc $(AENEAS_OPTIONS) -dest proofs -subdir /Symcrust/Code -split-files -namespace Symcrust
 
 # Alternatively, this could be marked as a phony target, since cargo (and hence
 # charon) can skip recompilations if the sources have not changed.
