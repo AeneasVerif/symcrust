@@ -359,7 +359,7 @@ fn SymCryptMlKemMontMul(a: u32, b: u32, bMont: u32) -> u32 {
     let mut res = a * b;
     let inv = (a * bMont) & Rmask;
     res += inv * Q;
-    assert!( (res & Rmask) == 0 );
+    //assert!( (res & Rmask) == 0 );
     res = res >> Rlog2;
 
     // By doing this we always get back within the bounds

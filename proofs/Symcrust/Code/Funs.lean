@@ -239,8 +239,6 @@ def ntt.SymCryptMlKemMontMul (a : U32) (b : U32) (bMont : U32) : Result U32 :=
   let inv ← (↑(i2 &&& ntt.Rmask) : Result U32)
   let i3 ← inv * ntt.Q
   let res1 ← res + i3
-  let i4 ← (↑(res1 &&& ntt.Rmask) : Result _)
-  massert (i4 = 0#u32)
   let res2 ← res1 >>> ntt.Rlog2
   ntt.SymCryptMlKemModSub res2 ntt.Q
 

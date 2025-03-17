@@ -193,7 +193,6 @@ theorem mont_reduce_bv_spec (a b bMont tR t : U32)
   (ht : t.bv = tR.bv >>> 16) :
   (t.val : ZMod Spec.Q) = (a.val : ZMod Spec.Q) * b.val * (U16.size : ZMod Spec.Q)⁻¹ ∧
   t.val < 2 * Spec.Q := by
-  have hEq := mont_reduce_no_divide_bv_spec a b bMont tR hbMont htR
   have habLt : a.val * b.val < 3329 * U16.size := by
     scalar_tac +nonLin
 
@@ -255,27 +254,19 @@ theorem SymCryptMlKemMontMul_spec (a : U32) (b : U32) (bMont : U32)
   progress as ⟨ res1 ⟩
 
   progress as ⟨ res2 ⟩
-
-  progress as ⟨ res3, _, hres3bv ⟩
-  have : res3 = 0#u32 := by
-    have := mont_reduce_no_divide_bv_spec a b bMont res2 (by fsimp [*]) (by fsimp [*])
-    fsimp at this
-    fsimp [U32.eq_equiv_bv_eq, hres3bv, this]
-  progress
-
-  progress as ⟨ res4, hRes4 ⟩
-  fsimp at hRes4
+  progress as ⟨ res3, hRes3 ⟩
+  fsimp at hRes3
 
   -- Here we need to use the fact that we performed a Montgomery multiplication to get
   -- the bounds and the rest
   have hMontReduce :=
-    mont_reduce_bv_spec a b bMont res2 res4 (by omega) (by omega) (by fsimp [*])
+    mont_reduce_bv_spec a b bMont res2 res3 (by omega) (by omega) (by fsimp [*])
       (by fsimp[*]) (by fsimp[*])
 
-  progress with SymCryptMlKemModSub'_spec as ⟨ res4, hRes4Eq, hRes4Bound ⟩
-  fsimp at hRes4Bound
+  progress with SymCryptMlKemModSub'_spec as ⟨ res3, hRes3Eq, hRes3Bound ⟩
+  fsimp at hRes3Bound
 
-  fsimp [hRes4Eq, hRes4Bound]
+  fsimp [hRes3Eq, hRes3Bound]
   fsimp [hMontReduce]
   -- TODO: why does (3329 : ZMod 3329) doesn't get simplified?
   have : (3329 : ZMod 3329) = 0 := by rfl
