@@ -145,22 +145,7 @@ theorem SymCryptMlKemModAdd'_spec (a : U32) (b : U32)
   (c.val : Spec.Zq) = (a.val : Spec.Zq) + (b.val : Spec.Zq) ∧
   c.val < Spec.Q := by
   unfold SymCryptMlKemModAdd'
-  fsimp at *
-  progress
-  progress
-  progress as ⟨ c1, hc1 ⟩
-  progress as ⟨ c2, hc2 ⟩
-  progress as ⟨ c3, hc3 ⟩
-
-  progress -- massert
-  . bv_tac 32
-
-  progress as ⟨ c4, hc4 ⟩
-  progress as ⟨ c5, hc5 ⟩
-  -- Finish the proof
-  progress
-  . bv_tac 32
-  . bv_tac 32
+  progress* <;> bv_tac 32
 
 /-!
 Subtraction modulo
@@ -194,54 +179,11 @@ theorem SymCryptMlKemModSub'_spec (a : U32) (b : U32)
   (c.val : Spec.Zq) = (a.val : Spec.Zq) - (b.val : Spec.Zq) ∧
   c.val < Spec.Q := by
   unfold SymCryptMlKemModSub'
-  fsimp at *
-  progress as ⟨ twoQ, hTwoQ, hTwoQ' ⟩
-  progress -- massert
-  clear twoQ hTwoQ hTwoQ'
-  progress -- massert
-
-  progress as ⟨ c1, hc1 ⟩
-  progress as ⟨ c2, hc2 ⟩
-
-  progress -- massert
-  . bv_tac 32
-
-  progress as ⟨ c3, hc3 ⟩
-  progress as ⟨ c4, hc3 ⟩
-
-  progress -- massert
-  . bv_tac 32
-  . bv_tac 32
+  progress* <;> bv_tac 32
 
 /-!
 Montgomery reduction
 -/
-
-theorem mont_reduce_no_divide_bv_spec (a b bMont tR : U32)
-  (hbMont : bMont.bv = (b.bv * NegQInvModR.bv) &&& Rmask.bv)
-  (htR : tR.bv = a.bv * b.bv + ((a.bv * bMont.bv) &&& Rmask.bv) * 3329) :
-  tR.bv &&& Rmask.bv = 0 := by
-  /- The proof strategy is as follows:
-     - we first simplify the BitVec expressions (by using the fact that bit masking is equivalent to modulo, etc.)
-     - go to ℤ and simplify further
-     - go to ZMod
-   -/
-  fsimp at *
-  fsimp [*]; clear hbMont htR
-
-  -- Reason in ℤ and simplify the modulus
-  natify; fsimp [- EuclideanDomain.mod_eq_zero]
-
-  -- Go to ZMod - TODO: a zmodify tactic would do this automatically
-  have : 0 = 0 % (65536 : Nat) := by fsimp
-  rw [this]; clear this
-  rw [← ZMod_nat_cast_eq_nat_cast_iff]
-  fsimp
-
-  -- Finish
-  ring_nf
-  have : (11075584 : ZMod 65536) = 0 := by rfl
-  rw [this]; fsimp
 
 theorem mont_reduce_bv_spec (a b bMont tR t : U32)
   (haBound : a.val < 3329)
