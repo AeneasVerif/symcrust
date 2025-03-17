@@ -122,11 +122,11 @@ def SymCryptMlKemModAdd' (a : U32) (b : U32) : Result U32 :=
   massert (a < Q)
   massert (b < Q)
   let i ← a + b
-  let (res : U32) ← ↑(core.num.U32.wrapping_sub i Q)
+  let res ← (↑(core.num.U32.wrapping_sub i Q) : Result U32)
   let i1 ← res >>> 16#i32
   massert (i1 = 0#u32 ∨ i1 = 65535#u32)
-  let (i2 : U32) ← ↑(Q &&& i1)
-  let (res1 : U32) ← ↑(core.num.U32.wrapping_add res i2)
+  let i2 ← (↑(Q &&& i1) : Result U32)
+  let res1 ← (↑(core.num.U32.wrapping_add res i2) : Result U32)
   massert (res1 < Q)
   ok res1
 
@@ -170,11 +170,11 @@ def SymCryptMlKemModSub' (a : U32) (b : U32) : Result U32 := do
   let i ← 2#u32 * Q
   massert (a < i)
   massert (b <= Q)
-  let (res : U32) ← ↑(core.num.U32.wrapping_sub a b)
+  let res ← (↑(core.num.U32.wrapping_sub a b) : Result U32)
   let i1 ← res >>> 16#i32
   massert (i1 = 0#u32 ∨ i1 = 65535#u32)
-  let (i2 : U32) ← ↑(Q &&& i1)
-  let (res1 : U32) ← ↑(core.num.U32.wrapping_add res i2)
+  let i2 ← (↑(Q &&& i1) : Result U32)
+  let res1 ← (↑(core.num.U32.wrapping_add res i2) : Result U32)
   massert (res1 < Q)
   ok res1
 
