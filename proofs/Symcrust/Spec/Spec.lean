@@ -77,6 +77,8 @@ noncomputable def XOF.squeeze := SHAKE128.squeeze
 @[reducible] def Zq := ZMod Q
 @[reducible] def Polynomial := { l : List Zq // l.length = 256 }
 
+def Polynomial.zero : Polynomial := ⟨ List.replicate 256 0, by simp only [List.replicate_length] ⟩
+
 def Polynomial.get! (x : Polynomial) (n : ℕ)  : Zq := x.val.get! n
 def Polynomial.set (x : Polynomial) (n : ℕ) (v : Zq) : Polynomial :=
   ⟨ x.val.set n v, by cases x; simp_all ⟩
@@ -85,11 +87,8 @@ def Polynomial.set (x : Polynomial) (n : ℕ) (v : Zq) : Polynomial :=
 instance : GetElem Polynomial Nat Zq (fun _ _ => True) where
   getElem p i _ := p.get! i
 
-@[simp]
-theorem Polynomial.cons_getElem! (l : List Zq) (h : l.length = 256) (i : Nat) :
-  (⟨ l, h ⟩ : Polynomial)[i]! = l[i]! := by
-  conv => lhs; simp [getElem!, getElem, get!]
-  conv => rhs; simp [getElem!]
+instance : HAdd Polynomial Polynomial Polynomial where
+  hAdd f g := ⟨ List.map (fun i => f[i]! + g[i]!) (List.range 256), by simp ⟩
 
 def Polynomial.scalarMul (x : Polynomial) (k : Zq) : Polynomial :=
   ⟨ x.val.map fun v => v * k,
@@ -160,5 +159,21 @@ def invNtt (f : Polynomial) : Polynomial := Id.run do
         f := f.set (j + len) (zeta * (f[j + len]! - t))
   f := f * (3303 : Zq)
   pure f
+
+/-- Algorithm 12 -/
+def baseCaseMultiply (a0 a1 b0 b1 γ : Zq) : Zq × Zq :=
+  let c0 := a0 * b0 + a1 * b1 * γ
+  let c1 := a0 * b1 + a1 * b0 * γ
+  (c0, c1)
+
+/-- Algorithm 11 -/
+def multiplyNTTs (f g : Polynomial) : Polynomial := Id.run do
+  let mut h : Polynomial := Polynomial.zero
+  for i in [0:128] do
+    let (c0, c1) := baseCaseMultiply f[2 * i]! f[2 * i + 1]! g[2 * i]! g[2 * i + 1]! (ζ^(2 * bitRev 7 i + 1))
+    h := h.set (2 * i) c0
+    h := h.set (2 * i + 1) c1
+  pure h
+
 
 end Symcrust.Spec

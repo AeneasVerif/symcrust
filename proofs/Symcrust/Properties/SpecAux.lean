@@ -6,11 +6,135 @@ This specification refines the specification in `Spec`, and is refined by the co
 It does not need to be trusted.
 -/
 
-namespace Symcrust.SpecAux
+attribute [-simp] List.getElem!_eq_getElem?_getD List.reduceReplicate Aeneas.SRRange.foldWhile_step
+
+namespace Symcrust.Spec
+
+open Aeneas Aeneas.SRRange
+
+/-!
+# Polynomials
+-/
+
+@[simp]
+theorem Polynomial.getElem!_eq (l : List Zq) (h : l.length = 256) (i : Nat) :
+  (⟨ l, h ⟩ : Polynomial)[i]! = l[i]! := by
+  conv => lhs; simp [getElem!, getElem, get!]
+  conv => rhs; simp [getElem!]
+
+@[simp]
+theorem Polynomial.set_eq (l : List Zq) (h : l.length = 256) (i : Nat) (x : Zq) :
+  Polynomial.set ⟨ l, h ⟩ i x = (⟨ l.set i x, by simp [h] ⟩ : Polynomial) := by
+  simp [set]
+
+theorem Polynomial.eq_iff (f g : Polynomial) :
+  f = g ↔ ∀ i < 256, f[i]! = g[i]! := by
+  cases f; rename_i f hf
+  cases g; rename_i g hg
+  simp
+  simp only [List.eq_iff_eq_getElem!, true_and, hf, hg]
+
+theorem Polynomial.eq_iff' (f g : Polynomial) :
+  f = g ↔ ∀ i < 128, (f[2 * i]! = g[2 * i]! ∧ f[2 * i + 1]! = g[2 * i + 1]!) := by
+  rw [Polynomial.eq_iff]
+  constructor <;> intros heq i hi
+  . have h0 := heq (2 * i) (by omega)
+    have h1 := heq (2 * i + 1) (by omega)
+    simp only [h0, h1, and_self]
+  . have h0 := heq (i / 2) (by omega)
+    have h1 : 2 * (i / 2) = i ∨ 2 * (i / 2) + 1 = i := by omega
+    cases h1 <;> simp_all only
+
+@[simp]
+theorem Polynomial.getElem!_add (f g : Polynomial) (i : Nat) :
+  (f + g)[i]! = f[i]! + g[i]! := by
+  cases f; rename_i f hf
+  cases g; rename_i g hg
+  simp [instHAddPolynomial]
+  dcases hi : i < 256
+  . simp [*]
+  . simp at hi
+    simp [*, default]
+
+theorem Polynomial.add_assoc (f g h : Polynomial) : f + g + h = f + (g + h) := by
+  simp only [eq_iff, getElem!_add]
+  intro i hi
+  ring_nf
+
+theorem Polynomial.add_comm (f g : Polynomial) : f + g = g + f := by
+  simp only [eq_iff, getElem!_add]
+  intro i hi
+  apply AddCommMagma.add_comm
+
+theorem Polynomial.set_comm {i j : Nat} (h : Nat.not_eq i j)
+  (p : Polynomial) (x y : Zq) :
+  (p.set i x).set j y = (p.set j y).set i x := by
+  cases p; simp [*]
+  rw [List.set_comm]
+  simp only [Nat.not_eq, ne_eq, lt_or_lt_iff_ne] at h
+  omega
+
+theorem Polynomial.getElem!_set_self {i : Nat} (hi : i < 256)
+  (p : Polynomial) (x : Zq) :
+  (p.set i x)[i]! = x := by
+  cases p; simp [*]
+
+theorem Polynomial.getElem!_set_neq {i j : Nat} (h : i ≠ j)
+  (p : Polynomial) (x : Zq) :
+  (p.set i x)[j]! = p[j]! := by
+  cases p; simp [*]
+
+@[simp]
+theorem Polynomial.zero_add (f : Polynomial) : Polynomial.zero + f = f := by
+  simp +contextual only [zero, eq_iff, getElem!_add, getElem!_eq, List.getElem!_replicate,
+    _root_.zero_add, implies_true]
+
+@[simp]
+theorem Polynomial.add_zero (f : Polynomial) : f + Polynomial.zero = f := by
+  simp +contextual only [zero, eq_iff, getElem!_add, getElem!_eq, List.getElem!_replicate,
+    _root_.add_zero, implies_true]
+
+@[simp]
+theorem Polynomial.zero_getElem! (i : Nat) :
+  Polynomial.zero[i]! = 0 := by
+  simp [Polynomial.zero]
+  dcases i < 256 <;>
+  simp_all only [List.getElem!_replicate, not_lt, List.length_replicate, List.getElem!_length_le, default]
+
+end Symcrust.Spec
+
+namespace Symcrust.SimpLists
 
 open Symcrust.Spec
 
+open Lean Lean.Meta Lean.Parser.Tactic Lean.Elab.Tactic in
+scoped syntax (name := natify) "simp_lists" (simpArgs)? (location)? : tactic
+
+macro_rules
+| `(tactic| simp_lists $[[$simpArgs,*]]? $[at $location]?) =>
+  let args := simpArgs.map (·.getElems) |>.getD #[]
+  `(tactic|
+    simp -decide (maxDischargeDepth := 1) (disch := omega) only
+      [List.getElem!_set_neq, List.getElem!_set_self,
+       Polynomial.getElem!_set_neq, Polynomial.getElem!_set_self,
+       $args,*] $[at $location]?)
+
+end Symcrust.SimpLists
+
+namespace Symcrust.SpecAux
+
+open Symcrust.Spec
+open SimpLists
 open Aeneas.SRRange
+
+-- TODO: this lemma should exist somewhere
+private theorem fun_eq_arg_eq_imp_eq {α β : Type} (f g : α → β) (x y : α) :
+  f = g → x = y → f x = g y := by
+  simp +contextual
+
+/-!
+# Auxiliary helpers
+-/
 
 /- Introduce auxiliary definitions to isolate the different loops inside the target specification -/
 namespace Target
@@ -83,8 +207,11 @@ namespace Target
     unfold invNttLayerInner
     simp only [Id.run]
     rfl
-
 end Target
+
+/-!
+# The auxiliary specs
+-/
 
 def nttLayerInner (f : Polynomial) (i : Nat) (len : Nat)
   (start : Nat) (j : Nat) : Polynomial :=
@@ -142,27 +269,9 @@ def invNtt (f : Polynomial) : Polynomial :=
   let f := invNttLayer f 1 128 0
   f * (3303 : Zq)
 
-
--- TODO: move, also update the neq test
-theorem Polynomial.set_set_neq {i j : Nat} (h : i ≠ j)
-  (p : Polynomial) (x y : Zq) :
-  (p.set i x).set j y = (p.set j y).set i x := by sorry
-
-theorem Polynomial.get_set_neq {i j : Nat} (h : i ≠ j)
-  (p : Polynomial) (x : Zq) :
-  (p.set i x).get! j = p.get! j := by sorry
-
-theorem Polynomial.getElem_set_neq {i j : Nat} (h : i ≠ j)
-  (p : Polynomial) (x : Zq) :
-  (p.set i x)[j]! = p[j]! := by
-  apply Polynomial.get_set_neq; assumption
-
--- TODO: this lemma should exist somewhere
-private theorem fun_eq_arg_eq_imp_eq {α β : Type} (f g : α → β) (x y : α) :
-  f = g → x = y → f x = g y := by
-  simp +contextual
-
-/-! The proofs about the NTT -/
+/-!
+# The proofs about the NTT
+-/
 
 private theorem nttLayerInner_eq
   (f : Polynomial) (i len start : Nat) :
@@ -212,8 +321,8 @@ private theorem nttLayerInner_eq
         apply fun_eq_arg_eq_imp_eq <;> try rfl
         clear hInd
         -- Working on the interesting part: we need to swap the two updates
-        rw [Polynomial.set_set_neq] <;> try omega
-        rw [Polynomial.getElem_set_neq] <;> try omega
+        rw [Polynomial.set_comm] <;> try omega
+        rw [Polynomial.getElem!_set_neq] <;> try omega
         ring_nf
 
 private theorem nttLayer_eq_fst_aux (f : Polynomial) (i len start : Nat) (hLenLt : 0 < len) :
@@ -303,7 +412,9 @@ theorem ntt_eq (f : Polynomial) :
   ntt f = Spec.ntt f := by
   rw [ntt_eq_target, Target.ntt_eq]
 
-/-! The proofs about the NTT⁻¹ -/
+/-!
+# The proofs about the NTT⁻¹
+-/
 
 private theorem invNttLayerInner_eq
   (f : Polynomial) (i len start : Nat) :
@@ -352,7 +463,7 @@ private theorem invNttLayerInner_eq
         apply fun_eq_arg_eq_imp_eq <;> try rfl
         clear hInd
         -- Working on the interesting part: we need to simplify a write/read
-        rw [Polynomial.getElem_set_neq]; omega
+        rw [Polynomial.getElem!_set_neq]; omega
 
 private theorem invNttLayer_eq_fst_aux (f : Polynomial) (i len start : Nat) (hLenLt : 0 < len) :
   let p : MProd _ _ := foldWhile 256 (2 * len) (by omega) (fun b a => ⟨Target.invNttLayerInner b.1 b.2 len a, b.2 - 1⟩) start ⟨f, i⟩
@@ -439,5 +550,171 @@ private theorem invNtt_eq_target (f : Polynomial) :
 theorem invNtt_eq (f : Polynomial) :
   invNtt f = Spec.invNtt f := by
   rw [invNtt_eq_target, Target.invNtt_eq]
+
+/-!
+# Multiply NTTs
+-/
+
+/-- Auxiliary helper -/
+private def baseCaseMultiply0 (f g : Polynomial) (i : Nat) : Zq :=
+  let a0 := f[2 * i]!
+  let a1 := f[2 * i + 1]!
+  let b0 := g[2 * i]!
+  let b1 := g[2 * i + 1]!
+  let γ := ζ^(2 * bitRev 7 i + 1)
+  a0 * b0 + a1 * b1 * γ
+
+/-- Auxiliary helper -/
+private def baseCaseMultiply1 (f g : Polynomial) (i : Nat) : Zq :=
+  let a0 := f[2 * i]!
+  let a1 := f[2 * i + 1]!
+  let b0 := g[2 * i]!
+  let b1 := g[2 * i + 1]!
+  let γ := ζ^(2 * bitRev 7 i + 1)
+  a0 * b1 + a1 * b0 * γ
+
+private theorem baseCaseMultiply_eq (f g : Polynomial) (i : Nat) :
+  baseCaseMultiply f[2 * i]! f[2 * i + 1]! g[2 * i]! g[2 * i + 1]! (ζ^(2 * bitRev 7 i + 1)) =
+  (baseCaseMultiply0 f g i, baseCaseMultiply1 f g i) := by
+  simp [baseCaseMultiply, baseCaseMultiply0, baseCaseMultiply1]
+
+/-- The definition we will use in the proofs of refinement with the code -/
+def multiplyNTTs (f g h : Polynomial) (i : Nat) : Polynomial :=
+  if i < 128 then
+    let (c0, c1) := baseCaseMultiply f[2 * i]! f[2 * i + 1]! g[2 * i]! g[2 * i + 1]! (ζ^(2 * bitRev 7 i + 1))
+    let h := h.set (2 * i) (h[2 * i]! + c0)
+    let h := h.set (2 * i + 1) (h[2 * i + 1]! + c1)
+    multiplyNTTs f g h (i + 1)
+  else h
+
+/-- The important equation which allows reasoning about `multiplyNTTs` -/
+private theorem multiplyNTTs_getElem! (f g h : Polynomial) (i j : Nat) (hj : j < 128) :
+  (multiplyNTTs f g h i)[2 * j]! = (if j < i then h[2 * j]! else h[2 * j]! + baseCaseMultiply0 f g j) ∧
+  (multiplyNTTs f g h i)[2 * j + 1]! = (if j < i then h[2 * j + 1]! else h[2 * j + 1]! + baseCaseMultiply1 f g j) := by
+  unfold multiplyNTTs
+  simp [baseCaseMultiply_eq]
+  split <;> rename_i hi
+  . have hind h := multiplyNTTs_getElem! f g h (i + 1) j hj
+    dcases hij0 : j < i
+    . simp only [hij0, ↓reduceIte]
+      simp_lists [hind]
+      have : j < i + 1 := by omega
+      simp only [this, ↓reduceIte, and_self]
+    . -- i ≤ j
+      simp only [not_lt] at hij0
+      dcases hij1 : j = i
+      . simp_all only
+        have : i < i + 1 := by omega
+        simp only [this, ↓reduceIte, lt_self_iff_false]
+        simp_lists
+        simp only [and_self]
+      . -- i < j
+        have : ¬ j < i := by omega
+        simp only [this, ↓reduceIte]
+        simp_lists [hind]
+        have : ¬ j < i + 1 := by omega
+        simp only [this, ↓reduceIte, and_self]
+  . simp only [not_lt] at hi
+    have hij : j < i := by omega
+    simp only [hij, ↓reduceIte, and_self]
+
+/-- Auxiliary helper -/
+private def multiplyNTTs_pure (f g h : Polynomial) (i : Nat) : Polynomial :=
+  if i < 128 then
+    let (c0, c1) := baseCaseMultiply f[2 * i]! f[2 * i + 1]! g[2 * i]! g[2 * i + 1]! (ζ^(2 * bitRev 7 i + 1))
+    let h := h.set (2 * i) c0
+    let h := h.set (2 * i + 1) c1
+    multiplyNTTs_pure f g h (i + 1)
+  else h
+
+/-- The important equation which allows reasoning about `multiplyNTTs_pure` -/
+private theorem multiplyNTTs_pure_getElem! (f g h : Polynomial) (i j : Nat) (hj : j < 128) :
+  (multiplyNTTs_pure f g h i)[2 * j]! = (if j < i then h[2 * j]! else baseCaseMultiply0 f g j) ∧
+  (multiplyNTTs_pure f g h i)[2 * j + 1]! = (if j < i then h[2 * j + 1]! else baseCaseMultiply1 f g j) := by
+  unfold multiplyNTTs_pure
+  simp [baseCaseMultiply_eq]
+  split <;> rename_i hi
+  . have hind h := multiplyNTTs_pure_getElem! f g h (i + 1) j hj
+    dcases hij0 : j < i
+    . simp only [hij0, ↓reduceIte]
+      simp_lists [hind]
+      have : j < i + 1 := by omega
+      simp only [this, ↓reduceIte, and_self]
+    . -- i ≤ j
+      simp only [not_lt] at hij0
+      dcases hij1 : j = i
+      . simp_all only
+        have : i < i + 1 := by omega
+        simp only [this, ↓reduceIte, lt_self_iff_false]
+        simp_lists
+        simp only [and_self]
+      . -- i < j
+        have : ¬ j < i := by omega
+        simp only [this, ↓reduceIte]
+        simp_lists [hind]
+        have : ¬ j < i + 1 := by omega
+        simp only [this, ↓reduceIte, and_self]
+  . simp only [not_lt] at hi
+    have hij : j < i := by omega
+    simp only [hij, ↓reduceIte, and_self]
+
+private def Target.multiplyNTTs_inner (f g h : Polynomial) (i0 : Nat) : Polynomial := Id.run do
+  let mut h := h
+  for i in [i0:128] do
+    let (c0, c1) := baseCaseMultiply f[2 * i]! f[2 * i + 1]! g[2 * i]! g[2 * i + 1]! (ζ^(2 * bitRev 7 i + 1))
+    h := h.set (2 * i) c0
+    h := h.set (2 * i + 1) c1
+  pure h
+
+/--
+Linking `Target.multiplyNTTs` to `Spec.multiplyNTTs`
+-/
+private theorem Target.multiplyNTTs_inner_eq_spec (f g : Polynomial) :
+  Target.multiplyNTTs_inner f g Polynomial.zero 0 = Spec.multiplyNTTs f g := by
+  unfold Target.multiplyNTTs_inner Spec.multiplyNTTs
+  simp only
+  generalize 0 = i -- annoying that we have to do this
+  simp only [Id.pure_eq, Id.bind_eq, Std.Range.forIn_eq_forIn_range', Std.Range.size,
+    add_tsub_cancel_right, Nat.div_one, List.forIn_yield_eq_foldl, zero_lt_one, foldl_range',
+    mul_one, forIn_eq_forIn_range', size]
+
+/--
+Linking `Target.multiplyNTTs` to `multiplyNTTs_pure`
+-/
+private theorem Target.multiplyNTTs_inner_eq (f g : Polynomial) :
+  Target.multiplyNTTs_inner f g Polynomial.zero 0 = multiplyNTTs_pure f g Polynomial.zero 0 := by
+  unfold Target.multiplyNTTs_inner
+  simp only [Id.run, Id.pure_eq, Id.bind_eq, Std.Range.forIn_eq_forIn_range', Std.Range.size,
+    tsub_zero, Nat.reduceAdd, Nat.add_one_sub_one, Nat.div_one, List.forIn_yield_eq_foldl,
+    zero_lt_one, foldl_range', mul_one, zero_add]
+  -- Using a useful equation satisfied by `foldWhile`
+  rw [← eq_foldWhile]
+  intro h i
+  conv => lhs; unfold multiplyNTTs_pure
+
+private theorem multiplyNTTs_eq_multiplyNTTs_pure (f g : Polynomial) :
+  multiplyNTTs f g Polynomial.zero 0 = multiplyNTTs_pure f g Polynomial.zero 0 := by
+  simp only [Polynomial.eq_iff']
+  intro i hi
+  simp_lists [multiplyNTTs_getElem!, multiplyNTTs_pure_getElem!]
+  simp only [not_lt_zero', ↓reduceIte, Polynomial.zero_getElem!, zero_add, and_self]
+
+private theorem multiplyNTTs_add_zero (f g h : Polynomial) :
+  multiplyNTTs f g h 0 = multiplyNTTs f g Polynomial.zero 0 + h := by
+  simp only [Polynomial.eq_iff']
+  intro i hi
+  simp_lists [multiplyNTTs_getElem!, multiplyNTTs_pure_getElem!]
+  simp only [not_lt_zero', ↓reduceIte, Polynomial.getElem!_add]
+  simp_lists [multiplyNTTs_getElem!, multiplyNTTs_pure_getElem!]
+  simp only [not_lt_zero', ↓reduceIte, Polynomial.zero_getElem!, zero_add]
+  ring_nf
+  simp only [and_self]
+
+theorem multiplyNTTs_eq (f g h : Polynomial) :
+  multiplyNTTs f g h 0 = Spec.multiplyNTTs f g + h := by
+  rw [multiplyNTTs_add_zero]
+  rw [multiplyNTTs_eq_multiplyNTTs_pure]
+  rw [← Target.multiplyNTTs_inner_eq_spec]
+  rw [Target.multiplyNTTs_inner_eq]
 
 end Symcrust.SpecAux
