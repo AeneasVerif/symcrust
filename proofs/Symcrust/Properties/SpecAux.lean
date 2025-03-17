@@ -273,57 +273,40 @@ def invNtt (f : Polynomial) : Polynomial :=
 # The proofs about the NTT
 -/
 
+/-- Auxiliary helper -/
+private def nttLayerInner_body (i len start : Nat) (f : Polynomial) (j : Nat) : Polynomial :=
+  let c0 := f[start + j]!
+  let c1 := f[start + j + len]!
+  let zeta := ζ ^ bitRev 7 i
+  let f := f.set (start + j) (c0 + c1 * zeta)
+  let f := f.set (start + j + len) (c0 - c1 * zeta)
+  f
+
 private theorem nttLayerInner_eq
   (f : Polynomial) (i len start : Nat) :
   nttLayerInner f i len start 0 = Target.nttLayerInner f i len start
   := by
-  -- Unfold the definitions and simplify
-  generalize hj : 0 = j
+  have := eq_foldWhile len 1 (by simp) (fun f j => nttLayerInner f i len start j)
+    (nttLayerInner_body i len start) 0 f
+    (by intro f i
+        simp [nttLayerInner_body]
+        conv => lhs; unfold nttLayerInner)
+  simp at this
+  rw [this]; clear this
   unfold Target.nttLayerInner
-  simp only [Id.run, Id.pure_eq, Id.bind_eq, Aeneas.SRRange.forIn_eq_forIn_range',
-    Aeneas.SRRange.size, add_tsub_cancel_left, add_tsub_cancel_right, Nat.div_one,
-    List.forIn_yield_eq_foldl, zero_lt_one, Aeneas.SRRange.foldl_range', mul_one]
-  have : start = start + j := by simp only [self_eq_add_right, hj]
-  conv => rhs; arg 5; rw [this]
-  clear this
-  -- We do the induction on len - j
-  generalize hSteps : len - j = steps
-  clear hj
-  -- We need this fact (we get it by doing a case disjunction - the case where
-  -- it is false is trivial)
-  dcases hLe : ¬ j ≤ len
-  . -- Simple case: len < j
-    simp_all only [not_le]
-    -- Simplify the lhs
-    have h : ¬ j < len := by omega
-    simp [h, nttLayerInner, ↓reduceIte, *]
-  . -- Interesting case: j ≤ len
-    revert f
-    revert len j
-    induction steps <;> intro len j hSteps hLe f <;> unfold nttLayerInner
-    . -- zero
-      have : len = j := by omega
-      simp_all only [tsub_self, le_refl, lt_self_iff_false, ite_false]
-      simp only [lt_self_iff_false, not_false_eq_true, Aeneas.SRRange.foldWhile_id, implies_true]
-    . -- succ
-      rename_i steps hInd
-      dcases hLe' : ¬ j < len
-      . -- Simple case
-        simp only [↓reduceIte, add_lt_add_iff_left, not_false_eq_true, Aeneas.SRRange.foldWhile_id,
-          implies_true, hLe']
-      . -- Recursive case
-        simp only [↓reduceIte, add_lt_add_iff_left, Aeneas.SRRange.foldWhile_step, Subtype.forall,
-          hLe']
-        replace hInd := hInd len (j + 1) (by omega) (by omega)
-        simp only [hInd]
-        -- Several `Polynomial.set` operations are inverted in the continutations
-        -- We first zoom into the interesting terms
-        apply fun_eq_arg_eq_imp_eq <;> try rfl
-        clear hInd
-        -- Working on the interesting part: we need to swap the two updates
-        rw [Polynomial.set_comm] <;> try omega
-        rw [Polynomial.getElem!_set_neq] <;> try omega
-        ring_nf
+  simp only [Id.run, Id.pure_eq, Id.bind_eq, forIn_eq_forIn_range', size, add_tsub_cancel_left,
+    add_tsub_cancel_right, Nat.div_one, List.forIn_yield_eq_foldl, zero_lt_one, foldl_range',
+    mul_one]
+  conv => rhs; rw [foldWhile_shift_start]
+  have : start + len - start = len := by omega
+  rw [this]; clear this
+  apply foldWhile_forall_eq_imp_eq
+  intro f i h0 h1
+  simp only [nttLayerInner_body]
+  simp_lists
+  ring_nf
+  rw [Polynomial.set_comm]
+  simp; omega
 
 private theorem nttLayer_eq_fst_aux (f : Polynomial) (i len start : Nat) (hLenLt : 0 < len) :
   let p : MProd _ _ := foldWhile 256 (2 * len) (by omega) (fun b a => ⟨Target.nttLayerInner b.1 b.2 len a, b.2 + 1⟩) start ⟨f, i⟩
@@ -416,54 +399,38 @@ theorem ntt_eq (f : Polynomial) :
 # The proofs about the NTT⁻¹
 -/
 
+/-- Auxiliary helper -/
+def invNttLayerInner_body (i len start : Nat) (f : Polynomial) (j : Nat) : Polynomial :=
+  let c0 := f[start + j]!
+  let c1 := f[start + j + len]!
+  let zeta := ζ ^ bitRev 7 i
+  let f := f.set (start + j) (c0 + c1)
+  let f := f.set (start + j + len) (zeta * (c1 - c0))
+  f
+
 private theorem invNttLayerInner_eq
   (f : Polynomial) (i len start : Nat) :
   invNttLayerInner f i len start 0 = Target.invNttLayerInner f i len start
   := by
-  -- Unfold the definitions and simplify
-  generalize hj : 0 = j
+  have := eq_foldWhile len 1 (by simp) (fun f j => invNttLayerInner f i len start j)
+    (invNttLayerInner_body i len start) 0 f
+    (by intro f i
+        simp [invNttLayerInner_body]
+        conv => lhs; unfold invNttLayerInner)
+  simp at this
+  rw [this]; clear this
   unfold Target.invNttLayerInner
   simp only [Id.run, Id.pure_eq, Id.bind_eq, forIn_eq_forIn_range', size, add_tsub_cancel_left,
     add_tsub_cancel_right, Nat.div_one, List.forIn_yield_eq_foldl, zero_lt_one, foldl_range',
     mul_one]
-  have : start = start + j := by simp only [self_eq_add_right, hj]
-  conv => rhs; arg 5; rw [this]
-  clear this
-  -- We do the induction on len - j
-  generalize hSteps : len - j = steps
-  clear hj
-  -- We need this fact (we get it by doing a case disjunction - the case where
-  -- it is false is trivial)
-  dcases hLe : ¬ j ≤ len
-  . -- Simple case: len < j
-    simp_all only [not_le]
-    -- Simplify the lhs
-    have h : ¬ j < len := by omega
-    simp [h, invNttLayerInner, ↓reduceIte, *]
-  . -- Interesting case: j ≤ len
-    revert f
-    revert len j
-    induction steps <;> intro len j hSteps hLe f <;> unfold invNttLayerInner
-    . -- zero
-      have : len = j := by omega
-      simp_all only [tsub_self, le_refl, lt_self_iff_false, ite_false]
-      simp only [lt_self_iff_false, not_false_eq_true, Aeneas.SRRange.foldWhile_id, implies_true]
-    . -- succ
-      rename_i steps hInd
-      dcases hLe' : ¬ j < len
-      . -- Simple case
-        simp only [↓reduceIte, add_lt_add_iff_left, not_false_eq_true, Aeneas.SRRange.foldWhile_id,
-          implies_true, hLe']
-      . -- Recursive case
-        simp only [hLe', ↓reduceIte, add_lt_add_iff_left, foldWhile_step]
-        replace hInd := hInd len (j + 1) (by omega) (by omega)
-        simp only [hInd]
-        -- Several `Polynomial.set` operations are inverted in the continutations
-        -- We first zoom into the interesting terms
-        apply fun_eq_arg_eq_imp_eq <;> try rfl
-        clear hInd
-        -- Working on the interesting part: we need to simplify a write/read
-        rw [Polynomial.getElem!_set_neq]; omega
+  conv => rhs; rw [foldWhile_shift_start]
+  have : start + len - start = len := by omega
+  rw [this]; clear this
+  apply foldWhile_forall_eq_imp_eq
+  intro f i h0 h1
+  simp only [invNttLayerInner_body]
+  simp_lists
+  ring_nf
 
 private theorem invNttLayer_eq_fst_aux (f : Polynomial) (i len start : Nat) (hLenLt : 0 < len) :
   let p : MProd _ _ := foldWhile 256 (2 * len) (by omega) (fun b a => ⟨Target.invNttLayerInner b.1 b.2 len a, b.2 - 1⟩) start ⟨f, i⟩
