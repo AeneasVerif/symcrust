@@ -13,11 +13,12 @@ namespace Symcrust
 
 open Aeneas.Arith
 
-set_option maxHeartbeats 2000000
+set_option maxHeartbeats 10000000
+set_option maxRecDepth 2048
 
 @[local simp] theorem bv_and_65535_eq_mod (x : BitVec 32) : x &&& 65535#32 = x % 65536#32 := by bv_decide
 @[local simp] theorem bv_shift_16_eq_div (x : BitVec 32) : x >>> 16 = x / 65536#32 := by bv_decide
-@[local simp] theorem nat_and_65535_eq_mod (x : Nat) : x &&& 65535 = x % 65536 := by bv_decide
+@[local simp] theorem nat_and_65535_eq_mod (x : Nat) : x &&& 65535 = x % 65536 := by apply Nat.and_pow_two_sub_one_eq_mod x 16
 
 -- TODO: we need a reduceZMod simproc
 @[local simp]
@@ -985,10 +986,6 @@ theorem SymCryptMlKemPolyElementINTTAndMulR_spec (peSrc : Std.Array U16 256#usiz
 -/
 
 section
-  -- TODO: move up
-  set_option maxHeartbeats 10000000
-  set_option maxRecDepth 2048
-
   -- TODO: move
   @[local scalar_tac (x &&& Rmask).val]
   theorem and_Rmask (x : U32) : (x &&& Rmask).val ≤ 65535 := by bv_tac 32
@@ -1039,12 +1036,6 @@ section
       f a1b1zetapow)
     := by
     simp only [mul_acc_mont_reduce, bind_assoc_eq, bind_tc_ok, pure]
-
-  -- TODO: move
-  --@[simp, bvify_simps, scalar_tac_simps] theorem UScalar.val_and {ty} (x y : UScalar ty) : (x &&& y).val = x.val &&& y.val := by rfl
-  --@[simp, bvify_simps, scalar_tac_simps] theorem UScalar.val_or {ty} (x y : UScalar ty) : (x ||| y).val = x.val ||| y.val := by rfl
-  --@[simp, bvify_simps, scalar_tac_simps] theorem IScalar.val_and {ty} (x y : IScalar ty) : (x &&& y).val = x.val &&& y.val := by rfl
-  --@[simp, bvify_simps, scalar_tac_simps] theorem IScalar.val_or {ty} (x y : IScalar ty) : (x ||| y).val = x.val ||| y.val := by rfl
 
   -- TODO: move
   @[bvify_simps]
