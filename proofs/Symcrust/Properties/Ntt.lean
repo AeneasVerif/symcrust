@@ -17,6 +17,7 @@ set_option maxHeartbeats 2000000
 
 @[local simp] theorem bv_and_65535_eq_mod (x : BitVec 32) : x &&& 65535#32 = x % 65536#32 := by bv_decide
 @[local simp] theorem bv_shift_16_eq_div (x : BitVec 32) : x >>> 16 = x / 65536#32 := by bv_decide
+@[local simp] theorem nat_and_65535_eq_mod (x : Nat) : x &&& 65535 = x % 65536 := by bv_decide
 
 -- TODO: we need a reduceZMod simproc
 @[local simp]
@@ -105,7 +106,8 @@ namespace ntt
 @[simp, scalar_tac_simps, bvify_simps] theorem Rlog2_eq : Rlog2 = 16#u32 := by simp [global_simps]
 
 -- TODO: rfl fails here because the number of bits is unknown
-@[simp] theorem MLWE_POLYNOMIAL_COEFFICIENTS_eq : MLWE_POLYNOMIAL_COEFFICIENTS.val = 256 := by
+@[simp, scalar_tac_simps, bvify_simps]
+theorem MLWE_POLYNOMIAL_COEFFICIENTS_eq : MLWE_POLYNOMIAL_COEFFICIENTS.val = 256 := by
   fsimp [MLWE_POLYNOMIAL_COEFFICIENTS, toResult, MLWE_POLYNOMIAL_COEFFICIENTS_body, eval_global]
 
 @[simp] theorem INTTFixupTimesRsqr_eq : INTTFixupTimesRsqr.val = 1441 := by simp [global_simps]
@@ -115,7 +117,7 @@ namespace ntt
 
 
 /-!
-Addition modulo
+# Addition modulo
 -/
 def SymCryptMlKemModAdd' (a : U32) (b : U32) : Result U32 :=
   do
@@ -148,7 +150,7 @@ theorem SymCryptMlKemModAdd'_spec (a : U32) (b : U32)
   progress* <;> bv_tac 32
 
 /-!
-Subtraction modulo
+# Subtraction modulo
 -/
 
 def SymCryptMlKemModSub' (a : U32) (b : U32) : Result U32 := do
@@ -277,7 +279,7 @@ theorem MlKemZetaBitRevTimesR_map_val_eq :
   List.map (fun i => (17^bitRev 7 i * 2^16) % 3329) (List.range' 0 128) := by
   native_decide
 
-theorem MlKemZetaBitRevTimesR_map_all_eq :
+theorem MlKemZetaBitRevTimesR_all :
   List.all MlKemZetaBitRevTimesR.val (fun x => x.val < 3329) := by
   native_decide
 
@@ -285,6 +287,15 @@ theorem MlKemZetaBitRevTimesRTimesNegQInvModR_map_val_eq :
   List.map UScalar.val MlKemZetaBitRevTimesRTimesNegQInvModR.val =
   List.map (fun i => (((17^bitRev 7 i * 2^16) % 3329) * 3327) %  2^16) (List.range' 0 128) := by
   native_decide
+
+theorem zetaTwoTimesBitRevPlus1TimesR_map_val_eq :
+  List.map UScalar.val zetaTwoTimesBitRevPlus1TimesR.val =
+  List.map (fun i => (17^(2 * bitRev 7 i + 1) * 2^16) % 3329) (List.range' 0 128) := by
+  native_decide
+
+theorem zetaTwoTimesBitRevPlus1TimesR_all :
+  List.all zetaTwoTimesBitRevPlus1TimesR.val (fun x => x.val ≤ 3318) :=
+  by native_decide
 
 theorem array_map_eq_range'_all_imp_index_usize_eq_pred {α β} [Inhabited α] {a : Std.Array α n}
   {f : α → β} {g : ℕ → β} {p : α → Bool}
@@ -346,19 +357,21 @@ theorem array_map_eq_range'_imp_index_usize_eq {α β} [Inhabited α] {a : Std.A
   progress with array_map_eq_range'_all_imp_index_usize_eq_pred
   fsimp [*]
 
+@[local progress]
 theorem MlKemZetaBitRevTimesR_index_spec (k : Usize) (h : k.val < 128) :
   ∃ v, Array.index_usize MlKemZetaBitRevTimesR k = ok v ∧
   (v.val : ZMod Spec.Q) = Spec.ζ^(bitRev 7 k.val) * 65536 ∧
   v.val < 3329
   := by
-  have h := array_map_eq_range'_all_imp_index_usize_eq_pred MlKemZetaBitRevTimesR_map_val_eq MlKemZetaBitRevTimesR_map_all_eq
+  have h := array_map_eq_range'_all_imp_index_usize_eq_pred MlKemZetaBitRevTimesR_map_val_eq MlKemZetaBitRevTimesR_all
   progress with h as ⟨ v, hv, hv' ⟩
   fsimp at hv'
   fsimp only [hv']
   fsimp [hv]
   simp [Spec.ζ]
 
-theorem MlKemZetaBitRevTimesRTimesNegQInvModR_index_spec' (k : Usize) (h : k.val < 128) :
+@[local progress]
+theorem MlKemZetaBitRevTimesRTimesNegQInvModR_index_spec (k : Usize) (h : k.val < 128) :
   ∃ v, Array.index_usize MlKemZetaBitRevTimesRTimesNegQInvModR k = ok v ∧
   BitVec.ofNat 32 v.val = (BitVec.ofNat _ ((17^(bitRev 7 k.val) * 65536) % 3329) * 3327#32) &&& 65535#32
   := by
@@ -369,8 +382,16 @@ theorem MlKemZetaBitRevTimesRTimesNegQInvModR_index_spec' (k : Usize) (h : k.val
   rw [hv]
   fsimp
 
--- If we put the attribute directly on the declarations above, for some reason, the theorems do not get properly scoped
-attribute [local progress] MlKemZetaBitRevTimesR_index_spec MlKemZetaBitRevTimesRTimesNegQInvModR_index_spec'
+@[local progress]
+theorem zetaTwoTimesBitRevPlus1TimesR_index_spec (i : Usize) (h : i.val < 128) :
+  ∃ v, Array.index_usize zetaTwoTimesBitRevPlus1TimesR i = ok v ∧
+  BitVec.ofNat 32 v.val = BitVec.ofNat _ ((17^(2 * bitRev 7 i + 1) * 2^16) % 3329) ∧ -- TODO: remove this?
+  v.val = (17^(2 * bitRev 7 i + 1) * 2^16) % 3329 ∧
+  v.val ≤ 3318 := by
+  have h := array_map_eq_range'_all_imp_index_usize_eq_pred zetaTwoTimesBitRevPlus1TimesR_map_val_eq zetaTwoTimesBitRevPlus1TimesR_all
+  progress with h as ⟨ v, hv, hlt ⟩
+  fsimp [hv]
+  scalar_tac
 
 @[local progress]
 theorem SymCryptMlKemMontMul_twiddle_spec (k : Usize) (c : U32) (twiddleFactor : U32) (twiddleFactorMont : U32)
@@ -419,8 +440,17 @@ theorem wfArray_index {n : Usize} (v : Std.Array U16 n) (i : Usize)
   replace hWf := hWf i.val (by scalar_tac)
   scalar_tac
 
+theorem wfArray_iff_forAll {n : Usize} (a : Std.Array U16 n) : wfArray a ↔ a.val.all (fun x => x.val < 3329) := by
+  simp +contextual only [wfArray, List.getElem!_eq_getElem?_getD, List.Vector.length_val,
+    List.getElem?_eq_getElem, Option.getD_some, List.all_eq_true, decide_eq_true_eq, ←
+    List.forall_getElem]
+
+@[simp]
+theorem wfArray_zetaTwoTimesBitRevPlus1TimesR : wfArray zetaTwoTimesBitRevPlus1TimesR := by
+  simp [wfArray_iff_forAll]; native_decide
+
 /-!
-NTT
+# NTT
 -/
 
 @[progress] -- TODO: `local progress` doesn't work because Lean makes the spec local to namespace `SymCryptMlKemPolyElementNTTLayerC`
@@ -628,19 +658,13 @@ theorem SymCryptMlKemPolyElementNTT_spec (peSrc : Std.Array U16 256#usize)
   to_poly peSrc1 = Spec.ntt (to_poly peSrc) ∧ wfArray peSrc1
   := by
   unfold SymCryptMlKemPolyElementNTT
-  progress as ⟨ peSrc1 ⟩; fsimp [Nat.log2]
-  progress as ⟨ peSrc2 ⟩; fsimp [Nat.log2]
-  progress as ⟨ peSrc3 ⟩; fsimp [Nat.log2]
-  progress as ⟨ peSrc4 ⟩; fsimp [Nat.log2]
-  progress as ⟨ peSrc5 ⟩; fsimp [Nat.log2]
-  progress as ⟨ peSrc6 ⟩; fsimp [Nat.log2]
-  progress as ⟨ peSrc7 ⟩; fsimp [Nat.log2]
+  progress* by fsimp [Nat.log2]
   rw [← SpecAux.ntt_eq]
   unfold SpecAux.ntt
   fsimp [*]
 
 /-!
-INTT
+# INTT
 -/
 @[progress] -- TODO: `local progress` doesn't work because Lean makes the spec local to namespace `SymCryptMlKemPolyElementNTTLayerC`
 def SymCryptMlKemPolyElementINTTLayerC.inner_loop_loop_spec
@@ -951,17 +975,393 @@ theorem SymCryptMlKemPolyElementINTTAndMulR_spec (peSrc : Std.Array U16 256#usiz
   to_poly peSrc1 = Spec.invNtt (to_poly peSrc) * (2^16 : Spec.Zq) ∧ wfArray peSrc1
   := by
   unfold SymCryptMlKemPolyElementINTTAndMulR
-  progress as ⟨ peSrc1 ⟩; fsimp [Nat.log2]
-  progress as ⟨ peSrc2 ⟩; fsimp [Nat.log2]
-  progress as ⟨ peSrc3 ⟩; fsimp [Nat.log2]
-  progress as ⟨ peSrc4 ⟩; fsimp [Nat.log2]
-  progress as ⟨ peSrc5 ⟩; fsimp [Nat.log2]
-  progress as ⟨ peSrc6 ⟩; fsimp [Nat.log2]
-  progress as ⟨ peSrc7 ⟩; fsimp [Nat.log2]
-  progress as ⟨ peSrc8 ⟩
+  progress* by fsimp [Nat.log2]
   rw [← SpecAux.invNtt_eq]
   unfold SpecAux.invNtt
   fsimp [*]
+
+/-!
+# Multiply and Accumulate
+-/
+
+section
+  -- TODO: move up
+  set_option maxHeartbeats 10000000
+  set_option maxRecDepth 2048
+
+  -- TODO: move
+  @[local scalar_tac (x &&& Rmask).val]
+  theorem and_Rmask (x : U32) : (x &&& Rmask).val ≤ 65535 := by bv_tac 32
+
+  -- TODO: we need to make that better
+  @[local scalar_tac a.val * b.val]
+  theorem Zq_mul_in_bounds (a b : U32) :
+    a.val ≥ 3329 ∨ b.val ≥ 3329 ∨ a.val * b.val ≤ 3328 * 3328 := by
+    simp only [Classical.or_iff_not_imp_left]
+    intros
+    scalar_tac +nonLin
+
+  -- TODO: failure cases of scalar_tac +nonLin
+  -- TODO: bv_tac fails to prove: x.val &&& Rmask.val ≤ 65555
+
+  -- TODO
+  example
+    (x : U32)
+    (y : U32)
+    (h : y = (x &&& Rmask).val) :
+    y.val ≤ 65535 := by
+    scalar_tac
+
+  /- TODO: we should implement tactics to automatically refold parts of the code back into
+     functions. -/
+
+  /-- Auxiliary helper: the reduced multiplication performed by multiply and accumulate.
+
+      This computes:
+      red(a1b1) *
+   -/
+  private def mul_acc_mont_reduce (i : Usize) (a1b1 : U32) : Result U32 := do
+    let i12 ← ((core.num.U32.wrapping_mul a1b1 NegQInvModR) : Result U32)
+    let inv ← (↑(i12 &&& Rmask) : Result U32)
+    let i13 ← inv * Q
+    let i14 ← a1b1 + i13
+    let a1b11 ← i14 >>> Rlog2
+    let i15 ← zetaTwoTimesBitRevPlus1TimesR.index_usize i
+    let i16 ← (↑(UScalar.cast UScalarTy.U32 i15) : Result U32)
+    let a1b1zetapow ← a1b11 * i16
+    pure a1b1zetapow
+
+  -- TODO: automate the refold
+  private theorem fold_mul_acc_mont_reduce (i : Usize) (a1b1 : U32) (f : U32 → Result α) :
+    (do
+      let i12 ← ((core.num.U32.wrapping_mul a1b1 NegQInvModR) : Result U32)
+      let inv ← (↑(i12 &&& Rmask) : Result U32)
+      let i13 ← inv * Q
+      let i14 ← a1b1 + i13
+      let a1b11 ← i14 >>> Rlog2
+      let i15 ← zetaTwoTimesBitRevPlus1TimesR.index_usize i
+      let i16 ← (↑(UScalar.cast UScalarTy.U32 i15) : Result U32)
+      let a1b1zetapow ← a1b11 * i16
+      f a1b1zetapow) =
+    (do
+      let a1b1zetapow ← mul_acc_mont_reduce i a1b1
+      f a1b1zetapow)
+    := by
+    simp only [mul_acc_mont_reduce, bind_assoc_eq, bind_tc_ok, pure]
+
+  -- TODO: move
+  @[simp, bvify_simps, scalar_tac_simps] theorem UScalar.val_and {ty} (x y : UScalar ty) : (x &&& y).val = x.val &&& y.val := by rfl
+  @[simp, bvify_simps, scalar_tac_simps] theorem UScalar.val_or {ty} (x y : UScalar ty) : (x ||| y).val = x.val ||| y.val := by rfl
+  --@[simp, bvify_simps, scalar_tac_simps] theorem IScalar.val_and {ty} (x y : IScalar ty) : (x &&& y).val = x.val &&& y.val := by rfl
+  --@[simp, bvify_simps, scalar_tac_simps] theorem IScalar.val_or {ty} (x y : IScalar ty) : (x ||| y).val = x.val ||| y.val := by rfl
+
+  -- TODO: move
+  @[bvify_simps]
+  theorem BitVec.ofNat_div (n a b : Nat)
+    (h : a < 2^n ∧ b < 2^n) :
+    BitVec.ofNat n (a / b) = BitVec.ofNat n a / BitVec.ofNat n b := by
+    simp only [BitVec.toNat_eq, BitVec.toNat_ofNat, BitVec.toNat_udiv]
+    have : a % 2^n = a := by apply Nat.mod_eq_of_lt; omega
+    have : b % 2^n = b := by apply Nat.mod_eq_of_lt; omega
+    have : a / b ≤ a := by apply Nat.div_le_self
+    have : (a / b) % 2^n = a / b := by apply Nat.mod_eq_of_lt; omega
+    simp only [*]
+
+  @[local progress]
+  theorem mul_acc_mont_reduce_spec (i : Usize) (a1b1 : U32)
+    (hi : i.val < 128) (h1 : a1b1.val ≤ 3328 * 3328) :
+    ∃ a1b1zetapow, mul_acc_mont_reduce i a1b1 = ok a1b1zetapow ∧
+    a1b1zetapow.val ≤ 3498 * 3328 ∧
+    (a1b1zetapow.val : Spec.Zq) = (a1b1.val : Spec.Zq) * Spec.ζ ^ (2 * bitRev 7 i.val + 1)
+    := by
+    unfold mul_acc_mont_reduce
+    /- First step: reduce a1b1 -/
+    let* ⟨ i12, i12_post ⟩ ← Aeneas.Std.core.num.U32.wrapping_mul.progress_spec
+    let* ⟨ inv, inv_post_1, inv_post_2 ⟩ ← Aeneas.Std.UScalar.and_spec
+    have : inv.val = (a1b1.val * NegQInvModR.val) % 2^16 := by simp [U32.size, U32.numBits, *]
+    let* ⟨ i13, i13_post_1, i13_post_2 ⟩ ← Aeneas.Std.U32.mul_bv_spec
+    let* ⟨ i14, i14_post_1, i14_post_2 ⟩ ← Aeneas.Std.U32.add_bv_spec
+    let* ⟨ a1b11, a1b11_post ⟩ ← Aeneas.Std.U32.ShiftRight_bv_spec
+
+    /- Prove the result of the Montgomery reduction -/
+    have : a1b1.val + inv.val * 3329 ≤ U32.max := by scalar_tac
+    have ha1b1_eq : a1b11.val = (a1b1.val + inv.val * Q.val) / 2^16 ∧ a1b11.val ≤ 65535 := by bv_tac 32
+    have ha1b11_eq : (a1b11.val : Spec.Zq) = (a1b1.val : Spec.Zq) * 169 := by
+      have ⟨ hMont, _ ⟩ := mont_reduce_spec 3329 (2^16) 3327 a1b1.val
+        (by fsimp [U16.size, U16.numBits]; exists 16) (by fsimp [U16.size, U16.numBits]) (by fsimp)
+        (by scalar_tac) (by fsimp; constructor)
+      fsimp [mont_reduce] at hMont
+      fsimp [inv_post_1, i12_post, U32.size, U32.numBits] at ha1b1_eq
+      zify at ha1b1_eq
+      zify
+      fsimp [ha1b1_eq, hMont]
+      fsimp [Int.mul_emod]
+    have : a1b11.val ≤ 3498 := by
+       have hBound := mlKem_mont_reduce_bounds a1b1.val (by scalar_tac)
+       fsimp [mont_reduce] at hBound
+       fsimp [inv_post_1, i12_post, U32.size, U32.numBits] at ha1b1_eq
+       zify at ha1b1_eq
+       scalar_tac
+
+    /- Second step: multiply by ζ^(2*bitRev(i) + 1) -/
+    let* ⟨ i15, i15_post_1, i15_post ⟩ ← Symcrust.ntt.zetaTwoTimesBitRevPlus1TimesR_index_spec
+    let* ⟨ i16, i16_post ⟩ ← Aeneas.Std.UScalar.cast_inBounds_spec
+    have hpost1 : a1b11.val * i16.val ≤ 3498 * 3328 := by scalar_tac +nonLin
+    let* ⟨ a1b1zetapow, a1b1zetapow_post, a1b1zetapow_post_2 ⟩ ← Aeneas.Std.U32.mul_bv_spec
+
+    /- Prove the post-condition -/
+    have hpost2 : (a1b1zetapow.val : Spec.Zq) = (a1b1.val : Spec.Zq) * Spec.ζ ^ (2 * bitRev 7 i.val + 1) := by
+      fsimp [a1b1zetapow_post, i16_post, i15_post, ha1b11_eq, Spec.ζ]
+      ring_nf
+      rfl -- TODO: the reduction should be automatic
+
+    split_conjs
+    . scalar_tac
+    . apply hpost2
+
+  private def update_acc (i : Usize) (c0 c1 : U32) (paDst : Array U32 256#usize) : Result (Array U32 256#usize) := do
+    let paDst1 ← paDst.update i c0
+    let i' ← i + 1#usize
+    let paDst2 ← paDst1.update i' c1
+    pure paDst2
+
+  -- TODO: automate the refold
+  private theorem fold_update_acc (i : Usize) (c0 c1 : U32) (paDst : Array U32 256#usize) (f : Array U32 256#usize → Result α) :
+    (do
+      let paDst1 ← paDst.update i c0
+      let i' ← i + 1#usize
+      let paDst2 ← paDst1.update i' c1
+      f paDst2) =
+    (do
+      let paDst2 ← update_acc i c0 c1 paDst
+      f paDst2)
+    := by
+    simp only [update_acc, bind_assoc_eq, bind_tc_ok, pure]
+
+  -- TODO: move
+  /-- Well-formed accumulator-/
+  def wfAcc (f g : Array U16 256#usize) (B0 B1 : Nat) (i : Nat) (acc0 acc : Array U32 256#usize) : Prop :=
+    -- The bounds
+    (∀ j < i, acc[2 * j]! ≤ B0 + B1 ∧ acc[2 * j + 1]! ≤ B0 + B1) ∧
+    (∀ j, i ≤ j → j < 128 → acc[2 * j]! ≤ B0 ∧ acc[2 * j + 1]! ≤ B0) ∧
+    -- The values
+    (∀ j < i, (acc[2 * j]! : Spec.Zq) = acc0[2 * j]! + SpecAux.baseCaseMultiply0 (to_poly f) (to_poly g) j ∧
+              (acc[2 * j + 1]! : Spec.Zq) = acc0[2 * j + 1]! + SpecAux.baseCaseMultiply1 (to_poly f) (to_poly g) j) ∧
+    (∀ j, i ≤ j → j < 128 → acc[2 * j]! = acc0[2 * j]! ∧ acc[2 * j + 1]! = acc0[2 * j + 1]!)
+
+  def wfAcc_128 {f g : Array U16 256#usize} {B0 B1 : Nat} {i : Nat} {acc0 acc : Array U32 256#usize}
+    (h : wfAcc f g B0 B1 i acc0 acc) (hi : 128 ≤ i) :
+    wfAcc f g B0 B1 128 acc0 acc := by
+    fsimp [wfAcc] at *
+    obtain ⟨ h0, h1, h2, h3 ⟩ := h
+    split_conjs <;> intro j hj
+    . apply h0; omega
+    . intros; omega -- contradiction
+    . apply h2; omega
+    . intros; omega -- contradiction
+
+  @[local progress]
+  theorem wfAcc_index {f g : Array U16 256#usize} {B0 B1 : Nat} {i0 : Nat}
+    {i : Usize}
+    {acc0 acc : Array U32 256#usize}
+    (hWf : wfAcc f g B0 B1 i0 acc0 acc)
+    (hi0 : 2 * i0 ≤ i.val) (hi : i.val < 256) :
+    ∃ x, acc.index_usize i = ok x ∧ x = acc0.val[i.val]! ∧ x.val ≤ B0 := by
+    progress as ⟨ x ⟩
+    unfold wfAcc at hWf
+    obtain ⟨ _, h0, _, h1 ⟩ := hWf
+    replace h0 := h0 (i.val / 2) (by omega) (by omega)
+    replace h1 := h1 (i.val / 2) (by omega) (by omega)
+    have heq : 2 * (i.val / 2) = i ∨ 2 * (i.val / 2) + 1 = i := by omega
+    cases heq <;> rename_i heq <;>
+    fsimp [heq] at h0 h1 <;>
+    scalar_tac
+
+  @[local progress]
+  theorem update_acc_spec {f g : Array U16 256#usize} {B0 B1 : Nat} {i0 : Nat} {i : Usize} {c0 c1 : U32}
+    {paDst0 paDst : Array U32 256#usize}
+    {a1b1zetapow : U32}
+    -- Those terms act as a pattern to instantiate a1b1zetapow
+    {a1b1: U32} {i0':Nat} (hzetap : (a1b1zetapow.val : Spec.Zq) = a1b1 * Spec.ζ ^ (2 * bitRev 7 i0' + 1))
+    --
+    (hwf : wfAcc f g B0 B1 i0 paDst0 paDst)
+    (hi0 : i0 < 128)
+    (hc0bound : c0.val ≤ B0 + B1) (hc1bound : c1.val ≤ B0 + B1)
+    (hc0 : c0.val = paDst0[i.val]! + f[i.val]! * g[i.val]! + a1b1zetapow)
+    (hc1 : c1.val = paDst0[i.val + 1]! + f[i.val]! * g[i.val + 1]! + f[i.val + 1]! * g[i.val]!)
+    (hi : i.val = 2 * i0) :
+    ∃ paDst', update_acc i c0 c1 paDst = ok paDst' ∧
+    wfAcc f g B0 B1 (i0 + 1) paDst0 paDst' := by
+    rw [update_acc]
+    progress*
+    unfold wfAcc at *
+    obtain ⟨ h0, h1, h2, h3 ⟩ := hwf
+    split_conjs <;> intro j hj
+    . dcases hj' : j = i0
+      . fsimp [*]
+        have : 2 * i0 < paDst.val.length := by scalar_tac
+        -- TODO: simp_lists tactic
+        fsimp [this]
+      replace h0 := h0 j hj
+
+  -- TODO: no post-processing of the post-conditions in progress
+  #assert 3328 * 3494 = 11628032
+
+  @[simp, scalar_tac_simps]
+  abbrev montMulStepBound : Nat := 3328 * 3328 + 3328 * 3498
+
+  set_option profiler true in
+  set_option profiler.threshold 100 in
+  theorem SymCryptMlKemPolyElementMulAndAccumulate_loop_spec
+    (peSrc1 peSrc2 : Array U16 256#usize)
+    (paDst0 paDst : Array U32 256#usize) (i0 : Nat) (i : Usize)
+    (B0 : Nat)
+    (hb0 : B0 + montMulStepBound ≤ U32.max)
+    (hwf1 : wfArray peSrc1) (hwf2 : wfArray peSrc2)
+    (hwf3 : wfAcc peSrc1 peSrc2 B0 montMulStepBound i0 paDst0 paDst)
+    (hi : i0 = i.val)
+    :
+    ∃ paDst', SymCryptMlKemPolyElementMulAndAccumulate_loop peSrc1 peSrc2 paDst i = ok paDst' ∧
+    wfAcc peSrc1 peSrc2 B0 montMulStepBound 128 paDst0 paDst'
+    := by
+    rw[SymCryptMlKemPolyElementMulAndAccumulate_loop]
+    fsimp only [fold_mul_acc_mont_reduce, fold_update_acc]
+    fsimp -- TODO: why is this call to `simp` so slow? (1.1s, and 3.1s if the maxDischargeDepth := 2)
+    -- TODO: fix the syntax so that we do not need parentheses
+    -- TODO: it seems that when the goal is not proven by the precondition tactic, it doesn't
+    -- leave it unchanged
+    --progress*? by ((try apply le_U16_max_square_imp_le_U32_max); scalar_tac)
+    let* ⟨ i1, i1_post ⟩ ← Aeneas.Std.Usize.div_spec
+    split
+    . let* ⟨ i2, i2_post ⟩ ← Aeneas.Std.Usize.mul_spec
+      let* ⟨ i3, i3_post_1, i3_post_2 ⟩ ← Symcrust.ntt.wfArray_index
+      let* ⟨ i4, i4_post ⟩ ← Aeneas.Std.Usize.add_spec
+      let* ⟨ i5, i5_post_1, i5_post_2 ⟩ ← Symcrust.ntt.wfArray_index
+      let* ⟨ i6, i6_post_1, i6_post_2 ⟩ ← Symcrust.ntt.wfArray_index
+      let* ⟨ i8, i8_post_1, i8_post_2 ⟩ ← Symcrust.ntt.wfArray_index
+      let* ⟨ i9, i9_post ⟩ ← wfAcc_index
+      let* ⟨ i11, i11_post ⟩ ← wfAcc_index
+      let* ⟨ a0b0, a0b0_post_1, a0b0_post_2 ⟩ ← Aeneas.Std.U32.mul_bv_spec
+      have : a0b0.val ≤ 3328 * 3328 := by scalar_tac
+      let* ⟨ a1b1, a1b1_post_1, a1b1_post_2 ⟩ ← Aeneas.Std.U32.mul_bv_spec
+      have : a1b1.val ≤ 3328 * 3328 := by scalar_tac
+      let* ⟨ a0b1, a0b1_post_1, a0b1_post_2 ⟩ ← Aeneas.Std.U32.mul_bv_spec
+      have : a0b1.val ≤ 3328 * 3328 := by scalar_tac
+      let* ⟨ a1b0, a1b0_post_1, a1b0_post_2 ⟩ ← Aeneas.Std.U32.mul_bv_spec
+      have : a1b0.val ≤ 3328 * 3328 := by scalar_tac
+      let* ⟨ a1b1zetapow, a1b1zetapow_post_1, a1b1zetapow_post_2 ⟩ ← Symcrust.ntt.mul_acc_mont_reduce_spec
+      let* ⟨ a0b01, a0b01_post_1, a0b01_post_2 ⟩ ← Aeneas.Std.U32.add_bv_spec
+      let* ⟨ a0b11, a0b11_post_1, a0b11_post_2 ⟩ ← Aeneas.Std.U32.add_bv_spec
+      let* ⟨ c01, c01_post_1, c01_post_2 ⟩ ← Aeneas.Std.U32.add_bv_spec
+      let* ⟨ c11, c11_post_1, c11_post_2 ⟩ ← Aeneas.Std.U32.add_bv_spec
+      let* ⟨ paDst2, paDst2_post ⟩ ← Symcrust.ntt.update_acc_spec
+      let* ⟨ i18, i18_post ⟩ ← Aeneas.Std.Usize.add_spec
+      let* ⟨ res, res_post ⟩ ← SymCryptMlKemPolyElementMulAndAccumulate_loop_spec
+      -- TODO: why does sassumption fail?
+      assumption
+    . fsimp
+      apply wfAcc_128 hwf3 (by scalar_tac)
+  --termination_by 128 - i.val
+  --decreasing_by scalar_decr_tac
+
+#eval U16.max
+
+/-
+Total: 2 minutes!
+simp took 251ms
+simp took 133ms
+simp took 133ms
+tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 498ms
+tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 540ms
+simp took 100ms
+tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 580ms
+simp took 101ms
+simp took 101ms
+tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 601ms
+simp took 113ms
+simp took 112ms
+tactic execution of Aeneas.Progress.tactic_ took 117ms
+type checking took 109ms
+tactic execution of Aeneas.BvTac.tacticBv_tac___ took 303ms
+tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 808ms
+tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 807ms
+simp took 190ms
+simp took 185ms
+tactic execution of Aeneas.Progress.tactic_ took 126ms
+tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 860ms
+tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 104ms
+tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 102ms
+type checking took 109ms
+tactic execution of Aeneas.BvTac.tacticBv_tac___ took 307ms
+tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 884ms
+tactic execution of Aeneas.Progress.tactic_ took 144ms
+tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 871ms
+tactic execution of Aeneas.Progress.tactic_ took 140ms
+tactic execution of Aeneas.Progress.tactic_ took 149ms
+tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 105ms
+tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 102ms
+tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 103ms
+tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 101ms
+tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 102ms
+tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 101ms
+tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 102ms
+tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 103ms
+tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 102ms
+tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 105ms
+tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 105ms
+tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 102ms
+tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 105ms
+tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 103ms
+type checking took 131ms
+tactic execution of Aeneas.BvTac.tacticBv_tac___ took 349ms
+tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 2.93s
+tactic execution of Lean.Parser.Tactic.tacticSeq1Indented took 118ms
+tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 1.04s
+tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 108ms
+tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 106ms
+tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 111ms
+tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 108ms
+tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 109ms
+tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 109ms
+tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 111ms
+tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 112ms
+tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 110ms
+tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 110ms
+tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 112ms
+tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 109ms
+tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 120ms
+tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 109ms
+tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 114ms
+type checking took 158ms
+tactic execution of Aeneas.BvTac.tacticBv_tac___ took 397ms
+tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 982ms
+tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 5.19s
+tactic execution of Lean.Parser.Tactic.tacticSeq1Indented took 135ms
+tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 996ms
+tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 3.06s
+tactic execution of Lean.Parser.Tactic.tacticSeq1Indented took 135ms
+tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 951ms
+simp took 182ms
+simp took 168ms
+tactic execution of Aeneas.Progress.tactic_ took 201ms
+simp took 216ms
+simp took 213ms
+tactic execution of Aeneas.Progress.tactic_ took 185ms
+tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 1.13s
+simp took 225ms
+simp took 222ms
+tactic execution of Aeneas.Progress.tactic_ took 189ms
+simp took 284ms
+simp took 279ms
+tactic execution of Aeneas.Progress.tactic_ took 204ms
+tactic execution of Aeneas.Progress.tactic_ took 216ms
+tactic execution of Aeneas.Progress.tactic_ took 216ms
+tactic execution of Aeneas.Progress.tactic_ took 232ms
+instantiate metavars took 5.65s
+share common exprs took 323ms
+-/
+
+end
 
 end ntt
 

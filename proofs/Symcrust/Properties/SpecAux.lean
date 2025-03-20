@@ -523,7 +523,7 @@ theorem invNtt_eq (f : Polynomial) :
 -/
 
 /-- Auxiliary helper -/
-private def baseCaseMultiply0 (f g : Polynomial) (i : Nat) : Zq :=
+def baseCaseMultiply0 (f g : Polynomial) (i : Nat) : Zq :=
   let a0 := f[2 * i]!
   let a1 := f[2 * i + 1]!
   let b0 := g[2 * i]!
@@ -532,7 +532,7 @@ private def baseCaseMultiply0 (f g : Polynomial) (i : Nat) : Zq :=
   a0 * b0 + a1 * b1 * γ
 
 /-- Auxiliary helper -/
-private def baseCaseMultiply1 (f g : Polynomial) (i : Nat) : Zq :=
+def baseCaseMultiply1 (f g : Polynomial) (i : Nat) : Zq :=
   let a0 := f[2 * i]!
   let a1 := f[2 * i + 1]!
   let b0 := g[2 * i]!
@@ -548,7 +548,8 @@ private theorem baseCaseMultiply_eq (f g : Polynomial) (i : Nat) :
 /-- The definition we will use in the proofs of refinement with the code -/
 def multiplyNTTs (f g h : Polynomial) (i : Nat) : Polynomial :=
   if i < 128 then
-    let (c0, c1) := baseCaseMultiply f[2 * i]! f[2 * i + 1]! g[2 * i]! g[2 * i + 1]! (ζ^(2 * bitRev 7 i + 1))
+    let c0 := baseCaseMultiply0 f g i
+    let c1 := baseCaseMultiply1 f g i
     let h := h.set (2 * i) (h[2 * i]! + c0)
     let h := h.set (2 * i + 1) (h[2 * i + 1]! + c1)
     multiplyNTTs f g h (i + 1)
