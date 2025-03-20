@@ -851,34 +851,12 @@ theorem SymCryptMlKemPolyElementINTTAndMulR_loop_spec (peSrc : Std.Array U16 256
   to_poly peSrc' = (to_poly peSrc) * (3303 : Spec.Zq) * (2^16 : Spec.Zq) ∧
   wfArray peSrc' := by
   progress as ⟨ peSrc', _, h ⟩
-  fsimp [HMul.hMul, Spec.Polynomial.scalarMul, to_poly, *]
-
-  have aux (f f' : List U16) (hLen : f'.length = f.length)
-    (hEq : ∀ i, i < f.length → (f'[i]!.val : Spec.Zq) = f[i]!.val * 3303 * 2^16) :
-    List.map (fun x => (x.val : Spec.Zq)) f' =
-    List.map ((fun v => Mul.mul v (2^16 : Spec.Zq)) ∘ (fun v => Mul.mul v 3303) ∘ fun x => (x.val : Spec.Zq)) f := by
-    revert f'; induction f
-    . fsimp_all
-    . rename_i hd tl hInd
-      intro f' hLen hi
-      dcases f'
-      . fsimp at hLen
-      . rename_i hd' tl'
-        fsimp at *
-        have := hInd tl' (by fsimp [*])
-          (by
-            intro i hLen
-            have := hi (i + 1) (by omega)
-            fsimp [hLen] at this
-            apply this)
-        fsimp [*]
-        have := hi 0 (by omega)
-        fsimp at this
-        apply this
-
-  rw [aux] <;> fsimp [*]
-  fsimp at h
-  apply h
+  split_conjs
+  . fsimp [Spec.Polynomial.eq_iff]
+    intro i hi
+    fsimp at h
+    simp_lists [h]
+  . fsimp [*]
 
 @[progress]
 theorem SymCryptMlKemPolyElementINTTAndMulR_spec (peSrc : Std.Array U16 256#usize)

@@ -45,7 +45,7 @@ theorem Polynomial.eq_iff' (f g : Polynomial) :
     have h1 : 2 * (i / 2) = i ∨ 2 * (i / 2) + 1 = i := by omega
     cases h1 <;> simp_all only
 
-@[simp]
+@[simp, simp_lists_simps]
 theorem Polynomial.getElem!_add (f g : Polynomial) (i : Nat) :
   (f + g)[i]! = f[i]! + g[i]! := by
   cases f; rename_i f hf
@@ -55,6 +55,14 @@ theorem Polynomial.getElem!_add (f g : Polynomial) (i : Nat) :
   . simp [*]
   . simp at hi
     simp [*, default]
+
+@[simp, simp_lists_simps]
+theorem Polynomial.getElem!_mul (f : Polynomial) (x : Zq) (i : Nat) :
+  (f * x)[i]! = f[i]! * x := by
+  cases f; rename_i f hf
+  fsimp only [instHMulPolynomialZq, scalarMul, getElem!_eq]
+  dcases hi : i < 256 <;> simp_lists
+  fsimp only [default, zero_mul]
 
 theorem Polynomial.add_assoc (f g h : Polynomial) : f + g + h = f + (g + h) := by
   simp only [eq_iff, getElem!_add]
@@ -72,6 +80,13 @@ theorem Polynomial.set_comm {i j : Nat} (h : Nat.not_eq i j)
   cases p; simp [*]
   rw [List.set_comm]
   simp only [Nat.not_eq, ne_eq, lt_or_lt_iff_ne] at h
+  omega
+
+@[simp_lists_simps]
+theorem Polynomial.set_comm' {i j : Nat} (h : j < i)
+  (p : Polynomial) (x y : Zq) :
+  (p.set i x).set j y = (p.set j y).set i x := by
+  rw [Polynomial.set_comm]
   omega
 
 @[simp_lists_simps]
@@ -96,7 +111,7 @@ theorem Polynomial.add_zero (f : Polynomial) : f + Polynomial.zero = f := by
   simp +contextual only [zero, eq_iff, getElem!_add, getElem!_eq, List.getElem!_replicate,
     _root_.add_zero, implies_true]
 
-@[simp]
+@[simp, simp_lists_simps]
 theorem Polynomial.zero_getElem! (i : Nat) :
   Polynomial.zero[i]! = 0 := by
   simp [Polynomial.zero]
@@ -288,8 +303,6 @@ private theorem nttLayerInner_eq
   simp only [nttLayerInner_body]
   simp_lists
   ring_nf
-  rw [Polynomial.set_comm]
-  simp; omega
 
 private theorem nttLayer_eq_fst_aux (f : Polynomial) (i len start : Nat) (hLenLt : 0 < len) :
   let p : MProd _ _ := foldWhile 256 (2 * len) (by omega) (fun b a => ⟨Target.nttLayerInner b.1 b.2 len a, b.2 + 1⟩) start ⟨f, i⟩
@@ -654,9 +667,7 @@ private theorem multiplyNTTs_add_zero (f g h : Polynomial) :
   simp only [Polynomial.eq_iff']
   intro i hi
   simp_lists [multiplyNTTs_getElem!, multiplyNTTs_pure_getElem!]
-  simp only [not_lt_zero', ↓reduceIte, Polynomial.getElem!_add]
-  simp_lists [multiplyNTTs_getElem!, multiplyNTTs_pure_getElem!]
-  simp only [not_lt_zero', ↓reduceIte, Polynomial.zero_getElem!, zero_add]
+  simp only [not_lt_zero', ↓reduceIte, Polynomial.getElem!_add, Polynomial.zero_getElem!, zero_add]
   ring_nf
   simp only [and_self]
 
