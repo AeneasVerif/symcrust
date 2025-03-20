@@ -163,7 +163,7 @@ def invNtt (f : Polynomial) : Polynomial := Id.run do
 /-- Algorithm 12 -/
 def baseCaseMultiply (a0 a1 b0 b1 γ : Zq) : Zq × Zq :=
   let c0 := a0 * b0 + a1 * b1 * γ
-  let c1 := a0 * b1 + a1 * b0 * γ
+  let c1 := a0 * b1 + a1 * b0
   (c0, c1)
 
 /-- Algorithm 11 -/

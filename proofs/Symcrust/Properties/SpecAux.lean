@@ -74,11 +74,13 @@ theorem Polynomial.set_comm {i j : Nat} (h : Nat.not_eq i j)
   simp only [Nat.not_eq, ne_eq, lt_or_lt_iff_ne] at h
   omega
 
+@[simp_lists_simps]
 theorem Polynomial.getElem!_set_self {i : Nat} (hi : i < 256)
   (p : Polynomial) (x : Zq) :
   (p.set i x)[i]! = x := by
   cases p; simp [*]
 
+@[simp_lists_simps]
 theorem Polynomial.getElem!_set_neq {i j : Nat} (h : i ≠ j)
   (p : Polynomial) (x : Zq) :
   (p.set i x)[j]! = p[j]! := by
@@ -103,28 +105,9 @@ theorem Polynomial.zero_getElem! (i : Nat) :
 
 end Symcrust.Spec
 
-namespace Symcrust.SimpLists
-
-open Symcrust.Spec
-
-open Lean Lean.Meta Lean.Parser.Tactic Lean.Elab.Tactic in
-scoped syntax (name := natify) "simp_lists" (simpArgs)? (location)? : tactic
-
-macro_rules
-| `(tactic| simp_lists $[[$simpArgs,*]]? $[at $location]?) =>
-  let args := simpArgs.map (·.getElems) |>.getD #[]
-  `(tactic|
-    simp -decide (maxDischargeDepth := 1) (disch := omega) only
-      [List.getElem!_set_neq, List.getElem!_set_self,
-       Polynomial.getElem!_set_neq, Polynomial.getElem!_set_self,
-       $args,*] $[at $location]?)
-
-end Symcrust.SimpLists
-
 namespace Symcrust.SpecAux
 
 open Symcrust.Spec
-open SimpLists
 open Aeneas.SRRange
 
 -- TODO: this lemma should exist somewhere
@@ -537,8 +520,7 @@ def baseCaseMultiply1 (f g : Polynomial) (i : Nat) : Zq :=
   let a1 := f[2 * i + 1]!
   let b0 := g[2 * i]!
   let b1 := g[2 * i + 1]!
-  let γ := ζ^(2 * bitRev 7 i + 1)
-  a0 * b1 + a1 * b0 * γ
+  a0 * b1 + a1 * b0
 
 private theorem baseCaseMultiply_eq (f g : Polynomial) (i : Nat) :
   baseCaseMultiply f[2 * i]! f[2 * i + 1]! g[2 * i]! g[2 * i + 1]! (ζ^(2 * bitRev 7 i + 1)) =

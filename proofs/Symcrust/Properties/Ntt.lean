@@ -993,7 +993,7 @@ section
   @[local scalar_tac (x &&& Rmask).val]
   theorem and_Rmask (x : U32) : (x &&& Rmask).val ≤ 65535 := by bv_tac 32
 
-  -- TODO: we need to make that better
+  -- TODO: we need to make that more convenient, and improve reasoning about non linear arithmetic
   @[local scalar_tac a.val * b.val]
   theorem Zq_mul_in_bounds (a b : U32) :
     a.val ≥ 3329 ∨ b.val ≥ 3329 ∨ a.val * b.val ≤ 3328 * 3328 := by
@@ -1002,15 +1002,6 @@ section
     scalar_tac +nonLin
 
   -- TODO: failure cases of scalar_tac +nonLin
-  -- TODO: bv_tac fails to prove: x.val &&& Rmask.val ≤ 65555
-
-  -- TODO
-  example
-    (x : U32)
-    (y : U32)
-    (h : y = (x &&& Rmask).val) :
-    y.val ≤ 65535 := by
-    scalar_tac
 
   /- TODO: we should implement tactics to automatically refold parts of the code back into
      functions. -/
@@ -1050,8 +1041,8 @@ section
     simp only [mul_acc_mont_reduce, bind_assoc_eq, bind_tc_ok, pure]
 
   -- TODO: move
-  @[simp, bvify_simps, scalar_tac_simps] theorem UScalar.val_and {ty} (x y : UScalar ty) : (x &&& y).val = x.val &&& y.val := by rfl
-  @[simp, bvify_simps, scalar_tac_simps] theorem UScalar.val_or {ty} (x y : UScalar ty) : (x ||| y).val = x.val ||| y.val := by rfl
+  --@[simp, bvify_simps, scalar_tac_simps] theorem UScalar.val_and {ty} (x y : UScalar ty) : (x &&& y).val = x.val &&& y.val := by rfl
+  --@[simp, bvify_simps, scalar_tac_simps] theorem UScalar.val_or {ty} (x y : UScalar ty) : (x ||| y).val = x.val ||| y.val := by rfl
   --@[simp, bvify_simps, scalar_tac_simps] theorem IScalar.val_and {ty} (x y : IScalar ty) : (x &&& y).val = x.val &&& y.val := by rfl
   --@[simp, bvify_simps, scalar_tac_simps] theorem IScalar.val_or {ty} (x y : IScalar ty) : (x ||| y).val = x.val ||| y.val := by rfl
 
@@ -1153,6 +1144,7 @@ section
     (h : wfAcc f g B0 B1 i acc0 acc) (hi : 128 ≤ i) :
     wfAcc f g B0 B1 128 acc0 acc := by
     fsimp [wfAcc] at *
+    -- TODO: this should be automated
     obtain ⟨ h0, h1, h2, h3 ⟩ := h
     split_conjs <;> intro j hj
     . apply h0; omega
@@ -1169,6 +1161,7 @@ section
     ∃ x, acc.index_usize i = ok x ∧ x = acc0.val[i.val]! ∧ x.val ≤ B0 := by
     progress as ⟨ x ⟩
     unfold wfAcc at hWf
+    -- TODO: this should be automated
     obtain ⟨ _, h0, _, h1 ⟩ := hWf
     replace h0 := h0 (i.val / 2) (by omega) (by omega)
     replace h1 := h1 (i.val / 2) (by omega) (by omega)
@@ -1181,13 +1174,13 @@ section
   theorem update_acc_spec {f g : Array U16 256#usize} {B0 B1 : Nat} {i0 : Nat} {i : Usize} {c0 c1 : U32}
     {paDst0 paDst : Array U32 256#usize}
     {a1b1zetapow : U32}
-    -- Those terms act as a pattern to instantiate a1b1zetapow
-    {a1b1: U32} {i0':Nat} (hzetap : (a1b1zetapow.val : Spec.Zq) = a1b1 * Spec.ζ ^ (2 * bitRev 7 i0' + 1))
+    -- Those terms act as a pattern to automatically instantiate a1b1zetapow -- TODO: instantiation patterns for progress
+    {a1b1: U32} {i0':Nat} (_ : (a1b1zetapow.val : Spec.Zq) = a1b1 * Spec.ζ ^ (2 * bitRev 7 i0' + 1))
     --
     (hwf : wfAcc f g B0 B1 i0 paDst0 paDst)
     (hi0 : i0 < 128)
     (hc0bound : c0.val ≤ B0 + B1) (hc1bound : c1.val ≤ B0 + B1)
-    (hc0 : c0.val = paDst0[i.val]! + f[i.val]! * g[i.val]! + a1b1zetapow)
+    (hc0 : c0.val = paDst0[i.val]! + f[i.val]! * g[i.val]! + f[i.val + 1]! * g[i.val + 1]! * Spec.ζ ^ (2 * bitRev 7 i0 + 1))
     (hc1 : c1.val = paDst0[i.val + 1]! + f[i.val]! * g[i.val + 1]! + f[i.val + 1]! * g[i.val]!)
     (hi : i.val = 2 * i0) :
     ∃ paDst', update_acc i c0 c1 paDst = ok paDst' ∧
@@ -1196,13 +1189,42 @@ section
     progress*
     unfold wfAcc at *
     obtain ⟨ h0, h1, h2, h3 ⟩ := hwf
+    -- TODO: this should be mostly automated
     split_conjs <;> intro j hj
-    . dcases hj' : j = i0
+    . dcases hjeq : j = i0
       . fsimp [*]
-        have : 2 * i0 < paDst.val.length := by scalar_tac
-        -- TODO: simp_lists tactic
+        simp_lists
+        scalar_tac
+      . have hj'' : j < i0 := by omega
+        have := h0 j hj''
+        fsimp [*]
+        simp_lists
+        scalar_tac
+    . intro hj'
+      have : i0 < j := by omega
+      fsimp [*]
+      have := h1 j (by omega) (by omega)
+      simp_lists
+      scalar_tac
+    . dcases hjeq : j = i0
+      . fsimp [*]
+        simp_lists
+        have hi0 : 2 * i0 = i.val := by omega
+        fsimp [hi0, hc0, hc1, SpecAux.baseCaseMultiply0 , SpecAux.baseCaseMultiply1]
+        ring_nf
+        fsimp
+      . have hj'' : j < i0 := by omega
+        have := h2 j hj''
+        fsimp [*]
+        simp_lists
+        fsimp at this
         fsimp [this]
-      replace h0 := h0 j hj
+    . intro hj'
+      have : i0 < j := by omega
+      have := h3 j (by omega) (by omega)
+      fsimp [*]
+      simp_lists
+      fsimp at this; fsimp [this]
 
   -- TODO: no post-processing of the post-conditions in progress
   #assert 3328 * 3494 = 11628032
@@ -1210,8 +1232,6 @@ section
   @[simp, scalar_tac_simps]
   abbrev montMulStepBound : Nat := 3328 * 3328 + 3328 * 3498
 
-  set_option profiler true in
-  set_option profiler.threshold 100 in
   theorem SymCryptMlKemPolyElementMulAndAccumulate_loop_spec
     (peSrc1 peSrc2 : Array U16 256#usize)
     (paDst0 paDst : Array U32 256#usize) (i0 : Nat) (i : Usize)
@@ -1230,136 +1250,13 @@ section
     -- TODO: fix the syntax so that we do not need parentheses
     -- TODO: it seems that when the goal is not proven by the precondition tactic, it doesn't
     -- leave it unchanged
-    --progress*? by ((try apply le_U16_max_square_imp_le_U32_max); scalar_tac)
-    let* ⟨ i1, i1_post ⟩ ← Aeneas.Std.Usize.div_spec
-    split
-    . let* ⟨ i2, i2_post ⟩ ← Aeneas.Std.Usize.mul_spec
-      let* ⟨ i3, i3_post_1, i3_post_2 ⟩ ← Symcrust.ntt.wfArray_index
-      let* ⟨ i4, i4_post ⟩ ← Aeneas.Std.Usize.add_spec
-      let* ⟨ i5, i5_post_1, i5_post_2 ⟩ ← Symcrust.ntt.wfArray_index
-      let* ⟨ i6, i6_post_1, i6_post_2 ⟩ ← Symcrust.ntt.wfArray_index
-      let* ⟨ i8, i8_post_1, i8_post_2 ⟩ ← Symcrust.ntt.wfArray_index
-      let* ⟨ i9, i9_post ⟩ ← wfAcc_index
-      let* ⟨ i11, i11_post ⟩ ← wfAcc_index
-      let* ⟨ a0b0, a0b0_post_1, a0b0_post_2 ⟩ ← Aeneas.Std.U32.mul_bv_spec
-      have : a0b0.val ≤ 3328 * 3328 := by scalar_tac
-      let* ⟨ a1b1, a1b1_post_1, a1b1_post_2 ⟩ ← Aeneas.Std.U32.mul_bv_spec
-      have : a1b1.val ≤ 3328 * 3328 := by scalar_tac
-      let* ⟨ a0b1, a0b1_post_1, a0b1_post_2 ⟩ ← Aeneas.Std.U32.mul_bv_spec
-      have : a0b1.val ≤ 3328 * 3328 := by scalar_tac
-      let* ⟨ a1b0, a1b0_post_1, a1b0_post_2 ⟩ ← Aeneas.Std.U32.mul_bv_spec
-      have : a1b0.val ≤ 3328 * 3328 := by scalar_tac
-      let* ⟨ a1b1zetapow, a1b1zetapow_post_1, a1b1zetapow_post_2 ⟩ ← Symcrust.ntt.mul_acc_mont_reduce_spec
-      let* ⟨ a0b01, a0b01_post_1, a0b01_post_2 ⟩ ← Aeneas.Std.U32.add_bv_spec
-      let* ⟨ a0b11, a0b11_post_1, a0b11_post_2 ⟩ ← Aeneas.Std.U32.add_bv_spec
-      let* ⟨ c01, c01_post_1, c01_post_2 ⟩ ← Aeneas.Std.U32.add_bv_spec
-      let* ⟨ c11, c11_post_1, c11_post_2 ⟩ ← Aeneas.Std.U32.add_bv_spec
-      let* ⟨ paDst2, paDst2_post ⟩ ← Symcrust.ntt.update_acc_spec
-      let* ⟨ i18, i18_post ⟩ ← Aeneas.Std.Usize.add_spec
-      let* ⟨ res, res_post ⟩ ← SymCryptMlKemPolyElementMulAndAccumulate_loop_spec
-      -- TODO: why does sassumption fail?
+    progress* by (fsimp [*]; ring_nf)
+    . -- TODO: why does sassumption fail?
       assumption
     . fsimp
       apply wfAcc_128 hwf3 (by scalar_tac)
-  --termination_by 128 - i.val
-  --decreasing_by scalar_decr_tac
-
-#eval U16.max
-
-/-
-Total: 2 minutes!
-simp took 251ms
-simp took 133ms
-simp took 133ms
-tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 498ms
-tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 540ms
-simp took 100ms
-tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 580ms
-simp took 101ms
-simp took 101ms
-tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 601ms
-simp took 113ms
-simp took 112ms
-tactic execution of Aeneas.Progress.tactic_ took 117ms
-type checking took 109ms
-tactic execution of Aeneas.BvTac.tacticBv_tac___ took 303ms
-tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 808ms
-tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 807ms
-simp took 190ms
-simp took 185ms
-tactic execution of Aeneas.Progress.tactic_ took 126ms
-tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 860ms
-tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 104ms
-tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 102ms
-type checking took 109ms
-tactic execution of Aeneas.BvTac.tacticBv_tac___ took 307ms
-tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 884ms
-tactic execution of Aeneas.Progress.tactic_ took 144ms
-tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 871ms
-tactic execution of Aeneas.Progress.tactic_ took 140ms
-tactic execution of Aeneas.Progress.tactic_ took 149ms
-tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 105ms
-tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 102ms
-tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 103ms
-tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 101ms
-tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 102ms
-tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 101ms
-tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 102ms
-tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 103ms
-tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 102ms
-tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 105ms
-tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 105ms
-tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 102ms
-tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 105ms
-tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 103ms
-type checking took 131ms
-tactic execution of Aeneas.BvTac.tacticBv_tac___ took 349ms
-tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 2.93s
-tactic execution of Lean.Parser.Tactic.tacticSeq1Indented took 118ms
-tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 1.04s
-tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 108ms
-tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 106ms
-tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 111ms
-tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 108ms
-tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 109ms
-tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 109ms
-tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 111ms
-tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 112ms
-tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 110ms
-tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 110ms
-tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 112ms
-tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 109ms
-tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 120ms
-tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 109ms
-tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 114ms
-type checking took 158ms
-tactic execution of Aeneas.BvTac.tacticBv_tac___ took 397ms
-tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 982ms
-tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 5.19s
-tactic execution of Lean.Parser.Tactic.tacticSeq1Indented took 135ms
-tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 996ms
-tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 3.06s
-tactic execution of Lean.Parser.Tactic.tacticSeq1Indented took 135ms
-tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 951ms
-simp took 182ms
-simp took 168ms
-tactic execution of Aeneas.Progress.tactic_ took 201ms
-simp took 216ms
-simp took 213ms
-tactic execution of Aeneas.Progress.tactic_ took 185ms
-tactic execution of Aeneas.ScalarTac.tacticScalar_tac_ took 1.13s
-simp took 225ms
-simp took 222ms
-tactic execution of Aeneas.Progress.tactic_ took 189ms
-simp took 284ms
-simp took 279ms
-tactic execution of Aeneas.Progress.tactic_ took 204ms
-tactic execution of Aeneas.Progress.tactic_ took 216ms
-tactic execution of Aeneas.Progress.tactic_ took 216ms
-tactic execution of Aeneas.Progress.tactic_ took 232ms
-instantiate metavars took 5.65s
-share common exprs took 323ms
--/
+  termination_by 128 - i.val
+  decreasing_by scalar_decr_tac
 
 end
 
