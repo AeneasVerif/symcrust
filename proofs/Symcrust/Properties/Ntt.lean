@@ -363,14 +363,18 @@ theorem array_map_eq_range'_imp_index_usize_eq {α β} [Inhabited α] {a : Std.A
 theorem MlKemZetaBitRevTimesR_index_spec (k : Usize) (h : k.val < 128) :
   ∃ v, Array.index_usize MlKemZetaBitRevTimesR k = ok v ∧
   (v.val : ZMod Spec.Q) = Spec.ζ^(bitRev 7 k.val) * 65536 ∧
+  v.bv.zeroExtend 32 = BitVec.ofNat 32 (17 ^ bitRev 7 k.val * 65536 % 3329) ∧
   v.val < 3329
   := by
   have h := array_map_eq_range'_all_imp_index_usize_eq_pred MlKemZetaBitRevTimesR_map_val_eq MlKemZetaBitRevTimesR_all
-  progress with h as ⟨ v, hv, hv' ⟩
+  progress with h as ⟨ v, hv, hv' ⟩; clear h
   fsimp at hv'
   fsimp only [hv']
   fsimp [hv]
-  simp [Spec.ζ]
+  fsimp [Spec.ζ]
+  natify at *
+  fsimp at *
+  fsimp [*]
 
 @[local progress]
 theorem MlKemZetaBitRevTimesRTimesNegQInvModR_index_spec (k : Usize) (h : k.val < 128) :
@@ -482,23 +486,6 @@ def SymCryptMlKemPolyElementNTTLayerC.inner_loop_loop_spec
 termination_by len.val - j.val
 decreasing_by scalar_decr_tac
 
-private theorem convert_twiddleFactor_eq
-  (k : Usize)
-  (twiddleFactor : U16)
-  (hft : twiddleFactor.val = Spec.ζ ^ bitRev 7 k.val * 65536)
-  (hftBound : twiddleFactor.val < 3329) :
-  (core.convert.num.FromU32U16.from twiddleFactor).bv = BitVec.ofNat 32 (17 ^ bitRev 7 k.val * 65536 % 3329)
-  := by
-  -- TODO: the proof should be `zmodify`
-  natify at *
-  fsimp at *
-  have : twiddleFactor.val % 3329 = twiddleFactor.val := by scalar_tac
-  rw [this] at hft; clear this
-  rw [hft]
-
-  rw [← ZMod_nat_cast_eq_nat_cast_iff]
-  fsimp [Spec.ζ]
-
 theorem SymCryptMlKemPolyElementNTTLayerC_loop_spec
   -- Some ghost values
   (layer : ℕ) -- the layer
@@ -562,10 +549,6 @@ theorem SymCryptMlKemPolyElementNTTLayerC_loop_spec
     progress as ⟨ twiddleFactorMont, hftMont ⟩
     progress as ⟨ k', hk' ⟩
 
-    have : (core.convert.num.FromU32U16.from twiddleFactor).bv =
-           BitVec.ofNat 32 (17 ^ bitRev 7 k.val * 65536 % 3329) :=
-      convert_twiddleFactor_eq k twiddleFactor hft hftBound
-    -- TODO: improve the postcondition of `MlKemZetaBitRevTimesRTimesNegQInvModR.index_usize` to mention `bv`
     have : (core.convert.num.FromU32U16.from twiddleFactorMont).bv =
             BitVec.ofNat 32 (17 ^ bitRev 7 ↑k * 65536 % 3329) * 3327#32 &&& 65535#32 := by
       simp at hftMont; simp; apply hftMont
@@ -743,10 +726,6 @@ theorem SymCryptMlKemPolyElementINTTLayerC_loop_spec
     -- Recursive call
     have hRec := SymCryptMlKemPolyElementINTTLayerC_loop_spec layer hLayer (step + 1) (by omega)
 
-    have : (core.convert.num.FromU32U16.from twiddleFactor).bv =
-           BitVec.ofNat 32 (17 ^ bitRev 7 k.val * 65536 % 3329) :=
-      convert_twiddleFactor_eq k twiddleFactor hft hftBound
-    -- TODO: improve the postcondition of `MlKemZetaBitRevTimesRTimesNegQInvModR.index_usize` to mention `bv`
     have :
      (core.convert.num.FromU32U16.from twiddleFactorMont).bv =
       BitVec.ofNat 32 (17 ^ bitRev 7 ↑k * 65536 % 3329) * 3327#32 &&& 65535#32 := by
@@ -760,8 +739,7 @@ theorem SymCryptMlKemPolyElementINTTLayerC_loop_spec
       ring_nf
       fsimp [hStart', hTwoLen, hStart]
       ring_nf
-
-    progress as ⟨ peSrc2, hPeSrc2 ⟩
+    progress as ⟨ peSrc2, hPeSrc2 ⟩ -- TODO: progress by
 
     -- Proving the post-condition
     unfold SpecAux.invNttLayer
