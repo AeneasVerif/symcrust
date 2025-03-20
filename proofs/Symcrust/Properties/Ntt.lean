@@ -133,7 +133,7 @@ def SymCryptMlKemModAdd' (a : U32) (b : U32) : Result U32 :=
   massert (res1 < Q)
   ok res1
 
-@[simp]
+@[simp, progress_simps]
 def SymCryptMlKemModAdd_eq (a : U32) (b : U32) :
   SymCryptMlKemModAdd a b = SymCryptMlKemModAdd' a b := by
   unfold SymCryptMlKemModAdd SymCryptMlKemModAdd'
@@ -166,7 +166,7 @@ def SymCryptMlKemModSub' (a : U32) (b : U32) : Result U32 := do
   massert (res1 < Q)
   ok res1
 
-@[simp]
+@[simp, progress_simps]
 def SymCryptMlKemModSub_eq (a : U32) (b : U32) :
   SymCryptMlKemModSub a b = SymCryptMlKemModSub' a b := by
   unfold SymCryptMlKemModSub SymCryptMlKemModSub'
@@ -174,6 +174,7 @@ def SymCryptMlKemModSub_eq (a : U32) (b : U32) :
   intros
   split <;> fsimp [*]
 
+@[local progress]
 theorem SymCryptMlKemModSub'_spec (a : U32) (b : U32)
   (_ : a.val ≤ 2*3329)
   (ha : a.val < b.val + 3329)
@@ -266,7 +267,7 @@ theorem SymCryptMlKemMontMul_spec (a : U32) (b : U32) (bMont : U32)
     mont_reduce_bv_spec a b bMont res2 res3 (by omega) (by omega) (by fsimp [*])
       (by fsimp[*]) (by fsimp[*])
 
-  progress with SymCryptMlKemModSub'_spec as ⟨ res3, hRes3Eq, hRes3Bound ⟩
+  progress as ⟨ res3, hRes3Eq, hRes3Bound ⟩
   fsimp at hRes3Bound
 
   fsimp [hRes3Eq, hRes3Bound]
@@ -454,7 +455,7 @@ theorem wfArray_zetaTwoTimesBitRevPlus1TimesR : wfArray zetaTwoTimesBitRevPlus1T
 # NTT
 -/
 
-@[progress] -- TODO: `local progress` doesn't work because Lean makes the spec local to namespace `SymCryptMlKemPolyElementNTTLayerC`
+@[progress]
 def SymCryptMlKemPolyElementNTTLayerC.inner_loop_loop_spec
   (peSrc : Array U16 256#usize) (k : Usize) (len : Usize) (start : Usize)
   (twiddleFactor : U32) (twiddleFactorMont : U32) (j : Usize)
@@ -467,47 +468,16 @@ def SymCryptMlKemPolyElementNTTLayerC.inner_loop_loop_spec
   ∃ peSrc', inner_loop_loop peSrc len start twiddleFactor twiddleFactorMont j = ok peSrc' ∧
   to_poly peSrc' = SpecAux.nttLayerInner (to_poly peSrc) k.val len.val start.val j.val ∧
   wfArray peSrc' := by
-
-  rw [inner_loop_loop]; fsimp
-  split; swap
+  rw [inner_loop_loop]
+  progress*
+  -- TODO: this should be automatic
   . unfold SpecAux.nttLayerInner
-    have : ¬ j.val < len.val := by scalar_tac
-    -- TODO: tactic to do this
-    fsimp only [this]; clear this
-    fsimp [*]
-  . progress as ⟨ start_j, h_start_j ⟩
-    progress as ⟨ c0 ⟩
-
-    -- assert
-    progress
-
-    progress as ⟨ start_j_len, h_start_j_len ⟩
-    progress as ⟨ c1 ⟩
-
-    -- assert
-    progress
-
-    progress as ⟨ c1TimesTwiddle, hC1TimesTwiddle ⟩
-
-    progress with SymCryptMlKemModSub'_spec as ⟨ c1' ⟩
-
-    progress as ⟨ c0' ⟩
-
-    progress as ⟨ c0'', hc0'' ⟩
-    progress as ⟨ peSrc1, hPeSrc1 ⟩
-    progress as ⟨ c1'', hc1'' ⟩
-    progress as ⟨ peSrc2, hPeSrc2 ⟩
-
-    progress as ⟨ j1 ⟩
-
-    progress as ⟨ peSrc3, hPeSrc3 ⟩
-
-    -- The postcondition
-    unfold SpecAux.nttLayerInner
-    -- TODO: tactic to do this
     have : j.val < len.val := by scalar_tac
     fsimp only [this]; clear this
-    fsimp [hPeSrc1, hPeSrc2, hPeSrc3]
+    fsimp [*]
+  . unfold SpecAux.nttLayerInner
+    have : ¬ j.val < len.val := by scalar_tac
+    fsimp only [this]; clear this
     fsimp [*]
 termination_by len.val - j.val
 decreasing_by scalar_decr_tac
@@ -680,71 +650,18 @@ def SymCryptMlKemPolyElementINTTLayerC.inner_loop_loop_spec
   ∃ peSrc', inner_loop_loop peSrc len start twiddleFactor twiddleFactorMont j = ok peSrc' ∧
   to_poly peSrc' = SpecAux.invNttLayerInner (to_poly peSrc) k.val len.val start.val j.val ∧
   wfArray peSrc' := by
-
   rw [inner_loop_loop]
-  dcases hjLt : ¬ j < len <;> fsimp [hjLt]
+  progress*
+  -- TODO: tactic to simplify the if then else
+  . unfold SpecAux.invNttLayerInner
+    have : j.val < len.val := by scalar_tac
+    fsimp only [this]; clear this
+    fsimp [*]
+    ring_nf
   . unfold SpecAux.invNttLayerInner
     have : ¬ j.val < len.val := by scalar_tac
     fsimp only [this]; clear this
     fsimp [*]
-  . progress as ⟨ start_j, h_start_j ⟩
-    progress as ⟨ c0, hc0 ⟩
-
-    -- assert
-    progress
-
-    progress as ⟨ start_j_len, h_start_j_len ⟩
-    progress as ⟨ c1, hc1 ⟩
-
-    -- assert
-    progress
-
-    progress with SymCryptMlKemModAdd'_spec as ⟨ tmp, htmp ⟩
-    progress with SymCryptMlKemModSub'_spec as ⟨ c1', hc1' ⟩
-
-    progress as ⟨ c1'', hc1'' ⟩
-
-    progress as ⟨ tmp_u16, h_tmp_u16 ⟩
-
-    progress as ⟨ peSrc1, hPeSrc1 ⟩
-    progress as ⟨ c1''_u16, hc1''_u16 ⟩
-    progress as ⟨ peSrc2, hPeSrc2 ⟩
-
-    progress as ⟨ j1, hj1 ⟩
-
-    progress as ⟨ peSrc3, hPeSrc3, hWfPeSrc3 ⟩
-
-    -- The postcondition
-    unfold SpecAux.invNttLayerInner
-
-    let c0s := (to_poly peSrc)[start.val + j.val]!;
-    let c1s := (to_poly peSrc)[start.val + j.val + len.val]!;
-    let zetas := Spec.ζ ^ bitRev 7 k.val;
-    let f1 := (to_poly peSrc).set (start.val + j.val) (c0s + c1s);
-    let f2 := f1.set (start.val + j.val + len.val) (zetas * (c1s - c0s));
-    let f3 := SpecAux.invNttLayerInner f2 k.val len.val start.val (j.val + 1)
-
-    have hf1_eq : f1 = to_poly peSrc1 := by
-      unfold f1
-      fsimp [hPeSrc1, h_start_j, h_tmp_u16, htmp]
-      fsimp +zetaDelta [*]
-    have hf2_eq : f2 = to_poly peSrc2 := by
-      unfold f2
-      fsimp [hPeSrc2, hf1_eq, h_start_j_len, h_start_j, hc1''_u16, hc1'', hc1']
-      have : zetas * (c1s - c0s) = (↑↑c1 - ↑↑c0) * Spec.ζ ^ bitRev 7 k.val := by
-        unfold c0s c1s zetas
-        fsimp [hc0, hc1]
-        ring_nf
-        fsimp [*]
-      fsimp [*]
-    have hf3_eq : f3 = to_poly peSrc3 := by
-      unfold f3
-      fsimp [hPeSrc3, hj1, hf2_eq]
-
-    have : j.val < len.val := by scalar_tac
-    fsimp only [this]; clear this
-    fsimp +zetaDelta at hf3_eq
-    fsimp +zetaDelta [hf3_eq, hWfPeSrc3]
 termination_by len.val - j.val
 decreasing_by scalar_decr_tac
 
@@ -906,26 +823,20 @@ theorem SymCryptMlKemPolyElementINTTAndMulR_loop_spec_aux
     progress as ⟨ i1 ⟩
     progress as ⟨ peSrc2, h1, h2 ⟩
     -- TODO: this should be automated
+    fsimp at *
     split_conjs
     . intro j hj
-      fsimp at *
-      have := h1 j (by omega)
-      rw [this]; clear this
+      simp_lists [h1]
       fsimp [*]
     . intro j hj0 hj1
-      fsimp at *
       dcases hij : j = i.val
-      . have := h1 j (by scalar_tac)
-        rw [this]; clear this
-        have : i.val < peSrc.val.length := by scalar_tac
+      . simp_lists [h1]
         fsimp [*]
         ring_nf
         -- TODO: this should be taken care of by a simproc
         rfl
-      . have hij' : i1.val ≤ j := by scalar_tac
-        have := h2 j (by scalar_tac) (by scalar_tac)
-        fsimp [this, hPeSrc1]
-        fsimp [hij]
+      . simp_lists [h2]
+        fsimp [*]
     . fsimp [*]
   . fsimp [*]
     -- Contradiction
