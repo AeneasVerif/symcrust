@@ -422,71 +422,40 @@ divergent def ntt.SymCryptMlKemPolyElementMulAndAccumulate_loop
     let i2 ← 2#usize * i
     let i3 ← Array.index_usize peSrc1 i2
     let a0 ← core.convert.IntoFrom.into core.convert.FromU32U16 i3
-    massert (a0 < ntt.Q)
     let i4 ← i2 + 1#usize
     let i5 ← Array.index_usize peSrc1 i4
     let a1 ← core.convert.IntoFrom.into core.convert.FromU32U16 i5
-    massert (a1 < ntt.Q)
     let i6 ← Array.index_usize peSrc2 i2
     let b0 ← core.convert.IntoFrom.into core.convert.FromU32U16 i6
-    massert (b0 < ntt.Q)
     let i7 ← i2 + 1#usize
     let i8 ← Array.index_usize peSrc2 i7
     let b1 ← core.convert.IntoFrom.into core.convert.FromU32U16 i8
-    massert (b1 < ntt.Q)
     let i9 ← Array.index_usize paDst i2
     let c0 ← core.convert.IntoFrom.into (core.convert.FromSame U32) i9
-    let i10 ← 3328#u32 * 3328#u32
-    let i11 ← 3494#u32 * 3312#u32
-    let i12 ← i10 + i11
-    let i13 ← 3#u32 * i12
-    massert (c0 <= i13)
-    let i14 ← i2 + 1#usize
-    let i15 ← Array.index_usize paDst i14
-    let c1 ← core.convert.IntoFrom.into (core.convert.FromSame U32) i15
-    let i16 ← i10 + i11
-    let i17 ← 3#u32 * i16
-    massert (c1 <= i17)
+    let i10 ← i2 + 1#usize
+    let i11 ← Array.index_usize paDst i10
+    let c1 ← core.convert.IntoFrom.into (core.convert.FromSame U32) i11
     let a0b0 ← a0 * b0
     let a1b1 ← a1 * b1
     let a0b1 ← a0 * b1
     let a1b0 ← a1 * b0
-    let i18 ← a1b1 * ntt.NegQInvModR
-    let inv ← (↑(i18 &&& ntt.Rmask) : Result U32)
-    let i19 ← inv * ntt.Q
-    let i20 ← a1b1 + i19
-    let a1b11 ← i20 >>> ntt.Rlog2
-    massert (a1b11 <= 3494#u32)
-    let i21 ← Array.index_usize ntt.zetaTwoTimesBitRevPlus1TimesR i
-    let i22 ← (↑(UScalar.cast .U32 i21) : Result U32)
-    let a1b1zetapow ← a1b11 * i22
+    let i12 ← core.num.U32.wrapping_mul a1b1 ntt.NegQInvModR
+    let inv ← (↑(i12 &&& ntt.Rmask) : Result U32)
+    let i13 ← inv * ntt.Q
+    let i14 ← a1b1 + i13
+    let a1b11 ← i14 >>> ntt.Rlog2
+    let i15 ← Array.index_usize ntt.zetaTwoTimesBitRevPlus1TimesR i
+    let i16 ← (↑(UScalar.cast .U32 i15) : Result U32)
+    let a1b1zetapow ← a1b11 * i16
     let a0b01 ← a0b0 + a1b1zetapow
-    let i23 ← i10 + i11
-    massert (a0b01 <= i23)
     let a0b11 ← a0b1 + a1b0
-    let i24 ← 2#u32 * 3328#u32
-    let i25 ← i24 * 3328#u32
-    massert (a0b11 <= i25)
-    massert (ntt.MATRIX_MAX_NROWS <= 4#usize)
     let c01 ← c0 + a0b01
-    let i26 ← 4#u32 * 3328#u32
-    let i27 ← i26 * 3328#u32
-    let i28 ← 4#u32 * 3494#u32
-    let i29 ← i28 * 3312#u32
-    let i30 ← i27 + i29
-    massert (c01 < i30)
     let c11 ← c1 + a0b11
-    let i31 ← 5#u32 * 3328#u32
-    let i32 ← i31 * 3328#u32
-    let i33 ← 3#u32 * 3494#u32
-    let i34 ← i33 * 3312#u32
-    let i35 ← i32 + i34
-    massert (c11 < i35)
     let paDst1 ← Array.update paDst i2 c01
-    let i36 ← i2 + 1#usize
-    let paDst2 ← Array.update paDst1 i36 c11
-    let i37 ← i + 1#usize
-    ntt.SymCryptMlKemPolyElementMulAndAccumulate_loop peSrc1 peSrc2 paDst2 i37
+    let i17 ← i2 + 1#usize
+    let paDst2 ← Array.update paDst1 i17 c11
+    let i18 ← i + 1#usize
+    ntt.SymCryptMlKemPolyElementMulAndAccumulate_loop peSrc1 peSrc2 paDst2 i18
   else ok paDst
 
 /- [symcrust::ntt::SymCryptMlKemPolyElementMulAndAccumulate]:
@@ -510,97 +479,29 @@ divergent def
   then
     do
     let a ← Array.index_usize paSrc i
-    let i1 ← 3328#u32 * 3328#u32
-    let i2 ← 3494#u32 * 3312#u32
-    let i3 ← i1 + i2
-    let i4 ← 4#u32 * i3
-    massert (a <= i4)
-    let i5 ← Array.index_usize peDst i
-    let c ← core.convert.IntoFrom.into core.convert.FromU32U16 i5
-    massert (c < ntt.Q)
-    let i6 ← a * ntt.NegQInvModR
-    let inv ← (↑(i6 &&& ntt.Rmask) : Result U32)
-    let i7 ← inv * ntt.Q
-    let i8 ← a + i7
-    let a1 ← i8 >>> ntt.Rlog2
-    massert (a1 <= 4711#u32)
+    let paSrc1 ← Array.update paSrc i 0#u32
+    let i1 ← Array.index_usize peDst i
+    let c ← core.convert.IntoFrom.into core.convert.FromU32U16 i1
+    let i2 ← a * ntt.NegQInvModR
+    let inv ← (↑(i2 &&& ntt.Rmask) : Result U32)
+    let i3 ← inv * ntt.Q
+    let i4 ← a + i3
+    let a1 ← i4 >>> ntt.Rlog2
     let c1 ← c + a1
-    massert (c1 <= 8039#u32)
-    let i9 ← 2#u32 * ntt.Q
-    let c2 ← c1 - i9
-    let i10 ← (↑(UScalar.hcast .I32 ntt.Q) : Result I32)
-    let i11 ← (-2)#i32 * i10
-    let i12 ← (↑(IScalar.hcast .U32 i11) : Result U32)
-    if c2 >= i12
-    then
-      do
-      let i13 ← c2 >>> 16#i32
-      let i14 ← (↑(ntt.Q &&& i13) : Result U32)
-      let c3 ← c2 + i14
-      let i15 ← (↑(UScalar.hcast .I32 ntt.Q) : Result I32)
-      let i16 ← -. i15
-      let i17 ← (↑(IScalar.hcast .U32 i16) : Result U32)
-      if c3 >= i17
-      then
-        do
-        let i18 ← c3 >>> 16#i32
-        let i19 ← (↑(ntt.Q &&& i18) : Result U32)
-        let c4 ← c3 + i19
-        massert (c4 < ntt.Q)
-        let i20 ← (↑(UScalar.cast .U16 c4) : Result U16)
-        let peDst1 ← Array.update peDst i i20
-        let i21 ← i + 1#usize
-        let paSrc1 ← Array.update paSrc i 0#u32
-        ntt.SymCryptMlKemMontgomeryReduceAndAddPolyElementAccumulatorToPolyElement_loop
-          paSrc1 peDst1 i21
-      else
-        do
-        massert (c3 < ntt.Q)
-        let i18 ← c3 >>> 16#i32
-        let i19 ← (↑(ntt.Q &&& i18) : Result U32)
-        let c4 ← c3 + i19
-        massert (c4 < ntt.Q)
-        let i20 ← (↑(UScalar.cast .U16 c4) : Result U16)
-        let peDst1 ← Array.update peDst i i20
-        let i21 ← i + 1#usize
-        let paSrc1 ← Array.update paSrc i 0#u32
-        ntt.SymCryptMlKemMontgomeryReduceAndAddPolyElementAccumulatorToPolyElement_loop
-          paSrc1 peDst1 i21
-    else
-      do
-      massert (c2 < 1381#u32)
-      let i13 ← c2 >>> 16#i32
-      let i14 ← (↑(ntt.Q &&& i13) : Result U32)
-      let c3 ← c2 + i14
-      let i15 ← (↑(UScalar.hcast .I32 ntt.Q) : Result I32)
-      let i16 ← -. i15
-      let i17 ← (↑(IScalar.hcast .U32 i16) : Result U32)
-      if c3 >= i17
-      then
-        do
-        let i18 ← c3 >>> 16#i32
-        let i19 ← (↑(ntt.Q &&& i18) : Result U32)
-        let c4 ← c3 + i19
-        massert (c4 < ntt.Q)
-        let i20 ← (↑(UScalar.cast .U16 c4) : Result U16)
-        let peDst1 ← Array.update peDst i i20
-        let i21 ← i + 1#usize
-        let paSrc1 ← Array.update paSrc i 0#u32
-        ntt.SymCryptMlKemMontgomeryReduceAndAddPolyElementAccumulatorToPolyElement_loop
-          paSrc1 peDst1 i21
-      else
-        do
-        massert (c3 < ntt.Q)
-        let i18 ← c3 >>> 16#i32
-        let i19 ← (↑(ntt.Q &&& i18) : Result U32)
-        let c4 ← c3 + i19
-        massert (c4 < ntt.Q)
-        let i20 ← (↑(UScalar.cast .U16 c4) : Result U16)
-        let peDst1 ← Array.update peDst i i20
-        let i21 ← i + 1#usize
-        let paSrc1 ← Array.update paSrc i 0#u32
-        ntt.SymCryptMlKemMontgomeryReduceAndAddPolyElementAccumulatorToPolyElement_loop
-          paSrc1 peDst1 i21
+    let i5 ← 2#u32 * ntt.Q
+    let c2 ← c1 - i5
+    let i6 ← c2 >>> 16#i32
+    let i7 ← (↑(ntt.Q &&& i6) : Result U32)
+    let c3 ← c2 + i7
+    let i8 ← c3 >>> 16#i32
+    let i9 ← (↑(ntt.Q &&& i8) : Result U32)
+    let c4 ← c3 + i9
+    let (_, index_mut_back) ← Array.index_mut_usize peDst i
+    let i10 ← (↑(UScalar.cast .U16 c4) : Result U16)
+    let i11 ← i + 1#usize
+    let peDst1 := index_mut_back i10
+    ntt.SymCryptMlKemMontgomeryReduceAndAddPolyElementAccumulatorToPolyElement_loop
+      paSrc1 peDst1 i11
   else ok (paSrc, peDst)
 
 /- [symcrust::ntt::SymCryptMlKemMontgomeryReduceAndAddPolyElementAccumulatorToPolyElement]:

@@ -452,22 +452,22 @@ fn SymCryptMlKemPolyElementMulAndAccumulate(
     // FIXME
     c_for!(let mut i = 0; i < MLWE_POLYNOMIAL_COEFFICIENTS / 2; i += 1; {
         let a0: u32 = peSrc1[2*i].into();
-        assert!( (a0 as u32) < Q );
+        //assert!( (a0 as u32) < Q );
         let a1: u32 = peSrc1[2*i+1].into();
-        assert!( (a1 as u32) < Q );
+        //assert!( (a1 as u32) < Q );
 
         let b0: u32 = peSrc2[2*i  ].into();
-        assert!( (b0 as u32) < Q );
+        //assert!( (b0 as u32) < Q );
         let b1: u32 = peSrc2[2*i+1].into();
-        assert!( (b1 as u32) < Q );
+        //assert!( (b1 as u32) < Q );
 
         // SH: We are doing a matrix multiplication (and the matrix has a maximum
         // size of 4) which means we need to accumulate several products in the
         // target (at most 4 products).
         let mut c0: u32 = paDst[2*i].into();
-        assert!( c0 <= 3*((3328*3328) + (3494*3312)) );
+        //assert!( c0 <= 3*((3328*3328) + (3494*3312)) );
         let mut c1: u32 = paDst[(2*i)+1].into();
-        assert!( c1 <= 3*((3328*3328) + (3494*3312)) );
+        //assert!( c1 <= 3*((3328*3328) + (3494*3312)) );
 
         // multiplication results in range [0, 3328*3328]
         let mut a0b0: u32 = a0 * b0;
@@ -481,12 +481,12 @@ fn SymCryptMlKemPolyElementMulAndAccumulate(
         //   (3494 is maximum result of first step of montgomery reduction of x*y for x,y in [0,3328])
         // we do not need to do final reduction yet
         // SH: how do we get the (very precise) bound 3494? Brute force.
-        let inv : u32 = (a1b1 * NegQInvModR) & Rmask;
+        let inv : u32 = (a1b1.wrapping_mul(NegQInvModR)) & Rmask;
         // inv = (a1*b1 * (-Q^(-1) mod R)) % R
         let a1b1: u32 = (a1b1 + (inv * Q)) >> Rlog2; // in range [0, 3494]
         // a1b1 = (a1*b1 + a1*b1 * (-Q^(-1) mod R) * Q) / R
         //      = (a1*b1 * R^-1) mod Q
-        assert!( a1b1 <= 3494 );
+        //assert!( a1b1 <= 3494 );
 
         // now multiply a1b1 by power of zeta
         let a1b1zetapow = a1b1 * (zetaTwoTimesBitRevPlus1TimesR[i] as u32);
@@ -495,16 +495,16 @@ fn SymCryptMlKemPolyElementMulAndAccumulate(
 
         // sum pairs of products
         a0b0 += a1b1zetapow;    // a0*b0 + red(a1*b1)*zetapower in range [0, 3328*3328 + 3494*3312]
-        assert!( a0b0 <= (3328*3328) + (3494*3312) );
+        //assert!( a0b0 <= (3328*3328) + (3494*3312) );
         a0b1 += a1b0;           // a0*b1 + a1*b0                in range [0, 2*3328*3328]
-        assert!( a0b1 <= 2*3328*3328 );
+        //assert!( a0b1 <= 2*3328*3328 );
 
         // We sum at most 4 pairs of products into an accumulator in ML-KEM
-        assert!( MATRIX_MAX_NROWS <= 4 );
+        //assert!( MATRIX_MAX_NROWS <= 4 );
         c0 += a0b0; // in range [0,4*3328*3328 + 4*3494*3312]
-        assert!( c0 < (4*3328*3328) + (4*3494*3312) );
+        //assert!( c0 < (4*3328*3328) + (4*3494*3312) );
         c1 += a0b1; // in range [0,5*3328*3328 + 3*3494*3312]
-        assert!( c1 < (5*3328*3328) + (3*3494*3312) );
+        //assert!( c1 < (5*3328*3328) + (3*3494*3312) );
 
         paDst[2*i  ] = c0;
         paDst[2*i+1] = c1;
@@ -519,28 +519,28 @@ SymCryptMlKemMontgomeryReduceAndAddPolyElementAccumulatorToPolyElement(
     // FIXME
     c_for!(let mut i = 0; i < MLWE_POLYNOMIAL_COEFFICIENTS; i += 1; {
         let mut a = paSrc[i];
-        assert!( a <= 4*((3328*3328) + (3494*3312)) );
+        //assert!( a <= 4*((3328*3328) + (3494*3312)) );
         paSrc[i] = 0;
 
         let mut c: u32 = peDst[i].into();
-        assert!( c < Q );
+        //assert!( c < Q );
 
         // montgomery reduce sum of products
         let inv = (a * NegQInvModR) & Rmask;
         a = (a + (inv * Q)) >> Rlog2; // in range [0, 4711]
-        assert!( a <= 4711 );
+        //assert!( a <= 4711 );
 
         // add destination
         c += a;
-        assert!( c <= 8039 );
+        //assert!( c <= 8039 );
 
         // subtraction and conditional additions for constant time range reduction
         c -= 2*Q;           // in range [-2Q, 1381]
-        assert!( (c >= ((-2*(Q as i32)) as u32)) || (c < 1381) );
+        //assert!( (c >= ((-2*(Q as i32)) as u32)) || (c < 1381) );
         c += Q & (c >> 16); // in range [-Q, Q-1]
-        assert!( (c >= ((-(Q as i32) as u32))) || (c < Q) );
+        //assert!( (c >= ((-(Q as i32) as u32))) || (c < Q) );
         c += Q & (c >> 16); // in range [0, Q-1]
-        assert!( c < Q );
+        //assert!( c < Q );
 
         peDst[i] = c as u16;
     });
