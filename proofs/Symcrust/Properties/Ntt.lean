@@ -91,9 +91,123 @@ theorem Int_mod_3329_mod_4294967296_eq (x : Int) :
   x % 3329 % 4294967296 = x % 3329 := by
   apply Int.emod_eq_of_lt <;> omega
 
--- TODO: this should be taken care of by a simproc
-@[local simp]
-theorem zmod_65536_inv : (65536⁻¹ : Spec.Zq) = (169 : Spec.Zq) := by native_decide
+
+#check Lean.reduceNat
+#check Lean.ofReduceNat
+/-- A simproc to reduce ZMod expressions.
+
+    For instance, it reduces `(12 : ZMod 8)` to `4`.
+ -/
+simproc reduceZMod (@OfNat.ofNat _ _
+    (@instOfNatAtLeastTwo _ _
+      (@AddMonoidWithOne.toNatCast _
+        (@AddGroupWithOne.toAddMonoidWithOne _
+          (@Ring.toAddGroupWithOne _ (@CommRing.toRing _ (ZMod.commRing _)))))
+            _))  := fun e => do
+  let e ← Lean.instantiateMVars e
+  match e.consumeMData.getAppFnArgs with
+  | (``OfNat.ofNat, #[field, v, _]) =>
+    println! "Field: {field}, value: {v}"
+    -- Retrieve the value
+    let v :=
+      match v.consumeMData.getAppFnArgs with
+      | (``OfNat.ofNat, #[_, v, _]) => v
+      | _ => v
+    println! "Value: {v}"
+    -- Check the field
+    -- We need to reduce the field
+    let redField ← Lean.Meta.whnf field
+    println! "reduced field: {redField}"
+    println! "redField: {redField.consumeMData.getAppFnArgs}"
+    match redField.consumeMData.getAppFnArgs with
+    | (``ZMod, #[fs]) =>
+      println! "field size: {fs}"
+      let fs ← Lean.Meta.whnf fs
+      println! "Reduced field size: {fs}"
+      match fs.consumeMData.getAppFnArgs with
+      | (``OfNat.ofNat, #[_, fs, _]) =>
+        println! "field size: {fs}"
+        -- Compute the modulus
+        let redv ← Lean.Meta.reduce (← Lean.Meta.mkAppM ``Nat.mod #[v, fs])
+        -- TODO: we can directly compute the reduction
+        println! "reduced value: {redv}"
+        match redv with
+        | .lit (.natVal _) =>
+          println! "The reduced value is a literal"
+          if ¬ redv == v then
+            println! "The value is different"
+            -- The proof should be by reflection
+            return .visit {expr := ← Lean.Meta.mkAppOptM ``OfNat.ofNat #[field, redv, none]}
+          else
+            println! "The value is unchanged"
+            return .continue
+        | _ => return .continue
+      | _ => return .continue
+    | _ => return .continue
+  | _ => return .continue
+
+example : (12 : ZMod 12) = 0 := by simp only [reduceZMod]
+example : (1 : ZMod 12) - (12 : ZMod 12) = 1 := by simp only [reduceZMod, sub_zero]
+example : (@OfNat.ofNat Spec.Zq 3329
+  (@instOfNatAtLeastTwo Spec.Zq 3329
+    (@AddMonoidWithOne.toNatCast Spec.Zq
+      (@AddGroupWithOne.toAddMonoidWithOne Spec.Zq
+        (@Ring.toAddGroupWithOne Spec.Zq
+          (@CommRing.toRing Spec.Zq (ZMod.commRing (@OfNat.ofNat Nat 3329 (instOfNatNat 3329)))))))
+    (@instNatAtLeastTwo (@OfNat.ofNat Nat 3327 (instOfNatNat 3327))))) = 0 := by
+    simp only [reduceZMod]
+
+/-- A simproc to reduce inverses in ZMod. -/
+simproc reduceZModInv (@Inv.inv _ (ZMod.instInv _) _) := fun e => do
+  let e ← Lean.instantiateMVars e
+  println! "Visiting: {e}"
+  match e.consumeMData.getAppFnArgs with
+  | (``Inv.inv, #[fieldTy, inst, v0]) =>
+    println! "fieldTy: {fieldTy}, inst: {inst}, v: {v0}"
+    -- Retrieve the field
+    let field ← do
+      match inst.consumeMData.getAppFnArgs with
+      | (``ZMod.instInv, #[field]) =>
+        let field ← match field.consumeMData.getAppFnArgs with
+          | (``OfNat.ofNat, #[_, field, _]) => pure field
+          | _ => pure field
+        if let .lit (.natVal field) := field then
+          pure field
+        else
+          println! "The field is not a nat literal: {field}"
+          return .continue
+      | _ => return .continue
+    println! "Field: {field}"
+    -- Retrieve the value
+    let value ← do
+      let value ← do match v0.consumeMData.getAppFnArgs with
+        | (``OfNat.ofNat, #[_, f, _]) => pure f
+        | _ => pure v0
+      if let .lit (.natVal value) := value then pure value
+      else
+        println! "The value is not a nat literal"
+        return .continue
+    println! "Value: {value}"
+    -- Reduce
+    let inv := (Nat.gcdA value field).toNat
+    println! "Reduced value: {inv}"
+    /- We can't do the proof by reflection because it is too expensive, so
+       we use the property that if `v0 * inv = 1` then `inv = v0⁻¹` -/
+    let inv ← Lean.Meta.mkAppOptM ``OfNat.ofNat #[fieldTy, some (.lit (.natVal inv)), none]
+    println! "Inverse: {inv}"
+    let mul_eq ← Lean.Meta.mkAppM ``Eq.refl #[← Lean.Meta.mkAppM ``HMul.hMul #[v0, inv]]
+    println! "mul_eq: {mul_eq}"
+    let eq := Lean.mkAppN (.const ``ZMod.inv_eq_of_mul_eq_one []) #[.lit (.natVal field), v0, inv, mul_eq]
+    println! "eq: {eq}"
+    return .visit {expr := inv, proof? := eq}
+  | _ => return .continue
+
+example : (12⁻¹ : ZMod 7) = 3 := by simp only [reduceZModInv]
+
+example : (65536⁻¹ : Spec.Zq) = (169 : Spec.Zq) := by simp only [Spec.Q, reduceZModInv]
+
+--@[local simp]
+--theorem zmod_65536_inv : (65536⁻¹ : Spec.Zq) = (169 : Spec.Zq) := by simp
 
 -- TODO: this should be taken care of by a simproc
 @[local simp]
@@ -208,7 +322,7 @@ theorem mont_reduce_bv_spec (a b bMont tR t : U32)
 
   obtain ⟨ hMont, hBounds ⟩ := hMont
   rw [htR, hbMont] at ht
-  fsimp [bv_and_65535_eq_mod] at ht -- TODO: why is this theorem not automatically applied?
+  fsimp at ht
 
   natify at ht; fsimp at ht
   natify; fsimp
@@ -272,8 +386,6 @@ theorem SymCryptMlKemMontMul_spec (a : U32) (b : U32) (bMont : U32)
 
   fsimp [hRes3Eq, hRes3Bound]
   fsimp [hMontReduce]
-  -- TODO: why does (3329 : ZMod 3329) doesn't get simplified?
-  have : (3329 : ZMod 3329) = 0 := by rfl
   fsimp [this, U16.size, U16.numBits]
 
 local progress_array_spec (name := MlKemZetaBitRevTimesR_spec) MlKemZetaBitRevTimesR[i]!
@@ -309,10 +421,6 @@ theorem SymCryptMlKemMontMul_twiddle_spec (k : Usize) (c : U32) (twiddleFactor :
   fsimp [*]
   ring_nf
   fsimp [Spec.ζ]
-  -- TODO: this should be taken care of by a simproc
-  have : (11075584 : Spec.Zq) = 1 := by native_decide
-  rw [this]
-  fsimp
 
 def wfArray {n} (a : Array U16 n) : Prop :=
   ∀ i, i < n.val → a.val[i]!.val < 3329
