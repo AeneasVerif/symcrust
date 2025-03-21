@@ -276,128 +276,23 @@ theorem SymCryptMlKemMontMul_spec (a : U32) (b : U32) (bMont : U32)
   have : (3329 : ZMod 3329) = 0 := by rfl
   fsimp [this, U16.size, U16.numBits]
 
-theorem MlKemZetaBitRevTimesR_map_val_eq :
-  List.map UScalar.val MlKemZetaBitRevTimesR.val =
-  List.map (fun i => (17^bitRev 7 i * 2^16) % 3329) (List.range' 0 128) := by
-  native_decide
-
-theorem MlKemZetaBitRevTimesR_all :
-  List.all MlKemZetaBitRevTimesR.val (fun x => x.val < 3329) := by
-  native_decide
-
-theorem MlKemZetaBitRevTimesRTimesNegQInvModR_map_val_eq :
-  List.map UScalar.val MlKemZetaBitRevTimesRTimesNegQInvModR.val =
-  List.map (fun i => (((17^bitRev 7 i * 2^16) % 3329) * 3327) %  2^16) (List.range' 0 128) := by
-  native_decide
-
-theorem zetaTwoTimesBitRevPlus1TimesR_map_val_eq :
-  List.map UScalar.val zetaTwoTimesBitRevPlus1TimesR.val =
-  List.map (fun i => (17^(2 * bitRev 7 i + 1) * 2^16) % 3329) (List.range' 0 128) := by
-  native_decide
-
-theorem zetaTwoTimesBitRevPlus1TimesR_all :
-  List.all zetaTwoTimesBitRevPlus1TimesR.val (fun x => x.val ≤ 3318) :=
+local progress_array_spec (name := MlKemZetaBitRevTimesR_spec) MlKemZetaBitRevTimesR[i]!
+  { v =>
+    (v.val : ZMod Spec.Q) = Spec.ζ^(bitRev 7 i) * 65536 ∧
+     v.bv.zeroExtend 32 = BitVec.ofNat 32 (17 ^ bitRev 7 i * 65536 % 3329) ∧
+     v.val < 3329 }
   by native_decide
 
-theorem array_map_eq_range'_all_imp_index_usize_eq_pred {α β} [Inhabited α] {a : Std.Array α n}
-  {f : α → β} {g : ℕ → β} {p : α → Bool}
-  (hEq : List.map f a = List.map g (List.range' 0 n'))
-  (hPred : List.all a p)
-  (i : Usize) (h : i.val < n.val)
-  (hn : n.val = n' := by simp) :
-  ∃ v, Array.index_usize a i = ok v ∧
-  f v = g i.val ∧ p v := by
-  let rec aux1 (l : List α) (i : Nat) (hi : i < l.length) (start : Nat)
-            (hEq : List.map f l = List.map g (List.range' start l.length)) :
-            f (l[i]!) = g (start + i) := by
-    match l with
-    | [] =>  fsimp at hi
-    | hd :: l =>
-      fsimp at hEq
-      fsimp [List.range'] at hEq
-      dcases i
-      . fsimp at *
-        fsimp [hEq]
-      . rename_i i
-        fsimp at hi
-        fsimp [hi]
-        have := aux1 l i hi (start + 1) (by fsimp [hEq])
-        fsimp_all
-        ring_nf
+local progress_array_spec (name := MlKemZetaBitRevTimesRTimesNegQInvModR_spec) MlKemZetaBitRevTimesRTimesNegQInvModR[k]!
+  { v => BitVec.ofNat 32 v.val = (BitVec.ofNat _ ((17^(bitRev 7 k.val) * 65536) % 3329) * 3327#32) &&& 65535#32 }
+  by native_decide
 
-  progress as ⟨ v, hv ⟩
-  rw [hv]
-  have h := aux1 a i.val (by scalar_tac) 0 (by fsimp [hn, hEq])
-  fsimp at h
-  fsimp [h]
-
-  let rec aux2 (l : List α) (i : Nat) (hi : i < l.length) (start : Nat)
-            (hPred : List.all l p) :
-            p (l[i]!) := by
-    match l with
-    | [] =>  fsimp at hi
-    | hd :: l =>
-      dcases i
-      . fsimp at *
-        fsimp [hPred]
-      . rename_i i
-        fsimp at hi
-        fsimp [hi]
-        fsimp at hPred
-        have := aux2 l i hi (start + 1) (by fsimp; tauto)
-        fsimp_all
-  have := aux2 a i.val (by scalar_tac) 0 (by fsimp[hPred])
-  apply this
-
-theorem array_map_eq_range'_imp_index_usize_eq {α β} [Inhabited α] {a : Std.Array α n}
-  {f : α → β} {g : ℕ → β}
-  (hEq : List.map f a = List.map g (List.range' 0 n'))
-  (i : Usize) (h : i.val < n.val) (hn : n.val = n' := by simp):
-  ∃ v, Array.index_usize a i = ok v ∧
-  f v = g i.val := by
-  have hPred : List.all a.val (fun _ => true) := by fsimp
-  progress with array_map_eq_range'_all_imp_index_usize_eq_pred
-  fsimp [*]
-
-@[local progress]
-theorem MlKemZetaBitRevTimesR_index_spec (k : Usize) (h : k.val < 128) :
-  ∃ v, Array.index_usize MlKemZetaBitRevTimesR k = ok v ∧
-  (v.val : ZMod Spec.Q) = Spec.ζ^(bitRev 7 k.val) * 65536 ∧
-  v.bv.zeroExtend 32 = BitVec.ofNat 32 (17 ^ bitRev 7 k.val * 65536 % 3329) ∧
-  v.val < 3329
-  := by
-  have h := array_map_eq_range'_all_imp_index_usize_eq_pred MlKemZetaBitRevTimesR_map_val_eq MlKemZetaBitRevTimesR_all
-  progress with h as ⟨ v, hv, hv' ⟩; clear h
-  fsimp at hv'
-  fsimp only [hv']
-  fsimp [hv]
-  fsimp [Spec.ζ]
-  natify at *
-  fsimp at *
-  fsimp [*]
-
-@[local progress]
-theorem MlKemZetaBitRevTimesRTimesNegQInvModR_index_spec (k : Usize) (h : k.val < 128) :
-  ∃ v, Array.index_usize MlKemZetaBitRevTimesRTimesNegQInvModR k = ok v ∧
-  BitVec.ofNat 32 v.val = (BitVec.ofNat _ ((17^(bitRev 7 k.val) * 65536) % 3329) * 3327#32) &&& 65535#32
-  := by
-  have h := array_map_eq_range'_imp_index_usize_eq MlKemZetaBitRevTimesRTimesNegQInvModR_map_val_eq
-  progress with h as ⟨ v, hv ⟩
-  fsimp only [bv_and_65535_eq_mod]
-  natify
-  rw [hv]
-  fsimp
-
-@[local progress]
-theorem zetaTwoTimesBitRevPlus1TimesR_index_spec (i : Usize) (h : i.val < 128) :
-  ∃ v, Array.index_usize zetaTwoTimesBitRevPlus1TimesR i = ok v ∧
-  BitVec.ofNat 32 v.val = BitVec.ofNat _ ((17^(2 * bitRev 7 i + 1) * 2^16) % 3329) ∧ -- TODO: remove this?
-  v.val = (17^(2 * bitRev 7 i + 1) * 2^16) % 3329 ∧
-  v.val ≤ 3318 := by
-  have h := array_map_eq_range'_all_imp_index_usize_eq_pred zetaTwoTimesBitRevPlus1TimesR_map_val_eq zetaTwoTimesBitRevPlus1TimesR_all
-  progress with h as ⟨ v, hv, hlt ⟩
-  fsimp [hv]
-  scalar_tac
+local progress_array_spec (name := zetaTwoTimesBitRevPlus1TimesR_spec) zetaTwoTimesBitRevPlus1TimesR[i]!
+  { v =>
+    BitVec.ofNat 32 v.val = BitVec.ofNat _ ((17^(2 * bitRev 7 i + 1) * 2^16) % 3329) ∧ -- TODO: remove this?
+    v.val = (17^(2 * bitRev 7 i + 1) * 2^16) % 3329 ∧
+    v.val ≤ 3318 }
+  by native_decide
 
 @[local progress]
 theorem SymCryptMlKemMontMul_twiddle_spec (k : Usize) (c : U32) (twiddleFactor : U32) (twiddleFactorMont : U32)
@@ -904,18 +799,6 @@ section
     := by
     simp only [mul_acc_mont_reduce, bind_assoc_eq, bind_tc_ok, pure]
 
-  -- TODO: move
-  @[bvify_simps]
-  theorem BitVec.ofNat_div (n a b : Nat)
-    (h : a < 2^n ∧ b < 2^n) :
-    BitVec.ofNat n (a / b) = BitVec.ofNat n a / BitVec.ofNat n b := by
-    simp only [BitVec.toNat_eq, BitVec.toNat_ofNat, BitVec.toNat_udiv]
-    have : a % 2^n = a := by apply Nat.mod_eq_of_lt; omega
-    have : b % 2^n = b := by apply Nat.mod_eq_of_lt; omega
-    have : a / b ≤ a := by apply Nat.div_le_self
-    have : (a / b) % 2^n = a / b := by apply Nat.mod_eq_of_lt; omega
-    simp only [*]
-
   @[local progress]
   theorem mul_acc_mont_reduce_spec (i : Usize) (a1b1 : U32)
     (hi : i.val < 128) (h1 : a1b1.val ≤ 3328 * 3328) :
@@ -927,7 +810,7 @@ section
     /- First step: reduce a1b1 -/
     let* ⟨ i12, i12_post ⟩ ← Aeneas.Std.core.num.U32.wrapping_mul.progress_spec
     let* ⟨ inv, inv_post_1, inv_post_2 ⟩ ← Aeneas.Std.UScalar.and_spec
-    have : inv.val = (a1b1.val * NegQInvModR.val) % 2^16 := by simp [U32.size, U32.numBits, *]
+    have : inv.val = (a1b1.val * NegQInvModR.val) % 2^16 := by fsimp [U32.size, U32.numBits, *]
     let* ⟨ i13, i13_post_1, i13_post_2 ⟩ ← Aeneas.Std.U32.mul_bv_spec
     let* ⟨ i14, i14_post_1, i14_post_2 ⟩ ← Aeneas.Std.U32.add_bv_spec
     let* ⟨ a1b11, a1b11_post ⟩ ← Aeneas.Std.U32.ShiftRight_bv_spec
@@ -953,7 +836,7 @@ section
        scalar_tac
 
     /- Second step: multiply by ζ^(2*bitRev(i) + 1) -/
-    let* ⟨ i15, i15_post_1, i15_post ⟩ ← Symcrust.ntt.zetaTwoTimesBitRevPlus1TimesR_index_spec
+    let* ⟨ i15, i15_post_1, i15_post ⟩ ← Symcrust.ntt.zetaTwoTimesBitRevPlus1TimesR_spec
     let* ⟨ i16, i16_post ⟩ ← Aeneas.Std.UScalar.cast_inBounds_spec
     have hpost1 : a1b11.val * i16.val ≤ 3498 * 3328 := by scalar_tac +nonLin
     let* ⟨ a1b1zetapow, a1b1zetapow_post, a1b1zetapow_post_2 ⟩ ← Aeneas.Std.U32.mul_bv_spec
