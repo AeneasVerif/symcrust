@@ -34,16 +34,14 @@ def mont_reduce_spec
 
   -- Main goal
   have h_t: t % (q : Int) = (a * ((R : ZMod q)⁻¹.val : Int)) % q := by
-    apply ZMod_eq_imp_mod_eq
-    simp only [ZMod.natCast_val, Int.cast_mul, Int.cast_natCast, ZMod.intCast_cast, ZMod.cast_id',
-      id_eq, t, f]
+    zmodify at h_q_minus_1
+    zmodify [t, f]
     rw [div_to_ZMod]
-    . simp
-    . simp only [Int.cast_add, Int.cast_natCast, Int.cast_mul, ZMod.intCast_mod, f, t]
-      simp only [Int.reduceNeg, ← ZMod_int_cast_eq_int_cast_iff, Int.cast_mul, Int.cast_natCast,
-        Int.cast_neg, Int.cast_one, f, t] at h_q_minus_1
-      simp [mul_assoc, h_q_minus_1]
-    . simp [← Nat.coprime_iff_gcd_eq_one, *]
+    . simp only [Int.cast_add, Int.cast_natCast, Int.cast_mul, CharP.cast_eq_zero, mul_zero,
+      add_zero, t, f]
+    . simp only [Int.cast_add, Int.cast_natCast, Int.cast_mul, ZMod.intCast_mod, mul_assoc,
+      h_q_minus_1, mul_neg, mul_one, add_neg_cancel, t, f]
+    . simp only [Int.gcd_natCast_natCast, h_q_R, t, f]
 
   -- Secondary goals
   have h_t1 : 0 ≤ t := by scalar_tac +nonLin
