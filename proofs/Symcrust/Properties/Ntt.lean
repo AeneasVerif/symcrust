@@ -48,9 +48,9 @@ attribute [-progress] U32.add_spec U32.mul_spec
 attribute [local progress] U32.add_bv_spec U32.mul_bv_spec
 
 /-!
-There are casts from `U32` to `U16` but the `U32` values then fit into `U16`: we can
+The code uses casts from `U32` to `U16` but the `U32` values then fit into `U16`: we can
 thus use a simpler version of the specification for the casts, which doesn't mention
-bit-vectos.
+bit-vectors.
 -/
 attribute [-progress] UScalar.cast.progress_spec
 attribute [local progress] UScalar.cast_inBounds_spec
@@ -89,127 +89,6 @@ theorem Nat_mod_3329_mod_4294967296_eq (x : Nat) :
 theorem Int_mod_3329_mod_4294967296_eq (x : Int) :
   x % 3329 % 4294967296 = x % 3329 := by
   apply Int.emod_eq_of_lt <;> omega
-
-def exprToNat? (e : Lean.Expr) : Option Nat :=
-  let e := e.consumeMData
-  if let some n := e.nat? then some n
-  else if let some n := e.rawNatLit? then some n
-  else none
-
-/-- A simproc to reduce ZMod expressions.
-
-    For instance, it reduces `(12 : ZMod 8)` to `4`.
- -/
-simproc reduceZMod (@OfNat.ofNat _ _
-    (@instOfNatAtLeastTwo _ _
-      (@AddMonoidWithOne.toNatCast _
-        (@AddGroupWithOne.toAddMonoidWithOne _
-          (@Ring.toAddGroupWithOne _ (@CommRing.toRing _ (ZMod.commRing _)))))
-            _))  := fun e => do
-  match e.consumeMData.getAppFnArgs with
-  | (``OfNat.ofNat, #[fieldTy, value, _]) =>
-    trace[Utils] "- fieldTy: {fieldTy}\n- value: {value}"
-    -- Retrieve the value
-    let value ← if let some value := exprToNat? value then pure value else return .continue
-    trace[Utils] "Value: {value}"
-    -- Retrieve the field
-    let fieldTy ← Lean.Meta.whnf fieldTy
-    trace[Utils] "reduced fieldTy: {fieldTy}"
-    let field ← do
-        match fieldTy.consumeMData.getAppFnArgs with
-        | (``ZMod, #[field]) =>
-          let field ← Lean.Meta.whnf field
-          if let some field := exprToNat? field then pure field else return .continue
-        | _ => return .continue
-    trace[Utils] "field: {field}"
-    -- Compute the modulus
-    let res := value % field
-    -- Create the new expression - the proof is by reflection
-    return .visit {expr := ← Lean.Meta.mkAppOptM ``OfNat.ofNat #[fieldTy, some (.lit (.natVal res)), none]}
-  | _ => return .continue
-
-example : (12 : ZMod 12) = 0 := by simp only [reduceZMod]
-example : (1 : ZMod 12) - (12 : ZMod 12) = 1 := by simp only [reduceZMod, sub_zero]
-example : (@OfNat.ofNat Spec.Zq 3329
-  (@instOfNatAtLeastTwo Spec.Zq 3329
-    (@AddMonoidWithOne.toNatCast Spec.Zq
-      (@AddGroupWithOne.toAddMonoidWithOne Spec.Zq
-        (@Ring.toAddGroupWithOne Spec.Zq
-          (@CommRing.toRing Spec.Zq (ZMod.commRing (@OfNat.ofNat Nat 3329 (instOfNatNat 3329)))))))
-    (@instNatAtLeastTwo (@OfNat.ofNat Nat 3327 (instOfNatNat 3327))))) = 0 := by
-    simp only [reduceZMod]
-
-/-- A simproc to reduce inverses in ZMod. -/
-simproc reduceZModInv (@Inv.inv _ (ZMod.instInv _) _) := fun e => do
-  let e ← Lean.instantiateMVars e
-  match e.consumeMData.getAppFnArgs with
-  | (``Inv.inv, #[fieldTy, inst, value0]) =>
-    trace[Utils] "- fieldTy: {fieldTy}\n- inst: {inst}- value0: {value0}"
-    -- Retrieve the field
-    let field ←
-      match inst.consumeMData.getAppFnArgs with
-      | (``ZMod.instInv, #[field]) =>
-        let field ← Lean.Meta.whnf field
-        trace[Utils] "Field after reduction: {field}"
-        if let some field := exprToNat? field then pure field else return .continue
-      | _ => return .continue
-    trace[Utils] "field: {field}"
-    -- Retrieve the value
-    let value ← if let some value := exprToNat? value0 then pure value else return .continue
-    trace[Utils] "value: {value}"
-    -- Compute the result
-    let inv := (Nat.gcdA value field).toNat
-    trace[Utils] "inverse: {inv}"
-    /- Create the new expression.
-       We can't do the proof by reflection because it is too expensive, so
-       we use the property that if `value0 * inv = 1` then `inv = value0⁻¹` -/
-    let inv ← Lean.Meta.mkAppOptM ``OfNat.ofNat #[fieldTy, some (.lit (.natVal inv)), none]
-    trace[Utils] "inverse: {inv}"
-    let mul_eq ← Lean.Meta.mkAppM ``Eq.refl #[← Lean.Meta.mkAppM ``HMul.hMul #[value0, inv]]
-    trace[Utils] "mul_eq: {mul_eq}"
-    let eq := Lean.mkAppN (.const ``ZMod.inv_eq_of_mul_eq_one []) #[.lit (.natVal field), value0, inv, mul_eq]
-    trace[Utils] "eq: {eq}"
-    return .visit {expr := inv, proof? := eq}
-  | _ => return .continue
-
-example : (12⁻¹ : ZMod 7) = 3 := by simp only [reduceZModInv]
-example : (65536⁻¹ : Spec.Zq) = (169 : Spec.Zq) := by simp only [reduceZModInv]
-
-/-- A simproc to reduce powers in ZMod. -/
-simproc reduceZModPow
-  (@HPow.hPow _ Nat _
-      (@instHPow _ Nat
-        (@Monoid.toNatPow _
-          (@MonoidWithZero.toMonoid _
-            (@Semiring.toMonoidWithZero _
-              (@CommSemiring.toSemiring _ (@CommRing.toCommSemiring _ (ZMod.commRing _)))))))
-      _ _) := fun e => do
-  let e ← Lean.instantiateMVars e
-  trace[Utils] "Visiting: {e}"
-  match e.consumeMData.getAppFnArgs with
-  | (``HPow.hPow, #[fieldTy, _, _, inst, value, pow]) =>
-    trace[Utils] "- fieldTy: {fieldTy},\n- inst: {inst},\n- value: {value}\n- pow: {pow}"
-    let redFieldTy ← Lean.Meta.whnf fieldTy
-    trace[Utils] "reduced field type: {redFieldTy}"
-    let field ← match redFieldTy.consumeMData.getAppFnArgs with
-      | (``ZMod, #[field]) => Lean.Meta.whnf field
-      | _ => return .continue
-    trace[Utils] "field: {field}"
-    let field ← if let some field := exprToNat? field then pure field else return .continue
-    trace[Utils] "field: {field}"
-    let value ← if let some value := exprToNat? value then pure value else return .continue
-    trace[Utils] "value: {value}"
-    let pow ← if let some pow := exprToNat? pow then pure pow else return .continue
-    trace[Utils] "pow: {pow}"
-    -- Reduce
-    let res := (value ^ pow) % field
-    trace[Utils] "res: {res}"
-    -- Create the new expression - the proof is by reflection
-    let res ← Lean.Meta.mkAppOptM ``OfNat.ofNat #[fieldTy, some (.lit (.natVal res)), none]
-    return .visit {expr := res}
-  | _ => return .continue
-
-example : ((2 ^ 16)⁻¹ : Spec.Zq) = (169 : Spec.Zq) := by simp only [reduceZModPow, reduceZModInv]
 
 namespace ntt
 
