@@ -20,7 +20,6 @@ set_option maxRecDepth 2048
 @[local simp] theorem bv_shift_16_eq_div (x : BitVec 32) : x >>> 16 = x / 65536#32 := by bv_decide
 @[local simp] theorem nat_and_65535_eq_mod (x : Nat) : x &&& 65535 = x % 65536 := by apply Nat.and_pow_two_sub_one_eq_mod x 16
 
--- TODO: we need a reduceZMod simproc
 @[local simp]
 theorem mod_4294967296_65536_eq (x : Nat) : ((x % 4294967296) % 65536) = x % 65536 := by
   rw [Nat.mod_mod_of_dvd]; omega
@@ -91,9 +90,6 @@ theorem Int_mod_3329_mod_4294967296_eq (x : Int) :
   x % 3329 % 4294967296 = x % 3329 := by
   apply Int.emod_eq_of_lt <;> omega
 
-
-#check Lean.reduceNat
-#check Lean.ofReduceNat
 /-- A simproc to reduce ZMod expressions.
 
     For instance, it reduces `(12 : ZMod 8)` to `4`.
@@ -160,7 +156,6 @@ example : (@OfNat.ofNat Spec.Zq 3329
 /-- A simproc to reduce inverses in ZMod. -/
 simproc reduceZModInv (@Inv.inv _ (ZMod.instInv _) _) := fun e => do
   let e ← Lean.instantiateMVars e
-  println! "Visiting: {e}"
   match e.consumeMData.getAppFnArgs with
   | (``Inv.inv, #[fieldTy, inst, v0]) =>
     println! "fieldTy: {fieldTy}, inst: {inst}, v: {v0}"
@@ -209,9 +204,44 @@ example : (65536⁻¹ : Spec.Zq) = (169 : Spec.Zq) := by simp only [Spec.Q, redu
 --@[local simp]
 --theorem zmod_65536_inv : (65536⁻¹ : Spec.Zq) = (169 : Spec.Zq) := by simp
 
--- TODO: this should be taken care of by a simproc
-@[local simp]
-theorem zmod_pow2_16_inv : ((2 ^ 16)⁻¹ : Spec.Zq) = (169 : Spec.Zq) := by native_decide
+/-- A simproc to reduce powers in ZMod. -/
+simproc reduceZModPow
+  (@HPow.hPow _ Nat _
+      (@instHPow _ Nat
+        (@Monoid.toNatPow _
+          (@MonoidWithZero.toMonoid _
+            (@Semiring.toMonoidWithZero _
+              (@CommSemiring.toSemiring _ (@CommRing.toCommSemiring _ (ZMod.commRing _)))))))
+      _ _) := fun e => do
+  let e ← Lean.instantiateMVars e
+  trace[Utils] "Visiting: {e}"
+  match e.consumeMData.getAppFnArgs with
+  | (``HPow.hPow, #[fieldTy, _, _, inst, value, pow]) =>
+    trace[Utils] "- fieldTy: {fieldTy},\n- inst: {inst},\n- value: {value}\n- pow: {pow}"
+    let redFieldTy ← Lean.Meta.whnf fieldTy
+    trace[Utils] "reduced field type: {redFieldTy}"
+    let field ← do match redFieldTy.consumeMData.getAppFnArgs with
+      | (``ZMod, #[field]) => Lean.Meta.whnf field
+      | _ => return .continue
+    trace[Utils] "field: {field}"
+    let field ← do if let some field := field.nat? then pure field else return .continue
+    trace[Utils] "field: {field}"
+    let value ← do if let some value := value.nat? then pure value else return .continue
+    trace[Utils] "value: {value}"
+    let pow ← do if let some pow := pow.nat? then pure pow else return .continue
+    trace[Utils] "pow: {pow}"
+    -- Reduce
+    let res := (value ^ pow) % field
+    trace[Utils] "res: {res}"
+    -- Generate the result - the proof should be by reflection
+    let res ← Lean.Meta.mkAppOptM ``OfNat.ofNat #[fieldTy, some (.lit (.natVal res)), none]
+    return .visit {expr := res}
+  | _ => return .continue
+
+--@[local simp]
+--theorem zmod_pow2_16_inv : ((2 ^ 16)⁻¹ : Spec.Zq) = (169 : Spec.Zq) := by simp
+
+example : ((2 ^ 16)⁻¹ : Spec.Zq) = (169 : Spec.Zq) := by simp
 
 namespace ntt
 
@@ -220,10 +250,8 @@ namespace ntt
 @[simp, scalar_tac_simps, bvify_simps] theorem Rmask_eq : Rmask = 65535#u32 := by simp [global_simps]
 @[simp, scalar_tac_simps, bvify_simps] theorem Rlog2_eq : Rlog2 = 16#u32 := by simp [global_simps]
 
--- TODO: rfl fails here because the number of bits is unknown
 @[simp, scalar_tac_simps, bvify_simps]
-theorem MLWE_POLYNOMIAL_COEFFICIENTS_eq : MLWE_POLYNOMIAL_COEFFICIENTS.val = 256 := by
-  fsimp [MLWE_POLYNOMIAL_COEFFICIENTS, toResult, MLWE_POLYNOMIAL_COEFFICIENTS_body, eval_global]
+theorem MLWE_POLYNOMIAL_COEFFICIENTS_eq : MLWE_POLYNOMIAL_COEFFICIENTS.val = 256 := by simp [global_simps]
 
 @[simp] theorem INTTFixupTimesRsqr_eq : INTTFixupTimesRsqr.val = 1441 := by simp [global_simps]
 @[simp] theorem INTTFixupTimesRsqr_bv_eq : INTTFixupTimesRsqr.bv = 1441#32 := by simp [global_simps]
@@ -814,8 +842,7 @@ theorem SymCryptMlKemPolyElementINTTAndMulR_loop_spec_aux
       . simp_lists [h1]
         fsimp [*]
         ring_nf
-        -- TODO: this should be taken care of by a simproc
-        rfl
+        fsimp
       . simp_lists [h2]
         fsimp [*]
     . fsimp [*]
@@ -953,7 +980,7 @@ section
     have hpost2 : (a1b1zetapow.val : Spec.Zq) = (a1b1.val : Spec.Zq) * Spec.ζ ^ (2 * bitRev 7 i.val + 1) := by
       fsimp [a1b1zetapow_post, i16_post, i15_post, ha1b11_eq, Spec.ζ]
       ring_nf
-      rfl -- TODO: the reduction should be automatic
+      fsimp
 
     split_conjs
     . scalar_tac
