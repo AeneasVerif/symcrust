@@ -90,6 +90,12 @@ theorem Int_mod_3329_mod_4294967296_eq (x : Int) :
   x % 3329 % 4294967296 = x % 3329 := by
   apply Int.emod_eq_of_lt <;> omega
 
+def exprToNat? (e : Lean.Expr) : Option Nat :=
+  let e := e.consumeMData
+  if let some n := e.nat? then some n
+  else if let some n := e.rawNatLit? then some n
+  else none
+
 /-- A simproc to reduce ZMod expressions.
 
     For instance, it reduces `(12 : ZMod 8)` to `4`.
@@ -100,46 +106,26 @@ simproc reduceZMod (@OfNat.ofNat _ _
         (@AddGroupWithOne.toAddMonoidWithOne _
           (@Ring.toAddGroupWithOne _ (@CommRing.toRing _ (ZMod.commRing _)))))
             _))  := fun e => do
-  let e ← Lean.instantiateMVars e
   match e.consumeMData.getAppFnArgs with
-  | (``OfNat.ofNat, #[field, v, _]) =>
-    println! "Field: {field}, value: {v}"
+  | (``OfNat.ofNat, #[fieldTy, value, _]) =>
+    trace[Utils] "- fieldTy: {fieldTy}\n- value: {value}"
     -- Retrieve the value
-    let v :=
-      match v.consumeMData.getAppFnArgs with
-      | (``OfNat.ofNat, #[_, v, _]) => v
-      | _ => v
-    println! "Value: {v}"
-    -- Check the field
-    -- We need to reduce the field
-    let redField ← Lean.Meta.whnf field
-    println! "reduced field: {redField}"
-    println! "redField: {redField.consumeMData.getAppFnArgs}"
-    match redField.consumeMData.getAppFnArgs with
-    | (``ZMod, #[fs]) =>
-      println! "field size: {fs}"
-      let fs ← Lean.Meta.whnf fs
-      println! "Reduced field size: {fs}"
-      match fs.consumeMData.getAppFnArgs with
-      | (``OfNat.ofNat, #[_, fs, _]) =>
-        println! "field size: {fs}"
-        -- Compute the modulus
-        let redv ← Lean.Meta.reduce (← Lean.Meta.mkAppM ``Nat.mod #[v, fs])
-        -- TODO: we can directly compute the reduction
-        println! "reduced value: {redv}"
-        match redv with
-        | .lit (.natVal _) =>
-          println! "The reduced value is a literal"
-          if ¬ redv == v then
-            println! "The value is different"
-            -- The proof should be by reflection
-            return .visit {expr := ← Lean.Meta.mkAppOptM ``OfNat.ofNat #[field, redv, none]}
-          else
-            println! "The value is unchanged"
-            return .continue
+    let value ← if let some value := exprToNat? value then pure value else return .continue
+    trace[Utils] "Value: {value}"
+    -- Retrieve the field
+    let fieldTy ← Lean.Meta.whnf fieldTy
+    trace[Utils] "reduced fieldTy: {fieldTy}"
+    let field ← do
+        match fieldTy.consumeMData.getAppFnArgs with
+        | (``ZMod, #[field]) =>
+          let field ← Lean.Meta.whnf field
+          if let some field := exprToNat? field then pure field else return .continue
         | _ => return .continue
-      | _ => return .continue
-    | _ => return .continue
+    trace[Utils] "field: {field}"
+    -- Compute the modulus
+    let res := value % field
+    -- Create the new expression - the proof is by reflection
+    return .visit {expr := ← Lean.Meta.mkAppOptM ``OfNat.ofNat #[fieldTy, some (.lit (.natVal res)), none]}
   | _ => return .continue
 
 example : (12 : ZMod 12) = 0 := by simp only [reduceZMod]
@@ -157,52 +143,37 @@ example : (@OfNat.ofNat Spec.Zq 3329
 simproc reduceZModInv (@Inv.inv _ (ZMod.instInv _) _) := fun e => do
   let e ← Lean.instantiateMVars e
   match e.consumeMData.getAppFnArgs with
-  | (``Inv.inv, #[fieldTy, inst, v0]) =>
-    println! "fieldTy: {fieldTy}, inst: {inst}, v: {v0}"
+  | (``Inv.inv, #[fieldTy, inst, value0]) =>
+    trace[Utils] "- fieldTy: {fieldTy}\n- inst: {inst}- value0: {value0}"
     -- Retrieve the field
-    let field ← do
+    let field ←
       match inst.consumeMData.getAppFnArgs with
       | (``ZMod.instInv, #[field]) =>
-        let field ← match field.consumeMData.getAppFnArgs with
-          | (``OfNat.ofNat, #[_, field, _]) => pure field
-          | _ => pure field
-        if let .lit (.natVal field) := field then
-          pure field
-        else
-          println! "The field is not a nat literal: {field}"
-          return .continue
+        let field ← Lean.Meta.whnf field
+        trace[Utils] "Field after reduction: {field}"
+        if let some field := exprToNat? field then pure field else return .continue
       | _ => return .continue
-    println! "Field: {field}"
+    trace[Utils] "field: {field}"
     -- Retrieve the value
-    let value ← do
-      let value ← do match v0.consumeMData.getAppFnArgs with
-        | (``OfNat.ofNat, #[_, f, _]) => pure f
-        | _ => pure v0
-      if let .lit (.natVal value) := value then pure value
-      else
-        println! "The value is not a nat literal"
-        return .continue
-    println! "Value: {value}"
-    -- Reduce
+    let value ← if let some value := exprToNat? value0 then pure value else return .continue
+    trace[Utils] "value: {value}"
+    -- Compute the result
     let inv := (Nat.gcdA value field).toNat
-    println! "Reduced value: {inv}"
-    /- We can't do the proof by reflection because it is too expensive, so
-       we use the property that if `v0 * inv = 1` then `inv = v0⁻¹` -/
+    trace[Utils] "inverse: {inv}"
+    /- Create the new expression.
+       We can't do the proof by reflection because it is too expensive, so
+       we use the property that if `value0 * inv = 1` then `inv = value0⁻¹` -/
     let inv ← Lean.Meta.mkAppOptM ``OfNat.ofNat #[fieldTy, some (.lit (.natVal inv)), none]
-    println! "Inverse: {inv}"
-    let mul_eq ← Lean.Meta.mkAppM ``Eq.refl #[← Lean.Meta.mkAppM ``HMul.hMul #[v0, inv]]
-    println! "mul_eq: {mul_eq}"
-    let eq := Lean.mkAppN (.const ``ZMod.inv_eq_of_mul_eq_one []) #[.lit (.natVal field), v0, inv, mul_eq]
-    println! "eq: {eq}"
+    trace[Utils] "inverse: {inv}"
+    let mul_eq ← Lean.Meta.mkAppM ``Eq.refl #[← Lean.Meta.mkAppM ``HMul.hMul #[value0, inv]]
+    trace[Utils] "mul_eq: {mul_eq}"
+    let eq := Lean.mkAppN (.const ``ZMod.inv_eq_of_mul_eq_one []) #[.lit (.natVal field), value0, inv, mul_eq]
+    trace[Utils] "eq: {eq}"
     return .visit {expr := inv, proof? := eq}
   | _ => return .continue
 
 example : (12⁻¹ : ZMod 7) = 3 := by simp only [reduceZModInv]
-
-example : (65536⁻¹ : Spec.Zq) = (169 : Spec.Zq) := by simp only [Spec.Q, reduceZModInv]
-
---@[local simp]
---theorem zmod_65536_inv : (65536⁻¹ : Spec.Zq) = (169 : Spec.Zq) := by simp
+example : (65536⁻¹ : Spec.Zq) = (169 : Spec.Zq) := by simp only [reduceZModInv]
 
 /-- A simproc to reduce powers in ZMod. -/
 simproc reduceZModPow
@@ -220,28 +191,25 @@ simproc reduceZModPow
     trace[Utils] "- fieldTy: {fieldTy},\n- inst: {inst},\n- value: {value}\n- pow: {pow}"
     let redFieldTy ← Lean.Meta.whnf fieldTy
     trace[Utils] "reduced field type: {redFieldTy}"
-    let field ← do match redFieldTy.consumeMData.getAppFnArgs with
+    let field ← match redFieldTy.consumeMData.getAppFnArgs with
       | (``ZMod, #[field]) => Lean.Meta.whnf field
       | _ => return .continue
     trace[Utils] "field: {field}"
-    let field ← do if let some field := field.nat? then pure field else return .continue
+    let field ← if let some field := exprToNat? field then pure field else return .continue
     trace[Utils] "field: {field}"
-    let value ← do if let some value := value.nat? then pure value else return .continue
+    let value ← if let some value := exprToNat? value then pure value else return .continue
     trace[Utils] "value: {value}"
-    let pow ← do if let some pow := pow.nat? then pure pow else return .continue
+    let pow ← if let some pow := exprToNat? pow then pure pow else return .continue
     trace[Utils] "pow: {pow}"
     -- Reduce
     let res := (value ^ pow) % field
     trace[Utils] "res: {res}"
-    -- Generate the result - the proof should be by reflection
+    -- Create the new expression - the proof is by reflection
     let res ← Lean.Meta.mkAppOptM ``OfNat.ofNat #[fieldTy, some (.lit (.natVal res)), none]
     return .visit {expr := res}
   | _ => return .continue
 
---@[local simp]
---theorem zmod_pow2_16_inv : ((2 ^ 16)⁻¹ : Spec.Zq) = (169 : Spec.Zq) := by simp
-
-example : ((2 ^ 16)⁻¹ : Spec.Zq) = (169 : Spec.Zq) := by simp
+example : ((2 ^ 16)⁻¹ : Spec.Zq) = (169 : Spec.Zq) := by simp only [reduceZModPow, reduceZModInv]
 
 namespace ntt
 
