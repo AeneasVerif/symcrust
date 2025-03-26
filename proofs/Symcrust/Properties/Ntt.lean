@@ -248,7 +248,6 @@ theorem SymCryptMlKemMontMul_spec (a : U32) (b : U32) (bMont : U32)
 
   progress as ⟨ res2 ⟩
   progress as ⟨ res3, hRes3 ⟩
-  fsimp at hRes3
 
   -- Here we need to use the fact that we performed a Montgomery multiplication to get
   -- the bounds and the rest
@@ -795,7 +794,7 @@ section
     have : inv.val = (a1b1.val * NegQInvModR.val) % 2^16 := by fsimp [U32.size, U32.numBits, *]
     let* ⟨ i13, i13_post_1, i13_post_2 ⟩ ← Aeneas.Std.U32.mul_bv_spec
     let* ⟨ i14, i14_post_1, i14_post_2 ⟩ ← Aeneas.Std.U32.add_bv_spec
-    let* ⟨ a1b11, a1b11_post ⟩ ← Aeneas.Std.U32.ShiftRight_bv_spec
+    let* ⟨ a1b11, a1b11_post ⟩ ← Aeneas.Std.U32.ShiftRight_spec
 
     /- Prove the result of the Montgomery reduction -/
     have : a1b1.val + inv.val * 3329 ≤ U32.max := by scalar_tac
@@ -967,7 +966,7 @@ section
     ∃ paDst', SymCryptMlKemPolyElementMulAndAccumulate_loop peSrc1 peSrc2 paDst i = ok paDst' ∧
     wfAcc peSrc1 peSrc2 B0 montMulStepBound 128 paDst0 paDst'
     := by
-    rw[SymCryptMlKemPolyElementMulAndAccumulate_loop]
+    unfold SymCryptMlKemPolyElementMulAndAccumulate_loop
     fsimp only [fold_mul_acc_mont_reduce, fold_update_acc]
     fsimp -- TODO: why is this call to `simp` so slow? (1.1s, and 3.1s if the maxDischargeDepth := 2)
     -- TODO: fix the syntax so that we do not need parentheses
