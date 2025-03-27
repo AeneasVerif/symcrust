@@ -764,10 +764,10 @@ fn poly_element_sample_cbd_from_bytes(
                            // the first eta bits are positive, the second eta bits are negative
                            let mut coefficient = *sample_bits & 0x3f;
                            *sample_bits >>= 6;
-                           coefficient = (coefficient&3) - (coefficient>>3);
+                           coefficient = (coefficient&3).wrapping_sub(coefficient>>3);
                            assert!((coefficient >= ((-3i32) as u32)) || (coefficient <= 3));
 
-                           coefficient = coefficient + (Q & (coefficient >> 16));     // in range [0, Q-1]
+                           coefficient = coefficient.wrapping_add(Q & (coefficient >> 16));     // in range [0, Q-1]
                            assert!( coefficient < Q );
 
                            pe_dst[i+j] = coefficient as u16;

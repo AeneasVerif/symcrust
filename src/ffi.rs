@@ -23,6 +23,11 @@ type CFormat = c_int;
 // via the FFI. We add another layer of indirection.
 type CKey = *mut Box<crate::key::Key>;
 
+// We could, however, decompose it into raw parts:
+// https://doc.rust-lang.org/std/primitive.pointer.html#method.to_raw_parts and, in the FFI layer,
+// query the ML-KEM variant to deduce the size of the underlying allocation and reconstruct the
+// fat pointer.
+
 // CONVERSIONS
 // -----------
 
