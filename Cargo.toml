@@ -4,3 +4,15 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+libc = "0.2"
+hex = "0.4"
+itertools = "0.14.0"
+zeroize = "1.8.1"
+
+[lib]
+crate-type = ["cdylib"]
+
+[profile.release]
+# TODO: try "fat" (with quotes) instead of true
+lto = true
+codegen-units = 1
