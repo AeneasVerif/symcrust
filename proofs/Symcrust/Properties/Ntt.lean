@@ -1217,7 +1217,8 @@ section
       have : ∀ j < i11.val, (paDst1[j]!.val : Spec.Zq) = ↑↑paDst0[j]! + ↑↑paSrc0[j]! * 169 := by
         intro j hj
         fsimp at *
-        dcases hji : j = i.val <;> fsimp [*] <;> simp_lists [hdstBegEq, hsrcEndEq]
+        dcases hji : j = i.val <;> fsimp [*]
+        simp_lists [hdstBegEq, hsrcEndEq]
 
       have : ∀ j ≥ i11.val, j < 256 → paDst1[j]!.val ≤ 3328 := by
         intro j hj0 hj1
@@ -1272,6 +1273,174 @@ theorem SymCryptMlKemMontgomeryReduceAndAddPolyElementAccumulatorToPolyElement_s
     . -- Post-condition
       fsimp at *
       tauto
+
+/-
+# MulR
+-/
+
+attribute [-progress] SymCryptMlKemMontMul_twiddle_spec -- TODO: this shouldn't be marked with `progress`
+attribute [local progress] SymCryptMlKemMontMul_spec
+
+@[simp, bvify_simps, scalar_tac_simps] theorem Rsqr_eq : Rsqr = 1353#u32 := by prove_eval_global
+@[simp, bvify_simps, scalar_tac_simps] theorem RsqrTimesNegQInvModR_eq : RsqrTimesNegQInvModR = 44983#u32 := by prove_eval_global
+
+@[local progress]
+theorem SymCryptMlKemPolyElementMulR_loop_spec
+  (peSrc : Array U16 256#usize) (peDst : Array U16 256#usize) (i : Usize)
+  (hwf : wfArray peSrc)
+  :
+  ∃ peDst1, SymCryptMlKemPolyElementMulR_loop peSrc peDst i = ok peDst1 ∧
+  (∀ j < i.val, peDst1[j]! = peDst[j]!) ∧
+  (∀ j ≥ i.val, j < 256 → (peDst1[j]! : Spec.Zq) = peSrc[j]! * 2^16) := by
+  unfold SymCryptMlKemPolyElementMulR_loop
+  split
+  . let* ⟨ i1, i1_post_1, i1_post_2 ⟩ ← wfArray_index
+    let* ⟨ i3, i3_post_1, i3_post_2 ⟩ ← SymCryptMlKemMontMul_spec
+    let* ⟨ i4, i4_post ⟩ ← UScalar.cast_inBounds_spec
+    let* ⟨ peDst1, peDst1_post ⟩ ← Array.update_spec
+    let* ⟨ i5, i5_post ⟩ ← Usize.add_spec
+    let* ⟨ peDest2, res_post_1, res_post_2 ⟩ ← SymCryptMlKemPolyElementMulR_loop_spec
+    -- TODO: this hould be automated
+    split_conjs
+    . intros j hj
+      fsimp at *
+      simp_lists [res_post_1]
+      fsimp [*]
+    . intros j hj0 hj1
+      fsimp at *
+      dcases hj : j = i.val
+      . fsimp [*]
+        ring_nf
+        fsimp
+      . simp_lists [res_post_2]
+  . fsimp
+    intro j hj0 hj1
+    -- Contradiction
+    scalar_tac
+termination_by 256 - i.val
+decreasing_by scalar_decr_tac
+
+@[local progress]
+theorem SymCryptMlKemPolyElementMulR_spec
+  (peSrc : Array U16 256#usize) (peDst : Array U16 256#usize)
+  (hwf : wfArray peSrc) :
+  ∃ peDst1, SymCryptMlKemPolyElementMulR peSrc peDst = ok peDst1 ∧
+  (∀ j < 256, (peDst1[j]!.val : Spec.Zq) = peSrc[j]!.val * 2^16) := by
+  unfold SymCryptMlKemPolyElementMulR
+  progress as ⟨ peDst1 ⟩
+  -- TODO: this should be automated
+  fsimp at *
+  assumption
+
+/-!
+# Add
+-/
+-- TODO: move
+attribute [scalar_tac_simps] Nat.not_eq Int.not_eq
+attribute [simp_lists_simps] Array.set_val_eq
+
+@[local progress]
+def SymCryptMlKemPolyElementAdd_loop_spec
+  (peSrc1 : Array U16 256#usize) (peSrc2 : Array U16 256#usize)
+  (peDst : Array U16 256#usize) (i : Usize)
+  (hwf1 : wfArray peSrc1) (hwf2 : wfArray peSrc2) :
+  ∃ peDst1, SymCryptMlKemPolyElementAdd_loop peSrc1 peSrc2 peDst i = ok peDst1 ∧
+  (∀ j < i.val, peDst1[j]!.val = peDst[j]!.val) ∧
+  (∀ j ≥ i.val, j < 256 → peDst1[j]!.val ≤ 3328) ∧
+  (∀ j ≥ i.val, j < 256 → (peDst1[j]!.val : Spec.Zq) = peSrc1[j]! + peSrc2[j]!) := by
+  unfold SymCryptMlKemPolyElementAdd_loop
+  split
+  . let* ⟨ i1, i1_post_1, i1_post_2 ⟩ ← wfArray_index
+    let* ⟨ i3, i3_post_1, i3_post_2 ⟩ ← wfArray_index
+    let* ⟨ i5, i5_post_1, i5_post_2 ⟩ ← SymCryptMlKemModAdd'_spec
+    let* ⟨ i6, i6_post ⟩ ← UScalar.cast_inBounds_spec
+    let* ⟨ peDst1, peDst1_post ⟩ ← Array.update_spec -- TODO: by default it is wfArray_update
+    let* ⟨ i7, i7_post ⟩ ← Usize.add_spec
+    let* ⟨ peDst2, peDst2_post_1, peDst2_post_2, peDst2_post_3 ⟩ ← SymCryptMlKemPolyElementAdd_loop_spec
+    -- TODO: this should be automated
+    fsimp at *
+    split_conjs
+    . intro j hj
+      simp_lists [peDst2_post_1, peDst1_post, Array.set_val_eq]
+    . intro j hj0 hj1
+      dcases hji : i.val = j
+      . fsimp [*]; scalar_tac
+      . simp_lists [peDst2_post_2]
+    . intro j hj0 hj1
+      dcases hji : i.val = j
+      . fsimp [*]
+      . simp_lists [peDst2_post_3]
+  . fsimp at *
+    split_conjs <;> intros <;> scalar_tac -- Contradiction
+termination_by 256 - i.val
+decreasing_by scalar_decr_tac
+
+@[local progress]
+def SymCryptMlKemPolyElementAdd_spec
+  (peSrc1 : Array U16 256#usize) (peSrc2 : Array U16 256#usize)
+  (peDst : Array U16 256#usize)
+  (hwf1 : wfArray peSrc1) (hwf2 : wfArray peSrc2) :
+  ∃ peDst1, SymCryptMlKemPolyElementAdd peSrc1 peSrc2 peDst = ok peDst1 ∧
+  (∀ j < 256, peDst1[j]!.val ≤ 3328) ∧
+  (∀ j < 256, (peDst1[j]!.val : Spec.Zq) = peSrc1[j]!.val + peSrc2[j]!.val) := by
+  unfold SymCryptMlKemPolyElementAdd
+  progress
+  -- TODO: this should be automated
+  fsimp at *
+  split_conjs <;> assumption
+
+/-!
+# Sub
+-/
+@[local progress]
+def SymCryptMlKemPolyElementSub_loop_spec
+  (peSrc1 : Array U16 256#usize) (peSrc2 : Array U16 256#usize)
+  (peDst : Array U16 256#usize) (i : Usize)
+  (hwf1 : wfArray peSrc1) (hwf2 : wfArray peSrc2) :
+  ∃ peDst1, SymCryptMlKemPolyElementSub_loop peSrc1 peSrc2 peDst i = ok peDst1 ∧
+  (∀ j < i.val, peDst1[j]!.val = peDst[j]!.val) ∧
+  (∀ j ≥ i.val, j < 256 → peDst1[j]!.val ≤ 3328) ∧
+  (∀ j ≥ i.val, j < 256 → (peDst1[j]!.val : Spec.Zq) = peSrc1[j]! - peSrc2[j]!) := by
+  unfold SymCryptMlKemPolyElementSub_loop
+  split
+  . let* ⟨ i1, i1_post_1, i1_post_2 ⟩ ← wfArray_index
+    let* ⟨ i3, i3_post_1, i3_post_2 ⟩ ← wfArray_index
+    let* ⟨ i5, i5_post_1, i5_post_2 ⟩ ← SymCryptMlKemModSub'_spec
+    let* ⟨ i6, i6_post ⟩ ← UScalar.cast_inBounds_spec
+    let* ⟨ peDst1, peDst1_post ⟩ ← Array.update_spec -- TODO: by default it is wfArray_update
+    let* ⟨ i7, i7_post ⟩ ← Usize.add_spec
+    let* ⟨ peDst2, peDst2_post_1, peDst2_post_2, peDst2_post_3 ⟩ ← SymCryptMlKemPolyElementSub_loop_spec
+    -- TODO: this should be automated
+    fsimp at *
+    split_conjs
+    . intro j hj
+      simp_lists [peDst2_post_1, peDst1_post, Array.set_val_eq]
+    . intro j hj0 hj1
+      dcases hji : i.val = j
+      . fsimp [*]; scalar_tac
+      . simp_lists [peDst2_post_2]
+    . intro j hj0 hj1
+      dcases hji : i.val = j
+      . fsimp [*]
+      . simp_lists [peDst2_post_3]
+  . fsimp at *
+    split_conjs <;> intros <;> scalar_tac -- Contradiction
+termination_by 256 - i.val
+decreasing_by scalar_decr_tac
+
+@[local progress]
+def SymCryptMlKemPolyElementSub_spec
+  (peSrc1 : Array U16 256#usize) (peSrc2 : Array U16 256#usize)
+  (peDst : Array U16 256#usize)
+  (hwf1 : wfArray peSrc1) (hwf2 : wfArray peSrc2) :
+  ∃ peDst1, SymCryptMlKemPolyElementSub peSrc1 peSrc2 peDst = ok peDst1 ∧
+  (∀ j < 256, peDst1[j]!.val ≤ 3328) ∧
+  (∀ j < 256, (peDst1[j]!.val : Spec.Zq) = peSrc1[j]!.val - peSrc2[j]!.val) := by
+  unfold SymCryptMlKemPolyElementSub
+  progress
+  -- TODO: this should be automated
+  fsimp at *
+  split_conjs <;> assumption
 
 end ntt
 
