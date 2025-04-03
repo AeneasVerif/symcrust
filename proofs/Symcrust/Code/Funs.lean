@@ -487,24 +487,23 @@ def
     let paSrc1 ← Array.update paSrc i 0#u32
     let i1 ← Array.index_usize peDst i
     let c ← core.convert.IntoFrom.into core.convert.FromU32U16 i1
-    let i2 ← a * ntt.NegQInvModR
+    let i2 ← core.num.U32.wrapping_mul a ntt.NegQInvModR
     let inv ← (↑(i2 &&& ntt.Rmask) : Result U32)
     let i3 ← inv * ntt.Q
     let i4 ← a + i3
     let a1 ← i4 >>> ntt.Rlog2
     let c1 ← c + a1
     let i5 ← 2#u32 * ntt.Q
-    let c2 ← c1 - i5
+    let c2 ← (↑(core.num.U32.wrapping_sub c1 i5) : Result U32)
     let i6 ← c2 >>> 16#i32
     let i7 ← (↑(ntt.Q &&& i6) : Result U32)
-    let c3 ← c2 + i7
+    let c3 ← (↑(core.num.U32.wrapping_add c2 i7) : Result U32)
     let i8 ← c3 >>> 16#i32
     let i9 ← (↑(ntt.Q &&& i8) : Result U32)
-    let c4 ← c3 + i9
-    let (_, index_mut_back) ← Array.index_mut_usize peDst i
+    let c4 ← (↑(core.num.U32.wrapping_add c3 i9) : Result U32)
     let i10 ← (↑(UScalar.cast .U16 c4) : Result U16)
+    let peDst1 ← Array.update peDst i i10
     let i11 ← i + 1#usize
-    let peDst1 := index_mut_back i10
     ntt.SymCryptMlKemMontgomeryReduceAndAddPolyElementAccumulatorToPolyElement_loop
       paSrc1 peDst1 i11
   else ok (paSrc, peDst)

@@ -126,10 +126,4 @@ theorem mont_reduce_bounds (q R : Nat) (minus_q_minus_1 : Int) (B m : Nat)
 
   omega
 
-#assert 3327 * 3329 % 2 ^ 16 = -1 % 2 ^ 16
-theorem mlKem_mont_reduce_bounds (x : Nat) (h : x ≤ 3328*3328) :
-  mont_reduce 3329 (2 ^ 16) 3327 x ≤ 3498 := by
-  have := mont_reduce_bounds 3329 (2^16) 3327 (3328 * 3328) 3329 (by simp) (by native_decide)
-  simp at *
-  apply this x h
 end Symcrust

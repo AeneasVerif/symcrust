@@ -526,7 +526,7 @@ SymCryptMlKemMontgomeryReduceAndAddPolyElementAccumulatorToPolyElement(
         //assert!( c < Q );
 
         // montgomery reduce sum of products
-        let inv = (a * NegQInvModR) & Rmask;
+        let inv = (a.wrapping_mul(NegQInvModR)) & Rmask;
         a = (a + (inv * Q)) >> Rlog2; // in range [0, 4711]
         //assert!( a <= 4711 );
 
@@ -535,11 +535,11 @@ SymCryptMlKemMontgomeryReduceAndAddPolyElementAccumulatorToPolyElement(
         //assert!( c <= 8039 );
 
         // subtraction and conditional additions for constant time range reduction
-        c -= 2*Q;           // in range [-2Q, 1381]
+        c = c.wrapping_sub(2*Q);           // in range [-2Q, 1381]
         //assert!( (c >= ((-2*(Q as i32)) as u32)) || (c < 1381) );
-        c += Q & (c >> 16); // in range [-Q, Q-1]
+        c = c.wrapping_add(Q & (c >> 16)); // in range [-Q, Q-1]
         //assert!( (c >= ((-(Q as i32) as u32))) || (c < Q) );
-        c += Q & (c >> 16); // in range [0, Q-1]
+        c = c.wrapping_add(Q & (c >> 16)); // in range [0, Q-1]
         //assert!( c < Q );
 
         peDst[i] = c as u16;

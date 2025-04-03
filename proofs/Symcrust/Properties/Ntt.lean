@@ -728,20 +728,22 @@ theorem SymCryptMlKemPolyElementINTTAndMulR_spec (peSrc : Std.Array U16 256#usiz
 # Multiply and Accumulate
 -/
 
+-- TODO: move
+@[local scalar_tac (x &&& Rmask).val]
+private theorem and_Rmask (x : U32) : (x &&& Rmask).val ≤ 65535 := by bv_tac 32
+
+-- TODO: we need to make this more convenient, and improve reasoning about non linear arithmetic
+private theorem Zq_mul_in_bounds (a b : U32) :
+  a.val ≥ 3329 ∨ b.val ≥ 3329 ∨ a.val * b.val ≤ 3328 * 3328 := by
+  simp only [Classical.or_iff_not_imp_left]
+  intros
+  scalar_tac +nonLin
+
 section
-  -- TODO: move
-  @[local scalar_tac (x &&& Rmask).val]
-  theorem and_Rmask (x : U32) : (x &&& Rmask).val ≤ 65535 := by bv_tac 32
-
-  -- TODO: we need to make that more convenient, and improve reasoning about non linear arithmetic
-  @[local scalar_tac a.val * b.val]
-  theorem Zq_mul_in_bounds (a b : U32) :
-    a.val ≥ 3329 ∨ b.val ≥ 3329 ∨ a.val * b.val ≤ 3328 * 3328 := by
-    simp only [Classical.or_iff_not_imp_left]
-    intros
-    scalar_tac +nonLin
-
   -- TODO: failure cases of scalar_tac +nonLin
+
+  -- TODO: make this more convenient
+  attribute [local scalar_tac a.val * b.val] Zq_mul_in_bounds
 
   /- TODO: we should implement tactics to automatically refold parts of the code back into
      functions. -/
@@ -780,6 +782,12 @@ section
     := by
     simp only [mul_acc_mont_reduce, bind_assoc_eq, bind_tc_ok, pure]
 
+  theorem mlKem_mont_reduce_bounds_mul_acc (x : Nat) (h : x ≤ 3328*3328) :
+    mont_reduce 3329 (2 ^ 16) 3327 x ≤ 3498 := by
+    have := mont_reduce_bounds 3329 (2^16) 3327 (3328 * 3328) 3329 (by simp) (by native_decide)
+    simp at *
+    apply this x h
+
   @[local progress]
   theorem mul_acc_mont_reduce_spec (i : Usize) (a1b1 : U32)
     (hi : i.val < 128) (h1 : a1b1.val ≤ 3328 * 3328) :
@@ -789,12 +797,12 @@ section
     := by
     unfold mul_acc_mont_reduce
     /- First step: reduce a1b1 -/
-    let* ⟨ i12, i12_post ⟩ ← Aeneas.Std.core.num.U32.wrapping_mul.progress_spec
-    let* ⟨ inv, inv_post_1, inv_post_2 ⟩ ← Aeneas.Std.UScalar.and_spec
+    let* ⟨ i12, i12_post ⟩ ← core.num.U32.wrapping_mul.progress_spec
+    let* ⟨ inv, inv_post_1, inv_post_2 ⟩ ← UScalar.and_spec
     have : inv.val = (a1b1.val * NegQInvModR.val) % 2^16 := by fsimp [U32.size, U32.numBits, *]
-    let* ⟨ i13, i13_post_1, i13_post_2 ⟩ ← Aeneas.Std.U32.mul_bv_spec
-    let* ⟨ i14, i14_post_1, i14_post_2 ⟩ ← Aeneas.Std.U32.add_bv_spec
-    let* ⟨ a1b11, a1b11_post ⟩ ← Aeneas.Std.U32.ShiftRight_spec
+    let* ⟨ i13, i13_post_1, i13_post_2 ⟩ ← U32.mul_bv_spec
+    let* ⟨ i14, i14_post_1, i14_post_2 ⟩ ← U32.add_bv_spec
+    let* ⟨ a1b11, a1b11_post ⟩ ← U32.ShiftRight_spec
 
     /- Prove the result of the Montgomery reduction -/
     have : a1b1.val + inv.val * 3329 ≤ U32.max := by scalar_tac
@@ -810,7 +818,7 @@ section
       fsimp [ha1b1_eq, hMont]
       fsimp [Int.mul_emod]
     have : a1b11.val ≤ 3498 := by
-       have hBound := mlKem_mont_reduce_bounds a1b1.val (by scalar_tac)
+       have hBound := mlKem_mont_reduce_bounds_mul_acc a1b1.val (by scalar_tac)
        fsimp [mont_reduce] at hBound
        fsimp [inv_post_1, i12_post, U32.size, U32.numBits] at ha1b1_eq
        zify at ha1b1_eq
@@ -818,9 +826,9 @@ section
 
     /- Second step: multiply by ζ^(2*bitRev(i) + 1) -/
     let* ⟨ i15, i15_post_1, i15_post ⟩ ← Symcrust.ntt.zetaTwoTimesBitRevPlus1TimesR_spec
-    let* ⟨ i16, i16_post ⟩ ← Aeneas.Std.UScalar.cast_inBounds_spec
+    let* ⟨ i16, i16_post ⟩ ← UScalar.cast_inBounds_spec
     have hpost1 : a1b11.val * i16.val ≤ 3498 * 3328 := by scalar_tac +nonLin
-    let* ⟨ a1b1zetapow, a1b1zetapow_post, a1b1zetapow_post_2 ⟩ ← Aeneas.Std.U32.mul_bv_spec
+    let* ⟨ a1b1zetapow, a1b1zetapow_post, a1b1zetapow_post_2 ⟩ ← U32.mul_bv_spec
 
     /- Prove the post-condition -/
     have hpost2 : (a1b1zetapow.val : Spec.Zq) = (a1b1.val : Spec.Zq) * Spec.ζ ^ (2 * bitRev 7 i.val + 1) := by
@@ -861,6 +869,12 @@ section
     (∀ j < i, (acc[2 * j]! : Spec.Zq) = acc0[2 * j]! + SpecAux.baseCaseMultiply0 (to_poly f) (to_poly g) j ∧
               (acc[2 * j + 1]! : Spec.Zq) = acc0[2 * j + 1]! + SpecAux.baseCaseMultiply1 (to_poly f) (to_poly g) j) ∧
     (∀ j, i ≤ j → j < 128 → acc[2 * j]! = acc0[2 * j]! ∧ acc[2 * j + 1]! = acc0[2 * j + 1]!)
+
+  def wfAcc_zero (f g : Array U16 256#usize) (B0 B1 : Nat) (acc : Array U32 256#usize)
+    (h : ∀ j, j < 128 → acc[2 * j]! ≤ B0 ∧ acc[2 * j + 1]! ≤ B0) :
+    wfAcc f g B0 B1 0 acc acc := by
+    fsimp [wfAcc]
+    apply h
 
   def wfAcc_128 {f g : Array U16 256#usize} {B0 B1 : Nat} {i : Nat} {acc0 acc : Array U32 256#usize}
     (h : wfAcc f g B0 B1 i acc0 acc) (hi : 128 ≤ i) :
@@ -949,7 +963,6 @@ section
       fsimp at this; fsimp [this]
 
   -- TODO: no post-processing of the post-conditions in progress
-  #assert 3328 * 3494 = 11628032
 
   @[simp, scalar_tac_simps]
   abbrev montMulStepBound : Nat := 3328 * 3328 + 3328 * 3498
@@ -979,8 +992,286 @@ section
       apply wfAcc_128 hwf3 (by scalar_tac)
   termination_by 128 - i.val
   decreasing_by scalar_decr_tac
+end
+
+attribute [local progress] SymCryptMlKemPolyElementMulAndAccumulate_loop_spec
+
+@[local progress]
+theorem SymCryptMlKemPolyElementMulAndAccumulate_spec
+  (peSrc1 peSrc2 : Array U16 256#usize)
+  (paDst : Array U32 256#usize)
+  (B0 : Nat)
+  (hBounds : ∀ j, j < 128 → paDst[2 * j]! ≤ B0 ∧ paDst[2 * j + 1]! ≤ B0)
+  (hb0 : B0 + montMulStepBound ≤ U32.max)
+  (hwf1 : wfArray peSrc1) (hwf2 : wfArray peSrc2)
+  :
+  ∃ paDst', SymCryptMlKemPolyElementMulAndAccumulate peSrc1 peSrc2 paDst = ok paDst' ∧
+  wfAcc peSrc1 peSrc2 B0 montMulStepBound 128 paDst paDst'
+  := by
+  unfold SymCryptMlKemPolyElementMulAndAccumulate
+  have hwf := wfAcc_zero peSrc1 peSrc2 B0 montMulStepBound paDst hBounds
+  progress as ⟨ paDst1, hPost ⟩
+  apply hPost
+
+/-!
+# Reduce and Add
+-/
+
+@[scalar_tac_simps, bvify_simps] abbrev reduceAddInputBound : Nat := 4*3328*3328 + 4*3494*3312
+@[scalar_tac_simps, bvify_simps] abbrev reduceAddStepBound : Nat := 4711
+
+
+section
+
+  -- TODO: make this more convenient
+  attribute [local scalar_tac a.val * b.val] Zq_mul_in_bounds
+
+  /-- Auxiliary helper: the reduced multiplication performed by reduce and add.
+
+      This computes:
+      red(a1b1) *
+   -/
+  private def reduce_add_mont_reduce (a : U32) : Result U32 := do
+    let i2 ← core.num.U32.wrapping_mul a ntt.NegQInvModR
+    let inv ← (↑(i2 &&& ntt.Rmask) : Result U32)
+    let i3 ← inv * ntt.Q
+    let i4 ← a + i3
+    let a1 ← i4 >>> ntt.Rlog2
+    pure a1
+
+  -- TODO: automate the refold
+  private theorem fold_reduce_add_mont_reduce (a : U32) (f : U32 → Result α) :
+    (do
+      let i2 ← core.num.U32.wrapping_mul a ntt.NegQInvModR
+      let inv ← (↑(i2 &&& ntt.Rmask) : Result U32)
+      let i3 ← inv * ntt.Q
+      let i4 ← a + i3
+      let a1 ← i4 >>> ntt.Rlog2
+      f a1) =
+    (do
+      let a1 ← reduce_add_mont_reduce a
+      f a1)
+    := by
+    simp only [reduce_add_mont_reduce, bind_assoc_eq, bind_tc_ok, pure]
+
+  theorem mlKem_mont_reduce_bounds_reduce_add (x : Nat) (h : x ≤ reduceAddInputBound) :
+    mont_reduce 3329 (2 ^ 16) 3327 x ≤ 4711 := by
+    have := mont_reduce_bounds 3329 (2^16) 3327 reduceAddInputBound 3329 (by simp) (by native_decide)
+    simp at *
+    apply this x h
+
+  @[local progress]
+  theorem reduce_add_mont_reduce_spec (a : U32) (h1 : a.val ≤ reduceAddInputBound) :
+    ∃ a1, reduce_add_mont_reduce a = ok a1 ∧
+    a1.val ≤ reduceAddStepBound ∧
+    (a1.val : Spec.Zq) = (a.val : Spec.Zq) * 169
+    := by
+    unfold reduce_add_mont_reduce
+    let* ⟨ amul, amul_post ⟩ ← core.num.U32.wrapping_mul.progress_spec
+    let* ⟨ inv, inv_post_1, inv_post_2 ⟩ ← UScalar.and_spec
+    let* ⟨ invq, invq_post_1, invq_post_2 ⟩ ← U32.mul_bv_spec
+    let* ⟨ ainvq, ainvq_post_1, ainvq_post_2 ⟩ ← U32.add_bv_spec
+    let* ⟨ a1, a1_post_1, a1_post_2 ⟩ ← U32.ShiftRight_spec
+
+    /- Prove the result of the Montgomery reduction -/
+    have ha1_eq : a1.val = (a.val + inv.val * Q.val) / 2^16 := by bv_tac 32
+    have hPost1 : (a1.val : Spec.Zq) = (a.val : Spec.Zq) * 169 := by
+      have ⟨ hMont, _ ⟩ := mont_reduce_spec 3329 (2^16) 3327 a.val
+        (by fsimp [U16.size, U16.numBits]; exists 16) (by fsimp [U16.size, U16.numBits]) (by fsimp)
+        (by scalar_tac) (by fsimp; constructor)
+      fsimp [mont_reduce] at hMont
+      fsimp [inv_post_1, amul_post, U32.size, U32.numBits] at ha1_eq
+      zify at ha1_eq
+      zify
+      fsimp [ha1_eq, hMont]
+      fsimp [Int.mul_emod]
+    have hPost2 : a1.val ≤ 4711 := by
+       have hBound := mlKem_mont_reduce_bounds_reduce_add a.val (by scalar_tac)
+       fsimp [mont_reduce] at hBound
+       fsimp [inv_post_1, amul_post, U32.size, U32.numBits] at ha1_eq
+       zify at ha1_eq
+       scalar_tac
+
+    /- Finish -/
+    fsimp [hPost1, hPost2]
+
+  private def reduce_add_normalize (c1 : U32) : Result U32 := do
+    let i5 ← 2#u32 * ntt.Q
+    let c2 ← (↑(core.num.U32.wrapping_sub c1 i5) : Result U32)
+    let i6 ← c2 >>> 16#i32
+    let i7 ← (↑(ntt.Q &&& i6) : Result U32)
+    let c3 ← (↑(core.num.U32.wrapping_add c2 i7) : Result U32)
+    let i8 ← c3 >>> 16#i32
+    let i9 ← (↑(ntt.Q &&& i8) : Result U32)
+    let c4 ← (↑(core.num.U32.wrapping_add c3 i9) : Result U32)
+    pure c4
+
+  -- TODO: automate the refold
+  private theorem fold_reduce_add_normalize (a : U32) (f : U32 → Result α) :
+    (do
+      let i5 ← 2#u32 * ntt.Q
+      let c2 ← (↑(core.num.U32.wrapping_sub a i5) : Result U32)
+      let i6 ← c2 >>> 16#i32
+      let i7 ← (↑(ntt.Q &&& i6) : Result U32)
+      let c3 ← (↑(core.num.U32.wrapping_add c2 i7) : Result U32)
+      let i8 ← c3 >>> 16#i32
+      let i9 ← (↑(ntt.Q &&& i8) : Result U32)
+      let c4 ← (↑(core.num.U32.wrapping_add c3 i9) : Result U32)
+      f c4) =
+    (do
+      let c4 ← reduce_add_normalize a
+      f c4)
+    := by
+    simp only [reduce_add_normalize, bind_assoc_eq, bind_tc_ok, pure]
+
+  attribute [bvify_simps] BitVec.reduceMul BitVec.reduceAdd BitVec.reduceSub BitVec.reduceMod BitVec.reduceDiv
+
+  @[local progress]
+  theorem reduce_add_normalize_spec (a : U32) (h1 : a.val ≤ 3328 + reduceAddStepBound) :
+    ∃ a1, reduce_add_normalize a = .ok a1 ∧
+    a1.val ≤ 3328 ∧
+    (a1.val : Spec.Zq) = (a.val : Spec.Zq) := by
+    unfold reduce_add_normalize
+    let* ⟨ i5, i5_post_1, i5_post_2 ⟩ ← U32.mul_bv_spec
+    let* ⟨ c2, c2_post ⟩ ← core.num.U32.wrapping_sub.progress_spec
+    let* ⟨ i6, i6_post_1, i6_post_2 ⟩ ← U32.ShiftRight_IScalar_spec
+    let* ⟨ i7, i7_post_1, i7_post_2 ⟩ ← UScalar.and_spec
+    let* ⟨ c3, c3_post ⟩ ← core.num.U32.wrapping_add.progress_spec
+    let* ⟨ i8, i8_post_1, i8_post_2 ⟩ ← U32.ShiftRight_IScalar_spec
+    let* ⟨ i9, i9_post_1, i9_post_2 ⟩ ← UScalar.and_spec
+    let* ⟨ c4, c4_post ⟩ ← core.num.U32.wrapping_add.progress_spec
+
+    have : (c4.val : Spec.Zq) = (a.val : Spec.Zq) ∧ c4.val ≤ 3328 := by bv_tac 32
+    fsimp [this]
+
+  attribute [-progress] wfArray_index wfArray_update
+  attribute [local progress] Array.index_usize_spec Array.update_spec
+
+  -- TODO: better elaboration of let (x, y) ← ...
+
+  theorem SymCryptMlKemMontgomeryReduceAndAddPolyElementAccumulatorToPolyElement_loop_spec
+    (paSrc0 paSrc : Array U32 256#usize)
+    (paDst0 paDst : Array U16 256#usize)
+    (i : Usize)
+    -- Assumptions about the source
+    (hsrcBeg : ∀ j < i.val, paSrc[j]! = 0#u32)
+    (hsrcEndEq : ∀ j ≥ i.val, j < 256 → paSrc[j]! = paSrc0[j]!)
+    (hsrcEndIneq : ∀ j ≥ i.val, j < 256 → paSrc[j]! ≤ reduceAddInputBound)
+    -- Assumptions about the destination
+    (hdstBegIneq : ∀ j < i.val, paDst[j]!.val ≤ 3328)
+    (hdstBegEq : ∀ j < i.val, (paDst[j]! : Spec.Zq) = (paDst0[j]! : Spec.Zq) + (paSrc0[j]! : Spec.Zq) * 169)
+    (hdstEndIneq : ∀ j ≥ i.val, j < 256 → paDst[j]!.val ≤ 3328)
+    (hdstEndEq : ∀ j ≥ i.val, j < 256 → paDst[j]!.val = paDst0[j]!)
+    --
+    :
+    ∃ paSrc1 paDst1, SymCryptMlKemMontgomeryReduceAndAddPolyElementAccumulatorToPolyElement_loop paSrc paDst i = ok (paSrc1, paDst1) ∧
+    --
+    (∀ j < 256, paSrc1[j]! = 0#u32) ∧
+    (∀ j < 256, paDst1[j]!.val ≤ 3328) ∧
+    (∀ j < 256, (paDst1[j]!.val : Spec.Zq) = (paDst0[j]!.val : Spec.Zq) + (paSrc0[j]!.val : Spec.Zq) * 169)
+    := by
+    unfold SymCryptMlKemMontgomeryReduceAndAddPolyElementAccumulatorToPolyElement_loop
+    fsimp only [fold_reduce_add_mont_reduce, fold_reduce_add_normalize]
+    fsimp -- TODO: why is this call to `simp` so slow? (1.1s, and 3.1s if the maxDischargeDepth := 2)
+
+    split
+    . let* ⟨ a, a_post ⟩ ← Array.index_usize_spec
+      have : a.val ≤ reduceAddInputBound := by have := hsrcEndIneq i (by scalar_tac); scalar_tac
+      let* ⟨ paSrc1, paSrc1_post ⟩ ← Array.update_spec
+      let* ⟨ i1, i1_post_1 ⟩ ← Array.index_usize_spec
+      have : i1.val ≤ 3328 := by have := hdstEndIneq i (by scalar_tac); scalar_tac
+      let* ⟨ a1, a1_post_1, a1_post_2 ⟩ ← reduce_add_mont_reduce_spec
+      let* ⟨ c1, c1_post_1, c1_post_2 ⟩ ← U32.add_bv_spec
+
+      let* ⟨ c4, c4_post_1, c4_post_2 ⟩ ← reduce_add_normalize_spec
+      have : (c4.val : Spec.Zq) = (paDst[i]!.val : Spec.Zq) +  (a.val : Spec.Zq) * 169 := by fsimp [*]
+
+      let* ⟨ i10, i10_post ⟩ ← UScalar.cast_inBounds_spec
+      let* ⟨ paDst1, paDst1_post ⟩ ← Array.update_spec
+      let* ⟨ i11, i11_post ⟩ ← Usize.add_spec
+
+      -- TODO: this should be automated
+      have : ∀ j < i11.val, paSrc1[j]! = 0#u32 := by
+        intro j hj
+        fsimp at *
+        dcases hji : j = i.val <;> fsimp [*]
+        simp_lists [hsrcBeg]
+
+      have : ∀ j ≥ i11.val, j < 256 → paSrc1[j]! = paSrc0[j]! := by
+        intro j hj0 hj1
+        fsimp at *
+        dcases hji : j = i.val + 1 <;> fsimp [*] <;> simp_lists [hsrcEndEq]
+        -- TODO: simp_lists [*]
+
+      have : ∀ j ≥ i11.val, j < 256 → paSrc1[j]!.val ≤ reduceAddInputBound := by
+        intro j hj0 hj1
+        fsimp at *
+        dcases hji : j = i.val + 1 <;> fsimp [*] <;> simp_lists [hsrcEndIneq]
+
+      have : ∀ j < i11.val, paDst1[j]!.val ≤ 3328 := by
+        intro j hj0
+        fsimp at *
+        dcases hji : j = i.val <;> fsimp [*]
+        simp_lists [hdstBegIneq]
+
+      have : ∀ j < i11.val, (paDst1[j]!.val : Spec.Zq) = ↑↑paDst0[j]! + ↑↑paSrc0[j]! * 169 := by
+        intro j hj
+        fsimp at *
+        dcases hji : j = i.val <;> fsimp [*] <;> simp_lists [hdstBegEq, hsrcEndEq]
+
+      have : ∀ j ≥ i11.val, j < 256 → paDst1[j]!.val ≤ 3328 := by
+        intro j hj0 hj1
+        fsimp at *
+        dcases hji : j = i.val + 1 <;> fsimp [*] <;> simp_lists [hdstEndIneq]
+
+      have : ∀ j ≥ i11.val, j < 256 → paDst1[j]!.val = ↑paDst0[j]! := by
+        intro j hj0 hj1
+        fsimp at *
+        dcases hji : j = i.val + 1 <;> fsimp [*] <;> simp_lists [hdstEndEq]
+
+      let* ⟨ res_1, res_2, res_post_1, res_post_2, res_post_3 ⟩ ←
+        SymCryptMlKemMontgomeryReduceAndAddPolyElementAccumulatorToPolyElement_loop_spec paSrc0 paSrc1 paDst0 paDst1
+      fsimp
+      split_conjs
+      . apply res_post_1
+      . apply res_post_2
+      . apply res_post_3
+    . fsimp
+      split_conjs <;> intros j hj
+      . apply hsrcBeg; scalar_tac
+      . apply hdstBegIneq; scalar_tac
+      . apply hdstBegEq; scalar_tac
+  termination_by 256 - i.val
+  decreasing_by scalar_decr_tac
 
 end
+
+attribute [local progress] SymCryptMlKemMontgomeryReduceAndAddPolyElementAccumulatorToPolyElement_loop_spec
+
+@[local progress]
+theorem SymCryptMlKemMontgomeryReduceAndAddPolyElementAccumulatorToPolyElement_spec
+    (paSrc : Array U32 256#usize)
+    (paDst : Array U16 256#usize)
+    -- Assumptions about the source
+    (hsrcEndIneq : ∀ j < 256, paSrc[j]!.val ≤ reduceAddInputBound)
+    -- Assumptions about the destination
+    (hdst : ∀ j < 256, paDst[j]!.val ≤ 3328)
+    --
+    :
+    ∃ paSrc1 paDst1, SymCryptMlKemMontgomeryReduceAndAddPolyElementAccumulatorToPolyElement paSrc paDst = ok (paSrc1, paDst1) ∧
+    --
+    (∀ j < 256, paSrc1[j]! = 0#u32) ∧
+    (∀ j < 256, paDst1[j]!.val ≤ 3328) ∧
+    (∀ j < 256, (paDst1[j]!.val : Spec.Zq) = (paDst[j]!.val : Spec.Zq) + (paSrc[j]!.val : Spec.Zq) * 169) := by
+    unfold SymCryptMlKemMontgomeryReduceAndAddPolyElementAccumulatorToPolyElement
+
+    -- TODO: progress by
+    progress with SymCryptMlKemMontgomeryReduceAndAddPolyElementAccumulatorToPolyElement_loop_spec paSrc paSrc paDst paDst as ⟨ paSrc1, paDst1 ⟩
+    . fsimp at *; assumption
+    . fsimp at *; assumption
+    . -- Post-condition
+      fsimp at *
+      tauto
 
 end ntt
 
