@@ -240,18 +240,11 @@ symcrust_ntt_SymCryptMlKemPolyElementCompressAndEncode(
       coefficient++;
       /* final divide by two to get multiplication by 2^nBitsPerCoefficient / Q */
       coefficient = coefficient >> 1U;
-      if (coefficient <= 1U << (uint32_t)nBitsPerCoefficient)
-      {
-        coefficient =
-          coefficient
-          & ((1U << (uint32_t)/* modular reduction by masking */ nBitsPerCoefficient ) - 1U);
-        EURYDICE_ASSERT(coefficient < 1U << (uint32_t)nBitsPerCoefficient, "panic!");
-      }
-      else
-      {
-        KRML_HOST_EPRINTF("KaRaMeL abort at %s:%d\n%s\n", __FILE__, __LINE__, "panic!");
-        KRML_HOST_EXIT(255U);
-      }
+      EURYDICE_ASSERT(coefficient <= 1U << (uint32_t)nBitsPerCoefficient, "panic!");
+      coefficient =
+        coefficient
+        & ((1U << (uint32_t)/* modular reduction by masking */ nBitsPerCoefficient ) - 1U);
+      EURYDICE_ASSERT(coefficient < 1U << (uint32_t)nBitsPerCoefficient, "panic!");
     }
     size_t *x1 = &cbDstWritten;
     uint32_t *x2 = &accumulator;
@@ -364,37 +357,41 @@ symcrust_ntt_SymCryptMlKemPolyElementDecodeAndDecompress(
       }
     }
     EURYDICE_ASSERT(nBitsInCoefficient == nBitsPerCoefficient, "panic!");
+    uint32_t uu____1;
+    size_t uu____2;
     if
     (
-      /* decompress the coefficient when nBitsPerCoefficient < 12 we decompress per Decompress_d in draft FIPS 203 otherwise we perform input validation per 203 6.2 Input validation 2 (Modulus check) */
+      !(/* decompress the coefficient when nBitsPerCoefficient < 12 we decompress per Decompress_d in draft FIPS 203 otherwise we perform input validation per 203 6.2 Input validation 2 (Modulus check) */
         nBitsPerCoefficient
 
-      < 12U
+      < 12U)
     )
     {
-      coefficient =
-        coefficient
-        *
-          /* Multiply by Q / 2^(nBitsPerCoefficient-1) by multiplying by constant and shifting right */
-            SYMCRUST_NTT_Q
-          ;
-      coefficient = coefficient >> (uint32_t)(nBitsPerCoefficient - 1U);
-      /* add "half" to round to nearest integer */
-      coefficient++;
-      /* final divide by two to get multiplication by Q / 2^nBitsPerCoefficient */
-      coefficient = coefficient >> 1U;
-      coefficient =
-        symcrust_ntt_SymCryptMlKemModSub(/* modular reduction by conditional subtraction */
-            coefficient
-          ,
-          SYMCRUST_NTT_Q);
-      EURYDICE_ASSERT(coefficient < SYMCRUST_NTT_Q, "panic!");
-    }
-    else if (coefficient > SYMCRUST_NTT_Q)
-    {
+      if
+      (
+        !(/* Multiply by Q / 2^(nBitsPerCoefficient-1) by multiplying by constant and shifting right add "half" to round to nearest integer final divide by two to get multiplication by Q / 2^nBitsPerCoefficient modular reduction by conditional subtraction */
+          coefficient
+
+        > SYMCRUST_NTT_Q)
+      )
+      {
+        uu____1 = coefficient;
+        uu____2 = i;
+        peDst[uu____2] = (uint16_t)uu____1;
+        i++;
+        continue;
+      }
       return symcrust_ntt_MLKEM_ERROR_INVALID_BLOB;
     }
-    peDst[i] = (uint16_t)coefficient;
+    coefficient = coefficient * SYMCRUST_NTT_Q;
+    coefficient = coefficient >> (uint32_t)(nBitsPerCoefficient - 1U);
+    coefficient++;
+    coefficient = coefficient >> 1U;
+    coefficient = symcrust_ntt_SymCryptMlKemModSub(coefficient, SYMCRUST_NTT_Q);
+    EURYDICE_ASSERT(coefficient < SYMCRUST_NTT_Q, "panic!");
+    uu____1 = coefficient;
+    uu____2 = i;
+    peDst[uu____2] = (uint16_t)uu____1;
   }
   EURYDICE_ASSERT(nBitsInAccumulator == 0U, "panic!");
   EURYDICE_ASSERT(cbSrcRead
@@ -587,52 +584,8 @@ symcrust_ntt_SymCryptMlKemPolyElementSampleCBDFromBytes(
   {
     EURYDICE_ASSERT(eta == 3U, "panic!");
   }
-  if (eta == 3U)
-  {
-    for (size_t i = (size_t)0U; i < SYMCRUST_NTT_MLWE_POLYNOMIAL_COEFFICIENTS; i++)
-    {
-      uint8_t ret[4U];
-      symcrust_ntt_slice_to_sub_array((size_t)4U,
-        /* unconditionally load 4 bytes into sampleBits, but only treat the load as being 3 bytes (24-bits -> 4 coefficients) for eta==3 to align to byte boundaries. Source buffer must be 1 byte larger than shake output */
-          pbSrc
-        ,
-        src_i,
-        ret,
-        void *);
-      uint32_t sampleBits = core_num__u32_8__from_le_bytes(ret);
-      src_i = src_i + (size_t)3U;
-      sampleBits =
-        (/* sum bit samples - each consecutive slice of eta bits is summed together */ sampleBits
-        & 2396745U)
-        + (sampleBits >> 1U & 2396745U)
-        + (sampleBits >> 2U & 2396745U);
-      uint32_t *x2 = &sampleBits;
-      KRML_MAYBE_FOR4(j,
-        (size_t)0U,
-        (size_t)4U,
-        (size_t)1U,
-        uint32_t
-        coefficient =
-          /* each coefficient is formed by taking the difference of two consecutive slices of eta bits the first eta bits are positive, the second eta bits are negative */
-            x2[0U]
-
-          & 63U;
-        x2[0U] = x2[0U] >> 6U;
-        coefficient = (coefficient & 3U) - (coefficient >> 3U);
-        if (!(coefficient >= (uint32_t)(int32_t)-3))
-        {
-          EURYDICE_ASSERT(coefficient <= 3U, "panic!");
-        }
-        coefficient = coefficient + (SYMCRUST_NTT_Q & coefficient >> 16U);
-        EURYDICE_ASSERT(coefficient < SYMCRUST_NTT_Q, "panic!");
-        /* each coefficient is formed by taking the difference of two consecutive slices of eta bits the first eta bits are positive, the second eta bits are negative */
-          peDst
-        [i
-        + j]
-        = (uint16_t)coefficient;);
-    }
-  }
-  else
+  void *uu____0 = (void *)0U;
+  if (!(eta == 3U))
   {
     for (size_t i = (size_t)0U; i < SYMCRUST_NTT_MLWE_POLYNOMIAL_COEFFICIENTS; i++)
     {
@@ -673,6 +626,38 @@ symcrust_ntt_SymCryptMlKemPolyElementSampleCBDFromBytes(
         + j]
         = (uint16_t)coefficient;);
     }
+    return;
+  }
+  for (size_t i = (size_t)0U; i < SYMCRUST_NTT_MLWE_POLYNOMIAL_COEFFICIENTS; i++)
+  {
+    uint8_t ret[4U];
+    symcrust_ntt_slice_to_sub_array((size_t)4U, pbSrc, src_i, ret, void *);
+    uint32_t sampleBits = core_num__u32_8__from_le_bytes(ret);
+    src_i = src_i + (size_t)3U;
+    sampleBits =
+      (sampleBits & 2396745U)
+      + (sampleBits >> 1U & 2396745U)
+      + (sampleBits >> 2U & 2396745U);
+    uint32_t *x2 = &sampleBits;
+    KRML_MAYBE_FOR4(j,
+      (size_t)0U,
+      (size_t)4U,
+      (size_t)1U,
+      uint32_t
+      coefficient =
+        /* each coefficient is formed by taking the difference of two consecutive slices of eta bits the first eta bits are positive, the second eta bits are negative */
+          x2[0U]
+
+        & 63U;
+      x2[0U] = x2[0U] >> 6U;
+      coefficient = (coefficient & 3U) - (coefficient >> 3U);
+      if (!(coefficient >= (uint32_t)(int32_t)-3))
+      {
+        EURYDICE_ASSERT(coefficient <= 3U, "panic!");
+      }
+      coefficient = coefficient + (SYMCRUST_NTT_Q & coefficient >> 16U);
+      EURYDICE_ASSERT(coefficient < SYMCRUST_NTT_Q, "panic!");
+      peDst[i + j] = (uint16_t)coefficient;);
   }
 }
 
