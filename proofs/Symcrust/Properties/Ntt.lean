@@ -92,24 +92,26 @@ theorem Int_mod_3329_mod_4294967296_eq (x : Int) :
 
 namespace ntt
 
-@[simp, scalar_tac_simps, bvify_simps] theorem Q_eq : Q = 3329#u32 := by simp [global_simps]
-@[simp, scalar_tac_simps, bvify_simps] theorem NegQInvModR_eq : NegQInvModR = 3327#u32 := by simp [global_simps]
-@[simp, scalar_tac_simps, bvify_simps] theorem Rmask_eq : Rmask = 65535#u32 := by simp [global_simps]
-@[simp, scalar_tac_simps, bvify_simps] theorem Rlog2_eq : Rlog2 = 16#u32 := by simp [global_simps]
+@[simp, scalar_tac_simps, bvify_simps] theorem Q.eq : Q = 3329#u32 := by simp [global_simps]
+@[simp, scalar_tac_simps, bvify_simps] theorem NEG_Q_INV_MOD_R.eq : NEG_Q_INV_MOD_R = 3327#u32 := by simp [global_simps]
+@[simp, scalar_tac_simps, bvify_simps] theorem RMASK.eq : RMASK = 65535#u32 := by simp [global_simps]
+@[simp, scalar_tac_simps, bvify_simps] theorem RLOG2.eq : RLOG2 = 16#u32 := by simp [global_simps]
+@[simp, scalar_tac_simps, bvify_simps] theorem RSQR.eq : RSQR = 1353#u32 := by simp [global_simps]
+@[simp, scalar_tac_simps, bvify_simps] theorem RSQR_TIMES_NEG_Q_INV_MOD_R.eq : RSQR_TIMES_NEG_Q_INV_MOD_R = 44983#u32 := by simp [global_simps]
 
 @[simp, scalar_tac_simps, bvify_simps]
-theorem MLWE_POLYNOMIAL_COEFFICIENTS_eq : MLWE_POLYNOMIAL_COEFFICIENTS.val = 256 := by simp [global_simps]
+theorem key.MLWE_POLYNOMIAL_COEFFICIENTS_eq : key.MLWE_POLYNOMIAL_COEFFICIENTS.val = 256 := by simp [global_simps]
 
-@[simp] theorem INTTFixupTimesRsqr_eq : INTTFixupTimesRsqr.val = 1441 := by simp [global_simps]
-@[simp] theorem INTTFixupTimesRsqr_bv_eq : INTTFixupTimesRsqr.bv = 1441#32 := by simp [global_simps]
+@[simp] theorem INTT_FIXUP_TIMES_RSQR.eq : INTT_FIXUP_TIMES_RSQR.val = 1441 := by simp [global_simps]
+@[simp] theorem INTT_FIXUP_TIMES_RSQR.bv_eq : INTT_FIXUP_TIMES_RSQR.bv = 1441#32 := by simp [global_simps]
 
-@[simp] theorem INTTFixupTimesRsqrTimesNegQInvModR_bv_eq : INTTFixupTimesRsqrTimesNegQInvModR.bv = 10079#32 := by simp [global_simps]
+@[simp] theorem INTT_FIXUP_TIMES_RSQR_TIMES_NEQ_Q_INV_MOD_R.bv_eq : INTT_FIXUP_TIMES_RSQR_TIMES_NEQ_Q_INV_MOD_R.bv = 10079#32 := by simp [global_simps]
 
 
 /-!
 # Addition modulo
 -/
-def SymCryptMlKemModAdd' (a : U32) (b : U32) : Result U32 :=
+def mod_add' (a : U32) (b : U32) : Result U32 :=
   do
   massert (a < Q)
   massert (b < Q)
@@ -123,27 +125,27 @@ def SymCryptMlKemModAdd' (a : U32) (b : U32) : Result U32 :=
   ok res1
 
 @[simp, progress_simps]
-def SymCryptMlKemModAdd_eq (a : U32) (b : U32) :
-  SymCryptMlKemModAdd a b = SymCryptMlKemModAdd' a b := by
-  unfold SymCryptMlKemModAdd SymCryptMlKemModAdd'
+def mod_add_eq (a : U32) (b : U32) :
+  mod_add a b = mod_add' a b := by
+  unfold mod_add mod_add'
   fsimp
   intros
   split <;> fsimp [*]
 
 @[local progress]
-theorem SymCryptMlKemModAdd'_spec (a : U32) (b : U32)
+theorem mod_add'_spec (a : U32) (b : U32)
   (ha : a.val < Spec.Q) (hb : b.val < Spec.Q) :
-  ∃ (c : U32), SymCryptMlKemModAdd' a b = ok c ∧
+  ∃ (c : U32), mod_add' a b = ok c ∧
   (c.val : Spec.Zq) = (a.val : Spec.Zq) + (b.val : Spec.Zq) ∧
   c.val < Spec.Q := by
-  unfold SymCryptMlKemModAdd'
+  unfold mod_add'
   progress* <;> bv_tac 32
 
 /-!
 # Subtraction modulo
 -/
 
-def SymCryptMlKemModSub' (a : U32) (b : U32) : Result U32 := do
+def mod_sub' (a : U32) (b : U32) : Result U32 := do
   let i ← 2#u32 * Q
   massert (a < i)
   massert (b <= Q)
@@ -156,22 +158,22 @@ def SymCryptMlKemModSub' (a : U32) (b : U32) : Result U32 := do
   ok res1
 
 @[simp, progress_simps]
-def SymCryptMlKemModSub_eq (a : U32) (b : U32) :
-  SymCryptMlKemModSub a b = SymCryptMlKemModSub' a b := by
-  unfold SymCryptMlKemModSub SymCryptMlKemModSub'
+def mod_sub_eq (a : U32) (b : U32) :
+  mod_sub a b = mod_sub' a b := by
+  unfold mod_sub mod_sub'
   fsimp
   intros
   split <;> fsimp [*]
 
 @[local progress]
-theorem SymCryptMlKemModSub'_spec (a : U32) (b : U32)
+theorem mod_sub'_spec (a : U32) (b : U32)
   (_ : a.val ≤ 2*3329)
   (ha : a.val < b.val + 3329)
   (hb : b.val ≤ 3329) :
-  ∃ (c : U32), SymCryptMlKemModSub' a b = ok c ∧
+  ∃ (c : U32), mod_sub' a b = ok c ∧
   (c.val : Spec.Zq) = (a.val : Spec.Zq) - (b.val : Spec.Zq) ∧
   c.val < Spec.Q := by
-  unfold SymCryptMlKemModSub'
+  unfold mod_sub'
   progress* <;> bv_tac 32
 
 /-!
@@ -181,8 +183,8 @@ Montgomery reduction
 theorem mont_reduce_bv_spec (a b bMont tR t : U32)
   (haBound : a.val < 3329)
   (hbBound : b.val < 3329)
-  (hbMont : bMont.bv = (b.bv * NegQInvModR.bv) &&& Rmask.bv)
-  (htR : tR.bv = a.bv * b.bv + ((a.bv * bMont.bv) &&& Rmask.bv) * 3329)
+  (hbMont : bMont.bv = (b.bv * NEG_Q_INV_MOD_R.bv) &&& RMASK.bv)
+  (htR : tR.bv = a.bv * b.bv + ((a.bv * bMont.bv) &&& RMASK.bv) * 3329)
   (ht : t.bv = tR.bv >>> 16) :
   (t.val : ZMod Spec.Q) = (a.val : ZMod Spec.Q) * b.val * (U16.size : ZMod Spec.Q)⁻¹ ∧
   t.val < 2 * Spec.Q := by
@@ -213,13 +215,13 @@ theorem mont_reduce_bv_spec (a b bMont tR t : U32)
   zify
   fsimp [← mul_assoc, hMont, hBounds]
 
-theorem SymCryptMlKemMontMul_spec (a : U32) (b : U32) (bMont : U32)
+theorem mont_mul_spec (a : U32) (b : U32) (bMont : U32)
   (ha : a.val < Spec.Q) (hb : b.val < Spec.Q)
-  (hbMont : bMont.bv = (b.bv * NegQInvModR.bv) &&& Rmask.bv) :
-  ∃ (c : U32), SymCryptMlKemMontMul a b bMont = ok c ∧
+  (hbMont : bMont.bv = (b.bv * NEG_Q_INV_MOD_R.bv) &&& RMASK.bv) :
+  ∃ (c : U32), mont_mul a b bMont = ok c ∧
   (c.val : Spec.Zq) = (a.val : Spec.Zq) * (b.val : Spec.Zq) * (2^16)⁻¹ ∧
   c.val < Spec.Q := by
-  unfold SymCryptMlKemMontMul
+  unfold mont_mul
   fsimp at *
   progress
   progress
@@ -262,18 +264,21 @@ theorem SymCryptMlKemMontMul_spec (a : U32) (b : U32) (bMont : U32)
   fsimp [hMontReduce]
   fsimp [this, U16.size, U16.numBits]
 
-local progress_array_spec (name := MlKemZetaBitRevTimesR_spec) MlKemZetaBitRevTimesR[i]!
+local progress_array_spec (name := ZETA_BIT_REV_TIMES_R_spec)
+  ZETA_BIT_REV_TIMES_R[i]!
   { v =>
     (v.val : ZMod Spec.Q) = Spec.ζ^(bitRev 7 i) * 65536 ∧
      v.bv.zeroExtend 32 = BitVec.ofNat 32 (17 ^ bitRev 7 i * 65536 % 3329) ∧
      v.val < 3329 }
   by native_decide
 
-local progress_array_spec (name := MlKemZetaBitRevTimesRTimesNegQInvModR_spec) MlKemZetaBitRevTimesRTimesNegQInvModR[k]!
+local progress_array_spec (name := ZETA_BIT_REV_TIMES_R_TIMES_NEG_Q_INV_MOD_R_spec)
+  ZETA_BIT_REV_TIMES_R_TIMES_NEG_Q_INV_MOD_R[k]!
   { v => BitVec.ofNat 32 v.val = (BitVec.ofNat _ ((17^(bitRev 7 k.val) * 65536) % 3329) * 3327#32) &&& 65535#32 }
   by native_decide
 
-local progress_array_spec (name := zetaTwoTimesBitRevPlus1TimesR_spec) zetaTwoTimesBitRevPlus1TimesR[i]!
+local progress_array_spec (name := ZETA_TO_TIMES_BIT_REV_PLUS_1_TIMES_R_spec)
+  ZETA_TO_TIMES_BIT_REV_PLUS_1_TIMES_R[i]!
   { v =>
     BitVec.ofNat 32 v.val = BitVec.ofNat _ ((17^(2 * bitRev 7 i + 1) * 2^16) % 3329) ∧ -- TODO: remove this?
     v.val = (17^(2 * bitRev 7 i + 1) * 2^16) % 3329 ∧
@@ -281,14 +286,14 @@ local progress_array_spec (name := zetaTwoTimesBitRevPlus1TimesR_spec) zetaTwoTi
   by native_decide
 
 @[local progress]
-theorem SymCryptMlKemMontMul_twiddle_spec (k : Usize) (c : U32) (twiddleFactor : U32) (twiddleFactorMont : U32)
+theorem mont_mul_twiddle_spec (k : Usize) (c : U32) (twiddleFactor : U32) (twiddleFactorMont : U32)
   (hc : c.val < Spec.Q) (hb : twiddleFactor.val < Spec.Q)
   (htf : twiddleFactor.bv = BitVec.ofNat _ ((17^(bitRev 7 k.val) * 65536) % 3329))
   (htfMont : twiddleFactorMont.bv = (twiddleFactor.bv * 3327#32) &&& 65535#32) :
-  ∃ (d : U32), SymCryptMlKemMontMul c twiddleFactor twiddleFactorMont = ok d ∧
+  ∃ (d : U32), mont_mul c twiddleFactor twiddleFactorMont = ok d ∧
   (d.val : Spec.Zq) = (c.val : Spec.Zq) * (Spec.ζ^(bitRev 7 k.val)) ∧
   d.val < Spec.Q := by
-  progress with SymCryptMlKemMontMul_spec as ⟨ d, hEq, hLt ⟩
+  progress with mont_mul_spec as ⟨ d, hEq, hLt ⟩
   fsimp at htfMont
   natify at htf; fsimp at htf
   natify at htfMont; fsimp at htfMont
@@ -329,7 +334,7 @@ theorem wfArray_iff_forAll {n : Usize} (a : Std.Array U16 n) : wfArray a ↔ a.v
     List.forall_getElem]
 
 @[simp]
-theorem wfArray_zetaTwoTimesBitRevPlus1TimesR : wfArray zetaTwoTimesBitRevPlus1TimesR := by
+theorem wfArray_zetaTwoTimesBitRevPlus1TimesR : wfArray ZETA_TO_TIMES_BIT_REV_PLUS_1_TIMES_R := by
   simp [wfArray_iff_forAll]; native_decide
 
 /-!
@@ -337,7 +342,7 @@ theorem wfArray_zetaTwoTimesBitRevPlus1TimesR : wfArray zetaTwoTimesBitRevPlus1T
 -/
 
 @[progress]
-def SymCryptMlKemPolyElementNTTLayerC.inner_loop_loop_spec
+def poly_element_ntt_layer_c.inner_loop_loop_spec
   (peSrc : Array U16 256#usize) (k : Usize) (len : Usize) (start : Usize)
   (twiddleFactor : U32) (twiddleFactorMont : U32) (j : Usize)
   (hStart : start.val + 2 * len.val ≤ 256)
@@ -349,7 +354,7 @@ def SymCryptMlKemPolyElementNTTLayerC.inner_loop_loop_spec
   ∃ peSrc', inner_loop_loop peSrc len start twiddleFactor twiddleFactorMont j = ok peSrc' ∧
   to_poly peSrc' = SpecAux.nttLayerInner (to_poly peSrc) k.val len.val start.val j.val ∧
   wfArray peSrc' := by
-  rw [inner_loop_loop]
+  unfold inner_loop_loop
   progress*
   -- TODO: this should be automatic
   . unfold SpecAux.nttLayerInner
@@ -363,7 +368,7 @@ def SymCryptMlKemPolyElementNTTLayerC.inner_loop_loop_spec
 termination_by len.val - j.val
 decreasing_by scalar_decr_tac
 
-theorem SymCryptMlKemPolyElementNTTLayerC_loop_spec
+theorem poly_element_ntt_layer_c_loop_spec
   -- Some ghost values
   (layer : ℕ) -- the layer
   (hLayer : layer < 7)
@@ -377,11 +382,11 @@ theorem SymCryptMlKemPolyElementNTTLayerC_loop_spec
   (hStart : start.val = 2 * len.val * step)
   (hLen : len.val = 2^(7-layer))
   :
-  ∃ peSrc', SymCryptMlKemPolyElementNTTLayerC_loop peSrc k len start = ok peSrc' ∧
+  ∃ peSrc', poly_element_ntt_layer_c_loop peSrc k len start = ok peSrc' ∧
   to_poly peSrc' = SpecAux.nttLayer (to_poly peSrc) k.val len.val start.val (by fsimp [hLen]) ∧
   wfArray peSrc'
   := by
-  rw [SymCryptMlKemPolyElementNTTLayerC_loop]
+  unfold poly_element_ntt_layer_c_loop
   dcases hLt: ¬ start < 256#usize <;> fsimp only [hLt] <;> fsimp
   . unfold SpecAux.nttLayer
     have : ¬ start.val < 256 := by scalar_tac
@@ -441,7 +446,7 @@ theorem SymCryptMlKemPolyElementNTTLayerC_loop_spec
       fsimp [hStart', hTwoLen]
       fsimp [hStart]
       ring_nf
-    have := SymCryptMlKemPolyElementNTTLayerC_loop_spec layer hLayer (step + 1) (by scalar_tac)
+    have := poly_element_ntt_layer_c_loop_spec layer hLayer (step + 1) (by scalar_tac)
 
     progress as ⟨ peSrc2, hPeSrc2 ⟩
 
@@ -455,7 +460,7 @@ termination_by 256 - k.val
 decreasing_by scalar_decr_tac
 
 @[local progress]
-theorem SymCryptMlKemPolyElementNTTLayer_spec
+theorem poly_element_ntt_layer_spec
   (peSrc : Array U16 256#usize)
   (k : Usize) (len : Usize)
   (hWf : wfArray peSrc)
@@ -465,7 +470,7 @@ theorem SymCryptMlKemPolyElementNTTLayer_spec
   (hLen : len.val = 128 / k.val)
   (hLenPos : 0 < len.val)
   :
-  ∃ peSrc', SymCryptMlKemPolyElementNTTLayer peSrc k len = ok peSrc' ∧
+  ∃ peSrc', poly_element_ntt_layer peSrc k len = ok peSrc' ∧
   to_poly peSrc' = SpecAux.nttLayer (to_poly peSrc) k.val len.val 0 hLenPos ∧
   wfArray peSrc'
   := by
@@ -477,18 +482,18 @@ theorem SymCryptMlKemPolyElementNTTLayer_spec
       calc 128 / 2^step = 2^7 / 2^step := by fsimp
            _ = 2^(7-step) := by rw [Nat.pow_div] <;> scalar_tac
     rw [this]
-  have := SymCryptMlKemPolyElementNTTLayerC_loop_spec step (by scalar_tac) 0 (by fsimp)
-  unfold SymCryptMlKemPolyElementNTTLayer
+  have := poly_element_ntt_layer_c_loop_spec step (by scalar_tac) 0 (by fsimp)
+  unfold poly_element_ntt_layer
   progress as ⟨ peSrc1, hEq, hWf ⟩; clear this
   tauto
 
 @[progress]
-theorem SymCryptMlKemPolyElementNTT_spec (peSrc : Std.Array U16 256#usize)
+theorem poly_element_ntt_spec (peSrc : Std.Array U16 256#usize)
   (hWf : wfArray peSrc) :
-  ∃ peSrc1, SymCryptMlKemPolyElementNTT peSrc = ok peSrc1 ∧
+  ∃ peSrc1, poly_element_ntt peSrc = ok peSrc1 ∧
   to_poly peSrc1 = Spec.ntt (to_poly peSrc) ∧ wfArray peSrc1
   := by
-  unfold SymCryptMlKemPolyElementNTT
+  unfold poly_element_ntt
   progress* by fsimp [Nat.log2]
   rw [← SpecAux.ntt_eq]
   unfold SpecAux.ntt
@@ -498,7 +503,7 @@ theorem SymCryptMlKemPolyElementNTT_spec (peSrc : Std.Array U16 256#usize)
 # INTT
 -/
 @[progress] -- TODO: `local progress` doesn't work because Lean makes the spec local to namespace `SymCryptMlKemPolyElementNTTLayerC`
-def SymCryptMlKemPolyElementINTTLayerC.inner_loop_loop_spec
+def poly_element_intt_layer_c.inner_loop_loop_spec
   (peSrc : Array U16 256#usize) (k : Usize) (len : Usize) (start : Usize)
   (twiddleFactor : U32) (twiddleFactorMont : U32) (j : Usize)
   (hStart : start.val + 2 * len.val ≤ 256)
@@ -510,22 +515,19 @@ def SymCryptMlKemPolyElementINTTLayerC.inner_loop_loop_spec
   ∃ peSrc', inner_loop_loop peSrc len start twiddleFactor twiddleFactorMont j = ok peSrc' ∧
   to_poly peSrc' = SpecAux.invNttLayerInner (to_poly peSrc) k.val len.val start.val j.val ∧
   wfArray peSrc' := by
-  rw [inner_loop_loop]
+  unfold inner_loop_loop
   progress*
-  -- TODO: tactic to simplify the if then else
   . unfold SpecAux.invNttLayerInner
-    have : j.val < len.val := by scalar_tac
-    fsimp only [this]; clear this
+    simp_ifs
     fsimp [*]
     ring_nf
   . unfold SpecAux.invNttLayerInner
-    have : ¬ j.val < len.val := by scalar_tac
-    fsimp only [this]; clear this
+    simp_ifs
     fsimp [*]
 termination_by len.val - j.val
 decreasing_by scalar_decr_tac
 
-theorem SymCryptMlKemPolyElementINTTLayerC_loop_spec
+theorem poly_element_intt_layer_c_loop_spec
   -- Some ghost values
   (layer : ℕ) -- the layer
   (hLayer : layer < 7)
@@ -539,11 +541,11 @@ theorem SymCryptMlKemPolyElementINTTLayerC_loop_spec
   (hStart : start.val = 2 * len.val * step)
   (hLen : len.val = 2^(layer + 1))
   :
-  ∃ peSrc', SymCryptMlKemPolyElementINTTLayerC_loop peSrc k len start = ok peSrc' ∧
+  ∃ peSrc', poly_element_intt_layer_c_loop peSrc k len start = ok peSrc' ∧
   to_poly peSrc' = SpecAux.invNttLayer (to_poly peSrc) k.val len.val start.val (by fsimp [hLen]) ∧
   wfArray peSrc'
   := by
-  rw [SymCryptMlKemPolyElementINTTLayerC_loop]
+  unfold poly_element_intt_layer_c_loop
   dcases hLt: ¬ start < 256#usize <;> fsimp only [hLt] <;> fsimp
   . unfold SpecAux.invNttLayer
     have : ¬ start.val < 256 := by scalar_tac
@@ -601,7 +603,7 @@ theorem SymCryptMlKemPolyElementINTTLayerC_loop_spec
     progress as ⟨ k', hk' ⟩
 
     -- Recursive call
-    have hRec := SymCryptMlKemPolyElementINTTLayerC_loop_spec layer hLayer (step + 1) (by omega)
+    have hRec := poly_element_intt_layer_c_loop_spec layer hLayer (step + 1) (by omega)
 
     have :
      (core.convert.num.FromU32U16.from twiddleFactorMont).bv =
@@ -626,7 +628,7 @@ theorem SymCryptMlKemPolyElementINTTLayerC_loop_spec
     fsimp [*]
 
 @[local progress]
-theorem SymCryptMlKemPolyElementINTTLayer_spec
+theorem poly_element_intt_layer_spec
   (peSrc : Array U16 256#usize)
   (k : Usize) (len : Usize)
   (hWf : wfArray peSrc)
@@ -636,7 +638,7 @@ theorem SymCryptMlKemPolyElementINTTLayer_spec
   (hk : k.val + 1 = 256 / len.val)
   (hLenPos : 0 < len.val)
   :
-  ∃ peSrc', SymCryptMlKemPolyElementINTTLayer peSrc k len = ok peSrc' ∧
+  ∃ peSrc', poly_element_intt_layer peSrc k len = ok peSrc' ∧
   to_poly peSrc' = SpecAux.invNttLayer (to_poly peSrc) k.val len.val 0 hLenPos ∧
   wfArray peSrc'
   := by
@@ -650,8 +652,8 @@ theorem SymCryptMlKemPolyElementINTTLayer_spec
     rw [this]
     fsimp [step]
     scalar_tac
-  have := SymCryptMlKemPolyElementINTTLayerC_loop_spec step (by scalar_tac) 0 (by fsimp)
-  unfold SymCryptMlKemPolyElementINTTLayer
+  have := poly_element_intt_layer_c_loop_spec step (by scalar_tac) 0 (by fsimp)
+  unfold poly_element_intt_layer
   have hLen' : 2 ^ (len.val.log2 - 1 + 1) = len.val := by
     have : len.val.log2 - 1 + 1 = len.val.log2 := by omega
     rw [this]
@@ -660,19 +662,19 @@ theorem SymCryptMlKemPolyElementINTTLayer_spec
   fsimp [*]
 
 @[local progress]
-theorem SymCryptMlKemPolyElementINTTAndMulR_loop_spec_aux
+theorem poly_element_intt_and_mul_r_loop_spec_aux
   (peSrc : Std.Array U16 256#usize) (i : Usize)
   (hi : i.val ≤ 256) (hWf : wfArray peSrc) :
-  ∃ peSrc', SymCryptMlKemPolyElementINTTAndMulR_loop peSrc i = ok peSrc' ∧
+  ∃ peSrc', poly_element_intt_and_mul_r_loop peSrc i = ok peSrc' ∧
   (∀ (j : Nat), j < i.val → (to_poly peSrc')[j]! = (to_poly peSrc)[j]!) ∧
   (∀ (j : Nat), i.val ≤ j → j < 256 →
     (to_poly peSrc')[j]! = (to_poly peSrc)[j]! * (3303 : Spec.Zq) * 2^16) ∧
   wfArray peSrc' := by
-  rw [SymCryptMlKemPolyElementINTTAndMulR_loop]
+  unfold poly_element_intt_and_mul_r_loop
   fsimp
   split <;> rename_i h
   . progress as ⟨ x ⟩
-    progress with SymCryptMlKemMontMul_spec as ⟨ xTimes ⟩
+    progress with mont_mul_spec as ⟨ xTimes ⟩
     progress as ⟨ xTimes', hxTimes' ⟩
     progress as ⟨ peSrc1, hPeSrc1 ⟩
     progress as ⟨ i1 ⟩
@@ -699,9 +701,9 @@ termination_by 256 - i.val
 decreasing_by scalar_decr_tac
 
 @[local progress]
-theorem SymCryptMlKemPolyElementINTTAndMulR_loop_spec (peSrc : Std.Array U16 256#usize)
+theorem poly_element_intt_and_mul_r_loop_spec (peSrc : Std.Array U16 256#usize)
   (hWf : wfArray peSrc) :
-  ∃ peSrc', SymCryptMlKemPolyElementINTTAndMulR_loop peSrc 0#usize = ok peSrc' ∧
+  ∃ peSrc', poly_element_intt_and_mul_r_loop peSrc 0#usize = ok peSrc' ∧
   to_poly peSrc' = (to_poly peSrc) * (3303 : Spec.Zq) * (2^16 : Spec.Zq) ∧
   wfArray peSrc' := by
   progress as ⟨ peSrc', _, h ⟩
@@ -713,12 +715,12 @@ theorem SymCryptMlKemPolyElementINTTAndMulR_loop_spec (peSrc : Std.Array U16 256
   . fsimp [*]
 
 @[progress]
-theorem SymCryptMlKemPolyElementINTTAndMulR_spec (peSrc : Std.Array U16 256#usize)
+theorem poly_element_intt_and_mul_r_spec (peSrc : Std.Array U16 256#usize)
   (hWf : wfArray peSrc) :
-  ∃ peSrc1, SymCryptMlKemPolyElementINTTAndMulR peSrc = ok peSrc1 ∧
+  ∃ peSrc1, poly_element_intt_and_mul_r peSrc = ok peSrc1 ∧
   to_poly peSrc1 = Spec.invNtt (to_poly peSrc) * (2^16 : Spec.Zq) ∧ wfArray peSrc1
   := by
-  unfold SymCryptMlKemPolyElementINTTAndMulR
+  unfold poly_element_intt_and_mul_r
   progress* by fsimp [Nat.log2]
   rw [← SpecAux.invNtt_eq]
   unfold SpecAux.invNtt
@@ -729,8 +731,8 @@ theorem SymCryptMlKemPolyElementINTTAndMulR_spec (peSrc : Std.Array U16 256#usiz
 -/
 
 -- TODO: move
-@[local scalar_tac (x &&& Rmask).val]
-private theorem and_Rmask (x : U32) : (x &&& Rmask).val ≤ 65535 := by bv_tac 32
+@[local scalar_tac (x &&& RMASK).val]
+private theorem and_RMASK (x : U32) : (x &&& RMASK).val ≤ 65535 := by bv_tac 32
 
 -- TODO: we need to make this more convenient, and improve reasoning about non linear arithmetic
 private theorem Zq_mul_in_bounds (a b : U32) :
@@ -754,12 +756,12 @@ section
       red(a1b1) *
    -/
   private def mul_acc_mont_reduce (i : Usize) (a1b1 : U32) : Result U32 := do
-    let i12 ← ((core.num.U32.wrapping_mul a1b1 NegQInvModR) : Result U32)
-    let inv ← (↑(i12 &&& Rmask) : Result U32)
+    let i12 ← ((core.num.U32.wrapping_mul a1b1 NEG_Q_INV_MOD_R) : Result U32)
+    let inv ← (↑(i12 &&& RMASK) : Result U32)
     let i13 ← inv * Q
     let i14 ← a1b1 + i13
-    let a1b11 ← i14 >>> Rlog2
-    let i15 ← zetaTwoTimesBitRevPlus1TimesR.index_usize i
+    let a1b11 ← i14 >>> RLOG2
+    let i15 ← ZETA_TO_TIMES_BIT_REV_PLUS_1_TIMES_R.index_usize i
     let i16 ← (↑(UScalar.cast UScalarTy.U32 i15) : Result U32)
     let a1b1zetapow ← a1b11 * i16
     pure a1b1zetapow
@@ -767,12 +769,12 @@ section
   -- TODO: automate the refold
   private theorem fold_mul_acc_mont_reduce (i : Usize) (a1b1 : U32) (f : U32 → Result α) :
     (do
-      let i12 ← ((core.num.U32.wrapping_mul a1b1 NegQInvModR) : Result U32)
-      let inv ← (↑(i12 &&& Rmask) : Result U32)
+      let i12 ← ((core.num.U32.wrapping_mul a1b1 NEG_Q_INV_MOD_R) : Result U32)
+      let inv ← (↑(i12 &&& RMASK) : Result U32)
       let i13 ← inv * Q
       let i14 ← a1b1 + i13
-      let a1b11 ← i14 >>> Rlog2
-      let i15 ← zetaTwoTimesBitRevPlus1TimesR.index_usize i
+      let a1b11 ← i14 >>> RLOG2
+      let i15 ← ZETA_TO_TIMES_BIT_REV_PLUS_1_TIMES_R.index_usize i
       let i16 ← (↑(UScalar.cast UScalarTy.U32 i15) : Result U32)
       let a1b1zetapow ← a1b11 * i16
       f a1b1zetapow) =
@@ -799,7 +801,7 @@ section
     /- First step: reduce a1b1 -/
     let* ⟨ i12, i12_post ⟩ ← core.num.U32.wrapping_mul.progress_spec
     let* ⟨ inv, inv_post_1, inv_post_2 ⟩ ← UScalar.and_spec
-    have : inv.val = (a1b1.val * NegQInvModR.val) % 2^16 := by fsimp [U32.size, U32.numBits, *]
+    have : inv.val = (a1b1.val * NEG_Q_INV_MOD_R.val) % 2^16 := by fsimp [U32.size, U32.numBits, *]
     let* ⟨ i13, i13_post_1, i13_post_2 ⟩ ← U32.mul_bv_spec
     let* ⟨ i14, i14_post_1, i14_post_2 ⟩ ← U32.add_bv_spec
     let* ⟨ a1b11, a1b11_post ⟩ ← U32.ShiftRight_spec
@@ -825,7 +827,7 @@ section
        scalar_tac
 
     /- Second step: multiply by ζ^(2*bitRev(i) + 1) -/
-    let* ⟨ i15, i15_post_1, i15_post ⟩ ← Symcrust.ntt.zetaTwoTimesBitRevPlus1TimesR_spec
+    let* ⟨ i15, i15_post_1, i15_post ⟩ ← ZETA_TO_TIMES_BIT_REV_PLUS_1_TIMES_R_spec
     let* ⟨ i16, i16_post ⟩ ← UScalar.cast_inBounds_spec
     have hpost1 : a1b11.val * i16.val ≤ 3498 * 3328 := by scalar_tac +nonLin
     let* ⟨ a1b1zetapow, a1b1zetapow_post, a1b1zetapow_post_2 ⟩ ← U32.mul_bv_spec
@@ -967,7 +969,7 @@ section
   @[simp, scalar_tac_simps]
   abbrev montMulStepBound : Nat := 3328 * 3328 + 3328 * 3498
 
-  theorem SymCryptMlKemPolyElementMulAndAccumulate_loop_spec
+  theorem poly_element_mul_and_accumulate_loop_spec
     (peSrc1 peSrc2 : Array U16 256#usize)
     (paDst0 paDst : Array U32 256#usize) (i0 : Nat) (i : Usize)
     (B0 : Nat)
@@ -976,15 +978,12 @@ section
     (hwf3 : wfAcc peSrc1 peSrc2 B0 montMulStepBound i0 paDst0 paDst)
     (hi : i0 = i.val)
     :
-    ∃ paDst', SymCryptMlKemPolyElementMulAndAccumulate_loop peSrc1 peSrc2 paDst i = ok paDst' ∧
+    ∃ paDst', poly_element_mul_and_accumulate_loop peSrc1 peSrc2 paDst i = ok paDst' ∧
     wfAcc peSrc1 peSrc2 B0 montMulStepBound 128 paDst0 paDst'
     := by
-    unfold SymCryptMlKemPolyElementMulAndAccumulate_loop
+    unfold poly_element_mul_and_accumulate_loop
     fsimp only [fold_mul_acc_mont_reduce, fold_update_acc]
     fsimp -- TODO: why is this call to `simp` so slow? (1.1s, and 3.1s if the maxDischargeDepth := 2)
-    -- TODO: fix the syntax so that we do not need parentheses
-    -- TODO: it seems that when the goal is not proven by the precondition tactic, it doesn't
-    -- leave it unchanged
     progress* by (fsimp [*]; ring_nf)
     . -- TODO: why does sassumption fail?
       assumption
@@ -994,10 +993,10 @@ section
   decreasing_by scalar_decr_tac
 end
 
-attribute [local progress] SymCryptMlKemPolyElementMulAndAccumulate_loop_spec
+attribute [local progress] poly_element_mul_and_accumulate_loop_spec
 
 @[local progress]
-theorem SymCryptMlKemPolyElementMulAndAccumulate_spec
+theorem poly_element_mul_and_accumulate_spec
   (peSrc1 peSrc2 : Array U16 256#usize)
   (paDst : Array U32 256#usize)
   (B0 : Nat)
@@ -1005,10 +1004,10 @@ theorem SymCryptMlKemPolyElementMulAndAccumulate_spec
   (hb0 : B0 + montMulStepBound ≤ U32.max)
   (hwf1 : wfArray peSrc1) (hwf2 : wfArray peSrc2)
   :
-  ∃ paDst', SymCryptMlKemPolyElementMulAndAccumulate peSrc1 peSrc2 paDst = ok paDst' ∧
+  ∃ paDst', poly_element_mul_and_accumulate peSrc1 peSrc2 paDst = ok paDst' ∧
   wfAcc peSrc1 peSrc2 B0 montMulStepBound 128 paDst paDst'
   := by
-  unfold SymCryptMlKemPolyElementMulAndAccumulate
+  unfold poly_element_mul_and_accumulate
   have hwf := wfAcc_zero peSrc1 peSrc2 B0 montMulStepBound paDst hBounds
   progress as ⟨ paDst1, hPost ⟩
   apply hPost
@@ -1032,21 +1031,21 @@ section
       red(a1b1) *
    -/
   private def reduce_add_mont_reduce (a : U32) : Result U32 := do
-    let i2 ← core.num.U32.wrapping_mul a ntt.NegQInvModR
-    let inv ← (↑(i2 &&& ntt.Rmask) : Result U32)
+    let i2 ← core.num.U32.wrapping_mul a ntt.NEG_Q_INV_MOD_R
+    let inv ← (↑(i2 &&& ntt.RMASK) : Result U32)
     let i3 ← inv * ntt.Q
     let i4 ← a + i3
-    let a1 ← i4 >>> ntt.Rlog2
+    let a1 ← i4 >>> ntt.RLOG2
     pure a1
 
   -- TODO: automate the refold
   private theorem fold_reduce_add_mont_reduce (a : U32) (f : U32 → Result α) :
     (do
-      let i2 ← core.num.U32.wrapping_mul a ntt.NegQInvModR
-      let inv ← (↑(i2 &&& ntt.Rmask) : Result U32)
+      let i2 ← core.num.U32.wrapping_mul a ntt.NEG_Q_INV_MOD_R
+      let inv ← (↑(i2 &&& ntt.RMASK) : Result U32)
       let i3 ← inv * ntt.Q
       let i4 ← a + i3
-      let a1 ← i4 >>> ntt.Rlog2
+      let a1 ← i4 >>> ntt.RLOG2
       f a1) =
     (do
       let a1 ← reduce_add_mont_reduce a
@@ -1149,7 +1148,7 @@ section
 
   -- TODO: better elaboration of let (x, y) ← ...
 
-  theorem SymCryptMlKemMontgomeryReduceAndAddPolyElementAccumulatorToPolyElement_loop_spec
+  theorem montgomery_reduce_and_add_poly_element_accumulator_to_poly_element_loop_spec
     (paSrc0 paSrc : Array U32 256#usize)
     (paDst0 paDst : Array U16 256#usize)
     (i : Usize)
@@ -1164,13 +1163,13 @@ section
     (hdstEndEq : ∀ j ≥ i.val, j < 256 → paDst[j]!.val = paDst0[j]!)
     --
     :
-    ∃ paSrc1 paDst1, SymCryptMlKemMontgomeryReduceAndAddPolyElementAccumulatorToPolyElement_loop paSrc paDst i = ok (paSrc1, paDst1) ∧
+    ∃ paSrc1 paDst1, montgomery_reduce_and_add_poly_element_accumulator_to_poly_element_loop paSrc paDst i = ok (paSrc1, paDst1) ∧
     --
     (∀ j < 256, paSrc1[j]! = 0#u32) ∧
     (∀ j < 256, paDst1[j]!.val ≤ 3328) ∧
     (∀ j < 256, (paDst1[j]!.val : Spec.Zq) = (paDst0[j]!.val : Spec.Zq) + (paSrc0[j]!.val : Spec.Zq) * 169)
     := by
-    unfold SymCryptMlKemMontgomeryReduceAndAddPolyElementAccumulatorToPolyElement_loop
+    unfold montgomery_reduce_and_add_poly_element_accumulator_to_poly_element_loop
     fsimp only [fold_reduce_add_mont_reduce, fold_reduce_add_normalize]
     fsimp -- TODO: why is this call to `simp` so slow? (1.1s, and 3.1s if the maxDischargeDepth := 2)
 
@@ -1231,7 +1230,7 @@ section
         dcases hji : j = i.val + 1 <;> fsimp [*] <;> simp_lists [hdstEndEq]
 
       let* ⟨ res_1, res_2, res_post_1, res_post_2, res_post_3 ⟩ ←
-        SymCryptMlKemMontgomeryReduceAndAddPolyElementAccumulatorToPolyElement_loop_spec paSrc0 paSrc1 paDst0 paDst1
+        montgomery_reduce_and_add_poly_element_accumulator_to_poly_element_loop_spec paSrc0 paSrc1 paDst0 paDst1
       fsimp
       split_conjs
       . apply res_post_1
@@ -1247,10 +1246,10 @@ section
 
 end
 
-attribute [local progress] SymCryptMlKemMontgomeryReduceAndAddPolyElementAccumulatorToPolyElement_loop_spec
+attribute [local progress] montgomery_reduce_and_add_poly_element_accumulator_to_poly_element_loop_spec
 
 @[local progress]
-theorem SymCryptMlKemMontgomeryReduceAndAddPolyElementAccumulatorToPolyElement_spec
+theorem montgomery_reduce_and_add_poly_element_accumulator_to_poly_element_spec
     (paSrc : Array U32 256#usize)
     (paDst : Array U16 256#usize)
     -- Assumptions about the source
@@ -1259,15 +1258,15 @@ theorem SymCryptMlKemMontgomeryReduceAndAddPolyElementAccumulatorToPolyElement_s
     (hdst : ∀ j < 256, paDst[j]!.val ≤ 3328)
     --
     :
-    ∃ paSrc1 paDst1, SymCryptMlKemMontgomeryReduceAndAddPolyElementAccumulatorToPolyElement paSrc paDst = ok (paSrc1, paDst1) ∧
+    ∃ paSrc1 paDst1, montgomery_reduce_and_add_poly_element_accumulator_to_poly_element paSrc paDst = ok (paSrc1, paDst1) ∧
     --
     (∀ j < 256, paSrc1[j]! = 0#u32) ∧
     (∀ j < 256, paDst1[j]!.val ≤ 3328) ∧
     (∀ j < 256, (paDst1[j]!.val : Spec.Zq) = (paDst[j]!.val : Spec.Zq) + (paSrc[j]!.val : Spec.Zq) * 169) := by
-    unfold SymCryptMlKemMontgomeryReduceAndAddPolyElementAccumulatorToPolyElement
+    unfold montgomery_reduce_and_add_poly_element_accumulator_to_poly_element
 
     -- TODO: progress by
-    progress with SymCryptMlKemMontgomeryReduceAndAddPolyElementAccumulatorToPolyElement_loop_spec paSrc paSrc paDst paDst as ⟨ paSrc1, paDst1 ⟩
+    progress with montgomery_reduce_and_add_poly_element_accumulator_to_poly_element_loop_spec paSrc paSrc paDst paDst as ⟨ paSrc1, paDst1 ⟩
     . fsimp at *; assumption
     . fsimp at *; assumption
     . -- Post-condition
@@ -1278,28 +1277,25 @@ theorem SymCryptMlKemMontgomeryReduceAndAddPolyElementAccumulatorToPolyElement_s
 # MulR
 -/
 
-attribute [-progress] SymCryptMlKemMontMul_twiddle_spec -- TODO: this shouldn't be marked with `progress`
-attribute [local progress] SymCryptMlKemMontMul_spec
-
-@[simp, bvify_simps, scalar_tac_simps] theorem Rsqr_eq : Rsqr = 1353#u32 := by prove_eval_global
-@[simp, bvify_simps, scalar_tac_simps] theorem RsqrTimesNegQInvModR_eq : RsqrTimesNegQInvModR = 44983#u32 := by prove_eval_global
+attribute [-progress] mont_mul_twiddle_spec -- TODO: this shouldn't be marked with `progress`
+attribute [local progress] mont_mul_spec
 
 @[local progress]
-theorem SymCryptMlKemPolyElementMulR_loop_spec
+theorem poly_element_mul_r_loop_spec
   (peSrc : Array U16 256#usize) (peDst : Array U16 256#usize) (i : Usize)
   (hwf : wfArray peSrc)
   :
-  ∃ peDst1, SymCryptMlKemPolyElementMulR_loop peSrc peDst i = ok peDst1 ∧
+  ∃ peDst1, poly_element_mul_r_loop peSrc peDst i = ok peDst1 ∧
   (∀ j < i.val, peDst1[j]! = peDst[j]!) ∧
   (∀ j ≥ i.val, j < 256 → (peDst1[j]! : Spec.Zq) = peSrc[j]! * 2^16) := by
-  unfold SymCryptMlKemPolyElementMulR_loop
+  unfold poly_element_mul_r_loop
   split
   . let* ⟨ i1, i1_post_1, i1_post_2 ⟩ ← wfArray_index
-    let* ⟨ i3, i3_post_1, i3_post_2 ⟩ ← SymCryptMlKemMontMul_spec
+    let* ⟨ i3, i3_post_1, i3_post_2 ⟩ ← mont_mul_spec
     let* ⟨ i4, i4_post ⟩ ← UScalar.cast_inBounds_spec
     let* ⟨ peDst1, peDst1_post ⟩ ← Array.update_spec
     let* ⟨ i5, i5_post ⟩ ← Usize.add_spec
-    let* ⟨ peDest2, res_post_1, res_post_2 ⟩ ← SymCryptMlKemPolyElementMulR_loop_spec
+    let* ⟨ peDest2, res_post_1, res_post_2 ⟩ ← poly_element_mul_r_loop_spec
     -- TODO: this hould be automated
     split_conjs
     . intros j hj
@@ -1321,12 +1317,12 @@ termination_by 256 - i.val
 decreasing_by scalar_decr_tac
 
 @[local progress]
-theorem SymCryptMlKemPolyElementMulR_spec
+theorem poly_element_mul_r_spec
   (peSrc : Array U16 256#usize) (peDst : Array U16 256#usize)
   (hwf : wfArray peSrc) :
-  ∃ peDst1, SymCryptMlKemPolyElementMulR peSrc peDst = ok peDst1 ∧
+  ∃ peDst1, poly_element_mul_r peSrc peDst = ok peDst1 ∧
   (∀ j < 256, (peDst1[j]!.val : Spec.Zq) = peSrc[j]!.val * 2^16) := by
-  unfold SymCryptMlKemPolyElementMulR
+  unfold poly_element_mul_r
   progress as ⟨ peDst1 ⟩
   -- TODO: this should be automated
   fsimp at *
@@ -1340,23 +1336,23 @@ attribute [scalar_tac_simps] Nat.not_eq Int.not_eq
 attribute [simp_lists_simps] Array.set_val_eq
 
 @[local progress]
-def SymCryptMlKemPolyElementAdd_loop_spec
+def poly_element_add_loop_spec
   (peSrc1 : Array U16 256#usize) (peSrc2 : Array U16 256#usize)
   (peDst : Array U16 256#usize) (i : Usize)
   (hwf1 : wfArray peSrc1) (hwf2 : wfArray peSrc2) :
-  ∃ peDst1, SymCryptMlKemPolyElementAdd_loop peSrc1 peSrc2 peDst i = ok peDst1 ∧
+  ∃ peDst1, poly_element_add_loop peSrc1 peSrc2 peDst i = ok peDst1 ∧
   (∀ j < i.val, peDst1[j]!.val = peDst[j]!.val) ∧
   (∀ j ≥ i.val, j < 256 → peDst1[j]!.val ≤ 3328) ∧
   (∀ j ≥ i.val, j < 256 → (peDst1[j]!.val : Spec.Zq) = peSrc1[j]! + peSrc2[j]!) := by
-  unfold SymCryptMlKemPolyElementAdd_loop
+  unfold poly_element_add_loop
   split
   . let* ⟨ i1, i1_post_1, i1_post_2 ⟩ ← wfArray_index
     let* ⟨ i3, i3_post_1, i3_post_2 ⟩ ← wfArray_index
-    let* ⟨ i5, i5_post_1, i5_post_2 ⟩ ← SymCryptMlKemModAdd'_spec
+    let* ⟨ i5, i5_post_1, i5_post_2 ⟩ ← mod_add'_spec
     let* ⟨ i6, i6_post ⟩ ← UScalar.cast_inBounds_spec
     let* ⟨ peDst1, peDst1_post ⟩ ← Array.update_spec -- TODO: by default it is wfArray_update
     let* ⟨ i7, i7_post ⟩ ← Usize.add_spec
-    let* ⟨ peDst2, peDst2_post_1, peDst2_post_2, peDst2_post_3 ⟩ ← SymCryptMlKemPolyElementAdd_loop_spec
+    let* ⟨ peDst2, peDst2_post_1, peDst2_post_2, peDst2_post_3 ⟩ ← poly_element_add_loop_spec
     -- TODO: this should be automated
     fsimp at *
     split_conjs
@@ -1376,14 +1372,14 @@ termination_by 256 - i.val
 decreasing_by scalar_decr_tac
 
 @[local progress]
-def SymCryptMlKemPolyElementAdd_spec
+def poly_element_add_spec
   (peSrc1 : Array U16 256#usize) (peSrc2 : Array U16 256#usize)
   (peDst : Array U16 256#usize)
   (hwf1 : wfArray peSrc1) (hwf2 : wfArray peSrc2) :
-  ∃ peDst1, SymCryptMlKemPolyElementAdd peSrc1 peSrc2 peDst = ok peDst1 ∧
+  ∃ peDst1, poly_element_add peSrc1 peSrc2 peDst = ok peDst1 ∧
   (∀ j < 256, peDst1[j]!.val ≤ 3328) ∧
   (∀ j < 256, (peDst1[j]!.val : Spec.Zq) = peSrc1[j]!.val + peSrc2[j]!.val) := by
-  unfold SymCryptMlKemPolyElementAdd
+  unfold poly_element_add
   progress
   -- TODO: this should be automated
   fsimp at *
@@ -1393,23 +1389,23 @@ def SymCryptMlKemPolyElementAdd_spec
 # Sub
 -/
 @[local progress]
-def SymCryptMlKemPolyElementSub_loop_spec
+def poly_element_sub_loop_spec
   (peSrc1 : Array U16 256#usize) (peSrc2 : Array U16 256#usize)
   (peDst : Array U16 256#usize) (i : Usize)
   (hwf1 : wfArray peSrc1) (hwf2 : wfArray peSrc2) :
-  ∃ peDst1, SymCryptMlKemPolyElementSub_loop peSrc1 peSrc2 peDst i = ok peDst1 ∧
+  ∃ peDst1, poly_element_sub_loop peSrc1 peSrc2 peDst i = ok peDst1 ∧
   (∀ j < i.val, peDst1[j]!.val = peDst[j]!.val) ∧
   (∀ j ≥ i.val, j < 256 → peDst1[j]!.val ≤ 3328) ∧
   (∀ j ≥ i.val, j < 256 → (peDst1[j]!.val : Spec.Zq) = peSrc1[j]! - peSrc2[j]!) := by
-  unfold SymCryptMlKemPolyElementSub_loop
+  unfold poly_element_sub_loop
   split
   . let* ⟨ i1, i1_post_1, i1_post_2 ⟩ ← wfArray_index
     let* ⟨ i3, i3_post_1, i3_post_2 ⟩ ← wfArray_index
-    let* ⟨ i5, i5_post_1, i5_post_2 ⟩ ← SymCryptMlKemModSub'_spec
+    let* ⟨ i5, i5_post_1, i5_post_2 ⟩ ← mod_sub'_spec
     let* ⟨ i6, i6_post ⟩ ← UScalar.cast_inBounds_spec
     let* ⟨ peDst1, peDst1_post ⟩ ← Array.update_spec -- TODO: by default it is wfArray_update
     let* ⟨ i7, i7_post ⟩ ← Usize.add_spec
-    let* ⟨ peDst2, peDst2_post_1, peDst2_post_2, peDst2_post_3 ⟩ ← SymCryptMlKemPolyElementSub_loop_spec
+    let* ⟨ peDst2, peDst2_post_1, peDst2_post_2, peDst2_post_3 ⟩ ← poly_element_sub_loop_spec
     -- TODO: this should be automated
     fsimp at *
     split_conjs
@@ -1429,14 +1425,14 @@ termination_by 256 - i.val
 decreasing_by scalar_decr_tac
 
 @[local progress]
-def SymCryptMlKemPolyElementSub_spec
+def poly_element_sub_spec
   (peSrc1 : Array U16 256#usize) (peSrc2 : Array U16 256#usize)
   (peDst : Array U16 256#usize)
   (hwf1 : wfArray peSrc1) (hwf2 : wfArray peSrc2) :
-  ∃ peDst1, SymCryptMlKemPolyElementSub peSrc1 peSrc2 peDst = ok peDst1 ∧
+  ∃ peDst1, poly_element_sub peSrc1 peSrc2 peDst = ok peDst1 ∧
   (∀ j < 256, peDst1[j]!.val ≤ 3328) ∧
   (∀ j < 256, (peDst1[j]!.val : Spec.Zq) = peSrc1[j]!.val - peSrc2[j]!.val) := by
-  unfold SymCryptMlKemPolyElementSub
+  unfold poly_element_sub
   progress
   -- TODO: this should be automated
   fsimp at *
