@@ -38,5 +38,32 @@ def zeroize.ZeroizeArray.zeroize
 def zeroize.Zeroize.Blanket.zeroize
   {Z : Type} (DefaultIsZeroesInst : zeroize.DefaultIsZeroes Z) : Z → Result Z := sorry
 
+-- TODO: we shouldn't have this
+/- [symcrust::common::{core::cmp::PartialEq<symcrust::common::Error> for symcrust::common::Error}#2::ne]:
+   Source: '/rustc/library/core/src/cmp.rs', lines 261:4-261:37 -/
+def common.PartialEqsymcrustcommonErrorsymcrustcommonError.ne
+  : common.Error → common.Error → Result Bool := sorry
+
+-- TODO: we shouldn't have this
+/- [symcrust::key::{core::cmp::PartialEq<symcrust::key::Params> for symcrust::key::Params}#3::ne]:
+   Source: '/rustc/library/core/src/cmp.rs', lines 261:4-261:37 -/
+def key.PartialEqsymcrustkeyParamssymcrustkeyParams.ne
+  : key.Params → key.Params → Result Bool := sorry
+
+-- TODO: we shouldn't have this
+/- [core::array::{core::clone::Clone for @Array<T, N>}#20::clone_from]:
+   Source: '/rustc/library/core/src/array/mod.rs', lines 437:4-437:42
+   Name pattern: [core::array::{core::clone::Clone<[@T; @N]>}::clone_from] -/
+def core.array.CloneArray.clone_from
+  {T : Type} {N : Usize} (cloneCloneInst : core.clone.Clone T) :
+  Array T N → Array T N → Result (Array T N) := sorry
+
+-- TODO: we shouldn't have this
+/- [core::clone::Clone::clone_from]:
+   Source: '/rustc/library/core/src/clone.rs', lines 174:4-174:43
+   Name pattern: [core::clone::Clone::clone_from] -/
+def core.clone.Clone.clone_from.default
+  {Self : Type} (self_clause : core.clone.Clone Self) :
+  Self → Self → Result Self := sorry
 
 namespace Symcrust

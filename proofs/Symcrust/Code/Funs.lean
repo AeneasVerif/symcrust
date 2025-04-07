@@ -10,14 +10,14 @@ set_option linter.unusedVariables false
 
 namespace Symcrust
 
-/- Trait implementation: [symcrust::common::{core::marker::StructuralPartialEq for symcrust::common::Error}#1]
+/- Trait implementation: [symcrust::common::{core::marker::StructuralPartialEq for symcrust::common::Error}#3]
    Source: 'src/common.rs', lines 5:9-5:18 -/
 @[reducible]
 def core.marker.StructuralPartialEqsymcrustcommonError :
   core.marker.StructuralPartialEq common.Error := {
 }
 
-/- [symcrust::common::{core::cmp::PartialEq<symcrust::common::Error> for symcrust::common::Error}#2::eq]:
+/- [symcrust::common::{core::cmp::PartialEq<symcrust::common::Error> for symcrust::common::Error}#4::eq]:
    Source: 'src/common.rs', lines 5:9-5:18 -/
 def common.PartialEqsymcrustcommonErrorsymcrustcommonError.eq
   (self : common.Error) (other : common.Error) : Result Bool :=
@@ -620,17 +620,17 @@ def common.PartialEqsymcrustcommonErrorsymcrustcommonError.eq
     | common.Error.HbsNoOtsKeysLeft => ok (32789#isize = 32788#isize)
     | common.Error.HbsPublicRootMismatch => ok (32789#isize = 32789#isize)
 
-/- Trait implementation: [symcrust::common::{core::cmp::PartialEq<symcrust::common::Error> for symcrust::common::Error}#2]
+/- Trait implementation: [symcrust::common::{core::cmp::PartialEq<symcrust::common::Error> for symcrust::common::Error}#4]
    Source: 'src/common.rs', lines 5:9-5:18 -/
 @[reducible]
 def core.cmp.PartialEqsymcrustcommonErrorsymcrustcommonError :
   core.cmp.PartialEq common.Error common.Error := {
   eq := common.PartialEqsymcrustcommonErrorsymcrustcommonError.eq
-  ne := sorry
+  ne := common.PartialEqsymcrustcommonErrorsymcrustcommonError.ne
 }
 
-/- [symcrust::common::{core::ops::try_trait::FromResidual<core::result::Result<core::convert::Infallible, symcrust::common::Error>> for symcrust::common::Error}::from_residual]:
-   Source: 'src/common.rs', lines 50:4-55:5 -/
+/- [symcrust::common::{core::ops::try_trait::FromResidual<core::result::Result<core::convert::Infallible, symcrust::common::Error>> for symcrust::common::Error}#2::from_residual]:
+   Source: 'src/common.rs', lines 48:4-53:5 -/
 def
   common.FromResidualsymcrustcommonErrorcoreresultResultcoreconvertInfalliblesymcrustcommonError.from_residual
   (r : core.result.Result core.convert.Infallible common.Error) :
@@ -640,8 +640,8 @@ def
   | core.result.Result.Ok _ => ok common.Error.NoError
   | core.result.Result.Err e => ok e
 
-/- Trait implementation: [symcrust::common::{core::ops::try_trait::FromResidual<core::result::Result<core::convert::Infallible, symcrust::common::Error>> for symcrust::common::Error}]
-   Source: 'src/common.rs', lines 49:0-56:1 -/
+/- Trait implementation: [symcrust::common::{core::ops::try_trait::FromResidual<core::result::Result<core::convert::Infallible, symcrust::common::Error>> for symcrust::common::Error}#2]
+   Source: 'src/common.rs', lines 47:0-54:1 -/
 @[reducible]
 def
   core.ops.try_trait.FromResidualsymcrustcommonErrorcoreresultResultcoreconvertInfalliblesymcrustcommonError
@@ -652,7 +652,7 @@ def
 }
 
 /- [symcrust::common::init]:
-   Source: 'src/common.rs', lines 87:0-91:1 -/
+   Source: 'src/common.rs', lines 85:0-89:1 -/
 def common.init : Result Unit :=
   common.SymCryptModuleInit 103#u32 8#u32
 
@@ -690,7 +690,7 @@ def key.PartialEqsymcrustkeyParamssymcrustkeyParams.eq
 def core.cmp.PartialEqsymcrustkeyParamssymcrustkeyParams : core.cmp.PartialEq
   key.Params key.Params := {
   eq := key.PartialEqsymcrustkeyParamssymcrustkeyParams.eq
-  ne := sorry
+  ne := key.PartialEqsymcrustkeyParamssymcrustkeyParams.ne
 }
 
 /- [symcrust::key::INTERNAL_PARAMS_ML_KEM512]

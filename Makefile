@@ -42,7 +42,16 @@ symcrust-aeneas.llbc: $(wildcard */*.rs)
 	  --exclude=core::intrinsics::discriminant_value --exclude=core::marker::DiscriminantKind \
 	  --exclude=core::fmt::Arguments \
 	  --exclude='symcrust::common::{core::fmt::Debug for symcrust::common::Error}::*' \
-	  --exclude='symcrust::common::{core::fmt::Debug for symcrust::common::Error}'
+	  --exclude='symcrust::common::{core::fmt::Debug for symcrust::common::Error}' \
+	  --exclude='core::fmt::Display' \
+	  --exclude='core::fmt::Display::*' \
+	  --exclude='symcrust::common::{core::fmt::Display for symcrust::common::Error}::*' \
+	  --exclude='symcrust::common::{core::fmt::Display for symcrust::common::Error}' \
+	  --exclude='core::error::Error' \
+	  --exclude='core::error::Error::*' \
+          --exclude='symcrust::common::{core::error::Error for symcrust::common::Error}' \
+	  --exclude='symcrust::common::{core::error::Error for symcrust::common::Error}::*' \
+	  --translate-all-methods
 # TODO: `DiscriminantKind` should be eliminated by Charon
 # TODO: why does `core::fmt::Arguments` appear in the crate?
 

@@ -9,16 +9,21 @@ set_option linter.hashCommand false
 set_option linter.unusedVariables false
 open Symcrust
 
+/- [symcrust::common::{core::cmp::PartialEq<symcrust::common::Error> for symcrust::common::Error}#4::ne]:
+   Source: '/rustc/library/core/src/cmp.rs', lines 261:4-261:37 -/
+axiom common.PartialEqsymcrustcommonErrorsymcrustcommonError.ne
+  : common.Error → common.Error → Result Bool
+
 /- [symcrust::common::SymCryptRandom]:
-   Source: 'src/common.rs', lines 70:4-70:58 -/
+   Source: 'src/common.rs', lines 68:4-68:58 -/
 axiom common.SymCryptRandom : MutRawPtr U8 → Usize → Result Unit
 
 /- [symcrust::common::SymCryptModuleInit]:
-   Source: 'src/common.rs', lines 71:4-71:48 -/
+   Source: 'src/common.rs', lines 69:4-69:48 -/
 axiom common.SymCryptModuleInit : U32 → U32 → Result Unit
 
 /- [symcrust::common::random]:
-   Source: 'src/common.rs', lines 74:0-84:1 -/
+   Source: 'src/common.rs', lines 72:0-82:1 -/
 axiom common.random : Slice U8 → Result (common.Error × (Slice U8))
 
 /- [symcrust::hash::shake128_extract]:
@@ -27,6 +32,18 @@ axiom hash.shake128_extract
   :
   hash.HashState → Slice U8 → Bool → Result (hash.HashState × (Slice
     U8))
+
+/- [symcrust::key::{core::cmp::PartialEq<symcrust::key::Params> for symcrust::key::Params}#3::ne]:
+   Source: '/rustc/library/core/src/cmp.rs', lines 261:4-261:37 -/
+axiom key.PartialEqsymcrustkeyParamssymcrustkeyParams.ne
+  : key.Params → key.Params → Result Bool
+
+/- [core::array::{core::clone::Clone for @Array<T, N>}#20::clone_from]:
+   Source: '/rustc/library/core/src/array/mod.rs', lines 437:4-437:42
+   Name pattern: [core::array::{core::clone::Clone<[@T; @N]>}::clone_from] -/
+axiom core.array.CloneArray.clone_from
+  {T : Type} {N : Usize} (cloneCloneInst : core.clone.Clone T) :
+  Array T N → Array T N → Result (Array T N)
 
 /- [symcrust::ntt::slice_to_sub_array]:
    Source: 'src/ntt.rs', lines 631:0-633:1 -/
@@ -45,4 +62,11 @@ axiom zeroize.ZeroizeArray.zeroize
    Name pattern: [zeroize::{zeroize::Zeroize<@Z>}::zeroize] -/
 axiom zeroize.Zeroize.Blanket.zeroize
   {Z : Type} (DefaultIsZeroesInst : zeroize.DefaultIsZeroes Z) : Z → Result Z
+
+/- [core::clone::Clone::clone_from]:
+   Source: '/rustc/library/core/src/clone.rs', lines 174:4-174:43
+   Name pattern: [core::clone::Clone::clone_from] -/
+axiom core.clone.Clone.clone_from.default
+  {Self : Type} (self_clause : core.clone.Clone Self) :
+  Self → Self → Result Self
 
