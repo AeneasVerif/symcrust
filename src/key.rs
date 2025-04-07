@@ -383,6 +383,7 @@ fn key_allocate2(params: Params) -> Result<Box<Key2>, Error> {
 pub(crate) type Key3 = PreKey2<[u64]>;
 
 #[allow(dead_code)]
+#[charon::opaque]
 impl Key3 {
     // FIXME OFFSET COMPUTATIONS INCORRECT HERE SEE KEY2, ABOVE
     pub fn atranspose(&self) -> &[PolyElement] {

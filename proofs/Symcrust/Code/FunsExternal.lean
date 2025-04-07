@@ -10,26 +10,33 @@ set_option linter.unusedVariables false
 
 namespace Symcrust
 
-/- [symcrust::ntt::slice_to_sub_array]:
-   Source: 'src/ntt.rs', lines 665:0-667:1 -/
+/- [symcrust::ntt::slice_to_sub_array] -/
 def ntt.slice_to_sub_array (N : Usize) (s : Slice U8) (i : Usize) : Result (Array U8 N) := sorry
 
-/- [symcrust::ntt::SymCryptShake128Extract]:
-   Source: 'src/ntt.rs', lines 760:0-767:1 -/
-def ntt.SymCryptShake128Extract (_pState : Array U8 0#usize) (_result : Slice U8) (_wipe : Bool) :
-  Result ((Array U8 0#usize) × (Slice U8)) := sorry
+/- [symcrust::common::SymCryptRandom] -/
+def common.SymCryptRandom : MutRawPtr U8 → Usize → Result Unit := sorry
 
-/- [symcrust::ntt::{symcrust::ntt::MATRIX<'a>}::swap]:
-   Source: 'src/ntt.rs', lines 880:4-888:5 -/
-def ntt.MATRIX.swap (matrix : ntt.MATRIX) (i : Usize) (j : Usize) :
-  Result (ntt.MATRIX × (ntt.MATRIX → ntt.MATRIX)) := sorry
+/- [symcrust::common::SymCryptModuleInit] -/
+def common.SymCryptModuleInit : U32 → U32 → Result Unit := sorry
 
-/- [symcrust::ntt::SymCryptMlKemPolyElementMulAndAccumulate_aux]:
-   Source: 'src/ntt.rs', lines 918:0-928:1 -/
-def ntt.SymCryptMlKemPolyElementMulAndAccumulate_aux
-  (matrix : ntt.MATRIX) (nRows : Usize) (i : Usize) (j : Usize)
-  (peSrc2 : Array U16 256#usize)
-  (paTmp : Array U32 256#usize) :
-  Result (ntt.MATRIX × (ntt.MATRIX → ntt.MATRIX) × (Array U32 256#usize)) := sorry
+/- [symcrust::common::random] -/
+def common.random : Slice U8 → Result (common.Error × (Slice U8)) := sorry
+
+/- [symcrust::hash::shake128_extract] -/
+def hash.shake128_extract : hash.HashState → Slice U8 → Bool → Result (hash.HashState × (Slice U8)) := sorry
+
+/- [zeroize::{zeroize::Zeroize for @Array<Z, N>}#4::zeroize]:
+   Source: '/Users/sonho/.cargo/registry/src/index.crates.io-6f17d22bba15001f/zeroize-1.8.1/src/lib.rs', lines 373:4-373:25
+   Name pattern: [zeroize::{zeroize::Zeroize<[@Z; @N]>}::zeroize] -/
+def zeroize.ZeroizeArray.zeroize
+  {Z : Type} {N : Usize} (ZeroizeInst : zeroize.Zeroize Z) :
+  Array Z N → Result (Array Z N) := sorry
+
+/- [zeroize::{zeroize::Zeroize for Z}::zeroize]:
+   Source: '/Users/sonho/.cargo/registry/src/index.crates.io-6f17d22bba15001f/zeroize-1.8.1/src/lib.rs', lines 301:4-301:25
+   Name pattern: [zeroize::{zeroize::Zeroize<@Z>}::zeroize] -/
+def zeroize.Zeroize.Blanket.zeroize
+  {Z : Type} (DefaultIsZeroesInst : zeroize.DefaultIsZeroes Z) : Z → Result Z := sorry
+
 
 namespace Symcrust
