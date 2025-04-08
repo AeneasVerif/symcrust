@@ -63,10 +63,3 @@ axiom zeroize.ZeroizeArray.zeroize
 axiom zeroize.Zeroize.Blanket.zeroize
   {Z : Type} (DefaultIsZeroesInst : zeroize.DefaultIsZeroes Z) : Z → Result Z
 
-/- [core::clone::Clone::clone_from]:
-   Source: '/rustc/library/core/src/clone.rs', lines 174:4-174:43
-   Name pattern: [core::clone::Clone::clone_from] -/
-axiom core.clone.Clone.clone_from.default
-  {Self : Type} (self_clause : core.clone.Clone Self) :
-  Self → Self → Result Self
-

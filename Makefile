@@ -51,9 +51,11 @@ symcrust-aeneas.llbc: $(wildcard */*.rs)
 	  --exclude='core::error::Error::*' \
           --exclude='symcrust::common::{core::error::Error for symcrust::common::Error}' \
 	  --exclude='symcrust::common::{core::error::Error for symcrust::common::Error}::*' \
-	  --translate-all-methods
+	  --translate-all-methods \
+          --include=core::clone::Clone::clone_from
 # TODO: `DiscriminantKind` should be eliminated by Charon
 # TODO: why does `core::fmt::Arguments` appear in the crate?
+# TODO: having to include `Clone::clone_from` is annoying
 
 
 # 3. Transpiling to C via eurydice
