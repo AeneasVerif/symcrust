@@ -1,13 +1,12 @@
 import Symcrust.Code
 import Symcrust.Properties.BarrettReduction
 import Symcrust.Properties.MontReduction
-import Symcrust.Properties.SpecAux
+import Symcrust.Properties.NttSpecAux
 import Symcrust.Properties.NormMod
 
 open Aeneas
 open Std
 open Result
-
 
 namespace Symcrust
 
@@ -1200,7 +1199,6 @@ section
         intro j hj0 hj1
         fsimp at *
         dcases hji : j = i.val + 1 <;> fsimp [*] <;> simp_lists [hsrcEndEq]
-        -- TODO: simp_lists [*]
 
       have : ∀ j ≥ i11.val, j < 256 → paSrc1[j]!.val ≤ reduceAddInputBound := by
         intro j hj0 hj1

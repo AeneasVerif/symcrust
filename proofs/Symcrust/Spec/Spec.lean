@@ -1,117 +1,14 @@
 import Mathlib.Data.List.Defs
 import Mathlib.Data.ZMod.Defs
-import Mathlib.Data.Nat.Bits
 import Aeneas
 import Symcrust.Spec.NatBit
+import Symcrust.Spec.Round
 
 /-!
 The spec of ML-KEM, based on: https://csrc.nist.gov/pubs/fips/203/final
 -/
 
--- TODO: move
-namespace List
-
-def enumerateAux (n : Nat) (i : Nat) : List Nat :=
-  if h: i ≥ n then []
-  else i :: enumerateAux n (i + 1)
-termination_by n - i
-decreasing_by omega
-
-def enumerate (n : Nat) : List Nat := enumerateAux n 0
-
-end List
-
 namespace Symcrust.Spec
-
--- TODO: List.index, update are not useful anymore
-
-@[reducible] def Byte := UInt8
-
-/-- Algorithm 3 -/
-def bitsToBytes (b : List Bool) : List Byte := Id.run do
-  let l := b.length / 8
-  let mut B := List.replicate l 0
-  for i in [:8*l] do
-    B := B.set (i/8) (B.get! (i/8) + ((b.get! i).toUInt8 * ((2 ^(i%8) : Nat).toUInt8)))
-  pure B
-
-/--
-info: [10, 1]
--/
-#guard_msgs in
-#eval bitsToBytes [false, true, false, true, false, false, false, false,
-                   true, false, false, false, false, false, false, false]
-
-/-- Algorithm 4 -/
-def bytesToBits (B : List Byte) : List Bool := Id.run do
-  let l := B.length
-  let mut C := B
-  let mut b : List Bool := List.replicate (8 * l) false
-  for i in [:l] do
-    for j in [:8*l] do
-      b := b.set (8*i + j) ((C.get! i) % 2 ≠ 0)
-      C := C.set i (C.get! i / 2)
-  pure b
-
-#assert let b := [false, true, false, true, false, false, false, false,
-                true, false, false, false, false, false, false, false]
-      bytesToBits (bitsToBytes b) = b
-
--- TODO: algorithm 5: ByteEncode
-
--- TODO: algorithm 6: ByteDecode
-
-@[reducible] def Q : Nat := 3329
-
-namespace SHAKE128
-  axiom Context : Type
-  axiom init : Context
-  axiom absorb : Context → List Byte → Context
-  axiom squeeze : Context → (z:ℕ) → Context × {l : List Byte // l.length = z}
-end SHAKE128
-
-noncomputable def XOF.init := SHAKE128.init
-noncomputable def XOF.absorb := SHAKE128.absorb
-noncomputable def XOF.squeeze := SHAKE128.squeeze
-
-@[reducible] def Zq := ZMod Q
-@[reducible] def Polynomial := { l : List Zq // l.length = 256 }
-
-def Polynomial.zero : Polynomial := ⟨ List.replicate 256 0, by simp only [List.replicate_length] ⟩
-
-def Polynomial.get! (x : Polynomial) (n : ℕ)  : Zq := x.val.get! n
-def Polynomial.set (x : Polynomial) (n : ℕ) (v : Zq) : Polynomial :=
-  ⟨ x.val.set n v, by cases x; simp_all ⟩
-
-/-- This activates nice notations -/
-instance : GetElem Polynomial Nat Zq (fun _ _ => True) where
-  getElem p i _ := p.get! i
-
-instance : HAdd Polynomial Polynomial Polynomial where
-  hAdd f g := ⟨ List.map (fun i => f[i]! + g[i]!) (List.range 256), by simp ⟩
-
-def Polynomial.scalarMul (x : Polynomial) (k : Zq) : Polynomial :=
-  ⟨ x.val.map fun v => v * k,
-    by cases x; simp_all ⟩
-
-instance : HMul Polynomial Zq Polynomial where
-  hMul := Polynomial.scalarMul
-
-/-- Algorithm 7
-TODO: input has length 34
--/
-noncomputable
-def sampleNTT (B : {l : List Byte // l.length = 34 }) : Polynomial := Id.run do
-  let mut ctx := XOF.init
-  ctx := XOF.absorb ctx B
-  let mut j : Nat := 0
-  while j < 256 do
-    sorry
-  sorry
-
--- TODO: algorithm 8
-
-def ζ : ZMod Q := 17
 
 open Aeneas.Notations.SRRange  -- allows the `[0:256:2*len]` notations to desugar to an `SRRange` instead of a `Std.Range`
 open Aeneas.Notations.DivRange -- activates the `[start : >stop : /divisor]` notation
@@ -120,18 +17,245 @@ open Aeneas.Notations.Range    -- activates the `aeneas_range_tactic`, so that w
 
 namespace Notations
 
+  open Parser Lean.Parser Lean.Parser.Term
+
   -- Overload the tactic to discharge the range proof obligations
   scoped macro_rules
-  | `(tactic| aeneas_range_tactic) => `(tactic| simp +zetaDelta [])
+  | `(tactic| aeneas_range_tactic) => `(tactic| scalar_tac)
+
+  -- Overloading the `get_elem_tactic`
+  scoped macro_rules
+  | `(tactic| get_elem_tactic) => `(tactic| aeneas_range_tactic)
+
+  /-scoped syntax "assert" term ";" term : term
 
   scoped macro_rules
-  | `(tactic| aeneas_range_tactic) => `(tactic| simp +zetaDelta [Membership.mem] at *; omega)
+  | `(term| assert $x; $body) => do
+    `(term| have : $x := (by aeneas_range_tactic); $body)-/
+
+  /-@[term_parser] def assertParser := leading_parser:leadPrec
+    withPosition ("assert" >> termParser) >> optSemicolon termParser
+
+  @[macro assertParser] def expandAssert : Lean.Macro := fun stx =>
+  match stx with
+  | `(assert $term; $body) =>
+    `(have : $term := (by aeneas_range_tactic); $body)
+  | _ => Lean.Macro.throwUnsupported-/
+
+  /-syntax assertStx := "assert" term ";" term
+  scoped elab stx:assertStx : term => do
+    match stx with
+    | `(term| assert $x) =>
+      `(term| have : $x := (by aeneas_range_tactic); ())
+    | _ => Lean.Elab.throwUnsupportedSyntax-/
+
+  /-example : Bool :=
+    assert True
+    true-/
 
 end Notations
 
 open Notations
 
-/-- Algorithm 9 -/
+abbrev Byte := UInt8
+abbrev Byte.ofNat := UInt8.ofNat
+
+abbrev Vector.replicate (n : Nat) (x : α) : Vector α n := ⟨ ⟨ List.replicate n x ⟩, by simp ⟩
+
+attribute [scalar_tac_simps] Membership.mem -- TODO: move
+
+-- TODO: move
+@[simp, scalar_tac_simps]
+theorem Fin.val_ofNat{n: Nat}[NeZero n]{x: Nat} :
+  (ofNat(x): Fin n).val = x % n := by simp [OfNat.ofNat, Fin.instOfNat]
+
+-- TODO: move
+@[scalar_tac Fin.val x]
+theorem Fin.val_le {n : Nat} (x : Fin n) :
+  x.val < n := by omega
+
+@[reducible] def Q : Nat := 3329
+@[reducible] def Zq := ZMod Q
+@[reducible] def Polynomial (n : ℕ := Q) := { l : List (ZMod n) // l.length = 256 }
+
+abbrev Polynomial.length {m : ℕ} (p : Polynomial m) : ℕ := p.val.length
+
+@[scalar_tac p.val.length]
+theorem Polynomial.length_eq {m : ℕ} (p : Polynomial m) : p.val.length = 256 := by simp
+
+def Polynomial.zero (n := Q) : Polynomial n := ⟨ List.replicate 256 0, by simp only [List.replicate_length] ⟩
+
+def Polynomial.get! (x : Polynomial m) (n : ℕ)  : ZMod m := x.val.get! n
+
+-- TODO: condition on the length
+def Polynomial.set (x : Polynomial m) (n : ℕ) (v : ZMod m) : Polynomial m :=
+  ⟨ x.val.set n v, by cases x; simp_all ⟩
+
+/-- This activates nice notations -/
+instance : GetElem (Polynomial m) Nat (ZMod m) (fun _ _ => True) where
+  getElem p i _ := p.get! i
+
+instance : HAdd (Polynomial m) (Polynomial m) (Polynomial m) where
+  hAdd f g := ⟨ List.map (fun i => f[i]! + g[i]!) (List.range 256), by simp ⟩
+
+def Polynomial.scalarMul (x : Polynomial n) (k : ZMod n) : Polynomial n :=
+  ⟨ x.val.map fun v => v * k,
+    by cases x; simp_all ⟩
+
+instance : HMul (Polynomial n) (ZMod n) (Polynomial n) where
+  hMul := Polynomial.scalarMul
+
+/-- # Algorithm 3 -/
+def bitsToBytes (l : Nat) {n:Nat} (b : Vector Bool n) (h : n = 8 * l := by ring_nf) : Vector Byte l := Id.run do
+  let mut B := Vector.replicate l 0
+  for h: i in [0:8*l] do
+    B := B.set (i/8) (B[i/8]  + ((b[i]).toUInt8 * ((2 ^(i%8)).toUInt8)))
+  pure B
+
+/--
+info: [10, 1]
+-/
+#guard_msgs in
+#eval (@bitsToBytes 2 16 ⟨ ⟨ [false, true, false, true, false, false, false, false,
+                            true, false, false, false, false, false, false, false] ⟩,
+                           by simp ⟩ (by simp)).toList
+
+/-- # Algorithm 4 -/
+def bytesToBits {l : Nat} (B : Vector Byte l) : Vector Bool (8 * l) := Id.run do
+  let mut C := B
+  let mut b := Vector.replicate (8 * l) false
+  for hi: i in [0:l] do
+    have : i < l := by scalar_tac -- TODO: remove, or introduce nice assert notation
+    for hj: j in [0:8] do
+      b := b.set (8*i + j) ((C[i]) % 2 ≠ 0)
+      C := C.set i (C[i] / 2)
+  pure b
+
+#assert
+  let b : Vector Bool 16 :=
+    ⟨ ⟨ [false, true, false, true, false, false, false, false,
+         true, false, false, false, false, false, false, false] ⟩, by simp ⟩
+  bytesToBits (bitsToBytes 2 b) = b
+
+/-- # Compress -/
+def compress (d : {d: ℕ // d < 12}) (x : Zq) : ZMod (2^d.val) := ⌈ ((2^d.val : ℚ) / (Q : ℚ)) * x.val⌋
+
+/-- # Decompress -/
+def decompress (d : {d: ℕ // d < 12}) (y : ZMod (2^d.val)) : Zq := ⌈ ((Q : ℚ) / (2^d.val : ℚ)) * y.val⌋
+
+/-- # Algorithm 5 -/
+abbrev m (d : ℕ) : ℕ := if d < 12 then 2^d else Q
+def byteEncode (d : ℕ) (F : Polynomial (m d)) : Vector Byte (32 * d) := Id.run do
+  let mut b := Vector.replicate (256 * d) false
+  for hi: i in [0:256] do
+    have : i * d ≤ 255 * d := by scalar_tac +nonLin
+    let mut a : ℕ ← F[i].val
+    for hj: j in [0:d] do
+      have : j < d := by scalar_tac
+      b := b.set (i * d + j) (Bool.ofNat (a % 2)) (by scalar_tac)
+      a := (a - Bool.toNat b[i * d + j]) / 2
+  let B := bitsToBytes (32 * d) b
+  pure B
+
+/-- # Algorithm 6 -/
+def byteDecode {m} (B : Vector Byte (32 * d)) : Polynomial m := Id.run do
+  let b ← bytesToBits B
+  let mut F := Polynomial.zero m
+  for hi: i in [0:256] do
+    have : i * d ≤ 255 * d := by scalar_tac +nonLin
+    F := F.set i (∑ (j : Fin d), (Bool.toNat b[i * d + j]) * 2^j.val)
+  pure F
+
+/-
+# eXtendable-Output Function (XOF)
+-/
+namespace SHAKE128 -- TODO: remove the axioms
+  axiom Context : Type
+  axiom init : Context
+  axiom absorb : Context → List Byte → Context
+  axiom squeeze : Context → (x:ℕ) → Context × Vector Byte (x / 8)
+end SHAKE128
+
+axiom SHA3_512 : List Byte → Vector Byte 32 × Vector Byte 32
+noncomputable def G := SHA3_512
+
+noncomputable def XOF.init := SHAKE128.init
+noncomputable def XOF.absorb := SHAKE128.absorb
+noncomputable def XOF.squeeze (ctx : SHAKE128.Context) (z : Nat) : SHAKE128.Context × Vector Byte z:=
+  let (ctx, out) := SHAKE128.squeeze ctx (8 * z)
+  (ctx, Vector.cast (by simp) out)
+
+/-- # Algorithm 7 -/
+noncomputable -- TODO: remove the noncomputable
+def sampleNTT (B : {l : List Byte // l.length = 34 }) : Polynomial := Id.run do
+  let mut ctx := XOF.init
+  ctx := XOF.absorb ctx B
+  let mut a := Polynomial.zero
+  let mut j : Nat := 0
+  while j < 256 do
+    let (ctx', C) := XOF.squeeze ctx 3
+    ctx := ctx'
+    let d1 : Nat := C[0].val + 256 * (C[1].val % 16)
+    let d2 := C[1].val/16 + 16 * C[2].val
+    if d1 < Q then
+      a := a.set j d1
+      j := j + 1
+    if d2 < Q ∧ j < 256 then
+      a := a.set j d2
+      j := j + 1
+  pure a
+
+/-- # Algorithm 8 -/
+abbrev Η := {η : ℕ // η ∈ ({2, 3}: Set ℕ)}
+
+@[scalar_tac_simps] -- TODO: move
+theorem nat_subset_le_iff (p : ℕ → Prop) (x y : {n : ℕ // p n}) : x ≤ y ↔ x.val ≤ y.val := by rfl
+
+@[scalar_tac_simps] -- TODO: move
+theorem nat_subset_lt_iff (p : ℕ → Prop) (x y : {n : ℕ // p n}) : x < y ↔ x.val < y.val := by rfl
+
+@[scalar_tac_simps] -- TODO: move
+theorem nat_subset_eq_iff (p : ℕ → Prop) (x y : {n : ℕ // p n}) : x = y ↔ x.val = y.val := by
+  cases x; cases y; simp
+
+-- TODO:move
+attribute [scalar_tac_simps] Set.Mem
+
+-- TODO: move
+@[scalar_tac_simps] theorem Set.mem_insert_nat :
+  @insert ℕ (Set ℕ) Set.instInsert x s y ↔ y = x ∨ s y := by rfl
+
+-- TODO: move
+@[scalar_tac_simps] theorem Set.mem_singleton_nat :
+  @singleton ℕ (Set ℕ) Set.instSingletonSet x y ↔ y = x := by rfl
+
+-- TODO: move
+@[scalar_tac_simps] theorem Set.mem_insert_int :
+  @insert ℤ (Set ℤ) Set.instInsert x s y ↔ y = x ∨ s y := by rfl
+
+-- TODO: move
+@[scalar_tac_simps] theorem Set.mem_singleton_int :
+  @singleton ℤ (Set ℤ) Set.instSingletonSet x y ↔ y = x := by rfl
+
+@[scalar_tac η.val]
+theorem H.val (η : Η) : η.val ≤ 3 := by
+  have := η.property
+  scalar_tac
+
+noncomputable -- TODO: remove the noncomputable
+def samplePolyCBD {η:Η} (B : Vector Byte (64 * η)): Polynomial := Id.run do
+  let b := bytesToBits B
+  let mut f := Polynomial.zero
+  for hi: i in [0:256] do
+    have : 2 * i * η ≤ 510 * η := by scalar_tac +nonLin
+    let x := ∑ (j : Fin η), Bool.toNat b[2 * i * η + j]
+    let y := ∑ (j : Fin η), Bool.toNat b[2 * i * η + η + j]
+    f := f.set i (x - y)
+  pure f
+
+def ζ : ZMod Q := 17
+
+/-- # Algorithm 9 -/
 def ntt (f : Polynomial) : Polynomial := Id.run do
   let mut f := f
   let mut i := 1
@@ -145,7 +269,7 @@ def ntt (f : Polynomial) : Polynomial := Id.run do
         f := f.set j (f[j]! + t)
   pure f
 
-/-- Algorithm 10 -/
+/-- # Algorithm 10 -/
 def invNtt (f : Polynomial) : Polynomial := Id.run do
   let mut f := f
   let mut i := 127
@@ -160,13 +284,13 @@ def invNtt (f : Polynomial) : Polynomial := Id.run do
   f := f * (3303 : Zq)
   pure f
 
-/-- Algorithm 12 -/
+/-- # Algorithm 12 -/
 def baseCaseMultiply (a0 a1 b0 b1 γ : Zq) : Zq × Zq :=
   let c0 := a0 * b0 + a1 * b1 * γ
   let c1 := a0 * b1 + a1 * b0
   (c0, c1)
 
-/-- Algorithm 11 -/
+/-- # Algorithm 11 -/
 def multiplyNTTs (f g : Polynomial) : Polynomial := Id.run do
   let mut h : Polynomial := Polynomial.zero
   for i in [0:128] do
@@ -175,5 +299,14 @@ def multiplyNTTs (f g : Polynomial) : Polynomial := Id.run do
     h := h.set (2 * i + 1) c1
   pure h
 
+/-- # Algorithm 13 -/ -- TODO: k ∈ {2,3,4}
+def kpke.keyGen {k : ℕ} (d : Vector Byte 32) : Vector Byte (384 * k + 32) × Vector Byte (384 * k) := Id.run do
+  --let kv : Vector Byte 1 := ⟨ ⟨ [Byte.ofNat k] ⟩, by simp ⟩
+  let (ρ, σ) := G (d.toList ++ [Byte.ofNat k])
+  let mut N := 0
+  for i in [0:k] do
+    for j in [0:k] do
+      sorry -- TODO: we need matrices
+  sorry
 
 end Symcrust.Spec
