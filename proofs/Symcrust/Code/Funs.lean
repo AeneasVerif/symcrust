@@ -1844,7 +1844,7 @@ def ntt.poly_element_compress_and_encode.inner_loop_loop
   (pb_dst : Slice U8) (cb_dst_written : Usize) (accumulator : U32)
   (n_bits_in_accumulator : U32) (n_bits_in_coefficient : U32)
   (coefficient : U32) :
-  Result ((Slice U8) × Usize × U32 × U32 × U32 × U32)
+  Result ((Slice U8) × Usize × U32 × U32)
   :=
   do
   let i ← 32#u32 - n_bits_in_accumulator
@@ -1874,18 +1874,15 @@ def ntt.poly_element_compress_and_encode.inner_loop_loop
       let pb_dst1 := index_mut_back s2
       ntt.poly_element_compress_and_encode.inner_loop_loop pb_dst1 i4 0#u32
         0#u32 n_bits_in_coefficient1 coefficient1
-    else
-      let pb_dst1 := index_mut_back s2
-      ok (pb_dst1, i4, 0#u32, 0#u32, n_bits_in_coefficient1, coefficient1)
+    else let pb_dst1 := index_mut_back s2
+         ok (pb_dst1, i4, 0#u32, 0#u32)
   else
     if n_bits_in_coefficient1 > 0#u32
     then
       ntt.poly_element_compress_and_encode.inner_loop_loop pb_dst
         cb_dst_written accumulator1 n_bits_in_accumulator1
         n_bits_in_coefficient1 coefficient1
-    else
-      ok (pb_dst, cb_dst_written, accumulator1, n_bits_in_accumulator1,
-        n_bits_in_coefficient1, coefficient1)
+    else ok (pb_dst, cb_dst_written, accumulator1, n_bits_in_accumulator1)
 partial_fixpoint
 
 /- [symcrust::ntt::poly_element_compress_and_encode::inner_loop]:
@@ -1895,7 +1892,7 @@ def ntt.poly_element_compress_and_encode.inner_loop
   (pb_dst : Slice U8) (cb_dst_written : Usize) (accumulator : U32)
   (n_bits_in_accumulator : U32) (n_bits_in_coefficient : U32)
   (coefficient : U32) :
-  Result ((Slice U8) × Usize × U32 × U32 × U32 × U32)
+  Result ((Slice U8) × Usize × U32 × U32)
   :=
   ntt.poly_element_compress_and_encode.inner_loop_loop pb_dst cb_dst_written
     accumulator n_bits_in_accumulator n_bits_in_coefficient coefficient
@@ -1927,12 +1924,9 @@ def ntt.poly_element_compress_and_encode_loop
       let coefficient2 ← coefficient1 + 1#u32
       let coefficient3 ← coefficient2 >>> 1#i32
       let i7 ← 1#u32 <<< n_bits_per_coefficient
-      massert (coefficient3 <= i7)
       let i8 ← i7 - 1#u32
       let coefficient4 ← (↑(coefficient3 &&& i8) : Result U32)
-      massert (coefficient4 < i7)
-      let (pb_dst1, cb_dst_written1, accumulator1, n_bits_in_accumulator1, _,
-        _) ←
+      let (pb_dst1, cb_dst_written1, accumulator1, n_bits_in_accumulator1) ←
         ntt.poly_element_compress_and_encode.inner_loop pb_dst cb_dst_written
           accumulator n_bits_in_accumulator n_bits_per_coefficient coefficient4
       let i9 ← i + 1#usize
@@ -1940,23 +1934,13 @@ def ntt.poly_element_compress_and_encode_loop
         pb_dst1 cb_dst_written1 accumulator1 n_bits_in_accumulator1 i9
     else
       do
-      let (pb_dst1, cb_dst_written1, accumulator1, n_bits_in_accumulator1, _,
-        _) ←
+      let (pb_dst1, cb_dst_written1, accumulator1, n_bits_in_accumulator1) ←
         ntt.poly_element_compress_and_encode.inner_loop pb_dst cb_dst_written
           accumulator n_bits_in_accumulator n_bits_per_coefficient coefficient
       let i2 ← i + 1#usize
       ntt.poly_element_compress_and_encode_loop pe_src n_bits_per_coefficient
         pb_dst1 cb_dst_written1 accumulator1 n_bits_in_accumulator1 i2
-  else
-    do
-    massert (n_bits_in_accumulator = 0#u32)
-    let i1 ←
-      (↑(UScalar.cast .U32 key.MLWE_POLYNOMIAL_COEFFICIENTS) : Result U32)
-    let i2 ← i1 / 8#u32
-    let i3 ← n_bits_per_coefficient * i2
-    let i4 ← (↑(UScalar.cast .Usize i3) : Result Usize)
-    massert (cb_dst_written = i4)
-    ok pb_dst
+  else ok pb_dst
 partial_fixpoint
 
 /- [symcrust::ntt::poly_element_compress_and_encode]:

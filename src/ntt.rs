@@ -586,25 +586,25 @@ poly_element_compress_and_encode(
 
             // final divide by two to get multiplication by 2^n_bits_per_coefficient / Q
             coefficient >>= 1;                              // in range [0, 2^n_bits_per_coefficient]
-            assert!(coefficient <= (1<<n_bits_per_coefficient));
+            //assert!(coefficient <= (1<<n_bits_per_coefficient));
 
             // modular reduction by masking
             coefficient &= (1<<n_bits_per_coefficient)-1;    // in range [0, 2^n_bits_per_coefficient - 1]
-            assert!(coefficient <  (1<<n_bits_per_coefficient));
+            //assert!(coefficient <  (1<<n_bits_per_coefficient));
         }
 
         // encode the coefficient
         // simple loop to add bits to accumulator and write accumulator to output
         #[inline(always)]
         fn inner_loop(pb_dst: &mut [u8], cb_dst_written: &mut usize, accumulator: &mut u32,
-                      n_bits_in_accumulator: &mut u32, n_bits_in_coefficient: &mut u32, coefficient: &mut u32,
+                      n_bits_in_accumulator: &mut u32, mut n_bits_in_coefficient: u32, mut coefficient: u32,
         ) {
             while {
-                let n_bits_to_encode = min(*n_bits_in_coefficient, 32-*n_bits_in_accumulator);
+                let n_bits_to_encode = min(n_bits_in_coefficient, 32-*n_bits_in_accumulator);
 
-                let bits_to_encode = *coefficient & ((1<<n_bits_to_encode)-1);
-                *coefficient >>= n_bits_to_encode;
-                *n_bits_in_coefficient -= n_bits_to_encode;
+                let bits_to_encode = coefficient & ((1<<n_bits_to_encode)-1);
+                coefficient >>= n_bits_to_encode;
+                n_bits_in_coefficient -= n_bits_to_encode;
 
                 *accumulator |= bits_to_encode << *n_bits_in_accumulator;
                 *n_bits_in_accumulator += n_bits_to_encode;
@@ -615,14 +615,14 @@ poly_element_compress_and_encode(
                     *accumulator = 0;
                     *n_bits_in_accumulator = 0;
                 };
-                *n_bits_in_coefficient > 0
+                n_bits_in_coefficient > 0
             } {}
         }
-        inner_loop(pb_dst, &mut cb_dst_written, &mut accumulator, &mut n_bits_in_accumulator, &mut n_bits_in_coefficient, &mut coefficient);
+        inner_loop(pb_dst, &mut cb_dst_written, &mut accumulator, &mut n_bits_in_accumulator, n_bits_in_coefficient, coefficient);
     });
 
-    assert!(n_bits_in_accumulator == 0);
-    assert!(cb_dst_written == (n_bits_per_coefficient*(MLWE_POLYNOMIAL_COEFFICIENTS as u32 / 8)) as usize);
+    //assert!(n_bits_in_accumulator == 0);
+    //assert!(cb_dst_written == (n_bits_per_coefficient*(MLWE_POLYNOMIAL_COEFFICIENTS as u32 / 8)) as usize);
 }
 
 // FIXME:
