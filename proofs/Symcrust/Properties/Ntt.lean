@@ -73,11 +73,12 @@ theorem to_poly_set (a : Array U16 256#usize) (i : Usize) (x : U16) :
 theorem to_poly_getElem!_eq (a : Std.Array U16 256#usize) (i : Nat) :
   (to_poly a)[i]! = a.val[i]! := by
   fsimp [to_poly]
-  fsimp [getElem!, decidableGetElem?]
-  conv => lhs; simp only [getElem, Spec.Polynomial.get!]
-  fsimp [getElem!, decidableGetElem?]
-  dcases h: i < 256 <;> simp [h]
-  rfl
+  dcases h: i < 256
+  . simp only [List.Vector.length_val, UScalar.ofNat_val_eq, h, List.getElem!_map_eq]
+  . simp only [not_lt] at h
+    simp only [List.length_map, List.Vector.length_val, UScalar.ofNat_val_eq, h,
+      List.getElem!_default]
+    rfl
 
 @[local simp]
 theorem Nat_mod_3329_mod_4294967296_eq (x : Nat) :
@@ -386,7 +387,8 @@ theorem poly_element_ntt_layer_c_loop_spec
   wfArray peSrc'
   := by
   unfold poly_element_ntt_layer_c_loop
-  dcases hLt: ¬ start < 256#usize <;> fsimp only [hLt] <;> fsimp
+  by_cases hLt: start < 256#usize <;> fsimp only [hLt] <;> fsimp
+  swap
   . unfold SpecAux.nttLayer
     have : ¬ start.val < 256 := by scalar_tac
     fsimp only [this]; fsimp [*]
@@ -545,7 +547,8 @@ theorem poly_element_intt_layer_c_loop_spec
   wfArray peSrc'
   := by
   unfold poly_element_intt_layer_c_loop
-  dcases hLt: ¬ start < 256#usize <;> fsimp only [hLt] <;> fsimp
+  dcases hLt: start < 256#usize <;> fsimp only [hLt] <;> fsimp
+  swap
   . unfold SpecAux.invNttLayer
     have : ¬ start.val < 256 := by scalar_tac
     fsimp only [this]; fsimp [*]
@@ -874,7 +877,7 @@ section
   def wfAcc_zero (f g : Array U16 256#usize) (B0 B1 : Nat) (acc : Array U32 256#usize)
     (h : ∀ j, j < 128 → acc[2 * j]! ≤ B0 ∧ acc[2 * j + 1]! ≤ B0) :
     wfAcc f g B0 B1 0 acc acc := by
-    fsimp [wfAcc]
+    fsimp [wfAcc] at *
     apply h
 
   def wfAcc_128 {f g : Array U16 256#usize} {B0 B1 : Nat} {i : Nat} {acc0 acc : Array U32 256#usize}
@@ -1229,12 +1232,12 @@ section
 
       let* ⟨ res_1, res_2, res_post_1, res_post_2, res_post_3 ⟩ ←
         montgomery_reduce_and_add_poly_element_accumulator_to_poly_element_loop_spec paSrc0 paSrc1 paDst0 paDst1
-      fsimp
+      fsimp at *
       split_conjs
       . apply res_post_1
       . apply res_post_2
       . apply res_post_3
-    . fsimp
+    . fsimp at *
       split_conjs <;> intros j hj
       . apply hsrcBeg; scalar_tac
       . apply hdstBegIneq; scalar_tac

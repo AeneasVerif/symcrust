@@ -16,14 +16,12 @@ open Aeneas
 
 @[simp]
 theorem Polynomial.getElem!_eq  {n} (l : List (ZMod n)) (h : l.length = 256) (i : Nat) :
-  (⟨ l, h ⟩ : Polynomial n)[i]! = l[i]! := by
-  conv => lhs; simp [getElem!, getElem, get!]
-  conv => rhs; simp [getElem!]
+  (⟨ l, h ⟩ : Polynomial n)[i]! = l[i]! := by rfl
+
 
 @[simp]
 theorem Polynomial.set_eq {n} (l : List (ZMod n)) (h : l.length = 256) (i : Nat) (x : ZMod n) :
-  Polynomial.set ⟨ l, h ⟩ i x = (⟨ l.set i x, by simp [h] ⟩ : Polynomial n) := by
-  simp [set]
+  Polynomial.set ⟨ l, h ⟩ i x = (⟨ l.set i x, by simp [h] ⟩ : Polynomial n) := by rfl
 
 theorem Polynomial.eq_iff (f g : Polynomial n) :
   f = g ↔ ∀ i < 256, f[i]! = g[i]! := by

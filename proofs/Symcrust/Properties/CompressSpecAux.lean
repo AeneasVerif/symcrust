@@ -33,7 +33,6 @@ def BitVec.toLEBytes {n : ℕ} (b : BitVec n) : List Byte :=
   else []
 
 def encodeNatToBytes (d : ℕ) (coeff : ℕ) (nBitsInAcc : ℕ) (nBitsInCoeff : ℕ) (acc : List Bool)
-  (hBitsInCoeff : 0 < nBitsInCoeff := by omega)
   (hBitsInAcc : nBitsInAcc < 32 := by omega)
   : List Byte :=
   let nBitsToEncode := min nBitsInCoeff (32 - nBitsInAcc)
@@ -52,11 +51,12 @@ def encodeNatToBytes (d : ℕ) (coeff : ℕ) (nBitsInAcc : ℕ) (nBitsInCoeff : 
 termination_by nBitsInCoeff
 decreasing_by
   scalar_decr_tac
+  scalar_decr_tac
 
 def encodeToBytes (d : ℕ) (f : List ℕ) (bitsInAcc bitsInCoeff : ℕ)
   (acc : List Bool)
   : List Byte :=
-  let nBitsToEncode := min (bitsInCoeff, 32 - bitsInAcc)
+  let nBitsToEncode := min bitsInCoeff (32 - bitsInAcc)
   let bitsToEncode := List.take nBitsToEncode
   sorry
 

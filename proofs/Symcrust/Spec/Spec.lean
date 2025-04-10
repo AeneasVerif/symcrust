@@ -86,7 +86,7 @@ theorem Polynomial.length_eq {m : ℕ} (p : Polynomial m) : p.val.length = 256 :
 
 def Polynomial.zero (n := Q) : Polynomial n := ⟨ List.replicate 256 0, by simp only [List.replicate_length] ⟩
 
-def Polynomial.get! (x : Polynomial m) (n : ℕ)  : ZMod m := x.val.get! n
+def Polynomial.get! (x : Polynomial m) (n : ℕ)  : ZMod m := x.val[n]!
 
 -- TODO: condition on the length
 def Polynomial.set (x : Polynomial m) (n : ℕ) (v : ZMod m) : Polynomial m :=
@@ -94,7 +94,7 @@ def Polynomial.set (x : Polynomial m) (n : ℕ) (v : ZMod m) : Polynomial m :=
 
 /-- This activates nice notations -/
 instance : GetElem (Polynomial m) Nat (ZMod m) (fun _ _ => True) where
-  getElem p i _ := p.get! i
+  getElem p i _ := p.val[i]!
 
 instance : HAdd (Polynomial m) (Polynomial m) (Polynomial m) where
   hAdd f g := ⟨ List.map (fun i => f[i]! + g[i]!) (List.range 256), by simp ⟩
