@@ -57,8 +57,9 @@ end Notations
 
 open Notations
 
-abbrev Byte := UInt8
-abbrev Byte.ofNat := UInt8.ofNat
+abbrev Byte := BitVec 8
+abbrev Byte.ofNat := BitVec.ofNat 8
+abbrev Byte.val (b : Byte) := @BitVec.toNat 8 b
 
 abbrev Vector.replicate (n : Nat) (x : α) : Vector α n := ⟨ ⟨ List.replicate n x ⟩, by simp ⟩
 
@@ -109,11 +110,11 @@ instance : HMul (Polynomial n) (ZMod n) (Polynomial n) where
 def bitsToBytes (l : Nat) {n:Nat} (b : Vector Bool n) (h : n = 8 * l := by ring_nf) : Vector Byte l := Id.run do
   let mut B := Vector.replicate l 0
   for h: i in [0:8*l] do
-    B := B.set (i/8) (B[i/8]  + ((b[i]).toUInt8 * ((2 ^(i%8)).toUInt8)))
+    B := B.set (i/8) (B[i/8]  + BitVec.ofNat 8 (Bool.toNat b[i]) * BitVec.ofNat 8 (2 ^(i%8)))
   pure B
 
 /--
-info: [10, 1]
+info: [10#8, 1#8]
 -/
 #guard_msgs in
 #eval (@bitsToBytes 2 16 ⟨ ⟨ [false, true, false, true, false, false, false, false,
