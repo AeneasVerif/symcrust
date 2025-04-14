@@ -223,17 +223,17 @@ const ZETA_TO_TIMES_BIT_REV_PLUS_1_TIMES_R: [u16; 128] = [
 
 #[inline(always)]
 fn mod_add(a: u32, b: u32) -> u32 {
-    assert!( a < Q );
-    assert!( b < Q );
+    debug_assert!( a < Q );
+    debug_assert!( b < Q );
 
     // In the comments below, we manipulate unbounded integers.
     // res = (a + b) - Q
     let res = (a + b).wrapping_sub(Q); // -Q <= res < Q
-    assert!( ((res >> 16) == 0) || ((res >> 16) == 0xffff) );
+    debug_assert!( ((res >> 16) == 0) || ((res >> 16) == 0xffff) );
     // If res < 0, then: Q & (res >> 16) = Q
     // Otherwise: Q & (res >> 16) = 0
     let res = res.wrapping_add(Q & (res >> 16));
-    assert!( res < Q );
+    debug_assert!( res < Q );
 
     res
 }
@@ -244,18 +244,18 @@ fn mod_sub(a: u32, b: u32) -> u32 {
     // - when we want to substract to field elements which are < Q
     // - when we performed an addition and want to substract Q so
     //   that the result is < Q
-    assert!( a < 2*Q );
-    assert!( b <= Q );
+    debug_assert!( a < 2*Q );
+    debug_assert!( b <= Q );
 
     // In the comments below, we manipulate unbounded integers.
     // res = a - b
     let res = a.wrapping_sub(b); // -Q <= res < 2 * Q
-    assert!( ((res >> 16) == 0) || ((res >> 16) == 0xffff) );
+    debug_assert!( ((res >> 16) == 0) || ((res >> 16) == 0xffff) );
     // If res < 0, then: Q & (res >> 16) = Q
     // Otherwise: Q & (res >> 16) = 0
     let res = res.wrapping_add(Q & (res >> 16));
     // 0 <= res < 2 * Q
-    assert!( res < Q ); // SH: how do we justify this given the bound: a < 2*Q?
+    debug_assert!( res < Q ); // SH: how do we justify this given the bound: a < 2*Q?
     // SH: I believe it depends on the situation: we may have to prove several
     // auxiliary lemmas for this (there are situations where we call this function
     // with a < Q for instance).
@@ -265,15 +265,15 @@ fn mod_sub(a: u32, b: u32) -> u32 {
 
 #[inline(always)]
 fn mont_mul(a: u32, b: u32, b_mont: u32) -> u32 {
-    assert!( a < Q );
-    assert!( b < Q );
-    assert!( b_mont <= RMASK );
-    assert!( b_mont == ((b * NEG_Q_INV_MOD_R) & RMASK) );
+    debug_assert!( a < Q );
+    debug_assert!( b < Q );
+    debug_assert!( b_mont <= RMASK );
+    debug_assert!( b_mont == ((b * NEG_Q_INV_MOD_R) & RMASK) );
 
     let mut res = a * b;
     let inv = (a * b_mont) & RMASK;
     res += inv * Q;
-    assert!( (res & RMASK) == 0 );
+    debug_assert!( (res & RMASK) == 0 );
     res >>= RLOG2;
 
     mod_sub( res, Q )
@@ -292,9 +292,9 @@ fn poly_element_ntt_layer_c(pe_src: &mut PolyElement, mut k: usize, len: usize) 
                       start: usize, twiddle_factor: u32, twiddle_factor_mont: u32) {
             c_for!(let mut j = 0usize; j < len; j += 1; {
                 let mut c0: u32 = pe_src[start+j].into();
-                assert!( c0 < Q );
+                debug_assert!( c0 < Q );
                 let mut c1: u32 = pe_src[start+j+len].into();
-                assert!( c1 < Q );
+                debug_assert!( c1 < Q );
 
                 let c1_times_twiddle: u32 = mont_mul( c1, twiddle_factor, twiddle_factor_mont );
                 c1 = mod_sub( c0, c1_times_twiddle );
@@ -322,9 +322,9 @@ fn poly_element_intt_layer_c(pe_src: &mut PolyElement, mut k: usize, len: usize)
                       start: usize, twiddle_factor: u32, twiddle_factor_mont: u32) {
             c_for!(let mut j = 0; j < len; j += 1; {
                 let c0: u32 = pe_src[start+j].into();
-                assert!( c0 < Q );
+                debug_assert!( c0 < Q );
                 let mut c1: u32 = pe_src[start+j+len].into();
-                assert!( c1 < Q );
+                debug_assert!( c1 < Q );
 
                 let tmp = mod_add( c0, c1 );
                 c1 = mod_sub( c1, c0 );
@@ -355,19 +355,19 @@ fn poly_element_mul_and_accumulate(
     // FIXME
     c_for!(let mut i = 0; i < MLWE_POLYNOMIAL_COEFFICIENTS / 2; i += 1; {
         let a0: u32 = pe_src1[2*i].into();
-        assert!( a0 < Q );
+        debug_assert!( a0 < Q );
         let a1: u32 = pe_src1[2*i+1].into();
-        assert!( a1 < Q );
+        debug_assert!( a1 < Q );
 
         let b0: u32 = pe_src2[2*i  ].into();
-        assert!( b0 < Q );
+        debug_assert!( b0 < Q );
         let b1: u32 = pe_src2[2*i+1].into();
-        assert!( b1 < Q );
+        debug_assert!( b1 < Q );
 
         let mut c0: u32 = pa_dst[2*i];
-        assert!( c0 <= 3*((3328*3328) + (3494*3312)) );
+        debug_assert!( c0 <= 3*((3328*3328) + (3494*3312)) );
         let mut c1: u32 = pa_dst[(2*i)+1];
-        assert!( c1 <= 3*((3328*3328) + (3494*3312)) );
+        debug_assert!( c1 <= 3*((3328*3328) + (3494*3312)) );
 
         // multiplication results in range [0, 3328*3328]
         let mut a0b0: u32 = a0 * b0;
@@ -382,23 +382,23 @@ fn poly_element_mul_and_accumulate(
         // we do not need to do final reduction yet
         let inv : u32= (a1b1.wrapping_mul(NEG_Q_INV_MOD_R)) & RMASK;
         let a1b1: u32 = (a1b1 + (inv * Q)) >> RLOG2; // in range [0, 3494]
-        assert!( a1b1 <= 3494 );
+        debug_assert!( a1b1 <= 3494 );
 
         // now multiply a1b1 by power of zeta
         let a1b1zetapow = a1b1 * (ZETA_TO_TIMES_BIT_REV_PLUS_1_TIMES_R[i] as u32);
 
         // sum pairs of products
         a0b0 += a1b1zetapow;    // a0*b0 + red(a1*b1)*zetapower in range [0, 3328*3328 + 3494*3312]
-        assert!( a0b0 <= (3328*3328) + (3494*3312) );
+        debug_assert!( a0b0 <= (3328*3328) + (3494*3312) );
         a0b1 += a1b0;           // a0*b1 + a1*b0                in range [0, 2*3328*3328]
-        assert!( a0b1 <= 2*3328*3328 );
+        debug_assert!( a0b1 <= 2*3328*3328 );
 
         // We sum at most 4 pairs of products into an accumulator in ML-KEM
-        assert!( MATRIX_MAX_NROWS <= 4 );
+        debug_assert!( MATRIX_MAX_NROWS <= 4 );
         c0 += a0b0; // in range [0,4*3328*3328 + 4*3494*3312]
-        assert!( c0 < (4*3328*3328) + (4*3494*3312) );
+        debug_assert!( c0 < (4*3328*3328) + (4*3494*3312) );
         c1 += a0b1; // in range [0,5*3328*3328 + 3*3494*3312]
-        assert!( c1 < (5*3328*3328) + (3*3494*3312) );
+        debug_assert!( c1 < (5*3328*3328) + (3*3494*3312) );
 
 
         pa_dst[2*i  ] = c0;
@@ -414,28 +414,28 @@ montgomery_reduce_and_add_poly_element_accumulator_to_poly_element(
     // FIXME
     c_for!(let mut i = 0; i < MLWE_POLYNOMIAL_COEFFICIENTS; i += 1; {
         let mut a = pa_src[i];
-        assert!( a <= 4*((3328*3328) + (3494*3312)) );
+        debug_assert!( a <= 4*((3328*3328) + (3494*3312)) );
         pa_src[i] = 0;
 
         let mut c: u32 = pe_dst[i].into();
-        assert!( c < Q );
+        debug_assert!( c < Q );
 
         // montgomery reduce sum of products
         let inv = (a.wrapping_mul(NEG_Q_INV_MOD_R)) & RMASK;
         a = (a + (inv * Q)) >> RLOG2; // in range [0, 4711]
-        assert!( a <= 4711 );
+        debug_assert!( a <= 4711 );
 
         // add destination
         c += a;
-        assert!( c <= 8039 );
+        debug_assert!( c <= 8039 );
 
         // subtraction and conditional additions for constant time range reduction
         c = c.wrapping_sub(2*Q);           // in range [-2Q, 1381]
-        assert!( (c >= ((-2*(Q as i32)) as u32)) || (c < 1381) );
+        debug_assert!( (c >= ((-2*(Q as i32)) as u32)) || (c < 1381) );
         c = c.wrapping_add(Q & (c >> 16)); // in range [-Q, Q-1]
-        assert!( (c >= ((-(Q as i32) as u32))) || (c < Q) );
+        debug_assert!( (c >= ((-(Q as i32) as u32))) || (c < Q) );
         c = c.wrapping_add(Q & (c >> 16)); // in range [0, Q-1]
-        assert!( c < Q );
+        debug_assert!( c < Q );
 
         pe_dst[i] = c as u16;
     });
@@ -540,14 +540,14 @@ poly_element_compress_and_encode(
     let mut accumulator: u32 = 0;
     let mut n_bits_in_accumulator: u32 = 0;
 
-    assert!( n_bits_per_coefficient >  0  );
-    assert!( n_bits_per_coefficient <= 12 );
+    debug_assert!( n_bits_per_coefficient >  0  );
+    debug_assert!( n_bits_per_coefficient <= 12 );
 
     c_for!(let mut i = 0; i < MLWE_POLYNOMIAL_COEFFICIENTS; i += 1;
     {
         let mut n_bits_in_coefficient = n_bits_per_coefficient;
         let mut coefficient: u32 = pe_src[i].into(); // in range [0, Q-1]
-        assert!( coefficient < Q );
+        debug_assert!( coefficient < Q );
 
         // first compress the coefficient
         // when n_bits_per_coefficient < 12 we compress per Compress_d in draft FIPS 203;
@@ -562,11 +562,11 @@ poly_element_compress_and_encode(
 
             // final divide by two to get multiplication by 2^n_bits_per_coefficient / Q
             coefficient >>= 1;                              // in range [0, 2^n_bits_per_coefficient]
-            assert!(coefficient <= (1<<n_bits_per_coefficient));
+            debug_assert!(coefficient <= (1<<n_bits_per_coefficient));
 
             // modular reduction by masking
             coefficient &= (1<<n_bits_per_coefficient)-1;    // in range [0, 2^n_bits_per_coefficient - 1]
-            assert!(coefficient <  (1<<n_bits_per_coefficient));
+            debug_assert!(coefficient <  (1<<n_bits_per_coefficient));
         }
 
         // encode the coefficient
@@ -597,8 +597,8 @@ poly_element_compress_and_encode(
         inner_loop(pb_dst, &mut cb_dst_written, &mut accumulator, &mut n_bits_in_accumulator, &mut n_bits_in_coefficient, &mut coefficient);
     });
 
-    assert!(n_bits_in_accumulator == 0);
-    assert!(cb_dst_written == (n_bits_per_coefficient*(MLWE_POLYNOMIAL_COEFFICIENTS as u32 / 8)) as usize);
+    debug_assert!(n_bits_in_accumulator == 0);
+    debug_assert!(cb_dst_written == (n_bits_per_coefficient*(MLWE_POLYNOMIAL_COEFFICIENTS as u32 / 8)) as usize);
 }
 
 // FIXME:
@@ -621,8 +621,8 @@ poly_element_decode_and_decompress(
     let mut accumulator: u32 = 0;
     let mut n_bits_in_accumulator: u32 = 0;
 
-    assert!( n_bits_per_coefficient >  0  );
-    assert!( n_bits_per_coefficient <= 12 );
+    debug_assert!( n_bits_per_coefficient >  0  );
+    debug_assert!( n_bits_per_coefficient <= 12 );
 
     // FIXME
     c_for!(let mut i = 0; i < MLWE_POLYNOMIAL_COEFFICIENTS; i += 1;
@@ -648,7 +648,7 @@ poly_element_decode_and_decompress(
                 }
 
                 let n_bits_to_decode = min(n_bits_per_coefficient-*n_bits_in_coefficient, *n_bits_in_accumulator);
-                assert!(n_bits_to_decode <= *n_bits_in_accumulator);
+                debug_assert!(n_bits_to_decode <= *n_bits_in_accumulator);
 
                 let bits_to_decode = *accumulator & ((1<<n_bits_to_decode)-1);
                 *accumulator >>= n_bits_to_decode;
@@ -661,7 +661,7 @@ poly_element_decode_and_decompress(
         }
         inner_loop(pb_src, n_bits_per_coefficient, &mut cb_src_read, &mut accumulator,
                    &mut n_bits_in_accumulator, &mut coefficient, &mut n_bits_in_coefficient);
-        assert!(n_bits_in_coefficient == n_bits_per_coefficient);
+        debug_assert!(n_bits_in_coefficient == n_bits_per_coefficient);
 
         // decompress the coefficient
         // when n_bits_per_coefficient < 12 we decompress per Decompress_d in draft FIPS 203
@@ -680,7 +680,7 @@ poly_element_decode_and_decompress(
 
             // modular reduction by conditional subtraction
             coefficient = mod_sub( coefficient, Q );
-            assert!( coefficient < Q );
+            debug_assert!( coefficient < Q );
         }
         else if coefficient > Q
         {
@@ -693,8 +693,8 @@ poly_element_decode_and_decompress(
         pe_dst[i] = coefficient as u16;
     });
 
-    assert!(n_bits_in_accumulator == 0);
-    assert!(cb_src_read == (n_bits_per_coefficient*(MLWE_POLYNOMIAL_COEFFICIENTS as u32 / 8)) as usize);
+    debug_assert!(n_bits_in_accumulator == 0);
+    debug_assert!(cb_src_read == (n_bits_per_coefficient*(MLWE_POLYNOMIAL_COEFFICIENTS as u32 / 8)) as usize);
 
     Error::NoError
 }
@@ -710,7 +710,7 @@ fn poly_element_sample_ntt_from_shake128(
 
     while i<MLWE_POLYNOMIAL_COEFFICIENTS
     {
-        assert!(curr_buf_index <= shake_output_buf.len());
+        debug_assert!(curr_buf_index <= shake_output_buf.len());
         if curr_buf_index == shake_output_buf.len()
         {
             // Note (Rust): shakeOutputBuf[..] seems unnecessary and trips Eurydice (FIXME, see #14)
@@ -742,7 +742,7 @@ fn poly_element_sample_cbd_from_bytes(
 {
     // Note (Rust): using an index rather than incrementing pb_src in place.
     let mut src_i = 0usize;
-    assert!((eta == 2) || (eta == 3));
+    debug_assert!((eta == 2) || (eta == 3));
     if eta == 3
     {
         c_for!(let mut i = 0; i < MLWE_POLYNOMIAL_COEFFICIENTS; i += 4;
@@ -765,10 +765,10 @@ fn poly_element_sample_cbd_from_bytes(
                            let mut coefficient = *sample_bits & 0x3f;
                            *sample_bits >>= 6;
                            coefficient = (coefficient&3).wrapping_sub(coefficient>>3);
-                           assert!((coefficient >= ((-3i32) as u32)) || (coefficient <= 3));
+                           debug_assert!((coefficient >= ((-3i32) as u32)) || (coefficient <= 3));
 
                            coefficient = coefficient.wrapping_add(Q & (coefficient >> 16));     // in range [0, Q-1]
-                           assert!( coefficient < Q );
+                           debug_assert!( coefficient < Q );
 
                            pe_dst[i+j] = coefficient as u16;
                        });
@@ -796,10 +796,10 @@ fn poly_element_sample_cbd_from_bytes(
                            let mut coefficient = *sample_bits & 0xf;
                            *sample_bits >>= 4;
                            coefficient = (coefficient&3).wrapping_sub(coefficient>>2);
-                           assert!((coefficient >= (-2i32 as u32)) || (coefficient <= 2));
+                           debug_assert!((coefficient >= (-2i32 as u32)) || (coefficient <= 2));
 
                            coefficient = coefficient.wrapping_add(Q & (coefficient >> 16));     // in range [0, Q-1]
-                           assert!( coefficient < Q );
+                           debug_assert!( coefficient < Q );
 
                            pe_dst[i+j] = coefficient as u16;
                        });
@@ -815,8 +815,8 @@ fn matrix_transpose(
     n_rows: u8)
 {
     let n_rows = n_rows as usize;
-    assert!( n_rows >  0 );
-    assert!( n_rows <= MATRIX_MAX_NROWS );
+    debug_assert!( n_rows >  0 );
+    debug_assert!( n_rows <= MATRIX_MAX_NROWS );
 
     c_for!(let mut i = 0; i < n_rows; i += 1;
     {
@@ -857,8 +857,8 @@ matrix_vector_mont_mul_and_add(
 {
     let n_rows = n_rows as usize;
 
-    assert!( n_rows >  0 );
-    assert!( n_rows <= MATRIX_MAX_NROWS );
+    debug_assert!( n_rows >  0 );
+    debug_assert!( n_rows <= MATRIX_MAX_NROWS );
     assert_eq!( pv_src2.len(), n_rows );
     assert_eq!( pv_dst.len() ,n_rows );
 
@@ -896,9 +896,9 @@ vector_mont_dot_product(
 {
     let n_rows = pv_src1.len();
 
-    assert!( n_rows >  0 );
-    assert!( n_rows <= MATRIX_MAX_NROWS );
-    assert!( pv_src2.len() == n_rows );
+    debug_assert!( n_rows >  0 );
+    debug_assert!( n_rows <= MATRIX_MAX_NROWS );
+    debug_assert!( pv_src2.len() == n_rows );
 
     // Zero pa_tmp and pe_dst
     pa_tmp.zeroize();
@@ -920,8 +920,8 @@ vector_set_zero(
 {
     let n_rows = pv_src.len();
 
-    assert!( n_rows >  0 );
-    assert!( n_rows <= MATRIX_MAX_NROWS );
+    debug_assert!( n_rows >  0 );
+    debug_assert!( n_rows <= MATRIX_MAX_NROWS );
 
     c_for!(let mut i = 0; i < n_rows; i += 1; {
         pv_src[i].zeroize();
@@ -936,9 +936,9 @@ vector_mul_r(
 {
     let n_rows = pv_src.len();
 
-    assert!( n_rows >  0 );
-    assert!( n_rows <= MATRIX_MAX_NROWS );
-    assert!( pv_dst.len() == n_rows );
+    debug_assert!( n_rows >  0 );
+    debug_assert!( n_rows <= MATRIX_MAX_NROWS );
+    debug_assert!( pv_dst.len() == n_rows );
 
     c_for!(let mut i = 0; i < n_rows; i += 1;
     {
@@ -954,10 +954,10 @@ vector_add(
 {
     let n_rows = pv_src1.len();
 
-    assert!( n_rows >  0 );
-    assert!( n_rows <= MATRIX_MAX_NROWS );
-    assert!( pv_src2.len() == n_rows );
-    assert!( pv_dst.len() == n_rows );
+    debug_assert!( n_rows >  0 );
+    debug_assert!( n_rows <= MATRIX_MAX_NROWS );
+    debug_assert!( pv_src2.len() == n_rows );
+    debug_assert!( pv_dst.len() == n_rows );
 
     c_for!(let mut i = 0; i < n_rows; i += 1;
     {
@@ -973,10 +973,10 @@ vector_sub(
 {
     let n_rows = pv_src1.len();
 
-    assert!( n_rows >  0 );
-    assert!( n_rows <= MATRIX_MAX_NROWS );
-    assert!( pv_src2.len() == n_rows );
-    assert!( pv_dst.len() == n_rows );
+    debug_assert!( n_rows >  0 );
+    debug_assert!( n_rows <= MATRIX_MAX_NROWS );
+    debug_assert!( pv_src2.len() == n_rows );
+    debug_assert!( pv_dst.len() == n_rows );
 
     c_for!(let mut i = 0; i < n_rows; i += 1;
     {
@@ -991,8 +991,8 @@ vector_ntt(
 {
     let n_rows = pv_src.len();
 
-    assert!( n_rows >  0 );
-    assert!( n_rows <= MATRIX_MAX_NROWS );
+    debug_assert!( n_rows >  0 );
+    debug_assert!( n_rows <= MATRIX_MAX_NROWS );
 
     c_for!(let mut i = 0; i < n_rows; i += 1;
     {
@@ -1007,8 +1007,8 @@ vector_intt_and_mul_r(
 {
     let n_rows = pv_src.len();
 
-    assert!( n_rows >  0 );
-    assert!( n_rows <= MATRIX_MAX_NROWS );
+    debug_assert!( n_rows >  0 );
+    debug_assert!( n_rows <= MATRIX_MAX_NROWS );
 
     c_for!(let mut i = 0; i < n_rows; i += 1;
     {
@@ -1025,11 +1025,11 @@ vector_compress_and_encode(
 {
     let n_rows = pv_src.len();
 
-    assert!( n_rows >  0 );
-    assert!( n_rows <= MATRIX_MAX_NROWS );
-    assert!( n_bits_per_coefficient >  0  );
-    assert!( n_bits_per_coefficient <= 12 );
-    assert!( pb_dst.len() == n_rows*((n_bits_per_coefficient*(MLWE_POLYNOMIAL_COEFFICIENTS as u32 / 8)) as usize) );
+    debug_assert!( n_rows >  0 );
+    debug_assert!( n_rows <= MATRIX_MAX_NROWS );
+    debug_assert!( n_bits_per_coefficient >  0  );
+    debug_assert!( n_bits_per_coefficient <= 12 );
+    debug_assert!( pb_dst.len() == n_rows*((n_bits_per_coefficient*(MLWE_POLYNOMIAL_COEFFICIENTS as u32 / 8)) as usize) );
 
     c_for!(let mut i = 0; i < n_rows; i += 1;
     {
@@ -1049,11 +1049,11 @@ vector_decode_and_decompress(
 {
     let n_rows = pv_dst.len();
 
-    assert!( n_rows >  0 );
-    assert!( n_rows <= MATRIX_MAX_NROWS );
-    assert!( n_bits_per_coefficient >  0  );
-    assert!( n_bits_per_coefficient <= 12 );
-    assert!( pb_src.len() == n_rows*(n_bits_per_coefficient as usize)*(MLWE_POLYNOMIAL_COEFFICIENTS / 8) );
+    debug_assert!( n_rows >  0 );
+    debug_assert!( n_rows <= MATRIX_MAX_NROWS );
+    debug_assert!( n_bits_per_coefficient >  0  );
+    debug_assert!( n_bits_per_coefficient <= 12 );
+    debug_assert!( pb_src.len() == n_rows*(n_bits_per_coefficient as usize)*(MLWE_POLYNOMIAL_COEFFICIENTS / 8) );
 
     c_for!(let mut i = 0; i < n_rows; i += 1;
     {
