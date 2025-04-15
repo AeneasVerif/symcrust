@@ -72,7 +72,7 @@ pub extern "C" fn SymCryptMlKemkeyAllocate(params: c_int) -> CKey {
 }
 
 #[no_mangle]
-pub extern "C" fn SymCryptMlKemKeyFree(k: CKey) {
+pub extern "C" fn SymCryptMlKemkeyFree(k: CKey) {
     let _ = unsafe { Box::from_raw(k) };
     // Drop trait gets called here, presumably.
 }
