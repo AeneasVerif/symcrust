@@ -552,12 +552,71 @@ const COMPRESS_SHIFTCONSTANT: u32 = 35;
 // use std::cmp::min;
 fn min(x: u32, y: u32) -> u32 { if x <= y { x } else { y } }
 
+#[inline(always)]
+fn compress_coefficient(n_bits_per_coefficient: u32, mut coefficient: u32) -> u32 {
+    // When n_bits_per_coefficient < 12 we compress per Compress_d in draft FIPS 203
+    if n_bits_per_coefficient < 12
+    {
+        // Multiply by 2^(n_bits_per_coefficient+1) / Q by multiplying by constant and shifting right
+        let multiplication: u64 = (coefficient as u64) * (COMPRESS_MULCONSTANT as u64);
+        coefficient = (multiplication >> (COMPRESS_SHIFTCONSTANT-(n_bits_per_coefficient+1))) as u32;
+
+        // add "half" to round to nearest integer
+        coefficient += 1;
+
+        // final divide by two to get multiplication by 2^n_bits_per_coefficient / Q
+        coefficient >>= 1;                              // in range [0, 2^n_bits_per_coefficient]
+        //assert!(coefficient <= (1<<n_bits_per_coefficient));
+
+        // modular reduction by masking
+        coefficient &= (1<<n_bits_per_coefficient)-1;    // in range [0, 2^n_bits_per_coefficient - 1]
+        //assert!(coefficient <  (1<<n_bits_per_coefficient));
+    }
+    coefficient
+}
+
+#[inline(always)]
+fn encode_coefficient(
+    mut coefficient: u32,
+    mut n_bits_in_coefficient: u32,
+    pb_dst: &mut [u8],
+    cb_dst_written: &mut usize,
+    accumulator: &mut u32,
+    n_bits_in_accumulator: &mut u32) {
+    // Note that the number of bits to encode is <= 12 while the accumulator has 32 bits,
+    // which means that if the accumulator is full, we only need to flush it once before
+    // encoding the remaining bits.
+    let n_bits_to_encode = min(n_bits_in_coefficient, 32 - *n_bits_in_accumulator);
+
+    let bits_to_encode = coefficient & ((1<<n_bits_to_encode)-1);
+    coefficient >>= n_bits_to_encode;
+    n_bits_in_coefficient -= n_bits_to_encode;
+
+    *accumulator |= bits_to_encode << *n_bits_in_accumulator;
+    *n_bits_in_accumulator += n_bits_to_encode;
+
+    // Flush the accumulator, if necessary
+    if *n_bits_in_accumulator == 32
+    {
+        pb_dst[(*cb_dst_written)..(*cb_dst_written)+4].copy_from_slice(&u32::to_le_bytes(*accumulator));
+        *cb_dst_written += 4;
+        *accumulator = 0;
+        *n_bits_in_accumulator = 0;
+
+        // Encode the remaining bits
+        if n_bits_in_coefficient > 0 {
+            let bits_to_encode = coefficient & ((1<<n_bits_to_encode)-1);
+            *accumulator |= bits_to_encode << *n_bits_in_accumulator;
+            *n_bits_in_accumulator += n_bits_to_encode;
+        }
+    }
+}
+
 pub(crate)
 fn
 poly_element_compress_and_encode(
     pe_src: & PolyElement,
     n_bits_per_coefficient: u32,
-    // _Out_writes_bytes_(n_bits_per_coefficient*(MLWE_POLYNOMIAL_COEFFICIENTS / 8))
     pb_dst: &mut [u8] )
 {
     let mut cb_dst_written: usize = 0;
@@ -569,59 +628,17 @@ poly_element_compress_and_encode(
 
     c_for!(let mut i = 0; i < MLWE_POLYNOMIAL_COEFFICIENTS; i += 1;
     {
-        let mut n_bits_in_coefficient = n_bits_per_coefficient;
-        let mut coefficient: u32 = pe_src[i].into(); // in range [0, Q-1]
+        let coefficient: u32 = pe_src[i].into(); // in range [0, Q-1]
         assert!( coefficient < Q );
 
-        // first compress the coefficient
-        // when n_bits_per_coefficient < 12 we compress per Compress_d in draft FIPS 203;
-        if n_bits_per_coefficient < 12
-        {
-            // Multiply by 2^(n_bits_per_coefficient+1) / Q by multiplying by constant and shifting right
-            let multiplication: u64 = (coefficient as u64) * (COMPRESS_MULCONSTANT as u64);
-            coefficient = (multiplication >> (COMPRESS_SHIFTCONSTANT-(n_bits_per_coefficient+1))) as u32;
+        // First compress the coefficient.
+        let coefficient = compress_coefficient(n_bits_per_coefficient, coefficient);
 
-            // add "half" to round to nearest integer
-            coefficient += 1;
-
-            // final divide by two to get multiplication by 2^n_bits_per_coefficient / Q
-            coefficient >>= 1;                              // in range [0, 2^n_bits_per_coefficient]
-            //assert!(coefficient <= (1<<n_bits_per_coefficient));
-
-            // modular reduction by masking
-            coefficient &= (1<<n_bits_per_coefficient)-1;    // in range [0, 2^n_bits_per_coefficient - 1]
-            //assert!(coefficient <  (1<<n_bits_per_coefficient));
-        }
-
-        // encode the coefficient
-        // simple loop to add bits to accumulator and write accumulator to output
-        #[inline(always)]
-        fn inner_loop(pb_dst: &mut [u8], cb_dst_written: &mut usize, accumulator: &mut u32,
-                      n_bits_in_accumulator: &mut u32, mut n_bits_in_coefficient: u32, mut coefficient: u32,
-        ) {
-            while {
-                let n_bits_to_encode = min(n_bits_in_coefficient, 32-*n_bits_in_accumulator);
-
-                let bits_to_encode = coefficient & ((1<<n_bits_to_encode)-1);
-                coefficient >>= n_bits_to_encode;
-                n_bits_in_coefficient -= n_bits_to_encode;
-
-                *accumulator |= bits_to_encode << *n_bits_in_accumulator;
-                *n_bits_in_accumulator += n_bits_to_encode;
-                if *n_bits_in_accumulator == 32
-                {
-                    pb_dst[*cb_dst_written..*cb_dst_written+4].copy_from_slice(&u32::to_le_bytes(*accumulator));
-                    *cb_dst_written += 4;
-                    *accumulator = 0;
-                    *n_bits_in_accumulator = 0;
-                };
-                n_bits_in_coefficient > 0
-            } {}
-        }
-        inner_loop(pb_dst, &mut cb_dst_written, &mut accumulator, &mut n_bits_in_accumulator, n_bits_in_coefficient, coefficient);
+        // Encode the coefficient.
+        encode_coefficient(coefficient, n_bits_per_coefficient, pb_dst, &mut cb_dst_written, &mut accumulator, &mut n_bits_in_accumulator);
     });
 
-    //assert!(n_bits_in_accumulator == 0);
+    assert!(n_bits_in_accumulator == 0);
     //assert!(cb_dst_written == (n_bits_per_coefficient*(MLWE_POLYNOMIAL_COEFFICIENTS as u32 / 8)) as usize);
 }
 
