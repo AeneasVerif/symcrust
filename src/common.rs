@@ -54,21 +54,14 @@ impl std::ops::FromResidual<Result<std::convert::Infallible, Error>> for Error {
 }
 
 // General-purpose functions that for now, remain implemented in C within SymCrypt.
-//
-// TODO: customize the build of this Rust crate to be either dynamic or static, and in the static
-// case, bind SymCryptCallbackRandom instead. See commented-out sketch, below.
 
-// #[cfg(not(feature = "dynamic"))]
-// extern "C" {
-//     fn SymCryptCallbackRandom(pbBuffer: *mut u8, cbBuffer: usize) -> MLKEM_ERROR;
-// }
-
-// #[cfg(feature = "dynamic")]
+#[cfg(not(feature = "rand"))]
 extern "C" {
     fn SymCryptRandom(pbBuffer: *mut u8, cbBuffer: usize);
     fn SymCryptModuleInit(api: u32, minor: u32);
 }
 
+#[cfg(not(feature = "rand"))]
 pub(crate) fn random(dst: &mut [u8]) -> Error {
     // #[cfg(not(feature = "dynamic"))]
     // unsafe {
@@ -82,8 +75,23 @@ pub(crate) fn random(dst: &mut [u8]) -> Error {
 }
 
 // TODO: manually kept in sync with C code -- can this be automated?
-pub fn init() {
+#[cfg(not(feature = "rand"))]
+pub(crate) fn init() {
     unsafe {
         SymCryptModuleInit(103, 8);
     }
+}
+
+#[cfg(feature = "rand")]
+use rand::prelude::*;
+
+#[cfg(feature = "rand")]
+pub(crate)
+fn init() {}
+
+#[cfg(feature = "rand")]
+pub(crate)
+fn random(dst: &mut[u8]) -> Error {
+    rand::rng().fill(dst);
+    Error::NoError
 }
