@@ -182,7 +182,7 @@ private theorem nttLayerInner_eq
   rw [this]; clear this
   unfold Target.nttLayerInner
   simp only [Id.run, Id.pure_eq, Id.bind_eq, forIn_eq_forIn_range', size, add_tsub_cancel_left,
-    add_tsub_cancel_right, Nat.div_one, List.forIn_yield_eq_foldl, zero_lt_one, foldl_range',
+    add_tsub_cancel_right, Nat.div_one, List.forIn_yield_eq_foldl, zero_lt_one, foldl_range'_eq_foldWhile,
     mul_one]
   conv => rhs; rw [foldWhile_shift_start]
   have : start + len - start = len := by omega
@@ -222,7 +222,7 @@ private theorem nttLayer_eq_fst (f : Polynomial) (i len : Nat)
   unfold Target.nttLayer
   simp only [Id.run, Id.pure_eq, Id.bind_eq, forIn_eq_forIn_range', size, tsub_zero,
     Nat.succ_add_sub_one, Nat.ofNat_pos, mul_pos_iff_of_pos_left, hLen, Nat.add_div_right,
-    List.forIn_yield_eq_foldl, foldl_range', zero_add]
+    List.forIn_yield_eq_foldl, foldl_range'_eq_foldWhile, zero_add]
   have := nttLayer_eq_fst_arith len hkLen
   simp only [this]
   have := nttLayer_eq_fst_aux f i len 0 hLen
@@ -306,7 +306,7 @@ private theorem invNttLayerInner_eq
   rw [this]; clear this
   unfold Target.invNttLayerInner
   simp only [Id.run, Id.pure_eq, Id.bind_eq, forIn_eq_forIn_range', size, add_tsub_cancel_left,
-    add_tsub_cancel_right, Nat.div_one, List.forIn_yield_eq_foldl, zero_lt_one, foldl_range',
+    add_tsub_cancel_right, Nat.div_one, List.forIn_yield_eq_foldl, zero_lt_one, foldl_range'_eq_foldWhile,
     mul_one]
   conv => rhs; rw [foldWhile_shift_start]
   have : start + len - start = len := by omega
@@ -346,7 +346,7 @@ private theorem invNttLayer_eq_fst (f : Polynomial) (i len : Nat)
   unfold Target.invNttLayer
   simp only [Id.run, Id.pure_eq, Id.bind_eq, forIn_eq_forIn_range', size, tsub_zero,
     Nat.succ_add_sub_one, Nat.ofNat_pos, mul_pos_iff_of_pos_left, hLen, Nat.add_div_right,
-    List.forIn_yield_eq_foldl, foldl_range', zero_add]
+    List.forIn_yield_eq_foldl, foldl_range'_eq_foldWhile, zero_add]
   have := invNttLayer_eq_fst_arith len hkLen
   simp only [this]
   have := invNttLayer_eq_fst_aux f i len 0 hLen
@@ -527,7 +527,7 @@ private theorem Target.multiplyNTTs_inner_eq_spec (f g : Polynomial) :
   simp only
   generalize 0 = i -- annoying that we have to do this
   simp only [Id.pure_eq, Id.bind_eq, Std.Range.forIn_eq_forIn_range', Std.Range.size,
-    add_tsub_cancel_right, Nat.div_one, List.forIn_yield_eq_foldl, zero_lt_one, foldl_range',
+    add_tsub_cancel_right, Nat.div_one, List.forIn_yield_eq_foldl, zero_lt_one, foldl_range'_eq_foldWhile,
     mul_one, forIn_eq_forIn_range', size]
 
 /--
@@ -538,7 +538,7 @@ private theorem Target.multiplyNTTs_inner_eq (f g : Polynomial) :
   unfold Target.multiplyNTTs_inner
   simp only [Id.run, Id.pure_eq, Id.bind_eq, Std.Range.forIn_eq_forIn_range', Std.Range.size,
     tsub_zero, Nat.reduceAdd, Nat.add_one_sub_one, Nat.div_one, List.forIn_yield_eq_foldl,
-    zero_lt_one, foldl_range', mul_one, zero_add]
+    zero_lt_one, foldl_range'_eq_foldWhile, mul_one, zero_add]
   -- Using a useful equation satisfied by `foldWhile`
   rw [← eq_foldWhile]
   intro h i

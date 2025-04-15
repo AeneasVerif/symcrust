@@ -60,6 +60,7 @@ open Notations
 abbrev Byte := BitVec 8
 abbrev Byte.ofNat := BitVec.ofNat 8
 abbrev Byte.val (b : Byte) := @BitVec.toNat 8 b
+abbrev Byte.testBit (b : Byte) := Nat.testBit b.toNat
 
 abbrev Vector.replicate (n : Nat) (x : α) : Vector α n := ⟨ ⟨ List.replicate n x ⟩, by simp ⟩
 

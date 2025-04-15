@@ -46,7 +46,7 @@ axiom core.array.CloneArray.clone_from
   Array T N → Array T N → Result (Array T N)
 
 /- [symcrust::ntt::slice_to_sub_array]:
-   Source: 'src/ntt.rs', lines 631:0-633:1 -/
+   Source: 'src/ntt.rs', lines 648:0-650:1 -/
 axiom ntt.slice_to_sub_array
   (N : Usize) : Slice U8 → Usize → Result (Array U8 N)
 

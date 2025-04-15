@@ -1125,8 +1125,6 @@ section
     := by
     simp only [reduce_add_normalize, bind_assoc_eq, bind_tc_ok, pure]
 
-  attribute [bvify_simps] BitVec.reduceMul BitVec.reduceAdd BitVec.reduceSub BitVec.reduceMod BitVec.reduceDiv
-
   @[local progress]
   theorem reduce_add_normalize_spec (a : U32) (h1 : a.val ≤ 3328 + reduceAddStepBound) :
     ∃ a1, reduce_add_normalize a = .ok a1 ∧
