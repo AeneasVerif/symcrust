@@ -62,8 +62,6 @@ abbrev Byte.ofNat := BitVec.ofNat 8
 abbrev Byte.val (b : Byte) := @BitVec.toNat 8 b
 abbrev Byte.testBit (b : Byte) := Nat.testBit b.toNat
 
-abbrev Vector.replicate (n : Nat) (x : α) : Vector α n := ⟨ ⟨ List.replicate n x ⟩, by simp ⟩
-
 attribute [scalar_tac_simps] Membership.mem -- TODO: move
 
 -- TODO: move
@@ -108,7 +106,7 @@ instance : HMul (Polynomial n) (ZMod n) (Polynomial n) where
   hMul := Polynomial.scalarMul
 
 /-- # Algorithm 3 -/
-def bitsToBytes (l : Nat) {n:Nat} (b : Vector Bool n) (h : n = 8 * l := by ring_nf) : Vector Byte l := Id.run do
+def bitsToBytes {l : Nat} (b : Vector Bool (8 * l)) : Vector Byte l := Id.run do
   let mut B := Vector.replicate l 0
   for h: i in [0:8*l] do
     B := B.set (i/8) (B[i/8]  + BitVec.ofNat 8 (Bool.toNat b[i]) * BitVec.ofNat 8 (2 ^(i%8)))
@@ -118,9 +116,9 @@ def bitsToBytes (l : Nat) {n:Nat} (b : Vector Bool n) (h : n = 8 * l := by ring_
 info: [10#8, 1#8]
 -/
 #guard_msgs in
-#eval (@bitsToBytes 2 16 ⟨ ⟨ [false, true, false, true, false, false, false, false,
+#eval (@bitsToBytes 2 ⟨ ⟨ [false, true, false, true, false, false, false, false,
                             true, false, false, false, false, false, false, false] ⟩,
-                           by simp ⟩ (by simp)).toList
+                           by simp ⟩).toList
 
 /-- # Algorithm 4 -/
 def bytesToBits {l : Nat} (B : Vector Byte l) : Vector Bool (8 * l) := Id.run do
@@ -134,10 +132,10 @@ def bytesToBits {l : Nat} (B : Vector Byte l) : Vector Bool (8 * l) := Id.run do
   pure b
 
 #assert
-  let b : Vector Bool 16 :=
+  let b : Vector Bool (8 * 2) :=
     ⟨ ⟨ [false, true, false, true, false, false, false, false,
          true, false, false, false, false, false, false, false] ⟩, by simp ⟩
-  bytesToBits (bitsToBytes 2 b) = b
+  bytesToBits (bitsToBytes b) = b
 
 /-- # Compress -/
 def compress (d : {d: ℕ // d < 12}) (x : Zq) : ZMod (2^d.val) := ⌈ ((2^d.val : ℚ) / (Q : ℚ)) * x.val⌋
@@ -156,7 +154,7 @@ def byteEncode (d : ℕ) (F : Polynomial (m d)) : Vector Byte (32 * d) := Id.run
       have : j < d := by scalar_tac
       b := b.set (i * d + j) (Bool.ofNat (a % 2)) (by scalar_tac)
       a := (a - Bool.toNat b[i * d + j]) / 2
-  let B := bitsToBytes (32 * d) b
+  let B := bitsToBytes (Vector.cast (by ring_nf) b)
   pure B
 
 /-- # Algorithm 6 -/

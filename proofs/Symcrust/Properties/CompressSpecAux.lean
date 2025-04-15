@@ -43,7 +43,9 @@ theorem BitVec.toNat_pow (n : ℕ) (x : BitVec n) (d : ℕ) :
 
 
 /-!
-# ByteEncode
+# byteEncode
+
+TODO: remove those?
 -/
 
 def byteEncodeToBits {n} (d : ℕ) (f : List (ZMod n)) : List Bool :=
@@ -79,7 +81,8 @@ decreasing_by
   scalar_decr_tac
 
 /-!
-# BytesToBits
+# Auxiliary theorems
+TODO: move
 -/
 
 -- TODO: move
@@ -111,6 +114,357 @@ def Array.Inhabited_getElem_eq_getElem! {α} [Inhabited α] (l : Array α) (i : 
 def Vector.Inhabited_getElem_eq_getElem! {α} [Inhabited α] (l : Vector α n) (i : ℕ) (hi : i < n) :
   l[i] = l[i]! := by
   sorry
+
+set_option maxHeartbeats 500000
+
+-- TODO: remove
+@[local simp]
+theorem MProd_mk_eq (x : MProd α β) : ⟨ x.fst, x.snd ⟩ = x := by simp only
+
+attribute [-simp] foldl_range'_eq_foldWhile
+
+-- TODO: this pattern often appears
+@[simp]
+theorem List.foldl_Prod_to_MProd_fst_eq {α β : Type u} {γ : Type v} (f : α → β → γ → α × β)
+  (a0 : α) (b0 : β) (l) :
+  (List.foldl (fun b a => MProd.mk (f b.fst b.snd a).fst (f b.fst b.snd a).snd) ⟨a0, b0⟩ l).fst =
+  (List.foldl (fun b a => (f b.fst b.snd a)) (a0, b0) l).fst := by sorry
+
+-- TODO: this pattern often appears
+@[simp]
+theorem List.foldl_Prod_to_MProd_snd_eq {α β : Type u} {γ : Type v} (f : α → β → γ → α × β)
+  (a0 : α) (b0 : β) (l) :
+  (List.foldl (fun b a => MProd.mk (f b.fst b.snd a).fst (f b.fst b.snd a).snd) ⟨a0, b0⟩ l).snd =
+  (List.foldl (fun b a => (f b.fst b.snd a)) (a0, b0) l).snd := by sorry
+
+-- TODO: simp_lists on vectors and arrays
+
+@[simp, simp_lists_simps]
+theorem Vector.set!_getElem!_eq {α : Type u}
+  [Inhabited α] {n i j : ℕ} {x : α} {xs : Vector α n}
+  (hi : i < n ∧ j = i) :
+  (xs.set! i x)[j]! = x := by sorry
+
+@[simp, simp_lists_simps]
+theorem Vector.set!_getElem!_neq {α : Type u}
+  [Inhabited α] {n i j : ℕ} {x : α} {xs : Vector α n}
+  (h : i < n ∧ j < n ∧ i ≠ j) :
+  (xs.set! i x)[j]! = xs[j]! := by sorry
+
+@[simp]
+theorem decide_eq_not_decide (a b : Prop) [Decidable a] [Decidable b] :
+  decide a = !decide b ↔ a = ¬ b := by
+  constructor <;> intros h
+  sorry
+  sorry
+
+@[simp]
+theorem not_decide_eq_decide (a b : Prop) [Decidable a] [Decidable b] :
+  !decide a = decide b ↔ ¬ a = b := by
+  constructor <;> intros h
+  sorry
+  sorry
+
+/-!
+# bitsToBytes
+-/
+
+def Target.bitsToBytes.body
+  {l:Nat} (b : Vector Bool (8 * l)) (B : Vector Byte l) (i : ℕ) :
+  Vector Byte l :=
+  B.set! (i/8) (B[i/8]!  + BitVec.ofNat 8 (Bool.toNat b[i]!) * BitVec.ofNat 8 (2 ^(i%8)))
+
+def Target.bitsToBytes.recBody
+  {l:Nat} (b : Vector Bool (8 * l)) (B : Vector Byte l) (i : ℕ) :
+  Vector Byte l :=
+  List.foldl (body b) B (List.range' i (8 * l - i))
+
+def Target.bitsToBytes {l : Nat} (b : Vector Bool (8 * l)) : Vector Byte l :=
+  bitsToBytes.recBody b (Vector.replicate l 0) 0
+
+-- TODO: remove this simp lemma
+attribute [-simp] foldl_range'_eq_foldWhile
+
+theorem Target.bitsToBytes.eq_spec {l : Nat} (b : Vector Bool (8 * l)) :
+  bitsToBytes b = Spec.bitsToBytes b := by
+  unfold bitsToBytes Spec.bitsToBytes recBody body
+  simp [Id.run]
+
+theorem Target.bitsToBytes.recBody.step_eq
+  {l:Nat} (b : Vector Bool (8 * l)) (B : Vector Byte l) (i : ℕ)
+  (hi : i < 8 * l) :
+  recBody b B i = recBody b (body b B i) (i + 1) := by
+  unfold recBody
+  have : 8 * l - i = (8 * l - (i+1)) + 1 := by omega
+  simp [this, List.range'_succ]
+
+irreducible_def Target.bitsToBytes.inv
+  {l:Nat} (b : Vector Bool (8 * l)) (B : Vector Byte l) (i j : ℕ) :=
+  -- The prefix is properly set
+  (∀ i' < i, ∀ j' < 8, B[i']!.testBit j' = b[8*i' + j']!) ∧
+  -- We are updating the value at index i
+  (∀ j' < j, B[i]!.testBit j' = b[8*i + j']!) ∧
+  (i < l → ∀ j' ∈ [j:8], B[i]!.testBit j' = false) ∧
+  -- The suffix is made of zeros
+  (∀ i' ∈ [i+1:l], B[i']! = 0)
+
+-- TODO: remove?
+@[local simp]
+theorem mem_range'_step_one (x start len : ℕ) :
+  x ∈ List.range' start len ↔ (start ≤ x ∧ x < start + len) := by
+  simp [List.mem_range']
+  constructor <;> intro h
+  . obtain ⟨ i, h ⟩ := h
+    omega
+  . exists x - start
+    omega
+
+@[local simp]
+theorem mem_std_range_step_one (x n0 n1 : ℕ) :
+  x ∈ [n0:n1] ↔ (n0 ≤ x ∧ x < n1) := by
+  simp [Membership.mem, Nat.mod_one]
+
+@[local simp]
+theorem decompose_ij (i j : ℕ) (hj : j < 8) :
+  (8 * i + j) / 8 = i ∧ (8 * i + j) % 8 = j := by
+  omega
+
+def Target.bitsToBytes.body.spec
+  {l:Nat} {b : Vector Bool (8 * l)} {B : Vector Byte l} {i j : ℕ} (hinv : inv b B i j)
+  (hi : i < l) (hj : j < 8) :
+  inv b (body b B (8 * i + j)) i (j + 1) := by
+  simp only [body, inv] at *
+  simp at *
+  obtain ⟨ h0, h1, h2, h3 ⟩ := hinv
+  split_conjs
+  . intro i' hi' j' hj'
+    simp_lists [h0]
+  . -- This is the complex part of the proof, where we have
+    -- to reason about bitwise manipulations
+    intros j' hj'
+    simp [hj, hj']
+    simp_lists
+    cases hb: b[8 * i + j]! <;> simp [hb]
+    . by_cases hj'': j' = j
+      . simp_all
+      . have : j' < j := by omega
+        simp_lists [h1]
+    . have : j % 8 = j := by omega
+      simp [this]; clear this
+      simp [Byte.testBit]
+      have : 256 = 2^8 := by rfl
+      rw [this]; clear this
+      simp only [Nat.testBit_mod_two_pow]
+      have : j' < 8 := by omega
+      simp [this]; clear this
+      have : BitVec.toNat B[i]! + 2 ^ j = 2 ^ j + BitVec.toNat B[i]! := by ring_nf
+      rw [this]; clear this
+      by_cases hj'': j' = j
+      . simp [hj'']
+        simp [Nat.testBit_two_pow_add_eq]
+        simp [hb]
+        simp_lists [h2]
+      . have hj'' : j' < j := by omega
+        simp [Nat.testBit_two_pow_add_gt, hj'']
+        simp_lists [h1]
+  . intros hi' j' hj' hj''
+    simp_lists
+    simp [hj, hj'']
+    cases hb: b[8 * i + j]! <;> simp
+    . by_cases hj''': j' = j
+      . simp [hj''']
+        simp_lists [h2]
+      . simp_lists [h2]
+    . have : j % 8 = j := by omega
+      rw [this]; clear this
+      simp [Byte.testBit]
+      have : 256 = 2^8 := by rfl
+      rw [this]; clear this
+      simp only [Nat.testBit_mod_two_pow]
+      simp; intro _
+      have : BitVec.toNat B[i]! + 2 ^ j = 2 ^ j + BitVec.toNat B[i]! := by ring_nf
+      rw [this]
+      /- This proof is also subtle.
+         We use the fact that: `B[i] < 2^j`
+         which itself derives from the fact that: `∀ j' < j, B[i].testBit j' = 0`
+      -/
+      have : B[i]!.toNat < 2^j := by
+        have hj : (BitVec.toNat B[i]!).testBit j = false := by
+          simp_lists [h2]
+        have := @Nat.lt_of_testBit (BitVec.toNat B[i]!) (2^j) j hj (by simp)
+        apply this
+        intro k hk
+        simp [Nat.testBit_two_pow]
+        by_cases hk' : k < 8
+        . simp_lists [h2]
+          simp
+          omega
+        . simp at hk'
+          have : BitVec.toNat B[i]! < 2^8 := by omega
+          have : BitVec.toNat B[i]! < 2 ^ k := by
+            -- TODO: scalar_tac +nonLin
+            have : 2^8 ≤ 2^k := by
+              apply Nat.pow_le_pow_right <;> omega
+            omega
+          rw [Nat.testBit_eq_false_of_lt]
+          . simp; omega
+          . omega
+      have : ((2^j + B[i]!.toNat) >>> j).testBit (j' - j) = (2^j + B[i]!.toNat).testBit j' := by
+        simp
+        have : j + (j' - j) = j' := by omega
+        simp [this]
+      rw [← this]
+      simp [Nat.shiftRight_eq_div_pow]
+      have : BitVec.toNat B[i]! / 2 ^ j = 0 := by
+        apply Nat.div_eq_of_lt
+        omega
+      simp [this]
+      have : j' - j = (j' - j - 1) + 1 := by omega
+      rw [this]
+      simp [Nat.testBit_add_one]
+  . intros i' hi' hi''
+    simp_lists [h3]
+
+-- TODO: simp_lists simplifies and_true true_and, etc.
+
+theorem Target.bitsToBytes.inv_8_imp {l:Nat}
+  {b : Vector Bool (8 * l)} {B : Vector Byte l} {i : ℕ}
+  (hinv : inv b B i 8) :
+  inv b B (i + 1) 0 := by
+  simp only [inv] at *; simp at *
+  obtain ⟨ h0, h1, h2 ⟩ := hinv
+  split_conjs
+  . intro i' hi' j' hj'
+    by_cases hi'': i' = i
+    . simp [hi'']
+      simp_lists [h1]
+    . simp_lists [h0]
+  . intros hi' j' hj'
+    have : B[i+1]! = 0#8 := by
+      simp_lists [h2]
+    simp [this, Byte.testBit]
+  . simp_lists [*]; simp
+
+-- TODO: this one is useless
+theorem Target.bitsToBytes.inv_0_imp {l:Nat}
+  {b : Vector Bool (8 * l)} {B : Vector Byte l} {i : ℕ}
+  (hinv : inv b B (i + 1) 0) :
+  inv b B i 8 := by
+  simp only [inv] at *; simp at *
+  obtain ⟨ h0, h1, h2 ⟩ := hinv
+  split_conjs
+  . simp_lists [*]; simp
+  . simp_lists [*]; simp
+  . intros i' hi' hi''
+    by_cases hi''': i' = i + 1
+    . simp [← hi'''] at h1
+      have : ∀ j < 8, B[i']!.testBit j = false := by
+        simp_lists [h1]; simp
+      natify; simp
+      apply Nat.eq_of_testBit_eq; simp
+      intros j
+      by_cases hj: j < 8
+      . simp_lists [h1]
+      . simp at hj
+        have : B[i']!.toNat < 2^j := by
+          -- TODO: scalar_tac +nonLin
+          have : B[i']!.toNat < 2^8 := by omega
+          have : 2^8 ≤ 2^j := by
+            apply Nat.pow_le_pow_right <;> omega
+          omega
+        have := Nat.testBit_eq_false_of_lt this
+        apply this
+    . simp_lists [h2]
+
+theorem Target.bitsToBytes.inv_last_imp {l:Nat}
+  {b : Vector Bool (8 * l)} {B : Vector Byte l} (i j : ℕ)
+  (hi : l ≤ i)
+  (hinv : inv b B i j) :
+  inv b B l 0 := by
+  simp [inv] at *
+  obtain ⟨ h0, h1, h2, h3 ⟩ := hinv
+  split_conjs
+  . intros i' hi' j' hj'
+    simp_lists [h0]
+  . intros i' hi' hi''
+    simp_lists [h3]
+
+def Target.bitsToBytes.recBody.spec
+  {l:Nat} {b : Vector Bool (8 * l)} {B : Vector Byte l} {i j : ℕ}
+  (hinv : inv b B i j) (hi : i ≤ l) (hj : j ≤ 8) :
+  inv b (recBody b B (8 * i + j)) l 0 := by
+  if hi': i = l then
+    -- We're done
+    apply Target.bitsToBytes.inv_last_imp i j
+    . omega
+    . unfold recBody
+      have : 8 * l - (8 * i + j) = 0 := by omega
+      simp [this]
+      apply hinv
+  else
+    -- Increment j if possible
+    if hj': j = 8 then
+      simp [hj'] at hinv ⊢
+      have hinv1 := Target.bitsToBytes.inv_8_imp hinv
+      have hinv2 := spec hinv1 (by omega) (by omega)
+      simp +arith at hinv2 ⊢
+      apply hinv2
+    else
+      --simp at *
+      rw [Target.bitsToBytes.recBody.step_eq]; swap; omega
+      generalize hacc1 : body b B (8 * i + j) = acc1 at *
+      have hinv1 := Target.bitsToBytes.body.spec hinv (by omega) (by omega)
+      rw [hacc1] at hinv1
+      have hinv2 := spec hinv1 (by omega) (by omega)
+      simp +arith at *
+      apply hinv2
+termination_by (l - i, 8 - j)
+decreasing_by all_goals (simp_wf; omega)
+
+irreducible_def Target.bitsToBytes.post {l:Nat} (b : Vector Bool (8 * l)) (B : Vector Byte l) :=
+  ∀ i < l, ∀ j < 8, B[i]!.testBit j = b[8*i + j]!
+
+
+-- TODO: move
+attribute [simp_lists_simps] List.getElem!_replicate
+
+-- TODO: move
+@[simp, simp_lists_simps]
+theorem Array.getElem!_replicate {α : Type u} [Inhabited α] {i n : ℕ} {a : α} (h : i < n) :
+  (Array.replicate n a)[i]! = a := by
+  unfold getElem! Array.instGetElem?NatLtSize Array.get!Internal
+  simp only [Array.getD_eq_getD_getElem?, Array.getElem?_replicate]
+  simp_ifs
+  simp
+
+-- TODO: move
+@[simp, simp_lists_simps]
+theorem Vector.getElem!_replicate {α : Type u} [Inhabited α] {i n : ℕ} {a : α} (h : i < n) :
+ (Vector.replicate n a)[i]! = a := by
+ unfold getElem! instGetElem?OfGetElemOfDecidable Vector.instGetElemNatLt decidableGetElem? Vector.get
+ simp; simp_lists
+ split_ifs
+ simp
+
+def Target.bitsToBytes.spec {l:Nat} (b : Vector Bool (8 * l)) :
+  post b (bitsToBytes b) := by
+  have hinv0 : inv b (Vector.replicate l 0) 0 0 := by
+    simp [inv]
+    split_conjs <;> simp_lists <;> simp [Byte.testBit]
+  have hinv1 := recBody.spec hinv0 (by omega) (by omega)
+  simp at hinv1
+  simp [inv] at hinv1
+  obtain ⟨ h0, h1 ⟩ := hinv1
+  unfold bitsToBytes
+  simp [post]
+  -- TODO: introduce notation for this, plus apply symmetry to the equation
+  generalize hacc1 : recBody b (Vector.replicate l 0#8) 0 = acc1 at *
+  intro i hi j hj
+  simp_lists [h0]
+
+/-!
+# bytesToBits
+-/
 
 attribute [-simp] Array.set!_eq_setIfInBounds
 
@@ -147,6 +501,11 @@ def Target.bytesToBits.recBody
 def Target.bytesToBits {l : Nat} (B : Vector Byte l) : Vector Bool (8 * l) :=
   (Target.bytesToBits.recBody ⟨B, Vector.replicate (8 * l) false⟩ 0).snd
 
+theorem Target.bytesToBits.eq_spec {l : Nat} (B : Vector Byte l) :
+  Target.bytesToBits B = Spec.bytesToBits B := by
+  unfold bytesToBits Spec.bytesToBits bytesToBits.recBody byteToBits byteToBits.body
+  simp [Id.run]
+
 --instance Inhabited : Byte := ⟨ 0, by simp ⟩
 --instance Inhabited : Byte := ⟨
 
@@ -155,62 +514,6 @@ def Target.bytesToBits {l : Nat} (B : Vector Byte l) : Vector Bool (8 * l) :=
 theorem List.forall_imp_foldl_attach (l0 : List β) (f: α → β → α) (g: α → {x:β // x ∈ l0} → α)
   (h : ∀ a, ∀ x : { x // x ∈ l0 }, f a x = g a x) :
   List.foldl f init l0 = List.foldl g init l0.attach := by
-  sorry
-
-set_option maxHeartbeats 500000
-
--- TODO: remove
-@[local simp]
-theorem MProd_mk_eq (x : MProd α β) : ⟨ x.fst, x.snd ⟩ = x := by simp only
-
-attribute [-simp] foldl_range'_eq_foldWhile
-
--- TODO: this pattern often appears
-@[simp]
-theorem List.foldl_Prod_to_MProd_fst_eq {α β : Type u} {γ : Type v} (f : α → β → γ → α × β)
-  (a0 : α) (b0 : β) (l) :
-  (List.foldl (fun b a => MProd.mk (f b.fst b.snd a).fst (f b.fst b.snd a).snd) ⟨a0, b0⟩ l).fst =
-  (List.foldl (fun b a => (f b.fst b.snd a)) (a0, b0) l).fst := by sorry
-
--- TODO: this pattern often appears
-@[simp]
-theorem List.foldl_Prod_to_MProd_snd_eq {α β : Type u} {γ : Type v} (f : α → β → γ → α × β)
-  (a0 : α) (b0 : β) (l) :
-  (List.foldl (fun b a => MProd.mk (f b.fst b.snd a).fst (f b.fst b.snd a).snd) ⟨a0, b0⟩ l).snd =
-  (List.foldl (fun b a => (f b.fst b.snd a)) (a0, b0) l).snd := by sorry
-
-theorem Target.bytesToBits_eq_Spec {l : Nat} (B : Vector Byte l) :
-  Target.bytesToBits B = Spec.bytesToBits B := by
-  unfold bytesToBits Spec.bytesToBits bytesToBits.recBody byteToBits byteToBits.body
-  simp [Id.run]
-  rfl
-
--- TODO: simp_lists on vectors and arrays
-
-@[simp, simp_lists_simps]
-theorem Vector.set!_getElem!_eq {α : Type u}
-  [Inhabited α] {n i j : ℕ} {x : α} {xs : Vector α n}
-  (hi : i < n ∧ j = i) :
-  (xs.set! i x)[j]! = x := by sorry
-
-@[simp, simp_lists_simps]
-theorem Vector.set!_getElem!_neq {α : Type u}
-  [Inhabited α] {n i j : ℕ} {x : α} {xs : Vector α n}
-  (h : i < n ∧ j < n ∧ i ≠ j) :
-  (xs.set! i x)[j]! = xs[j]! := by sorry
-
-@[simp]
-theorem decide_eq_not_decide (a b : Prop) [Decidable a] [Decidable b] :
-  decide a = !decide b ↔ a = ¬ b := by
-  constructor <;> intros h
-  sorry
-  sorry
-
-@[simp]
-theorem not_decide_eq_decide (a b : Prop) [Decidable a] [Decidable b] :
-  !decide a = decide b ↔ ¬ a = b := by
-  constructor <;> intros h
-  sorry
   sorry
 
 def Target.bytesToBits.inv
@@ -361,7 +664,7 @@ theorem Target.bytesToBits.spec
   simp_lists [h0]
 
 /-!
-# BytesToBits then Encode
+# bytesToBits then byteEncode
 -/
 
 
