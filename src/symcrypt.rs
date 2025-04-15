@@ -1,6 +1,6 @@
 pub(crate)
 fn SYMCRYPT_LOAD_LSBFIRST64 (x: &[u8]) -> u64 {
-    u64::from_le_bytes(x[0..4].try_into().unwrap())
+    u64::from_le_bytes(x[0..8].try_into().unwrap())
 }
 
 pub(crate)
