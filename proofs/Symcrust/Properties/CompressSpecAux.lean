@@ -467,8 +467,8 @@ theorem Vector.getElem!_replicate {α : Type u} [Inhabited α] {i n : ℕ} {a : 
 def Target.bitsToBytes.spec {l:Nat} (b : Vector Bool (8 * l)) :
   post b (bitsToBytes b) := by
   have hinv0 : inv b (Vector.replicate l 0) 0 0 := by
-    simp [inv]
-    split_conjs <;> simp_lists <;> simp [Byte.testBit]
+    simp [inv, Byte.testBit]
+    split_conjs <;> simp_lists; simp
   have hinv1 := recBody.spec hinv0 (by omega) (by omega)
   simp at hinv1
   simp [inv] at hinv1
@@ -906,6 +906,57 @@ def Target.byteEncode.encode.spec (d : ℕ) (F : Polynomial (m d)) :
   simp [this] at hinv1
   simp [inv] at hinv1
   apply hinv1
+
+-- TODO: move
+@[simp, simp_lists_simps]
+theorem Vector.getElem!_cast {n m : ℕ} {α : Type u_1} [Inhabited α] (h: n = m) (v : Vector α n) (i : ℕ):
+  (Vector.cast h v)[i]! = v[i]! := by sorry
+
+/-- The important theorem! -/
+def Target.byteEncode.spec (d : ℕ) (F : Polynomial (m d)) (hd : 0 < d) :
+  ∀ i < 32 * d, ∀ j < 8,
+    (byteEncode d F)[i]!.testBit j = F[(8 * i + j) / d]!.val.testBit ((8 * i + j) % d) := by
+  intros i hi j hj
+  unfold byteEncode
+  have h0 := encode.spec d F
+  generalize hb : (Vector.cast (by ring_nf) (encode d F) : Vector Bool (8 * (32 * d))) = b at *
+  have h1 := Target.bitsToBytes.spec  b
+  simp [bitsToBytes.post] at h1
+  generalize hb1 : bitsToBytes b = b1 at *
+  simp_lists [h1]
+  simp [← hb]
+
+  /- We have to play with the indices -/
+  let ij := 8 * i + j
+  let i' := ij / d
+  let j' := ij % d
+  have : i' < 256 := by
+    simp +zetaDelta
+    rw [Nat.div_lt_iff_lt_mul] <;> omega
+
+  have : j' < d := by
+    simp +zetaDelta
+    apply Nat.mod_lt; omega -- TODO: scalar_tac +zetaDelta
+
+  refold_let ij
+
+  have : ij = i' * d + j' := by
+    have := Nat.mod_add_div ij d
+    simp +zetaDelta at *
+    ring_nf at *
+    omega
+
+  simp [this]
+  simp_lists [h0]
+  simp +zetaDelta
+
+  have : ((8 * i + j) / d * d + (8 * i + j) % d) / d = (8 * i + j) / d := by
+    have : (8 * i + j) / d * d = d * ((8 * i + j) / d) := by ring_nf
+    rw [this]; clear this
+    rw [Nat.mul_add_div] <;> try omega
+    simp only [Nat.mod_div_self, add_zero]
+
+  rw [this]
 
 /-!
 # bytesToBits then byteEncode
