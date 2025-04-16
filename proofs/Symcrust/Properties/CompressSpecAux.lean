@@ -664,6 +664,94 @@ theorem Target.bytesToBits.spec
   simp_lists [h0]
 
 /-!
+# byteEncode
+-/
+
+def Target.byteEncode.encodeElem.body (d : ℕ) (i : ℕ) (acc : MProd ℕ (Vector Bool (256 * d))) (j : ℕ) :
+  MProd ℕ (Vector Bool (256 * d)) :=
+  let b := acc.snd
+  let a := acc.fst
+  let b := b.set! (i * d + j) (Bool.ofNat (a % 2))
+  let a := (a - Bool.toNat b[i * d + j]!) / 2
+  ⟨ a, b ⟩
+
+def Target.byteEncode.encodeElem (d : ℕ) (F : Polynomial (m d))
+  (b : Vector Bool (256 * d)) (i : ℕ) :
+  Vector Bool (256 * d) :=
+  let a := F[i]!.val
+  (List.foldl (byteEncode.encodeElem.body d i) ⟨ a, b ⟩ (List.range' 0 d)).snd
+
+def Target.byteEncode.encode (d : ℕ) (F : Polynomial (m d)) :
+  Vector Bool (256 * d) :=
+  List.foldl (byteEncode.encodeElem d F) (Vector.replicate (256 * d) false) (List.range' 0 256)
+
+def Target.byteEncode (d : ℕ) (F : Polynomial (m d)) :
+  Vector Byte (32 * d) :=
+  bitsToBytes (Vector.cast (by ring_nf) (byteEncode.encode d F))
+
+def Target.byteEncode.eq_spec (d : ℕ) (F : Polynomial (m d)) :
+  byteEncode d F = Spec.byteEncode d F := by
+  unfold byteEncode byteEncode.encode byteEncode.encodeElem byteEncode.encodeElem.body Spec.byteEncode
+  simp [Id.run, Target.bitsToBytes.eq_spec]
+
+irreducible_def Target.byteEncode.inv
+  (d : ℕ) (F : Polynomial (m d)) (acc : MProd ℕ (Vector Bool (256 * d))) (i : ℕ) (j : ℕ) :=
+  let b := acc.snd
+  let a := acc.fst
+  -- The prefix is set
+  (∀ i' < i, ∀ j' < d, b[i' * d + j']! = F[i']!.val.testBit j') ∧
+  -- Encoding the current element
+  (∀ j' < j, b[i * d + j']! = F[i]!.val.testBit j') ∧
+  (∀ j' ∈ [j+1:d], b[i * d + j']! = false) ∧
+  a = F[i]!.val / 2^j ∧
+  -- The suffix is not set
+  (∀ i' ∈ [i+1:256], ∀ j < d, b[i' * d + j]! = false)
+
+-- TODO: move
+@[simp]
+theorem Bool.toNat_ofNat_mod2 (x : ℕ) : (Bool.ofNat (x % 2)).toNat = x % 2 := by
+  have := @Nat.mod_lt x 2 (by simp)
+  cases h: x % 2 <;> simp [Bool.ofNat]
+  omega
+
+def Target.byteEncode.encodeElem.body.spec
+  {d : ℕ} {F : Polynomial (m d)} {i : ℕ} {acc : MProd ℕ (Vector Bool (256 * d))} {j : ℕ}
+  (hinv : inv d F acc i j)
+  (hd : 0 < d) (hi : i < 256) (hj : j < 8) :
+  inv d F (body d i acc j) i (j + 1) := by
+  simp [inv, body] at *
+  obtain ⟨ h0, h1, h2, h3, h4 ⟩ := hinv
+  generalize hb1: acc.snd = b1 at *
+  generalize ha1: acc.fst = a1 at *
+  have : i * d + j < 256 * d := by sorry
+  split_conjs
+  . intros i' hi' j' hj'
+    have : i' * d + j' < i * d + j := by sorry
+    simp_lists [h0]
+  . intros j' hj'
+    by_cases hj'': j' = j
+    . simp [hj'']; simp_lists
+      simp [h3, Nat.testBit, Bool.ofNat, Nat.shiftRight_eq_div_pow]
+      tauto
+    . simp_lists [*]
+  . intros j' hj' hj''
+    have : i * d + j < i * d + j' := by omega
+    have : i * d + j' < 256 * d := by sorry
+    simp_lists [h2]
+  . simp_lists; simp [h3]
+    have : F[i]!.val / 2 ^ j - F[i]!.val / 2 ^ j % 2 =
+           2 * (F[i]!.val / 2^j / 2) := by
+      have := Nat.mod_def (F[i]!.val / 2 ^ j) 2
+      omega
+    rw [this]
+    simp [Nat.div_div_eq_div_mul]
+    ring_nf
+  . intros i' hi' hi'' j' hj'
+    have : i * d + j < i' * d + j' := by sorry
+    have : i' * d + j' < 256 * d := by sorry
+    simp_lists [h4]
+
+/-!
 # bytesToBits then byteEncode
 -/
 

@@ -92,8 +92,8 @@ def Polynomial.set (x : Polynomial m) (n : ℕ) (v : ZMod m) : Polynomial m :=
   ⟨ x.val.set n v, by cases x; simp_all ⟩
 
 /-- This activates nice notations -/
-instance : GetElem (Polynomial m) Nat (ZMod m) (fun _ _ => True) where
-  getElem p i _ := p.val[i]!
+instance : GetElem (Polynomial m) Nat (ZMod m) (fun _ i => i < 256) where
+  getElem p i _ := p.val[i]
 
 instance : HAdd (Polynomial m) (Polynomial m) (Polynomial m) where
   hAdd f g := ⟨ List.map (fun i => f[i]! + g[i]!) (List.range 256), by simp ⟩

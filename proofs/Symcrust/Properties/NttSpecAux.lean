@@ -41,17 +41,18 @@ namespace Target
       f := f.set j (f[j]! + t)
     pure f
 
-  def nttLayer (f : Polynomial) (i len : Nat) (hLen : 0 < len := by assumption) : Polynomial × Nat := Id.run do
+  def nttLayer (f : Polynomial) (i len : Nat) (hLen : 0 < len := by assumption) :
+    MProd Polynomial Nat := Id.run do
     let mut f := f
     let mut i := i
     for start in [0:256:2*len] do
       let i0 := i
       i := i + 1
       f := nttLayerInner f i0 len start
-    pure (f, i)
+    pure ⟨ f, i ⟩
 
   def ntt (f : Polynomial) : Polynomial := Id.run do
-    let mut fi := (f, 1)
+    let mut fi := ⟨ f, 1 ⟩
     for h: len in [128 : >1 : /= 2] do
       fi := nttLayer fi.1 fi.2 len (by simp [Membership.mem] at *; omega)
     pure fi.1
@@ -60,7 +61,7 @@ namespace Target
     rw [ntt, Spec.ntt]
     unfold nttLayer
     unfold nttLayerInner
-    simp only [Id.run]
+    simp only [Id.run, pure]
     rfl
 
   def invNttLayerInner (f : Polynomial) (i len start : Nat) : Polynomial := Id.run do
@@ -256,7 +257,7 @@ private theorem nttLayer_eq_snd
 
 private theorem nttLayer_eq_aux (f : Polynomial) (i len : Nat)
   (hLen : 0 < len) (hkLen : ∃ k, k ≤ 7 ∧ len = 2 ^ k) :
-  (nttLayer f i len 0 (by simp [hLen]), i + 255 / (2 * len) + 1) = Target.nttLayer f i len := by
+  ⟨ nttLayer f i len 0 (by simp [hLen]), i + 255 / (2 * len) + 1 ⟩ = Target.nttLayer f i len := by
   have := nttLayer_eq_fst f i len hLen
   have := nttLayer_eq_snd f i len hLen
   cases h: Target.nttLayer f i len
@@ -264,7 +265,7 @@ private theorem nttLayer_eq_aux (f : Polynomial) (i len : Nat)
 
 private theorem nttLayer_eq (f : Polynomial) (len : Nat) (hLen : 0 < len)
   (hkLen : len = 2 ^ (Nat.log2 len) ∧ Nat.log2 len ≤ 7) :
-  (nttLayer f i len 0 hLen, i + 255 / (2 * len) + 1) = Target.nttLayer f i len := by
+  ⟨ nttLayer f i len 0 hLen, i + 255 / (2 * len) + 1 ⟩ = Target.nttLayer f i len := by
   rw [nttLayer_eq_aux]
   exists len.log2
   tauto

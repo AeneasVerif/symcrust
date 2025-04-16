@@ -17,7 +17,7 @@ set_option maxRecDepth 2048
 
 @[local simp] theorem bv_and_65535_eq_mod (x : BitVec 32) : x &&& 65535#32 = x % 65536#32 := by bv_decide
 @[local simp] theorem bv_shift_16_eq_div (x : BitVec 32) : x >>> 16 = x / 65536#32 := by bv_decide
-@[local simp] theorem nat_and_65535_eq_mod (x : Nat) : x &&& 65535 = x % 65536 := by apply Nat.and_pow_two_sub_one_eq_mod x 16
+@[local simp] theorem nat_and_65535_eq_mod (x : Nat) : x &&& 65535 = x % 65536 := by apply Nat.and_two_pow_sub_one_eq_mod x 16
 
 @[local simp]
 theorem mod_4294967296_65536_eq (x : Nat) : ((x % 4294967296) % 65536) = x % 65536 := by
@@ -503,7 +503,7 @@ theorem poly_element_ntt_spec (peSrc : Std.Array U16 256#usize)
 /-!
 # INTT
 -/
-@[progress] -- TODO: `local progress` doesn't work because Lean makes the spec local to namespace `SymCryptMlKemPolyElementNTTLayerC`
+@[progress] -- TODO: `local progress` doesn't work because Lean makes the spec local to namespace `poly_element_intt_layer_c`
 def poly_element_intt_layer_c.inner_loop_loop_spec
   (peSrc : Array U16 256#usize) (k : Usize) (len : Usize) (start : Usize)
   (twiddleFactor : U32) (twiddleFactorMont : U32) (j : Usize)

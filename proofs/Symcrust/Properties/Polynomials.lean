@@ -15,9 +15,22 @@ open Aeneas
 -/
 
 @[simp]
-theorem Polynomial.getElem!_eq  {n} (l : List (ZMod n)) (h : l.length = 256) (i : Nat) :
-  (⟨ l, h ⟩ : Polynomial n)[i]! = l[i]! := by rfl
+theorem Polynomial.getElem_eq_getElem! {i : Nat} (hi : i < 256)
+  (p : Polynomial n) :
+  p[i] = p[i]! := by
+  unfold getElem getElem! instGetElemPolynomialNatZModLtOfNat instGetElem?OfGetElemOfDecidable decidableGetElem?
+  simp; split_ifs; simp
 
+@[simp]
+theorem Polynomial.getElem!_eq  {n} (l : List (ZMod n)) (h : l.length = 256) (i : Nat) :
+  (⟨ l, h ⟩ : Polynomial n)[i]! = l[i]! := by
+  conv => lhs; unfold Polynomial getElem! instGetElem?OfGetElemOfDecidable
+  simp only
+  unfold decidableGetElem? instGetElemPolynomialNatZModLtOfNat
+  simp only [dite_eq_ite]
+  split_ifs <;> simp_all only [not_lt, List.getElem!_default]
+  simp only [List.getElem!_eq_getElem?_getD, List.getElem?_eq_getElem, Option.getD_some, *]
+  rfl
 
 @[simp]
 theorem Polynomial.set_eq {n} (l : List (ZMod n)) (h : l.length = 256) (i : Nat) (x : ZMod n) :
