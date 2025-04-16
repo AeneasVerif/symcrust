@@ -9,6 +9,26 @@ It does not need to be trusted.
 
 attribute [-simp] List.getElem!_eq_getElem?_getD List.reduceReplicate Aeneas.SRRange.foldWhile_step
 
+-- TODO: move and update Array.update_subslice to use it
+def List.setSlice! {α} (s : List α) (i : ℕ) (s' : List α) : List α := sorry
+
+def Array.setSlice! {α} (a : Array α) (i : ℕ) (s : List α) : Array α := sorry
+
+def Vector.setSlice! {α} {n} (x : Vector α n) (i : ℕ) (s : List α) : Vector α n := sorry
+
+/-!
+# Conversion to little-endian
+-/
+open Symcrust.Spec -- for Bytes
+
+def BitVec.toLEBytes {n : ℕ} (b : BitVec n) : List Byte :=
+  if n > 0 then
+    b.setWidth 8 :: BitVec.toLEBytes ((b >>> 8).setWidth (n - 8))
+  else []
+
+def BitVec.toBEBytes {n : ℕ} (b : BitVec n) : List Byte :=
+  List.reverse b.toLEBytes
+
 namespace Symcrust.SpecAux
 
 open Symcrust.Spec
@@ -56,11 +76,6 @@ def byteEncodeToBits {n} (d : ℕ) (f : List (ZMod n)) : List Bool :=
 
 def bitsToBytes1 (l : ℕ) (b : List Bool) : List Byte :=
   List.map (fun i => BitVec.ofBoolListLE (List.map (fun j => b[8 * i + j]!) (List.range 8))) (List.range l)
-
-def BitVec.toLEBytes {n : ℕ} (b : BitVec n) : List Byte :=
-  if n > 0 then
-    b.setWidth 8 :: BitVec.toLEBytes ((b >>> 8).setWidth (n - 8))
-  else []
 
 def encodeNatToBytes (d : ℕ) (coeff : ℕ) (nBitsInAcc : ℕ) (nBitsInCoeff : ℕ) (acc : List Bool)
   (hBitsInAcc : nBitsInAcc < 32 := by omega)
@@ -959,10 +974,321 @@ def Target.byteEncode.spec (d : ℕ) (F : Polynomial (m d)) (hd : 0 < d) :
   rw [this]
 
 /-!
-# bytesToBits then byteEncode
+# Streamed byteEncode
+
+Below, we prove that the streamed version of `byteEncode` is correct.
 -/
 
+/-- `d`: the number of bits with which to encode an element
+    `n`: the number of bytes in the accumulator
+-/
+structure Stream.EncodeState (d n : ℕ) where
+  b : Vector Byte (32 * d)
+  bi : ℕ -- number of bytes written to `b`
+  acc : BitVec (8 * n)
+  acci : ℕ -- number of bits written to `acc`
 
+def Stream.encode.body {d n : ℕ} (x : ZMod (m d)) (s : EncodeState d n) :
+  EncodeState d n :=
+  let nBits := min d (8 * n - s.acci)
+  let bits := BitVec.ofNat (8 * n) x.val &&& (1#(8*n) <<< nBits - 1#(8*n))
+  let x := x.val >>> nBits
+  let xBits := d - nBits
+
+  let acc := s.acc ||| (bits <<< s.acci)
+  let acci := s.acci + nBits
+
+  -- Flush
+  if acci = 8 * n then
+    let b := s.b.setSlice! s.bi acc.toLEBytes
+    let bi := s.bi + n
+    let acc := 0
+    let acci := 0
+    -- Encode the remaining bits
+    if xBits > 0 then
+      let bits := BitVec.ofNat (8 * n) x &&& (1#(8*n) <<< nBits - 1#(8*n))
+      let acc := bits
+      let acci := xBits
+      {b, bi, acc, acci}
+    else
+      {b, bi, acc, acci}
+  else
+    {s with acc, acci}
+
+def Stream.encode.inv
+  {d n : ℕ} (F : Vector (ZMod (m d)) 256) (s : EncodeState d n) (i : ℕ) : Prop :=
+  -- The lengths are correct
+  i ≤ 256 ∧
+  s.bi = n * ((d * i) / (8 * n)) ∧
+  s.acci = (d * i) % (8 * n) ∧
+  -- The bits are properly set in the destination buffer
+  (∀ i < s.bi, ∀ j < 8, s.b[i]!.testBit j = F[(8 * i + j) / d]!.val.testBit ((8 * i + j) % d)) ∧
+  -- The bits are properly set in the accumulator
+  (∀ j < s.acci, s.acc[j]! = F[(8 * s.bi + j) / d]!.val.testBit ((8 * s.bi + j) % d)) ∧
+  (∀ j ∈ [s.acci:8*n], s.acc[j]! = false)
+
+
+macro "glet" h:ident " : " x:ident " := " e:term : tactic =>
+  -- TODO: don't manage to make the syntax `generalize $h : ...` work
+  `(tactic| (generalize h: $e = $x at *; rename _ => $h; replace $h := Eq.symm $h))
+
+macro "glet" x:ident " := " e:term : tactic =>
+  `(tactic| (let $x := $e; refold_let $x at *))
+
+@[simp, simp_lists_simps] theorem BitVec.getElem!_or {n} (x y : BitVec n) (i : ℕ) :
+  (x ||| y)[i]! = (x[i]! || y[i]!) := by sorry
+
+@[simp, simp_lists_simps] theorem BitVec.getElem!_and {n} (x y : BitVec n) (i : ℕ) :
+  (x ^^^ y)[i]! = (x[i]!&& y[i]!) := by sorry
+
+attribute [simp_lists_simps] Bool.false_or Bool.or_false
+
+-- TODO: move and use more
+@[simp, simp_lists_simps]
+theorem BitVec.getElem!_eq_false {w : ℕ} (x : BitVec w) (i : ℕ) (hi : w ≤ i) :
+  x[i]! = false := by
+  unfold getElem! instGetElem?OfGetElemOfDecidable decidableGetElem?
+  simp
+  split_ifs <;> simp_all
+  . omega
+  . rfl
+
+-- TODO: move and use more
+theorem BitVec.getElem!_eq_getElem {w : ℕ} (x : BitVec w) (i : ℕ) (hi : i < w) :
+  x[i]! = x[i] := by
+  unfold getElem! instGetElem?OfGetElemOfDecidable decidableGetElem?
+  simp
+  split_ifs; simp_all
+
+theorem BitVec.getElem!_eq_testBit_toNat {w : ℕ} (x : BitVec w) (i : ℕ) :
+  x[i]! = x.toNat.testBit i := by
+  by_cases i < w
+  . have : x[i]! = x[i] := by
+      simp [BitVec.getElem!_eq_getElem, *]
+    rw [this]
+    simp [BitVec.getElem_eq_testBit_toNat]
+  . simp_all
+    have : x.toNat < 2^w := by omega
+    apply Nat.testBit_eq_false_of_lt
+    have : 2^w ≤ 2^i := by apply Nat.pow_le_pow_right <;> omega
+    omega
+
+@[simp]
+theorem BitVec.and_two_pow_sub_one_eq_mod {w} (x : BitVec w) (n : Nat) :
+  x &&& 2#w ^ n - 1#w = x % 2#w ^ n := by
+  by_cases hn : n < w
+  . simp [← BitVec.ofNat_pow]
+    natify
+    simp
+    have : 2^n < 2^w := by
+      apply Nat.pow_lt_pow_of_lt <;> omega
+    -- TODO: simp_arith
+    simp (disch := omega) [Nat.mod_eq_of_lt]
+    have : 1 ≤ 2^n := by
+      have : 2^0 ≤ 2^n := by apply Nat.pow_le_pow_of_le <;> omega
+      omega
+    have : 2 ^ w - 1 + 2 ^ n = 2^w + (2^n - 1) := by omega
+    rw [this]
+    simp (disch := omega) [Nat.mod_eq_of_lt]
+  . simp [← BitVec.ofNat_pow]
+    simp at hn
+    have : BitVec.ofNat w (2 ^ n) = 0 := by
+      unfold BitVec.ofNat Fin.ofNat'
+      have : 2^n % 2^w = 0 := by
+        have : n = w + (n - w) := by omega
+        rw [this, Nat.pow_add]
+        simp only [Nat.mul_mod_right]
+      simp only [this]
+      simp only [Fin.mk_zero', BitVec.ofNat_eq_ofNat, BitVec.ofNat, Fin.ofNat'_eq_cast, Nat.cast_zero]
+    rw [this]
+    simp
+    natify
+    simp
+    by_cases hw: 0 < w
+    . have : (2 ^ w - 1 % 2 ^ w) % 2 ^ w = 2^w - 1 := by
+        have hLt : 1 < 2^w := by
+          have : 2^0 < 2^w := by -- TODO: scalar_tac +nonLin
+            apply Nat.pow_lt_pow_of_lt <;> omega
+          omega
+        have : (2^w - 1) % 2^w = 2^w - 1 := by apply Nat.mod_eq_of_lt; omega
+        rw [← this]
+        zmodify
+        simp only [Nat.one_mod_two_pow, Nat.ofNat_pos, pow_pos, Nat.cast_pred, CharP.cast_eq_zero,
+          zero_sub, hw]
+      simp [this]
+    . have : x.toNat < 2^w := by omega
+      simp_all
+
+attribute [natify_simps] BitVec.toNat_twoPow
+
+@[simp]
+theorem BitVec.shiftLeft_sub_one_eq_mod {w} (x : BitVec w) (n : Nat) :
+  x &&& 1#w <<< n - 1#w = x % 2 ^ n := by
+  simp only [BitVec.ofNat_eq_ofNat]
+  simp only [BitVec.shiftLeft_eq_mul_twoPow]
+  have : 1#w * BitVec.twoPow w n = 2#w ^ n := by
+    have : 1#w = 1 := by simp
+    rw [this]
+    ring_nf
+    natify; simp only [toNat_pow, BitVec.toNat_ofNat]
+    zmodify
+    simp only [ZMod.natCast_mod, Nat.cast_ofNat]
+  rw [this]
+  simp only [BitVec.and_two_pow_sub_one_eq_mod]
+
+theorem Stream.encode.body.spec
+  {d n : ℕ} {F : Vector (ZMod (m d)) 256} {s : EncodeState d n}
+  (hinv : inv F s i) (hi : i < 256 := by omega) (hn : 0 < n := by omega)
+  (hdn : d < 8 * n)
+  [NeZero (m d)]
+  (hm : m d < 2^(8*n) := by omega) :
+  inv F (body F[i]! s) (i + 1) := by
+  unfold body
+  simp [inv] at hinv
+  obtain ⟨ h0, h1, h2, h3, h4, h5 ⟩ := hinv
+  -- TODO: would be good to be able to intro the intermediate defs variables
+  simp only
+  glet x0 := F[i]!
+  glet nBits := d ⊓ (8 * n - s.acci)
+  glet bits := BitVec.ofNat (8 * n) x0.val &&& (1#(8*n) <<< nBits - 1#(8*n))
+  glet x := x0.val >>> nBits
+  glet xBits := d - nBits
+
+  glet acc := s.acc ||| (bits <<< s.acci)
+  glet acci := s.acci + nBits
+
+  have hBitsEq : bits.toNat = x0.val % 2^nBits := by
+    simp only [bits]
+    simp only [BitVec.shiftLeft_sub_one_eq_mod]
+    simp
+
+    have : 2 < 2 ^(8*n) := by
+      have : 2^8 ≤ 2^(8*n) := by -- TODO: scalar_tac +nonLin
+        apply Nat.pow_le_pow_right <;> omega
+      omega
+
+    have : 2 ^ nBits < 2 ^ (8 * n) := by -- TODO: scalar_tac +nonLin
+      apply Nat.pow_lt_pow_right <;> omega
+
+    have : x0.val < 2 ^ (8 * n) := by
+      have : x0.val < m d := by apply ZMod.val_lt
+      omega
+
+    simp (disch := omega) only [Nat.mod_eq_of_lt]
+
+  split <;> rename_i h0
+  . split
+    . sorry
+    . sorry
+
+  . simp only [inv] at *
+
+    have hLt : s.acci < 8 * n := by
+        simp [h2]
+        apply Nat.mod_lt
+        omega
+    have hLt' : s.acci + nBits < 8 * n := by omega
+    have nBitsEq : nBits = d := by omega
+
+    have hAcci : acci = d * (i + 1) % (8 * n) := by
+      simp [acci]
+      simp [Nat.left_distrib]
+      have := Nat.mod_eq_of_lt hLt'
+      rw [← this]
+      zmodify
+      have := Nat.mod_eq_of_lt hLt
+      rw [← this] at h2
+      zmodify at h2
+      simp [h2]
+      simp [nBitsEq]
+
+    have hBi : s.bi = n * (d * (i + 1) / (8 * n)) := by
+      -- Using the characterization of euclidean division
+      have hMod := Nat.mod_add_div (d * i) (8 * n)
+      have hMod' := Nat.mod_add_div (d * (i + 1)) (8 * n)
+      --
+      simp only [mul_assoc, ← h1, ← h2, ← hAcci] at hMod hMod'
+      have : d * (i + 1) = d * i + d := by ring_nf
+      conv at hMod' => rhs; rw [this]
+      simp [acci, nBitsEq] at hMod'
+      have : 8 * s.bi = 8 * (n * (d * (i + 1) / (8 * n))) := by omega
+      omega
+    --
+
+    split_conjs <;> try tauto
+    . -- Accumulator: prefix
+      intros j hj
+      simp [acci] at hj
+      simp [acc]
+      by_cases hj': j < s.acci
+      . simp_lists [h4]
+        have : (bits <<< s.acci)[j]! = false := by
+          simp [BitVec.getElem!_eq_testBit_toNat]
+          intros hj'' hacc
+          -- Contradiction
+          omega
+        simp [this]
+      . simp_lists [h5]
+        simp [BitVec.getElem!_eq_testBit_toNat]
+        have : s.acci ≤ j ∧ j < 8 * n := by omega
+        simp [this]; clear this
+
+        simp [hBitsEq]
+        have : j - s.acci < nBits := by omega
+        simp [this]; clear this
+        simp [x0]
+
+        have : (8 * s.bi + j) / d = i ∧
+               (8 * s.bi + j) % d = j - s.acci := by
+          have := Nat.mod_add_div (d * i) (8 * n)
+          have : 8 * s.bi = 8 * n * (d * i / (8 * n)) := by
+            simp [h1]
+            ring_nf
+
+          have : 8 * s.bi + j = d * i + (j - s.acci) := by omega
+
+          split_conjs
+          -- TODO: simp arith expressions
+          . have hi : (8 * s.bi + j) / d = (d * i + (j - s.acci)) / d := by simp [this]
+            simp (disch := omega) [Nat.mul_add_div, Nat.div_eq_of_lt] at hi
+            apply hi
+          . have hi : (8 * s.bi + j) % d = (d * i + (j - s.acci)) % d := by simp [this]
+            simp (disch := omega) [Nat.mul_add_div, Nat.mod_eq_of_lt] at hi
+            apply hi
+
+        simp [this]
+
+    . -- Accumulator: suffix
+      simp
+      intros j hj hj'
+      simp [acc]
+      simp_lists [*]
+      simp [← h2]
+
+      simp [bits]
+      simp [acci] at hj
+      have : j = s.acci + nBits + (j - (s.acci + nBits)) := by omega
+      rw [this]
+      simp [BitVec.getElem!_eq_testBit_toNat]
+      intros
+      have : s.acci + nBits + (j - (s.acci + nBits)) - s.acci = j - s.acci := by omega
+      rw [this]
+
+      have : 2 < 2 ^(8*n) := by
+        have : 2^8 ≤ 2^(8*n) := by -- TODO: scalar_tac +nonLin
+          apply Nat.pow_le_pow_right <;> omega
+        omega
+
+      have : 2 ^ nBits < 2 ^ (8 * n) := by -- TODO: scalar_tac +nonLin
+        apply Nat.pow_lt_pow_right <;> omega
+
+      simp (disch := omega) [Nat.mod_eq_of_lt]
+      intros
+      -- Contradiction
+      omega
+
+
+--
 
 #exit
 

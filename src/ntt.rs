@@ -606,8 +606,8 @@ fn encode_coefficient(
         // Encode the remaining bits
         if n_bits_in_coefficient > 0 {
             let bits_to_encode = coefficient & ((1<<n_bits_to_encode)-1);
-            *accumulator |= bits_to_encode << *n_bits_in_accumulator;
-            *n_bits_in_accumulator += n_bits_to_encode;
+            *accumulator = bits_to_encode;
+            *n_bits_in_accumulator += n_bits_in_coefficient;
         }
     }
 }
