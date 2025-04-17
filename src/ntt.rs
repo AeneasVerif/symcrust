@@ -577,7 +577,7 @@ fn compress_coefficient(n_bits_per_coefficient: u32, mut coefficient: u32) -> u3
 
 #[inline(always)]
 fn encode_coefficient(
-    mut coefficient: u32,
+    coefficient: u32,
     mut n_bits_in_coefficient: u32,
     pb_dst: &mut [u8],
     cb_dst_written: &mut usize,
@@ -589,7 +589,6 @@ fn encode_coefficient(
     let n_bits_to_encode = min(n_bits_in_coefficient, 32 - *n_bits_in_accumulator);
 
     let bits_to_encode = coefficient & ((1<<n_bits_to_encode)-1);
-    coefficient >>= n_bits_to_encode;
     n_bits_in_coefficient -= n_bits_to_encode;
 
     *accumulator |= bits_to_encode << *n_bits_in_accumulator;
@@ -600,15 +599,10 @@ fn encode_coefficient(
     {
         pb_dst[(*cb_dst_written)..(*cb_dst_written)+4].copy_from_slice(&u32::to_le_bytes(*accumulator));
         *cb_dst_written += 4;
-        *accumulator = 0;
-        *n_bits_in_accumulator = 0;
 
-        // Encode the remaining bits
-        if n_bits_in_coefficient > 0 {
-            let bits_to_encode = coefficient & ((1<<n_bits_to_encode)-1);
-            *accumulator = bits_to_encode;
-            *n_bits_in_accumulator += n_bits_in_coefficient;
-        }
+        // Encode the remaining bits, if there are
+        *accumulator = coefficient >> n_bits_to_encode;
+        *n_bits_in_accumulator = n_bits_in_coefficient;
     }
 }
 
