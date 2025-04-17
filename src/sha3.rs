@@ -4,6 +4,308 @@
 #![allow(unused_assignments)]
 #![allow(unreachable_patterns)]
 
+#[inline(always)]
+pub
+fn
+KECCAK_CHI(state: &mut [u64])
+{
+  KECCAK_CHI_ROW(state, 0i32);
+  KECCAK_CHI_ROW(state, 1i32);
+  KECCAK_CHI_ROW(state, 2i32);
+  KECCAK_CHI_ROW(state, 3i32);
+  KECCAK_CHI_ROW(state, 4i32)
+}
+
+#[inline(always)]
+pub
+fn
+KECCAK_CHI_ROW(state: &mut [u64], r: i32)
+{
+  let t1: u64 =
+      state[5i32.wrapping_mul(r).wrapping_add(0i32) as usize]
+      ^
+      ! state[5i32.wrapping_mul(r).wrapping_add(1i32) as usize]
+      &
+      state[5i32.wrapping_mul(r).wrapping_add(2i32) as usize];
+  let t2: u64 =
+      state[5i32.wrapping_mul(r).wrapping_add(1i32) as usize]
+      ^
+      ! state[5i32.wrapping_mul(r).wrapping_add(2i32) as usize]
+      &
+      state[5i32.wrapping_mul(r).wrapping_add(3i32) as usize];
+  state[5i32.wrapping_mul(r).wrapping_add(2i32) as usize] ^=
+      ! state[5i32.wrapping_mul(r).wrapping_add(3i32) as usize]
+      &
+      state[5i32.wrapping_mul(r).wrapping_add(4i32) as usize];
+  state[5i32.wrapping_mul(r).wrapping_add(3i32) as usize] ^=
+      ! state[5i32.wrapping_mul(r).wrapping_add(4i32) as usize]
+      &
+      state[5i32.wrapping_mul(r).wrapping_add(0i32) as usize];
+  state[5i32.wrapping_mul(r).wrapping_add(4i32) as usize] ^=
+      ! state[5i32.wrapping_mul(r).wrapping_add(0i32) as usize]
+      &
+      state[5i32.wrapping_mul(r).wrapping_add(1i32) as usize];
+  state[5i32.wrapping_mul(r).wrapping_add(0i32) as usize] = t1;
+  state[5i32.wrapping_mul(r).wrapping_add(1i32) as usize] = t2
+}
+
+#[inline(always)]
+pub
+fn
+KECCAK_COLUMN_SUM(state: &[u64], c: usize) ->
+    u64
+{
+  return
+  state[0u64.wrapping_add(c as u64) as usize] ^ state[5u64.wrapping_add(c as u64) as usize]
+  ^
+  state[10u64.wrapping_add(c as u64) as usize]
+  ^
+  state[15u64.wrapping_add(c as u64) as usize]
+  ^
+  state[20u64.wrapping_add(c as u64) as usize]
+}
+
+#[inline(always)]
+pub
+fn
+KECCAK_COLUMN_UPDATE(state: &mut [u64], c: usize, w: u64)
+{
+  let t: u64 = w;
+  state[0u64.wrapping_add(c as u64) as usize] ^= t;
+  state[5u64.wrapping_add(c as u64) as usize] ^= t;
+  state[10u64.wrapping_add(c as u64) as usize] ^= t;
+  state[15u64.wrapping_add(c as u64) as usize] ^= t;
+  state[20u64.wrapping_add(c as u64) as usize] ^= t
+}
+
+#[inline(always)]
+pub
+fn
+KECCAK_IOTA(state: &mut [u64], rnd: i32)
+{ state[0usize] ^= KeccakIotaK[rnd as usize] }
+
+#[inline(always)]
+pub
+fn
+KECCAK_PERM_ROUND(state: &mut [u64], rnd: i32)
+{
+  KECCAK_THETA(state);
+  KECCAK_RHO(state);
+  KECCAK_PI(state);
+  KECCAK_CHI(state);
+  KECCAK_IOTA(state, rnd)
+}
+
+#[inline(always)]
+pub
+fn
+KECCAK_PI(state: &mut [u64])
+{
+  let t: u64 = state[1usize];
+  state[1usize] = state[6usize];
+  state[6usize] = state[9usize];
+  state[9usize] = state[22usize];
+  state[22usize] = state[14usize];
+  state[14usize] = state[20usize];
+  state[20usize] = state[2usize];
+  state[2usize] = state[12usize];
+  state[12usize] = state[13usize];
+  state[13usize] = state[19usize];
+  state[19usize] = state[23usize];
+  state[23usize] = state[15usize];
+  state[15usize] = state[4usize];
+  state[4usize] = state[24usize];
+  state[24usize] = state[21usize];
+  state[21usize] = state[8usize];
+  state[8usize] = state[16usize];
+  state[16usize] = state[5usize];
+  state[5usize] = state[3usize];
+  state[3usize] = state[18usize];
+  state[18usize] = state[17usize];
+  state[17usize] = state[11usize];
+  state[11usize] = state[7usize];
+  state[7usize] = state[10usize];
+  state[10usize] = t
+}
+
+#[inline(always)]
+pub
+fn
+KECCAK_RHO(state: &mut [u64])
+{
+  KECCAK_RHO_ROW0(state);
+  KECCAK_RHO_ROW(state, 1i32);
+  KECCAK_RHO_ROW(state, 2i32);
+  KECCAK_RHO_ROW(state, 3i32);
+  KECCAK_RHO_ROW(state, 4i32)
+}
+
+#[inline(always)]
+pub
+fn
+KECCAK_RHO_ROW(state: &mut [u64], r: i32)
+{
+  state[5i32.wrapping_mul(r).wrapping_add(0i32) as usize] =
+      ((state[5i32.wrapping_mul(r).wrapping_add(0i32) as usize]).wrapping_shl(
+        KeccakRhoK[5i32.wrapping_mul(r).wrapping_add(0i32) as usize] as u32
+      )
+      |
+      (state[5i32.wrapping_mul(r).wrapping_add(0i32) as usize]).wrapping_shr(
+        64i32.wrapping_sub(KeccakRhoK[5i32.wrapping_mul(r).wrapping_add(0i32) as usize] as i32)
+        as
+        u32
+      ))
+      as
+      u64;
+  state[5i32.wrapping_mul(r).wrapping_add(1i32) as usize] =
+      ((state[5i32.wrapping_mul(r).wrapping_add(1i32) as usize]).wrapping_shl(
+        KeccakRhoK[5i32.wrapping_mul(r).wrapping_add(1i32) as usize] as u32
+      )
+      |
+      (state[5i32.wrapping_mul(r).wrapping_add(1i32) as usize]).wrapping_shr(
+        64i32.wrapping_sub(KeccakRhoK[5i32.wrapping_mul(r).wrapping_add(1i32) as usize] as i32)
+        as
+        u32
+      ))
+      as
+      u64;
+  state[5i32.wrapping_mul(r).wrapping_add(2i32) as usize] =
+      ((state[5i32.wrapping_mul(r).wrapping_add(2i32) as usize]).wrapping_shl(
+        KeccakRhoK[5i32.wrapping_mul(r).wrapping_add(2i32) as usize] as u32
+      )
+      |
+      (state[5i32.wrapping_mul(r).wrapping_add(2i32) as usize]).wrapping_shr(
+        64i32.wrapping_sub(KeccakRhoK[5i32.wrapping_mul(r).wrapping_add(2i32) as usize] as i32)
+        as
+        u32
+      ))
+      as
+      u64;
+  state[5i32.wrapping_mul(r).wrapping_add(3i32) as usize] =
+      ((state[5i32.wrapping_mul(r).wrapping_add(3i32) as usize]).wrapping_shl(
+        KeccakRhoK[5i32.wrapping_mul(r).wrapping_add(3i32) as usize] as u32
+      )
+      |
+      (state[5i32.wrapping_mul(r).wrapping_add(3i32) as usize]).wrapping_shr(
+        64i32.wrapping_sub(KeccakRhoK[5i32.wrapping_mul(r).wrapping_add(3i32) as usize] as i32)
+        as
+        u32
+      ))
+      as
+      u64;
+  state[5i32.wrapping_mul(r).wrapping_add(4i32) as usize] =
+      ((state[5i32.wrapping_mul(r).wrapping_add(4i32) as usize]).wrapping_shl(
+        KeccakRhoK[5i32.wrapping_mul(r).wrapping_add(4i32) as usize] as u32
+      )
+      |
+      (state[5i32.wrapping_mul(r).wrapping_add(4i32) as usize]).wrapping_shr(
+        64i32.wrapping_sub(KeccakRhoK[5i32.wrapping_mul(r).wrapping_add(4i32) as usize] as i32)
+        as
+        u32
+      ))
+      as
+      u64
+}
+
+#[inline(always)]
+pub
+fn
+KECCAK_RHO_ROW0(state: &mut [u64])
+{
+  state[1usize] =
+      ((state[1usize]).wrapping_shl(KeccakRhoK[1usize] as u32)
+      |
+      (state[1usize]).wrapping_shr(64i32.wrapping_sub(KeccakRhoK[1usize] as i32) as u32))
+      as
+      u64;
+  state[2usize] =
+      ((state[2usize]).wrapping_shl(KeccakRhoK[2usize] as u32)
+      |
+      (state[2usize]).wrapping_shr(64i32.wrapping_sub(KeccakRhoK[2usize] as i32) as u32))
+      as
+      u64;
+  state[3usize] =
+      ((state[3usize]).wrapping_shl(KeccakRhoK[3usize] as u32)
+      |
+      (state[3usize]).wrapping_shr(64i32.wrapping_sub(KeccakRhoK[3usize] as i32) as u32))
+      as
+      u64;
+  state[4usize] =
+      ((state[4usize]).wrapping_shl(KeccakRhoK[4usize] as u32)
+      |
+      (state[4usize]).wrapping_shr(64i32.wrapping_sub(KeccakRhoK[4usize] as i32) as u32))
+      as
+      u64
+}
+
+#[inline(always)]
+pub
+fn
+KECCAK_THETA(state: &mut [u64])
+{
+  let mut colSum: [u64; 5] = [0u64; 5usize];
+  colSum[0usize] = KECCAK_COLUMN_SUM(state, 0usize);
+  colSum[1usize] = KECCAK_COLUMN_SUM(state, 1usize);
+  colSum[2usize] = KECCAK_COLUMN_SUM(state, 2usize);
+  colSum[3usize] = KECCAK_COLUMN_SUM(state, 3usize);
+  colSum[4usize] = KECCAK_COLUMN_SUM(state, 4usize);
+  KECCAK_COLUMN_UPDATE(
+    state,
+    0usize,
+    colSum[4usize]
+    ^
+    ((colSum[1usize]).wrapping_shl(1u32)
+    |
+    (colSum[1usize]).wrapping_shr(64i32.wrapping_sub(1i32) as u32))
+    as
+    u64
+  );
+  KECCAK_COLUMN_UPDATE(
+    state,
+    1usize,
+    colSum[0usize]
+    ^
+    ((colSum[2usize]).wrapping_shl(1u32)
+    |
+    (colSum[2usize]).wrapping_shr(64i32.wrapping_sub(1i32) as u32))
+    as
+    u64
+  );
+  KECCAK_COLUMN_UPDATE(
+    state,
+    2usize,
+    colSum[1usize]
+    ^
+    ((colSum[3usize]).wrapping_shl(1u32)
+    |
+    (colSum[3usize]).wrapping_shr(64i32.wrapping_sub(1i32) as u32))
+    as
+    u64
+  );
+  KECCAK_COLUMN_UPDATE(
+    state,
+    3usize,
+    colSum[2usize]
+    ^
+    ((colSum[4usize]).wrapping_shl(1u32)
+    |
+    (colSum[4usize]).wrapping_shr(64i32.wrapping_sub(1i32) as u32))
+    as
+    u64
+  );
+  KECCAK_COLUMN_UPDATE(
+    state,
+    4usize,
+    colSum[3usize]
+    ^
+    ((colSum[0usize]).wrapping_shl(1u32)
+    |
+    (colSum[0usize]).wrapping_shr(64i32.wrapping_sub(1i32) as u32))
+    as
+    u64
+  )
+}
+
 pub const KeccakIotaK: [u64; 24] =
     [1u64, 32898u64, 9223372036854808714u64, 9223372039002292224u64, 32907u64, 2147483649u64,
         9223372039002292353u64, 9223372036854808585u64, 138u64, 136u64, 2147516425u64, 2147483658u64,
@@ -210,609 +512,7 @@ pub fn SymCryptKeccakInit(
 }
 
 pub fn SymCryptKeccakPermute(pState: &mut [u64])
-{
-  for r in 0i32..24i32
-  {
-    {
-      let mut colSum: [u64; 5] = [0u64; 5usize];
-      colSum[0usize] =
-          pState[0i32.wrapping_add(0i32) as usize] ^ pState[5i32.wrapping_add(0i32) as usize]
-          ^
-          pState[10i32.wrapping_add(0i32) as usize]
-          ^
-          pState[15i32.wrapping_add(0i32) as usize]
-          ^
-          pState[20i32.wrapping_add(0i32) as usize];
-      colSum[1usize] =
-          pState[0i32.wrapping_add(1i32) as usize] ^ pState[5i32.wrapping_add(1i32) as usize]
-          ^
-          pState[10i32.wrapping_add(1i32) as usize]
-          ^
-          pState[15i32.wrapping_add(1i32) as usize]
-          ^
-          pState[20i32.wrapping_add(1i32) as usize];
-      colSum[2usize] =
-          pState[0i32.wrapping_add(2i32) as usize] ^ pState[5i32.wrapping_add(2i32) as usize]
-          ^
-          pState[10i32.wrapping_add(2i32) as usize]
-          ^
-          pState[15i32.wrapping_add(2i32) as usize]
-          ^
-          pState[20i32.wrapping_add(2i32) as usize];
-      colSum[3usize] =
-          pState[0i32.wrapping_add(3i32) as usize] ^ pState[5i32.wrapping_add(3i32) as usize]
-          ^
-          pState[10i32.wrapping_add(3i32) as usize]
-          ^
-          pState[15i32.wrapping_add(3i32) as usize]
-          ^
-          pState[20i32.wrapping_add(3i32) as usize];
-      colSum[4usize] =
-          pState[0i32.wrapping_add(4i32) as usize] ^ pState[5i32.wrapping_add(4i32) as usize]
-          ^
-          pState[10i32.wrapping_add(4i32) as usize]
-          ^
-          pState[15i32.wrapping_add(4i32) as usize]
-          ^
-          pState[20i32.wrapping_add(4i32) as usize];
-      {
-        let t: u64 =
-            colSum[4usize]
-            ^
-            ((colSum[1usize]).wrapping_shl(1u32)
-            |
-            (colSum[1usize]).wrapping_shr(64i32.wrapping_sub(1i32) as u32))
-            as
-            u64;
-        pState[0i32.wrapping_add(0i32) as usize] ^= t;
-        pState[5i32.wrapping_add(0i32) as usize] ^= t;
-        pState[10i32.wrapping_add(0i32) as usize] ^= t;
-        pState[15i32.wrapping_add(0i32) as usize] ^= t;
-        pState[20i32.wrapping_add(0i32) as usize] ^= t
-      };
-      {
-        let t: u64 =
-            colSum[0usize]
-            ^
-            ((colSum[2usize]).wrapping_shl(1u32)
-            |
-            (colSum[2usize]).wrapping_shr(64i32.wrapping_sub(1i32) as u32))
-            as
-            u64;
-        pState[0i32.wrapping_add(1i32) as usize] ^= t;
-        pState[5i32.wrapping_add(1i32) as usize] ^= t;
-        pState[10i32.wrapping_add(1i32) as usize] ^= t;
-        pState[15i32.wrapping_add(1i32) as usize] ^= t;
-        pState[20i32.wrapping_add(1i32) as usize] ^= t
-      };
-      {
-        let t: u64 =
-            colSum[1usize]
-            ^
-            ((colSum[3usize]).wrapping_shl(1u32)
-            |
-            (colSum[3usize]).wrapping_shr(64i32.wrapping_sub(1i32) as u32))
-            as
-            u64;
-        pState[0i32.wrapping_add(2i32) as usize] ^= t;
-        pState[5i32.wrapping_add(2i32) as usize] ^= t;
-        pState[10i32.wrapping_add(2i32) as usize] ^= t;
-        pState[15i32.wrapping_add(2i32) as usize] ^= t;
-        pState[20i32.wrapping_add(2i32) as usize] ^= t
-      };
-      {
-        let t: u64 =
-            colSum[2usize]
-            ^
-            ((colSum[4usize]).wrapping_shl(1u32)
-            |
-            (colSum[4usize]).wrapping_shr(64i32.wrapping_sub(1i32) as u32))
-            as
-            u64;
-        pState[0i32.wrapping_add(3i32) as usize] ^= t;
-        pState[5i32.wrapping_add(3i32) as usize] ^= t;
-        pState[10i32.wrapping_add(3i32) as usize] ^= t;
-        pState[15i32.wrapping_add(3i32) as usize] ^= t;
-        pState[20i32.wrapping_add(3i32) as usize] ^= t
-      };
-      let t: u64 =
-          colSum[3usize]
-          ^
-          ((colSum[0usize]).wrapping_shl(1u32)
-          |
-          (colSum[0usize]).wrapping_shr(64i32.wrapping_sub(1i32) as u32))
-          as
-          u64;
-      pState[0i32.wrapping_add(4i32) as usize] ^= t;
-      pState[5i32.wrapping_add(4i32) as usize] ^= t;
-      pState[10i32.wrapping_add(4i32) as usize] ^= t;
-      pState[15i32.wrapping_add(4i32) as usize] ^= t;
-      pState[20i32.wrapping_add(4i32) as usize] ^= t
-    };
-    {
-      {
-        pState[1usize] =
-            ((pState[1usize]).wrapping_shl(KeccakRhoK[1usize] as u32)
-            |
-            (pState[1usize]).wrapping_shr(64i32.wrapping_sub(KeccakRhoK[1usize] as i32) as u32))
-            as
-            u64;
-        pState[2usize] =
-            ((pState[2usize]).wrapping_shl(KeccakRhoK[2usize] as u32)
-            |
-            (pState[2usize]).wrapping_shr(64i32.wrapping_sub(KeccakRhoK[2usize] as i32) as u32))
-            as
-            u64;
-        pState[3usize] =
-            ((pState[3usize]).wrapping_shl(KeccakRhoK[3usize] as u32)
-            |
-            (pState[3usize]).wrapping_shr(64i32.wrapping_sub(KeccakRhoK[3usize] as i32) as u32))
-            as
-            u64;
-        pState[4usize] =
-            ((pState[4usize]).wrapping_shl(KeccakRhoK[4usize] as u32)
-            |
-            (pState[4usize]).wrapping_shr(64i32.wrapping_sub(KeccakRhoK[4usize] as i32) as u32))
-            as
-            u64
-      };
-      {
-        pState[5i32.wrapping_mul(1i32).wrapping_add(0i32) as usize] =
-            ((pState[5i32.wrapping_mul(1i32).wrapping_add(0i32) as usize]).wrapping_shl(
-              KeccakRhoK[5i32.wrapping_mul(1i32).wrapping_add(0i32) as usize] as u32
-            )
-            |
-            (pState[5i32.wrapping_mul(1i32).wrapping_add(0i32) as usize]).wrapping_shr(
-              64i32.wrapping_sub(
-                KeccakRhoK[5i32.wrapping_mul(1i32).wrapping_add(0i32) as usize] as i32
-              )
-              as
-              u32
-            ))
-            as
-            u64;
-        pState[5i32.wrapping_mul(1i32).wrapping_add(1i32) as usize] =
-            ((pState[5i32.wrapping_mul(1i32).wrapping_add(1i32) as usize]).wrapping_shl(
-              KeccakRhoK[5i32.wrapping_mul(1i32).wrapping_add(1i32) as usize] as u32
-            )
-            |
-            (pState[5i32.wrapping_mul(1i32).wrapping_add(1i32) as usize]).wrapping_shr(
-              64i32.wrapping_sub(
-                KeccakRhoK[5i32.wrapping_mul(1i32).wrapping_add(1i32) as usize] as i32
-              )
-              as
-              u32
-            ))
-            as
-            u64;
-        pState[5i32.wrapping_mul(1i32).wrapping_add(2i32) as usize] =
-            ((pState[5i32.wrapping_mul(1i32).wrapping_add(2i32) as usize]).wrapping_shl(
-              KeccakRhoK[5i32.wrapping_mul(1i32).wrapping_add(2i32) as usize] as u32
-            )
-            |
-            (pState[5i32.wrapping_mul(1i32).wrapping_add(2i32) as usize]).wrapping_shr(
-              64i32.wrapping_sub(
-                KeccakRhoK[5i32.wrapping_mul(1i32).wrapping_add(2i32) as usize] as i32
-              )
-              as
-              u32
-            ))
-            as
-            u64;
-        pState[5i32.wrapping_mul(1i32).wrapping_add(3i32) as usize] =
-            ((pState[5i32.wrapping_mul(1i32).wrapping_add(3i32) as usize]).wrapping_shl(
-              KeccakRhoK[5i32.wrapping_mul(1i32).wrapping_add(3i32) as usize] as u32
-            )
-            |
-            (pState[5i32.wrapping_mul(1i32).wrapping_add(3i32) as usize]).wrapping_shr(
-              64i32.wrapping_sub(
-                KeccakRhoK[5i32.wrapping_mul(1i32).wrapping_add(3i32) as usize] as i32
-              )
-              as
-              u32
-            ))
-            as
-            u64;
-        pState[5i32.wrapping_mul(1i32).wrapping_add(4i32) as usize] =
-            ((pState[5i32.wrapping_mul(1i32).wrapping_add(4i32) as usize]).wrapping_shl(
-              KeccakRhoK[5i32.wrapping_mul(1i32).wrapping_add(4i32) as usize] as u32
-            )
-            |
-            (pState[5i32.wrapping_mul(1i32).wrapping_add(4i32) as usize]).wrapping_shr(
-              64i32.wrapping_sub(
-                KeccakRhoK[5i32.wrapping_mul(1i32).wrapping_add(4i32) as usize] as i32
-              )
-              as
-              u32
-            ))
-            as
-            u64
-      };
-      {
-        pState[5i32.wrapping_mul(2i32).wrapping_add(0i32) as usize] =
-            ((pState[5i32.wrapping_mul(2i32).wrapping_add(0i32) as usize]).wrapping_shl(
-              KeccakRhoK[5i32.wrapping_mul(2i32).wrapping_add(0i32) as usize] as u32
-            )
-            |
-            (pState[5i32.wrapping_mul(2i32).wrapping_add(0i32) as usize]).wrapping_shr(
-              64i32.wrapping_sub(
-                KeccakRhoK[5i32.wrapping_mul(2i32).wrapping_add(0i32) as usize] as i32
-              )
-              as
-              u32
-            ))
-            as
-            u64;
-        pState[5i32.wrapping_mul(2i32).wrapping_add(1i32) as usize] =
-            ((pState[5i32.wrapping_mul(2i32).wrapping_add(1i32) as usize]).wrapping_shl(
-              KeccakRhoK[5i32.wrapping_mul(2i32).wrapping_add(1i32) as usize] as u32
-            )
-            |
-            (pState[5i32.wrapping_mul(2i32).wrapping_add(1i32) as usize]).wrapping_shr(
-              64i32.wrapping_sub(
-                KeccakRhoK[5i32.wrapping_mul(2i32).wrapping_add(1i32) as usize] as i32
-              )
-              as
-              u32
-            ))
-            as
-            u64;
-        pState[5i32.wrapping_mul(2i32).wrapping_add(2i32) as usize] =
-            ((pState[5i32.wrapping_mul(2i32).wrapping_add(2i32) as usize]).wrapping_shl(
-              KeccakRhoK[5i32.wrapping_mul(2i32).wrapping_add(2i32) as usize] as u32
-            )
-            |
-            (pState[5i32.wrapping_mul(2i32).wrapping_add(2i32) as usize]).wrapping_shr(
-              64i32.wrapping_sub(
-                KeccakRhoK[5i32.wrapping_mul(2i32).wrapping_add(2i32) as usize] as i32
-              )
-              as
-              u32
-            ))
-            as
-            u64;
-        pState[5i32.wrapping_mul(2i32).wrapping_add(3i32) as usize] =
-            ((pState[5i32.wrapping_mul(2i32).wrapping_add(3i32) as usize]).wrapping_shl(
-              KeccakRhoK[5i32.wrapping_mul(2i32).wrapping_add(3i32) as usize] as u32
-            )
-            |
-            (pState[5i32.wrapping_mul(2i32).wrapping_add(3i32) as usize]).wrapping_shr(
-              64i32.wrapping_sub(
-                KeccakRhoK[5i32.wrapping_mul(2i32).wrapping_add(3i32) as usize] as i32
-              )
-              as
-              u32
-            ))
-            as
-            u64;
-        pState[5i32.wrapping_mul(2i32).wrapping_add(4i32) as usize] =
-            ((pState[5i32.wrapping_mul(2i32).wrapping_add(4i32) as usize]).wrapping_shl(
-              KeccakRhoK[5i32.wrapping_mul(2i32).wrapping_add(4i32) as usize] as u32
-            )
-            |
-            (pState[5i32.wrapping_mul(2i32).wrapping_add(4i32) as usize]).wrapping_shr(
-              64i32.wrapping_sub(
-                KeccakRhoK[5i32.wrapping_mul(2i32).wrapping_add(4i32) as usize] as i32
-              )
-              as
-              u32
-            ))
-            as
-            u64
-      };
-      {
-        pState[5i32.wrapping_mul(3i32).wrapping_add(0i32) as usize] =
-            ((pState[5i32.wrapping_mul(3i32).wrapping_add(0i32) as usize]).wrapping_shl(
-              KeccakRhoK[5i32.wrapping_mul(3i32).wrapping_add(0i32) as usize] as u32
-            )
-            |
-            (pState[5i32.wrapping_mul(3i32).wrapping_add(0i32) as usize]).wrapping_shr(
-              64i32.wrapping_sub(
-                KeccakRhoK[5i32.wrapping_mul(3i32).wrapping_add(0i32) as usize] as i32
-              )
-              as
-              u32
-            ))
-            as
-            u64;
-        pState[5i32.wrapping_mul(3i32).wrapping_add(1i32) as usize] =
-            ((pState[5i32.wrapping_mul(3i32).wrapping_add(1i32) as usize]).wrapping_shl(
-              KeccakRhoK[5i32.wrapping_mul(3i32).wrapping_add(1i32) as usize] as u32
-            )
-            |
-            (pState[5i32.wrapping_mul(3i32).wrapping_add(1i32) as usize]).wrapping_shr(
-              64i32.wrapping_sub(
-                KeccakRhoK[5i32.wrapping_mul(3i32).wrapping_add(1i32) as usize] as i32
-              )
-              as
-              u32
-            ))
-            as
-            u64;
-        pState[5i32.wrapping_mul(3i32).wrapping_add(2i32) as usize] =
-            ((pState[5i32.wrapping_mul(3i32).wrapping_add(2i32) as usize]).wrapping_shl(
-              KeccakRhoK[5i32.wrapping_mul(3i32).wrapping_add(2i32) as usize] as u32
-            )
-            |
-            (pState[5i32.wrapping_mul(3i32).wrapping_add(2i32) as usize]).wrapping_shr(
-              64i32.wrapping_sub(
-                KeccakRhoK[5i32.wrapping_mul(3i32).wrapping_add(2i32) as usize] as i32
-              )
-              as
-              u32
-            ))
-            as
-            u64;
-        pState[5i32.wrapping_mul(3i32).wrapping_add(3i32) as usize] =
-            ((pState[5i32.wrapping_mul(3i32).wrapping_add(3i32) as usize]).wrapping_shl(
-              KeccakRhoK[5i32.wrapping_mul(3i32).wrapping_add(3i32) as usize] as u32
-            )
-            |
-            (pState[5i32.wrapping_mul(3i32).wrapping_add(3i32) as usize]).wrapping_shr(
-              64i32.wrapping_sub(
-                KeccakRhoK[5i32.wrapping_mul(3i32).wrapping_add(3i32) as usize] as i32
-              )
-              as
-              u32
-            ))
-            as
-            u64;
-        pState[5i32.wrapping_mul(3i32).wrapping_add(4i32) as usize] =
-            ((pState[5i32.wrapping_mul(3i32).wrapping_add(4i32) as usize]).wrapping_shl(
-              KeccakRhoK[5i32.wrapping_mul(3i32).wrapping_add(4i32) as usize] as u32
-            )
-            |
-            (pState[5i32.wrapping_mul(3i32).wrapping_add(4i32) as usize]).wrapping_shr(
-              64i32.wrapping_sub(
-                KeccakRhoK[5i32.wrapping_mul(3i32).wrapping_add(4i32) as usize] as i32
-              )
-              as
-              u32
-            ))
-            as
-            u64
-      };
-      pState[5i32.wrapping_mul(4i32).wrapping_add(0i32) as usize] =
-          ((pState[5i32.wrapping_mul(4i32).wrapping_add(0i32) as usize]).wrapping_shl(
-            KeccakRhoK[5i32.wrapping_mul(4i32).wrapping_add(0i32) as usize] as u32
-          )
-          |
-          (pState[5i32.wrapping_mul(4i32).wrapping_add(0i32) as usize]).wrapping_shr(
-            64i32.wrapping_sub(
-              KeccakRhoK[5i32.wrapping_mul(4i32).wrapping_add(0i32) as usize] as i32
-            )
-            as
-            u32
-          ))
-          as
-          u64;
-      pState[5i32.wrapping_mul(4i32).wrapping_add(1i32) as usize] =
-          ((pState[5i32.wrapping_mul(4i32).wrapping_add(1i32) as usize]).wrapping_shl(
-            KeccakRhoK[5i32.wrapping_mul(4i32).wrapping_add(1i32) as usize] as u32
-          )
-          |
-          (pState[5i32.wrapping_mul(4i32).wrapping_add(1i32) as usize]).wrapping_shr(
-            64i32.wrapping_sub(
-              KeccakRhoK[5i32.wrapping_mul(4i32).wrapping_add(1i32) as usize] as i32
-            )
-            as
-            u32
-          ))
-          as
-          u64;
-      pState[5i32.wrapping_mul(4i32).wrapping_add(2i32) as usize] =
-          ((pState[5i32.wrapping_mul(4i32).wrapping_add(2i32) as usize]).wrapping_shl(
-            KeccakRhoK[5i32.wrapping_mul(4i32).wrapping_add(2i32) as usize] as u32
-          )
-          |
-          (pState[5i32.wrapping_mul(4i32).wrapping_add(2i32) as usize]).wrapping_shr(
-            64i32.wrapping_sub(
-              KeccakRhoK[5i32.wrapping_mul(4i32).wrapping_add(2i32) as usize] as i32
-            )
-            as
-            u32
-          ))
-          as
-          u64;
-      pState[5i32.wrapping_mul(4i32).wrapping_add(3i32) as usize] =
-          ((pState[5i32.wrapping_mul(4i32).wrapping_add(3i32) as usize]).wrapping_shl(
-            KeccakRhoK[5i32.wrapping_mul(4i32).wrapping_add(3i32) as usize] as u32
-          )
-          |
-          (pState[5i32.wrapping_mul(4i32).wrapping_add(3i32) as usize]).wrapping_shr(
-            64i32.wrapping_sub(
-              KeccakRhoK[5i32.wrapping_mul(4i32).wrapping_add(3i32) as usize] as i32
-            )
-            as
-            u32
-          ))
-          as
-          u64;
-      pState[5i32.wrapping_mul(4i32).wrapping_add(4i32) as usize] =
-          ((pState[5i32.wrapping_mul(4i32).wrapping_add(4i32) as usize]).wrapping_shl(
-            KeccakRhoK[5i32.wrapping_mul(4i32).wrapping_add(4i32) as usize] as u32
-          )
-          |
-          (pState[5i32.wrapping_mul(4i32).wrapping_add(4i32) as usize]).wrapping_shr(
-            64i32.wrapping_sub(
-              KeccakRhoK[5i32.wrapping_mul(4i32).wrapping_add(4i32) as usize] as i32
-            )
-            as
-            u32
-          ))
-          as
-          u64
-    };
-    {
-      let t: u64 = pState[1usize];
-      pState[1usize] = pState[6usize];
-      pState[6usize] = pState[9usize];
-      pState[9usize] = pState[22usize];
-      pState[22usize] = pState[14usize];
-      pState[14usize] = pState[20usize];
-      pState[20usize] = pState[2usize];
-      pState[2usize] = pState[12usize];
-      pState[12usize] = pState[13usize];
-      pState[13usize] = pState[19usize];
-      pState[19usize] = pState[23usize];
-      pState[23usize] = pState[15usize];
-      pState[15usize] = pState[4usize];
-      pState[4usize] = pState[24usize];
-      pState[24usize] = pState[21usize];
-      pState[21usize] = pState[8usize];
-      pState[8usize] = pState[16usize];
-      pState[16usize] = pState[5usize];
-      pState[5usize] = pState[3usize];
-      pState[3usize] = pState[18usize];
-      pState[18usize] = pState[17usize];
-      pState[17usize] = pState[11usize];
-      pState[11usize] = pState[7usize];
-      pState[7usize] = pState[10usize];
-      pState[10usize] = t
-    };
-    {
-      {
-        let t1: u64 =
-            pState[5i32.wrapping_mul(0i32).wrapping_add(0i32) as usize]
-            ^
-            ! pState[5i32.wrapping_mul(0i32).wrapping_add(1i32) as usize]
-            &
-            pState[5i32.wrapping_mul(0i32).wrapping_add(2i32) as usize];
-        let t2: u64 =
-            pState[5i32.wrapping_mul(0i32).wrapping_add(1i32) as usize]
-            ^
-            ! pState[5i32.wrapping_mul(0i32).wrapping_add(2i32) as usize]
-            &
-            pState[5i32.wrapping_mul(0i32).wrapping_add(3i32) as usize];
-        pState[5i32.wrapping_mul(0i32).wrapping_add(2i32) as usize] ^=
-            ! pState[5i32.wrapping_mul(0i32).wrapping_add(3i32) as usize]
-            &
-            pState[5i32.wrapping_mul(0i32).wrapping_add(4i32) as usize];
-        pState[5i32.wrapping_mul(0i32).wrapping_add(3i32) as usize] ^=
-            ! pState[5i32.wrapping_mul(0i32).wrapping_add(4i32) as usize]
-            &
-            pState[5i32.wrapping_mul(0i32).wrapping_add(0i32) as usize];
-        pState[5i32.wrapping_mul(0i32).wrapping_add(4i32) as usize] ^=
-            ! pState[5i32.wrapping_mul(0i32).wrapping_add(0i32) as usize]
-            &
-            pState[5i32.wrapping_mul(0i32).wrapping_add(1i32) as usize];
-        pState[5i32.wrapping_mul(0i32).wrapping_add(0i32) as usize] = t1;
-        pState[5i32.wrapping_mul(0i32).wrapping_add(1i32) as usize] = t2
-      };
-      {
-        let t1: u64 =
-            pState[5i32.wrapping_mul(1i32).wrapping_add(0i32) as usize]
-            ^
-            ! pState[5i32.wrapping_mul(1i32).wrapping_add(1i32) as usize]
-            &
-            pState[5i32.wrapping_mul(1i32).wrapping_add(2i32) as usize];
-        let t2: u64 =
-            pState[5i32.wrapping_mul(1i32).wrapping_add(1i32) as usize]
-            ^
-            ! pState[5i32.wrapping_mul(1i32).wrapping_add(2i32) as usize]
-            &
-            pState[5i32.wrapping_mul(1i32).wrapping_add(3i32) as usize];
-        pState[5i32.wrapping_mul(1i32).wrapping_add(2i32) as usize] ^=
-            ! pState[5i32.wrapping_mul(1i32).wrapping_add(3i32) as usize]
-            &
-            pState[5i32.wrapping_mul(1i32).wrapping_add(4i32) as usize];
-        pState[5i32.wrapping_mul(1i32).wrapping_add(3i32) as usize] ^=
-            ! pState[5i32.wrapping_mul(1i32).wrapping_add(4i32) as usize]
-            &
-            pState[5i32.wrapping_mul(1i32).wrapping_add(0i32) as usize];
-        pState[5i32.wrapping_mul(1i32).wrapping_add(4i32) as usize] ^=
-            ! pState[5i32.wrapping_mul(1i32).wrapping_add(0i32) as usize]
-            &
-            pState[5i32.wrapping_mul(1i32).wrapping_add(1i32) as usize];
-        pState[5i32.wrapping_mul(1i32).wrapping_add(0i32) as usize] = t1;
-        pState[5i32.wrapping_mul(1i32).wrapping_add(1i32) as usize] = t2
-      };
-      {
-        let t1: u64 =
-            pState[5i32.wrapping_mul(2i32).wrapping_add(0i32) as usize]
-            ^
-            ! pState[5i32.wrapping_mul(2i32).wrapping_add(1i32) as usize]
-            &
-            pState[5i32.wrapping_mul(2i32).wrapping_add(2i32) as usize];
-        let t2: u64 =
-            pState[5i32.wrapping_mul(2i32).wrapping_add(1i32) as usize]
-            ^
-            ! pState[5i32.wrapping_mul(2i32).wrapping_add(2i32) as usize]
-            &
-            pState[5i32.wrapping_mul(2i32).wrapping_add(3i32) as usize];
-        pState[5i32.wrapping_mul(2i32).wrapping_add(2i32) as usize] ^=
-            ! pState[5i32.wrapping_mul(2i32).wrapping_add(3i32) as usize]
-            &
-            pState[5i32.wrapping_mul(2i32).wrapping_add(4i32) as usize];
-        pState[5i32.wrapping_mul(2i32).wrapping_add(3i32) as usize] ^=
-            ! pState[5i32.wrapping_mul(2i32).wrapping_add(4i32) as usize]
-            &
-            pState[5i32.wrapping_mul(2i32).wrapping_add(0i32) as usize];
-        pState[5i32.wrapping_mul(2i32).wrapping_add(4i32) as usize] ^=
-            ! pState[5i32.wrapping_mul(2i32).wrapping_add(0i32) as usize]
-            &
-            pState[5i32.wrapping_mul(2i32).wrapping_add(1i32) as usize];
-        pState[5i32.wrapping_mul(2i32).wrapping_add(0i32) as usize] = t1;
-        pState[5i32.wrapping_mul(2i32).wrapping_add(1i32) as usize] = t2
-      };
-      {
-        let t1: u64 =
-            pState[5i32.wrapping_mul(3i32).wrapping_add(0i32) as usize]
-            ^
-            ! pState[5i32.wrapping_mul(3i32).wrapping_add(1i32) as usize]
-            &
-            pState[5i32.wrapping_mul(3i32).wrapping_add(2i32) as usize];
-        let t2: u64 =
-            pState[5i32.wrapping_mul(3i32).wrapping_add(1i32) as usize]
-            ^
-            ! pState[5i32.wrapping_mul(3i32).wrapping_add(2i32) as usize]
-            &
-            pState[5i32.wrapping_mul(3i32).wrapping_add(3i32) as usize];
-        pState[5i32.wrapping_mul(3i32).wrapping_add(2i32) as usize] ^=
-            ! pState[5i32.wrapping_mul(3i32).wrapping_add(3i32) as usize]
-            &
-            pState[5i32.wrapping_mul(3i32).wrapping_add(4i32) as usize];
-        pState[5i32.wrapping_mul(3i32).wrapping_add(3i32) as usize] ^=
-            ! pState[5i32.wrapping_mul(3i32).wrapping_add(4i32) as usize]
-            &
-            pState[5i32.wrapping_mul(3i32).wrapping_add(0i32) as usize];
-        pState[5i32.wrapping_mul(3i32).wrapping_add(4i32) as usize] ^=
-            ! pState[5i32.wrapping_mul(3i32).wrapping_add(0i32) as usize]
-            &
-            pState[5i32.wrapping_mul(3i32).wrapping_add(1i32) as usize];
-        pState[5i32.wrapping_mul(3i32).wrapping_add(0i32) as usize] = t1;
-        pState[5i32.wrapping_mul(3i32).wrapping_add(1i32) as usize] = t2
-      };
-      let t1: u64 =
-          pState[5i32.wrapping_mul(4i32).wrapping_add(0i32) as usize]
-          ^
-          ! pState[5i32.wrapping_mul(4i32).wrapping_add(1i32) as usize]
-          &
-          pState[5i32.wrapping_mul(4i32).wrapping_add(2i32) as usize];
-      let t2: u64 =
-          pState[5i32.wrapping_mul(4i32).wrapping_add(1i32) as usize]
-          ^
-          ! pState[5i32.wrapping_mul(4i32).wrapping_add(2i32) as usize]
-          &
-          pState[5i32.wrapping_mul(4i32).wrapping_add(3i32) as usize];
-      pState[5i32.wrapping_mul(4i32).wrapping_add(2i32) as usize] ^=
-          ! pState[5i32.wrapping_mul(4i32).wrapping_add(3i32) as usize]
-          &
-          pState[5i32.wrapping_mul(4i32).wrapping_add(4i32) as usize];
-      pState[5i32.wrapping_mul(4i32).wrapping_add(3i32) as usize] ^=
-          ! pState[5i32.wrapping_mul(4i32).wrapping_add(4i32) as usize]
-          &
-          pState[5i32.wrapping_mul(4i32).wrapping_add(0i32) as usize];
-      pState[5i32.wrapping_mul(4i32).wrapping_add(4i32) as usize] ^=
-          ! pState[5i32.wrapping_mul(4i32).wrapping_add(0i32) as usize]
-          &
-          pState[5i32.wrapping_mul(4i32).wrapping_add(1i32) as usize];
-      pState[5i32.wrapping_mul(4i32).wrapping_add(0i32) as usize] = t1;
-      pState[5i32.wrapping_mul(4i32).wrapping_add(1i32) as usize] = t2
-    };
-    pState[0usize] ^= KeccakIotaK[r as usize]
-  }
-}
+{ for r in 0i32..24i32 { KECCAK_PERM_ROUND(pState, r) } }
 
 pub fn SymCryptKeccakReset(pState: &mut [crate::symcrypt_internal::SYMCRYPT_KECCAK_STATE])
 {
