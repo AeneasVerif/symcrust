@@ -57,23 +57,6 @@ end Notations
 
 open Notations
 
-abbrev Byte := BitVec 8
-abbrev Byte.ofNat := BitVec.ofNat 8
-abbrev Byte.val (b : Byte) := @BitVec.toNat 8 b
-abbrev Byte.testBit (b : Byte) := Nat.testBit b.toNat
-
-attribute [scalar_tac_simps] Membership.mem -- TODO: move
-
--- TODO: move
-@[simp, scalar_tac_simps]
-theorem Fin.val_ofNat{n: Nat}[NeZero n]{x: Nat} :
-  (ofNat(x): Fin n).val = x % n := by simp [OfNat.ofNat, Fin.instOfNat]
-
--- TODO: move
-@[scalar_tac Fin.val x]
-theorem Fin.val_le {n : Nat} (x : Fin n) :
-  x.val < n := by omega
-
 @[reducible] def Q : Nat := 3329
 @[reducible] def Zq := ZMod Q
 @[reducible] def Polynomial (n : ℕ := Q) := { l : List (ZMod n) // l.length = 256 }

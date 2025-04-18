@@ -7,7 +7,8 @@ This specification refines the specification in `Spec`, and is refined by the co
 It does not need to be trusted.
 -/
 
-attribute [-simp] List.getElem!_eq_getElem?_getD List.reduceReplicate Aeneas.SRRange.foldWhile_step
+--attribute [-simp] List.getElem!_eq_getElem?_getD List.reduceReplicate Aeneas.SRRange.foldWhile_step
+#setup_aeneas_simps
 
 namespace Symcrust.SpecAux
 
@@ -460,7 +461,6 @@ private theorem multiplyNTTs_getElem! (f g h : Polynomial) (i j : Nat) (hj : j <
         have : i < i + 1 := by omega
         simp only [this, ↓reduceIte, lt_self_iff_false]
         simp_lists
-        simp only [and_self]
       . -- i < j
         have : ¬ j < i := by omega
         simp only [this, ↓reduceIte]
@@ -500,7 +500,6 @@ private theorem multiplyNTTs_pure_getElem! (f g h : Polynomial) (i j : Nat) (hj 
         have : i < i + 1 := by omega
         simp only [this, ↓reduceIte, lt_self_iff_false]
         simp_lists
-        simp only [and_self]
       . -- i < j
         have : ¬ j < i := by omega
         simp only [this, ↓reduceIte]

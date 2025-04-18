@@ -8,6 +8,8 @@ open Aeneas
 open Std
 open Result
 
+#setup_aeneas_simps
+
 namespace Symcrust
 
 open Aeneas.Arith
@@ -36,7 +38,6 @@ theorem mod_int_65536_4294967296_eq (x : Int) : ((x % 65536) % 4294967296) = x %
   apply Int.emod_eq_of_lt <;> omega
 
 attribute [local simp] Spec.Polynomial.set Spec.Polynomial.get!
-attribute [-simp] List.getElem!_eq_getElem?_getD
 
 attribute [local simp, local scalar_tac_simps, local bvify_simps] Spec.Q
 

@@ -5,198 +5,33 @@ import Symcrust.Properties.Polynomials
 An auxiliary specification that we use to prove a refinement result.
 This specification refines the specification in `Spec`, and is refined by the code.
 It does not need to be trusted.
+
+**Characterizing the functions of the spec:**
+We start with "boring" theorems which allow us to characterize the functions of the specification
+such as `bitsToByte`, `byteToBits`, `byteEncode` and `byteDecode`. For specification functions are
+indeed written in a very algorithmic manner, while we actually need lemmas which allows us to do
+proofs by extensionality (i.e., we want to characterize the value at index i for the buffer resulting
+from calling, e.g., `bitsToBytes`). This is what those auxiliary theorems do.
+
+**Proving the streaming version of the spec:**
+The Rust code actually composes `compress` and `byteEncode` in a single
+streaming implementation (and it does a similar thing with `byteDecode` and `decompress`).
+This is the interesting part of the proof, which involves proving a tricky invariant: see for instance
+`Stream.encode.spec`.
+
+**Compress and decompress:**
+The implementation of `compress` and `decompress` is also tricky, as it has to be constant time, so
+there is a bit of arithmetic reasoning there.
 -/
 
-attribute [-simp] List.getElem!_eq_getElem?_getD List.reduceReplicate Aeneas.SRRange.foldWhile_step
-
--- TODO: move and update Array.update_subslice to use it
-def List.setSlice! {α} (s : List α) (i : ℕ) (s' : List α) : List α := sorry
-
-def Array.setSlice! {α} (a : Array α) (i : ℕ) (s : List α) : Array α := sorry
-
-def Vector.setSlice! {α} {n} (x : Vector α n) (i : ℕ) (s : List α) : Vector α n := sorry
-
-/-!
-# Conversion to little-endian
--/
-open Symcrust.Spec -- for Bytes
-
-def BitVec.toLEBytes {n : ℕ} (b : BitVec n) : List Byte :=
-  if n > 0 then
-    b.setWidth 8 :: BitVec.toLEBytes ((b >>> 8).setWidth (n - 8))
-  else []
-
-def BitVec.toBEBytes {n : ℕ} (b : BitVec n) : List Byte :=
-  List.reverse b.toLEBytes
+#setup_aeneas_simps
 
 namespace Symcrust.SpecAux
 
 open Symcrust.Spec
 open Aeneas Aeneas.SRRange
 
---open Aeneas.Notations.SRRange
---open Aeneas.Notations.DivRange
---open Aeneas.Notations.MulRange
---open Aeneas.Notations.Range
---open Spec.Notations
-
-/-!
-# BitVec
--/
-
--- TODO: move
-@[simp, bvify_simps]
-theorem BitVec.ofNat_mul (n : ℕ) (x y : ℕ) : BitVec.ofNat n (x * y) = BitVec.ofNat n x * BitVec.ofNat n y := by
-  conv => lhs; unfold BitVec.ofNat
-  conv => rhs; simp only [BitVec.mul_def]
-  simp only [Fin.ofNat'_eq_cast, Nat.cast_mul, BitVec.toFin_ofNat]
-
--- TODO: move
-theorem BitVec.ofNat_pow (n : ℕ) (x d : ℕ) : BitVec.ofNat n (x ^ d) = (BitVec.ofNat n x)^d := by
-  conv => rhs; unfold HPow.hPow instHPow Pow.pow BitVec.instPowNat_mathlib; simp only
-  unfold BitVec.ofNat
-  simp only [Fin.ofNat'_eq_cast, Nat.cast_pow]
-
-@[simp]
-theorem BitVec.toNat_pow (n : ℕ) (x : BitVec n) (d : ℕ) :
-  BitVec.toNat (x ^ d) = (x.toNat^d) % 2^n := by sorry
-
-
--- TODO: move
-attribute [simp_lists_simps] and_true true_and implies_true
-
-/-!
-# byteEncode
-
-TODO: remove those?
--/
-
-def byteEncodeToBits {n} (d : ℕ) (f : List (ZMod n)) : List Bool :=
-  List.flatten (List.map (fun a => (List.map (fun i => a.val.testBit i) (List.range d))) f)
-
-def bitsToBytes1 (l : ℕ) (b : List Bool) : List Byte :=
-  List.map (fun i => BitVec.ofBoolListLE (List.map (fun j => b[8 * i + j]!) (List.range 8))) (List.range l)
-
-def encodeNatToBytes (d : ℕ) (coeff : ℕ) (nBitsInAcc : ℕ) (nBitsInCoeff : ℕ) (acc : List Bool)
-  (hBitsInAcc : nBitsInAcc < 32 := by omega)
-  : List Byte :=
-  let nBitsToEncode := min nBitsInCoeff (32 - nBitsInAcc)
-  let bitsToEncode := List.take nBitsToEncode coeff.bits
-  let nBitsInCoeff := nBitsInCoeff - nBitsToEncode
-  let acc := acc ++ bitsToEncode
-  let nBitsInAcc := nBitsInAcc + nBitsToEncode
-  if h: nBitsInAcc = 32 then
-    let out := BitVec.toLEBytes (BitVec.ofBoolListLE acc)
-    if h: nBitsInCoeff > 0 then
-      out ++ encodeNatToBytes d coeff 0 nBitsInCoeff []
-    else out
-  else
-    if h: nBitsInCoeff > 0 then encodeNatToBytes d coeff nBitsInAcc nBitsInCoeff acc
-    else []
-termination_by nBitsInCoeff
-decreasing_by
-  scalar_decr_tac
-  scalar_decr_tac
-
-/-!
-# Auxiliary theorems
-TODO: move
--/
-
--- TODO: move
-@[simp]
-def List.Inhabited_getElem_eq_getElem! {α} [Inhabited α] (l : List α) (i : ℕ) (hi : i < l.length) :
-  l[i] = l[i]! := by
-  simp only [List.getElem!_eq_getElem?_getD, List.getElem?_eq_getElem, Option.getD_some, hi]
-
-attribute [-simp] Array.set!_eq_setIfInBounds
-
--- TODO: move
-@[simp]
-theorem Array.set_eq_set! (a : Array α) (i : ℕ) (x : α) (hi : i < a.size) :
-  a.set i x hi = a.set! i x := by
-  simp only [Array.set, Array.set!, Array.setIfInBounds, hi, ↓reduceDIte]
-
--- TODO: move
-@[simp]
-theorem Vector.set_eq_set! (v : Vector α n) (i : ℕ) (x : α) (hi : i < n) :
-  v.set i x hi = v.set! i x := by
-  simp only [Vector.set, Array.set_eq_set!, Vector.set!]
-
-@[simp]
-def Array.Inhabited_getElem_eq_getElem! {α} [Inhabited α] (l : Array α) (i : ℕ) (hi : i < l.size) :
-  l[i] = l[i]! := by
-  sorry
-
-@[simp]
-def Vector.Inhabited_getElem_eq_getElem! {α} [Inhabited α] (l : Vector α n) (i : ℕ) (hi : i < n) :
-  l[i] = l[i]! := by
-  sorry
-
--- TODO: move
-@[simp, simp_lists_simps]
-theorem Array.getElem!_default {α : Type u} [Inhabited α] (a : Array α) (i : ℕ) (hi : a.size ≤ i) :
-  a[i]! = default := by
-  simp only [Array.getElem!_eq_getD, Array.getD_eq_getD_getElem?, hi, Array.getElem?_eq_none,
-    Option.getD_none]
-
-@[simp, simp_lists_simps]
-theorem Vector.getElem!_default {α : Type u} [Inhabited α] {n} (v : Vector α n) (i : ℕ) (hi : n ≤ i) :
-  v[i]! = default := by
-  unfold getElem! instGetElem?OfGetElemOfDecidable decidableGetElem?
-  simp only [Inhabited_getElem_eq_getElem!, dite_eq_ite]
-  simp_ifs
-  rfl
-
 set_option maxHeartbeats 500000
-
--- TODO: remove
-@[local simp]
-theorem MProd_mk_eq (x : MProd α β) : ⟨ x.fst, x.snd ⟩ = x := by simp only
-
-attribute [-simp] foldl_range'_eq_foldWhile
-
--- TODO: this pattern often appears
-@[simp]
-theorem List.foldl_Prod_to_MProd_fst_eq {α β : Type u} {γ : Type v} (f : α → β → γ → α × β)
-  (a0 : α) (b0 : β) (l) :
-  (List.foldl (fun b a => MProd.mk (f b.fst b.snd a).fst (f b.fst b.snd a).snd) ⟨a0, b0⟩ l).fst =
-  (List.foldl (fun b a => (f b.fst b.snd a)) (a0, b0) l).fst := by sorry
-
--- TODO: this pattern often appears
-@[simp]
-theorem List.foldl_Prod_to_MProd_snd_eq {α β : Type u} {γ : Type v} (f : α → β → γ → α × β)
-  (a0 : α) (b0 : β) (l) :
-  (List.foldl (fun b a => MProd.mk (f b.fst b.snd a).fst (f b.fst b.snd a).snd) ⟨a0, b0⟩ l).snd =
-  (List.foldl (fun b a => (f b.fst b.snd a)) (a0, b0) l).snd := by sorry
-
--- TODO: simp_lists on vectors and arrays
-
-@[simp, simp_lists_simps]
-theorem Vector.set!_getElem!_eq {α : Type u}
-  [Inhabited α] {n i j : ℕ} {x : α} {xs : Vector α n}
-  (hi : i < n ∧ j = i) :
-  (xs.set! i x)[j]! = x := by sorry
-
-@[simp, simp_lists_simps]
-theorem Vector.set!_getElem!_neq {α : Type u}
-  [Inhabited α] {n i j : ℕ} {x : α} {xs : Vector α n}
-  (h : i < n ∧ j < n ∧ i ≠ j) :
-  (xs.set! i x)[j]! = xs[j]! := by sorry
-
-@[simp]
-theorem decide_eq_not_decide (a b : Prop) [Decidable a] [Decidable b] :
-  decide a = !decide b ↔ a = ¬ b := by
-  constructor <;> intros h
-  sorry
-  sorry
-
-@[simp]
-theorem not_decide_eq_decide (a b : Prop) [Decidable a] [Decidable b] :
-  !decide a = decide b ↔ ¬ a = b := by
-  constructor <;> intros h
-  sorry
-  sorry
 
 /-!
 # bitsToBytes
@@ -215,8 +50,14 @@ def Target.bitsToBytes.recBody
 def Target.bitsToBytes {l : Nat} (b : Vector Bool (8 * l)) : Vector Byte l :=
   bitsToBytes.recBody b (Vector.replicate l 0) 0
 
--- TODO: remove this simp lemma
-attribute [-simp] foldl_range'_eq_foldWhile
+
+macro "glet" h:ident " : " x:ident " := " e:term : tactic =>
+  -- TODO: don't manage to make the syntax `generalize $h : ...` work
+  `(tactic| (generalize h: $e = $x at *; rename _ => $h; replace $h := Eq.symm $h))
+
+macro "glet" x:ident " := " e:term : tactic =>
+  `(tactic| (let $x := $e; refold_let $x at *))
+
 
 theorem Target.bitsToBytes.eq_spec {l : Nat} (b : Vector Bool (8 * l)) :
   bitsToBytes b = Spec.bitsToBytes b := by
@@ -241,22 +82,6 @@ irreducible_def Target.bitsToBytes.inv
   -- The suffix is made of zeros
   (∀ i' ∈ [i+1:l], B[i']! = 0)
 
--- TODO: remove?
-@[local simp]
-theorem mem_range'_step_one (x start len : ℕ) :
-  x ∈ List.range' start len ↔ (start ≤ x ∧ x < start + len) := by
-  simp [List.mem_range']
-  constructor <;> intro h
-  . obtain ⟨ i, h ⟩ := h
-    omega
-  . exists x - start
-    omega
-
-@[local simp]
-theorem mem_std_range_step_one (x n0 n1 : ℕ) :
-  x ∈ [n0:n1] ↔ (n0 ≤ x ∧ x < n1) := by
-  simp [Membership.mem, Nat.mod_one]
-
 @[local simp]
 theorem decompose_ij (i j : ℕ) (hj : j < 8) :
   (8 * i + j) / 8 = i ∧ (8 * i + j) % 8 = j := by
@@ -275,7 +100,7 @@ def Target.bitsToBytes.body.spec
   . -- This is the complex part of the proof, where we have
     -- to reason about bitwise manipulations
     intros j' hj'
-    simp [hj, hj']
+    simp [hj, hj'] -- TODO: simp_arith
     simp_lists
     cases hb: b[8 * i + j]! <;> simp [hb]
     . by_cases hj'': j' = j
@@ -457,28 +282,6 @@ decreasing_by all_goals (simp_wf; omega)
 irreducible_def Target.bitsToBytes.post {l:Nat} (b : Vector Bool (8 * l)) (B : Vector Byte l) :=
   ∀ i < l, ∀ j < 8, B[i]!.testBit j = b[8*i + j]!
 
-
--- TODO: move
-attribute [simp_lists_simps] List.getElem!_replicate
-
--- TODO: move
-@[simp, simp_lists_simps]
-theorem Array.getElem!_replicate {α : Type u} [Inhabited α] {i n : ℕ} {a : α} (h : i < n) :
-  (Array.replicate n a)[i]! = a := by
-  unfold getElem! Array.instGetElem?NatLtSize Array.get!Internal
-  simp only [Array.getD_eq_getD_getElem?, Array.getElem?_replicate]
-  simp_ifs
-  simp
-
--- TODO: move
-@[simp, simp_lists_simps]
-theorem Vector.getElem!_replicate {α : Type u} [Inhabited α] {i n : ℕ} {a : α} (h : i < n) :
- (Vector.replicate n a)[i]! = a := by
- unfold getElem! instGetElem?OfGetElemOfDecidable Vector.instGetElemNatLt decidableGetElem? Vector.get
- simp; simp_lists
- split_ifs
- simp
-
 def Target.bitsToBytes.spec {l:Nat} (b : Vector Bool (8 * l)) :
   post b (bitsToBytes b) := by
   have hinv0 : inv b (Vector.replicate l 0) 0 0 := by
@@ -498,8 +301,6 @@ def Target.bitsToBytes.spec {l:Nat} (b : Vector Bool (8 * l)) :
 /-!
 # bytesToBits
 -/
-
-attribute [-simp] Array.set!_eq_setIfInBounds
 
 def byteToBits (b : Byte) : Vector Bool 8 := b.toNat.bitsn 8
 
@@ -538,16 +339,6 @@ theorem Target.bytesToBits.eq_spec {l : Nat} (B : Vector Byte l) :
   Target.bytesToBits B = Spec.bytesToBits B := by
   unfold bytesToBits Spec.bytesToBits bytesToBits.recBody byteToBits byteToBits.body
   simp [Id.run]
-
---instance Inhabited : Byte := ⟨ 0, by simp ⟩
---instance Inhabited : Byte := ⟨
-
--- TODO: move
---@[simp]
-theorem List.forall_imp_foldl_attach (l0 : List β) (f: α → β → α) (g: α → {x:β // x ∈ l0} → α)
-  (h : ∀ a, ∀ x : { x // x ∈ l0 }, f a x = g a x) :
-  List.foldl f init l0 = List.foldl g init l0.attach := by
-  sorry
 
 def Target.bytesToBits.inv
   {l} (C0 : Vector Byte l) (b0 : Vector Bool (8 * l))
@@ -748,13 +539,6 @@ irreducible_def Target.byteEncode.encodeElem.body.inv
   -- The suffix is not set
   (∀ i' ∈ [i+1:256], ∀ j < d, b[i' * d + j]! = false)
 
--- TODO: move
-@[simp]
-theorem Bool.toNat_ofNat_mod2 (x : ℕ) : (Bool.ofNat (x % 2)).toNat = x % 2 := by
-  have := @Nat.mod_lt x 2 (by simp)
-  cases h: x % 2 <;> simp [Bool.ofNat]
-  omega
-
 def Target.byteEncode.encodeElem.body.spec
   {d : ℕ} {F : Polynomial (m d)} {i : ℕ} {acc : MProd ℕ (Vector Bool (256 * d))} {j : ℕ}
   (hinv : inv d F acc i j)
@@ -922,11 +706,6 @@ def Target.byteEncode.encode.spec (d : ℕ) (F : Polynomial (m d)) :
   simp [inv] at hinv1
   apply hinv1
 
--- TODO: move
-@[simp, simp_lists_simps]
-theorem Vector.getElem!_cast {n m : ℕ} {α : Type u_1} [Inhabited α] (h: n = m) (v : Vector α n) (i : ℕ):
-  (Vector.cast h v)[i]! = v[i]! := by sorry
-
 /-- The important theorem! -/
 def Target.byteEncode.spec (d : ℕ) (F : Polynomial (m d)) (hd : 0 < d) :
   ∀ i < 32 * d, ∀ j < 8,
@@ -977,6 +756,7 @@ def Target.byteEncode.spec (d : ℕ) (F : Polynomial (m d)) (hd : 0 < d) :
 # Streamed byteEncode
 
 Below, we prove that the streamed version of `byteEncode` is correct.
+This is one of the interesting theorems.
 -/
 
 /-- `d`: the number of bits with which to encode an element
@@ -1010,6 +790,18 @@ def Stream.encode.body {d n : ℕ} (x : ZMod (m d)) (s : EncodeState d n) :
   else
     {s with acc, acci}
 
+def Stream.encode.recBody {d n : ℕ} (F : Vector (ZMod (m d)) 256) (s : EncodeState d n) (i : ℕ) : EncodeState d n :=
+  List.foldl (fun s i => encode.body F[i]! s) s (List.range' i (256 - i))
+
+def Stream.encode {d : ℕ} (n : ℕ) (F : Vector (ZMod (m d)) 256) : Vector Byte (32 * d) :=
+  let s : EncodeState d n := {
+    b := Vector.replicate (32 * d) 0,
+    bi := 0,
+    acc := 0,
+    acci := 0,
+  }
+  (encode.recBody F s 0).b
+
 def Stream.encode.inv
   {d n : ℕ} (F : Vector (ZMod (m d)) 256) (s : EncodeState d n) (i : ℕ) : Prop :=
   -- The lengths are correct
@@ -1021,226 +813,6 @@ def Stream.encode.inv
   -- The bits are properly set in the accumulator
   (∀ j < s.acci, s.acc[j]! = F[(8 * s.bi + j) / d]!.val.testBit ((8 * s.bi + j) % d)) ∧
   (∀ j ∈ [s.acci:8*n], s.acc[j]! = false)
-
-
-macro "glet" h:ident " : " x:ident " := " e:term : tactic =>
-  -- TODO: don't manage to make the syntax `generalize $h : ...` work
-  `(tactic| (generalize h: $e = $x at *; rename _ => $h; replace $h := Eq.symm $h))
-
-macro "glet" x:ident " := " e:term : tactic =>
-  `(tactic| (let $x := $e; refold_let $x at *))
-
-@[simp, simp_lists_simps] theorem BitVec.getElem!_or {n} (x y : BitVec n) (i : ℕ) :
-  (x ||| y)[i]! = (x[i]! || y[i]!) := by sorry
-
-@[simp, simp_lists_simps] theorem BitVec.getElem!_and {n} (x y : BitVec n) (i : ℕ) :
-  (x ^^^ y)[i]! = (x[i]!&& y[i]!) := by sorry
-
-attribute [simp_lists_simps] Bool.false_or Bool.or_false
-
--- TODO: move and use more
-@[simp, simp_lists_simps]
-theorem BitVec.getElem!_eq_false {w : ℕ} (x : BitVec w) (i : ℕ) (hi : w ≤ i) :
-  x[i]! = false := by
-  unfold getElem! instGetElem?OfGetElemOfDecidable decidableGetElem?
-  simp
-  split_ifs <;> simp_all
-  . omega
-  . rfl
-
--- TODO: move and use more
-theorem BitVec.getElem!_eq_getElem {w : ℕ} (x : BitVec w) (i : ℕ) (hi : i < w) :
-  x[i]! = x[i] := by
-  unfold getElem! instGetElem?OfGetElemOfDecidable decidableGetElem?
-  simp
-  split_ifs; simp_all
-
-theorem BitVec.getElem!_eq_testBit_toNat {w : ℕ} (x : BitVec w) (i : ℕ) :
-  x[i]! = x.toNat.testBit i := by
-  by_cases i < w
-  . have : x[i]! = x[i] := by
-      simp [BitVec.getElem!_eq_getElem, *]
-    rw [this]
-    simp [BitVec.getElem_eq_testBit_toNat]
-  . simp_all
-    have : x.toNat < 2^w := by omega
-    apply Nat.testBit_eq_false_of_lt
-    have : 2^w ≤ 2^i := by apply Nat.pow_le_pow_right <;> omega
-    omega
-
-@[simp]
-theorem BitVec.and_two_pow_sub_one_eq_mod {w} (x : BitVec w) (n : Nat) :
-  x &&& 2#w ^ n - 1#w = x % 2#w ^ n := by
-  by_cases hn : n < w
-  . simp [← BitVec.ofNat_pow]
-    natify
-    simp
-    have : 2^n < 2^w := by
-      apply Nat.pow_lt_pow_of_lt <;> omega
-    -- TODO: simp_arith
-    simp (disch := omega) [Nat.mod_eq_of_lt]
-    have : 1 ≤ 2^n := by
-      have : 2^0 ≤ 2^n := by apply Nat.pow_le_pow_of_le <;> omega
-      omega
-    have : 2 ^ w - 1 + 2 ^ n = 2^w + (2^n - 1) := by omega
-    rw [this]
-    simp (disch := omega) [Nat.mod_eq_of_lt]
-  . simp [← BitVec.ofNat_pow]
-    simp at hn
-    have : BitVec.ofNat w (2 ^ n) = 0 := by
-      unfold BitVec.ofNat Fin.ofNat'
-      have : 2^n % 2^w = 0 := by
-        have : n = w + (n - w) := by omega
-        rw [this, Nat.pow_add]
-        simp only [Nat.mul_mod_right]
-      simp only [this]
-      simp only [Fin.mk_zero', BitVec.ofNat_eq_ofNat, BitVec.ofNat, Fin.ofNat'_eq_cast, Nat.cast_zero]
-    rw [this]
-    simp
-    natify
-    simp
-    by_cases hw: 0 < w
-    . have : (2 ^ w - 1 % 2 ^ w) % 2 ^ w = 2^w - 1 := by
-        have hLt : 1 < 2^w := by
-          have : 2^0 < 2^w := by -- TODO: scalar_tac +nonLin
-            apply Nat.pow_lt_pow_of_lt <;> omega
-          omega
-        have : (2^w - 1) % 2^w = 2^w - 1 := by apply Nat.mod_eq_of_lt; omega
-        rw [← this]
-        zmodify
-        simp only [Nat.one_mod_two_pow, Nat.ofNat_pos, pow_pos, Nat.cast_pred, CharP.cast_eq_zero,
-          zero_sub, hw]
-      simp [this]
-    . have : x.toNat < 2^w := by omega
-      simp_all
-
-attribute [natify_simps] BitVec.toNat_twoPow
-
-@[simp]
-theorem BitVec.shiftLeft_sub_one_eq_mod {w} (x : BitVec w) (n : Nat) :
-  x &&& 1#w <<< n - 1#w = x % 2 ^ n := by
-  simp only [BitVec.ofNat_eq_ofNat]
-  simp only [BitVec.shiftLeft_eq_mul_twoPow]
-  have : 1#w * BitVec.twoPow w n = 2#w ^ n := by
-    have : 1#w = 1 := by simp
-    rw [this]
-    ring_nf
-    natify; simp only [toNat_pow, BitVec.toNat_ofNat]
-    zmodify
-    simp only [ZMod.natCast_mod, Nat.cast_ofNat]
-  rw [this]
-  simp only [BitVec.and_two_pow_sub_one_eq_mod]
-
-@[simp]
-theorem BitVec.getElem!_zero (w i : ℕ ) : (0#w)[i]! = false := by
-  simp [BitVec.getElem!_eq_testBit_toNat]
-
--- TODO: equivalent of those theorems for Lists, Arrays
-theorem Vector.setSlice!_getElem!_prefix {α} [Inhabited α]
-  {n : ℕ} (v : Vector α n) (s : List α) (i j : ℕ) (h : j < i) :
-  (v.setSlice! i s)[j]! = v[j]! := by sorry
-
-theorem Vector.setSlice!_getElem!_suffix {α} [Inhabited α]
-  {n : ℕ} (v : Vector α n) (s : List α) (i j : ℕ) (h : i + s.length < j ∧ j < n) :
-  (v.setSlice! i s)[j]! = v[j]! := by sorry
-
-@[simp, simp_lists_simps]
-theorem Vector.setSlice!_getElem!_same {α} [Inhabited α]
-  {n : ℕ} (v : Vector α n) (s : List α) (i j : ℕ) (h : j < i ∨ (i + s.length < j ∧ j < n)) :
-  (v.setSlice! i s)[j]! = v[j]! := by
-  cases h <;> simp_lists [Vector.setSlice!_getElem!_prefix, Vector.setSlice!_getElem!_suffix]
-
-@[simp, simp_lists_simps]
-theorem Vector.setSlice!_getElem!_slice {α} [Inhabited α]
-  {n : ℕ} (v : Vector α n) (s : List α) (i j : ℕ) (h : i ≤ j ∧ j < i + s.length ∧ j < n) :
-  (v.setSlice! i s)[j]! = s[j - i]! := by sorry
-
-@[simp, simp_lists_simps]
-theorem BitVec.testBit_getElem!_toLEBytes {w:ℕ} (x : BitVec w) (i j : ℕ) (h : j < 8) :
-  x.toLEBytes[i]!.testBit j = x[8 * i + j]! := by sorry
-
-attribute [scalar_tac_simps] Vector.size_toArray
-
-@[simp]
-theorem BitVec.toLEBytes_length {w} (v : BitVec w) (h : w % 8 = 0) :
-  v.toLEBytes.length = w / 8 := by sorry
-
-@[simp, simp_lists_simps]
-theorem BitVec.getElem!_shiftLeft_false {w} (v : BitVec w) (n i : ℕ) (h : i < n ∨ w ≤ i) :
-  (v <<< n)[i]! = false := by
-  simp [BitVec.getElem!_eq_testBit_toNat, h]
-  omega
-
-@[simp, simp_lists_simps]
-theorem BitVec.getElem!_shiftLeft_eq {w} (v : BitVec w) (n i : ℕ) (h : n ≤ i ∧ i < w) :
-  (v <<< n)[i]! = v[i - n]! := by
-  simp [BitVec.getElem!_eq_testBit_toNat, h]
-
-@[simp, simp_lists_simps]
-theorem BitVec.getElem!_shiftRight {w} (v : BitVec w) (n i : ℕ) :
-  (v >>> n)[i]! = v[n + i]! := by
-  simp [BitVec.getElem!_eq_testBit_toNat]
-
-@[simp, simp_lists_simps]
-theorem BitVec.getElem!_mod_pow2_eq {w} (x : BitVec w) (i j : ℕ) (h : j < i) :
-  (x % 2#w ^ i)[j]! = x[j]! := by
-  simp [BitVec.getElem!_eq_testBit_toNat]
-  by_cases hw : w = 0
-  . simp_all
-    cases i <;> simp_all
-  . -- TODO: scalar_tac +nonLin
-    by_cases hw: w = 1
-    . simp_all
-      cases i <;> simp_all
-    . have : 2 < 2^w := by
-        have : 2^1 < 2^w := by apply Nat.pow_lt_pow_of_lt <;> omega
-        omega
-      simp (disch := omega) [Nat.mod_eq_of_lt]
-      by_cases hi: i < w
-      . -- TODO: scalar_tac +nonLin
-        have : 2^i < 2^w := by
-          apply Nat.pow_lt_pow_of_lt <;> omega
-        simp (disch := omega) [Nat.mod_eq_of_lt]
-        omega
-      . -- TODO: scalar_tac +nonLin
-        have : 2^i % 2^w = 0 := by
-          have : i = w + (i - w) := by omega
-          rw [this]
-          simp [Nat.pow_add]
-        simp [this]
-
-@[simp, simp_lists_simps]
-theorem BitVec.getElem!_mod_pow2_false {w} (x : BitVec w) (i j : ℕ) (h : i ≤ j) :
-  (x % 2#w ^ i)[j]! = false := by
-  simp [BitVec.getElem!_eq_testBit_toNat, h]
-  have : x.toNat < 2^w := by omega
-  by_cases hw: w ≤ 1
-  . have hw : w = 0 ∨ w = 1 := by omega
-    cases hw <;> simp_all
-    cases i <;> simp_all [Nat.mod_one]
-    apply Nat.testBit_eq_false_of_lt
-    -- TODO: scalar_tac +nonLin
-    have : 2^1 ≤ 2^j := by apply Nat.pow_le_pow_of_le <;> omega
-    omega
-  . -- TODO: scalar_tac +nonLin
-    have : 2^1 < 2^w := by apply Nat.pow_lt_pow_of_lt <;> omega
-    simp (disch := omega) [Nat.mod_eq_of_lt]
-    by_cases hi: i < w
-    . -- TODO: scalar_tac +nonLin
-      have : 2^i < 2^w := by apply Nat.pow_lt_pow_of_lt <;> omega
-      simp (disch := omega) [Nat.mod_eq_of_lt]
-      omega
-    . -- TODO: scalar_tac +nonLin
-      have : 2^i % 2^w = 0 := by
-        have : i = w + (i - w) := by omega
-        rw [this]
-        simp [Nat.pow_add]
-      simp [this]
-      have : w ≤ j := by omega
-      apply Nat.testBit_eq_false_of_lt
-      -- TODO: scalar_tac +nonLin
-      have : 2^w ≤ 2^j := by apply Nat.pow_le_pow_of_le <;> omega
-      omega
 
 /--
 Auxiliary lemma. See `Stream.encode.body`.
@@ -1352,7 +924,7 @@ This lemma handles the case of `Stream.encode.body` when there is no flush.
 -/
 theorem Stream.encode.body.spec_no_flush
   {i d n : ℕ} {F : Vector (ZMod (m d)) 256} {s : EncodeState d n} [NeZero (m d)]
-  (hinv : inv F s i) (hi : i < 255 := by omega) (hn : 0 < n := by omega)
+  (hinv : inv F s i) (hi : i < 256 := by omega) (hn : 0 < n := by omega)
   (hdn : d < 8 * n)
   (hm : m d < 2^(8*n) := by omega)
   (hacci : ¬ s.acci + d ⊓ (8 * n - s.acci) = 8 * n)
@@ -1427,7 +999,7 @@ after we flushed the accumulator.
 theorem Stream.encode.body.spec_with_flush_bi
   {i d n : ℕ} {F : Vector (ZMod (m d)) 256} {s : EncodeState d n}
   (hinv : inv F s i)
-  (hi : i < 255 := by omega) (hn : 0 < n := by omega)
+  (hi : i < 256 := by omega) (hn : 0 < n := by omega)
   (hdn : d < 8 * n := by omega)
   (hm : m d < 2^(8*n) := by omega)
   (h0 : s.acci + d ⊓ (8 * n - s.acci) = 8 * n := by omega) :
@@ -1544,7 +1116,7 @@ This lemma handles the case of `Stream.encode.body` when there is a flush.
 -/
 theorem Stream.encode.body.spec_with_flush
   {i d n : ℕ} {F : Vector (ZMod (m d)) 256} {s : EncodeState d n} [NeZero (m d)]
-  (hinv : inv F s i) (hi : i < 255 := by omega) (hn : 0 < n := by omega)
+  (hinv : inv F s i) (hi : i < 256 := by omega) (hn : 0 < n := by omega)
   (hdn : d < 8 * n)
   (hm : m d < 2^(8*n) := by omega)
   (h0 : s.acci + d ⊓ (8 * n - s.acci) = 8 * n)
@@ -1610,6 +1182,7 @@ theorem Stream.encode.body.spec_with_flush
     simp [hij]
     simp [BitVec.getElem!_eq_testBit_toNat]
     omega
+
   . simp [bits, x]
     intros j hj hj'
     simp [BitVec.getElem!_eq_testBit_toNat, x0]
@@ -1645,13 +1218,109 @@ is to make a drawing. We typically have something like this:
 -/
 theorem Stream.encode.body.spec
   {i d n : ℕ} {F : Vector (ZMod (m d)) 256} {s : EncodeState d n} [NeZero (m d)]
-  (hinv : inv F s i) (hi : i < 255 := by omega) (hn : 0 < n := by omega)
-  (hdn : d < 8 * n)
+  (hinv : inv F s i) (hi : i < 256 := by omega) (hn : 0 < n := by omega)
+  (hdn : d < 8 * n := by omega)
   (hm : m d < 2^(8*n) := by omega) :
   inv F (body F[i]! s) (i + 1) := by
   by_cases h0 : s.acci + d ⊓ (8 * n - s.acci) = 8 * n
   . apply spec_with_flush hinv <;> omega
   . apply Stream.encode.body.spec_no_flush hinv <;> omega
+
+theorem Stream.encode.recBody.spec
+  {i d n : ℕ} {F : Vector (ZMod (m d)) 256} {s : EncodeState d n} [NeZero (m d)]
+  (hinv : inv F s i) (hi : i ≤ 256 := by omega) (hn : 0 < n := by omega)
+  (hdn : d < 8 * n := by omega)
+  (hm : m d < 2^(8*n) := by omega) :
+  inv F (recBody F s i) 256 := by
+  if hi: i = 256 then
+    simp [hi]
+    unfold recBody
+    simp
+    simp_all
+  else
+    unfold recBody
+    have : 256 - i = (256 - (i+1)) + 1 := by omega
+    rw [this, List.range'_succ]
+    simp
+    have hinv1 := body.spec hinv
+    have hinv2 := spec hinv1
+    unfold recBody at hinv2
+    simp at hinv2
+    apply hinv2
+termination_by 256 - i
+decreasing_by omega
+
+def Stream.encode.post {d : ℕ} (F : Vector (ZMod (m d)) 256) (b : Vector Byte (32 * d)) : Prop :=
+  ∀ i < 32 * d, ∀ j < 8, b[i]!.testBit j = F[(8 * i + j) / d]!.val.testBit ((8 * i + j) % d)
+
+/-- Auxiliary spec for `Stream.encode`: we use the post-condition to prove that it is actually equal to `Spec.encode` -/
+theorem Stream.encode.spec_aux
+  {d : ℕ} (n : ℕ) (F : Vector (ZMod (m d)) 256) [NeZero (m d)]
+  (hn : 0 < n := by omega)
+  (hdn : d < 8 * n := by omega)
+  (hm : m d < 2^(8*n) := by omega)
+  (hn1 : n ∣ 32 := by omega) :
+  post F (encode n F) := by
+  unfold encode
+  simp only
+  -- TODO: improve this to have type annotations
+  glet s := ({
+    b := Vector.replicate (32 * d) 0,
+    bi := 0,
+    acc := 0,
+    acci := 0,
+  } : EncodeState d n)
+
+  -- TODO: improve this
+  glet s1 := recBody F s 0
+
+  have hinv : inv F s 0 := by unfold inv; simp [s]
+
+  replace hinv := Stream.encode.recBody.spec hinv
+
+  refold_let s1 at *
+
+  unfold inv at hinv
+  simp at hinv
+  obtain ⟨ h0, h1, h2, h3, h4 ⟩ := hinv
+
+  unfold post
+  intros i hi j hj
+
+  have : s1.bi = 32 * d := by
+    simp [h0, ← Nat.div_div_eq_div_mul]
+    rw [mul_comm]
+    have : d * 256 = 8 * (32 * d) := by ring_nf
+    rw [this]
+    simp only [ne_eq, OfNat.ofNat_ne_zero, not_false_eq_true, mul_div_cancel_left₀]
+    have hn2 : n ∣ 32 * d := by apply Nat.dvd_mul_right_of_dvd hn1
+    simp [Nat.div_mul_cancel, hn2]
+
+  simp_lists [h2]
+
+/-
+/-- `Stream.encode` is equal to `Spec.encode` -/
+theorem Stream.encode.spec
+  {d : ℕ} (n : ℕ) (F : Polynomial (m d)) [NeZero (m d)]
+  (hn : 0 < n := by omega)
+  (hdn : d < 8 * n := by omega)
+  (hm : m d < 2^(8*n) := by omega)
+  (hn1 : n ∣ 32 := by omega) :
+  encode n F = Spec.byteEncode d F := by
+  sorry-/
+
+/-!
+# Compress and encode
+-/
+
+def compressOpt (d : ℕ) (x : ℕ) : ℤ := if d < 12 then ⌈ ((2^d : ℚ) / (Q : ℚ)) * x ⌋ % 2^d else x
+
+/-def Stream.compress_encode {d : ℕ} (n : ℕ) (F : Vector (ZMod (m d)) 256) [NeZero (m d)]
+  (hn : 0 < n := by omega)
+  (hdn : d < 8 * n := by omega)
+  (hm : m d < 2^(8*n) := by omega)
+  (hn1 : n ∣ 32 := by omega) :
+  post F (encode n F).b := by-/
 
 /-!
 # Compress
@@ -1768,7 +1437,9 @@ theorem compress_eq (x : ℕ) (h : x < 3329) (d : ℕ) (hd : d < 12) :
   ring_nf
 
 /-!
-# Compress then BytesToBits then Encode
+# Decompress
 -/
+
+def decompressOpt (d : ℕ) (y : ℕ) : ℤ := if d < 12 then ⌈ ((Q : ℚ) / (2^d : ℚ)) * y ⌋ else y
 
 end Symcrust.SpecAux

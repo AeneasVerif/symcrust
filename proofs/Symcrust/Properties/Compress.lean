@@ -5,6 +5,8 @@ open Aeneas
 open Std
 open Result
 
+#setup_aeneas_simps
+
 namespace Symcrust.ntt
 
 open Result
@@ -21,10 +23,6 @@ theorem COMPRESS_SHIFTCONSTANT.spec : ntt.COMPRESS_SHIFTCONSTANT.val = 35 := by 
 
 @[simp, scalar_tac_simps, bvify_simps]
 theorem Q.spec : ntt.Q.val = 3329 := by prove_eval_global
-
--- TODO: move
-def SpecAux.compressOpt (d : ℕ) (x : ℕ) : ℤ := if d < 12 then ⌈ ((2^d : ℚ) / (Q : ℚ)) * x ⌋ % 2^d else x
-def SpecAux.decompressOpt (d : ℕ) (y : ℕ) : ℤ := if d < 12 then ⌈ ((Q : ℚ) / (2^d : ℚ)) * y ⌋ else y
 
 attribute [-progress] UScalar.cast.progress_spec
 attribute [local progress] UScalar.cast_inBounds_spec
