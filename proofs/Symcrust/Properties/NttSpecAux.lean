@@ -549,7 +549,6 @@ private theorem multiplyNTTs_eq_multiplyNTTs_pure (f g : Polynomial) :
   simp only [Polynomial.eq_iff']
   intro i hi
   simp_lists [multiplyNTTs_getElem!, multiplyNTTs_pure_getElem!]
-  simp only [not_lt_zero', ↓reduceIte, Polynomial.zero_getElem!, zero_add, and_self]
 
 private theorem multiplyNTTs_add_zero (f g h : Polynomial) :
   multiplyNTTs f g h 0 = multiplyNTTs f g Polynomial.zero 0 + h := by
