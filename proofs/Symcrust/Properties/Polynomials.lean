@@ -4,7 +4,7 @@ import Symcrust.Spec
 Properties about the polynomials
 -/
 
-attribute [-simp] List.getElem!_eq_getElem?_getD List.reduceReplicate Aeneas.SRRange.foldWhile_step
+#setup_aeneas_simps
 
 namespace Symcrust.Spec
 

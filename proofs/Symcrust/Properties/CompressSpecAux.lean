@@ -903,16 +903,9 @@ theorem Stream.encode.body.spec_no_flush
   -- Number of bits in the accumulator
   have hAcci : acci = d * (i + 1) % (8 * n) := by
     simp [acci]
-    simp [Nat.left_distrib]
-    -- TODO: improve zmodify
-    have := Nat.mod_eq_of_lt hLt'
-    rw [← this]
     zmodify
-    have := Nat.mod_eq_of_lt hLt
-    rw [← this] at h2
-    zmodify at h2
-    simp [h2]
-    simp [nBitsEq]
+    simp [h2, nBitsEq]
+    ring_nf
 
   -- Number of bytes in the output buffer
   have hBi : s.bi = n * (d * (i + 1) / (8 * n)) := by
