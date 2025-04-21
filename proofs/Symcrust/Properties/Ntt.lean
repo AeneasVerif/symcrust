@@ -65,6 +65,14 @@ theorem getElem!_to_poly (a : Array U16 256#usize) (i : ℕ) :
 theorem to_poly_set (a : Array U16 256#usize) (i : Usize) (x : U16) :
   to_poly (Std.Array.set a i x) = (to_poly a).set! i.val (x.val : Spec.Zq) := by
   simp only [to_poly, Spec.Q, id_eq, Array.set_val_eq, List.map_set]
+  rw [Vector.eq_iff_forall_eq_getElem!]
+  intro j hj
+  simp_lists
+  by_cases hj': j = i <;> simp only [Fin.getElem!_fin, Array.getElem!_Nat_eq, Array.set_val_eq,
+    Nat.not_eq, ne_eq, not_false_eq_true, lt_or_lt_iff_ne, true_or, or_true, List.getElem!_set_ne,
+    id_eq, hj']
+  simp_lists
+  simp_lists -- TODO: why do we need two calls?
 
 @[simp]
 theorem to_poly_getElem!_eq (a : Std.Array U16 256#usize) (i : Nat) :
