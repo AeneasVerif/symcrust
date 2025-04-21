@@ -61,7 +61,9 @@ macro "glet" x:ident " := " e:term : tactic =>
 theorem Target.bitsToBytes.eq_spec {l : Nat} (b : Vector Bool (8 * l)) :
   bitsToBytes b = Spec.bitsToBytes b := by
   unfold bitsToBytes Spec.bitsToBytes recBody body
-  simp [Id.run]
+  simp only [BitVec.ofNat_eq_ofNat, tsub_zero, Id.run, Id.pure_eq,
+    Vector.Inhabited_getElem_eq_getElem!, Vector.set_eq_set!, Id.bind_eq, forIn'_eq_forIn,
+    forIn_eq_forIn_range', size, add_tsub_cancel_right, Nat.div_one, List.forIn_yield_eq_foldl]
 
 theorem Target.bitsToBytes.recBody.step_eq
   {l:Nat} (b : Vector Bool (8 * l)) (B : Vector Byte l) (i : ℕ)
@@ -69,7 +71,7 @@ theorem Target.bitsToBytes.recBody.step_eq
   recBody b B i = recBody b (body b B i) (i + 1) := by
   unfold recBody
   have : 8 * l - i = (8 * l - (i+1)) + 1 := by omega
-  simp [this, List.range'_succ]
+  simp only [this, List.range'_succ, List.foldl_cons]
 
 irreducible_def Target.bitsToBytes.inv
   {l:Nat} (b : Vector Bool (8 * l)) (B : Vector Byte l) (i j : ℕ) :=
@@ -88,15 +90,15 @@ theorem decompose_ij (i j : ℕ) (hj : j < 8) :
 
 @[local scalar_tac m d]
 theorem m_d_pos (d : ℕ) : 0 < m d := by
-  simp [m]
-  split <;> simp
+  simp only [m]
+  split <;> simp only [Nat.ofNat_pos, pow_pos]
 
 def Target.bitsToBytes.body.spec
   {l:Nat} {b : Vector Bool (8 * l)} {B : Vector Byte l} {i j : ℕ} (hinv : inv b B i j)
   (hi : i < l) (hj : j < 8) :
   inv b (body b B (8 * i + j)) i (j + 1) := by
   simp only [body, inv] at *
-  simp at *
+  simp only [mem_std_range_step_one, and_imp, BitVec.ofNat_eq_ofNat, Nat.mul_add_mod_self_left] at *
   obtain ⟨ h0, h1, h2, h3 ⟩ := hinv
   split_conjs
   . intro i' hi' j' hj'
@@ -107,7 +109,7 @@ def Target.bitsToBytes.body.spec
     simp_scalar; simp_lists
     cases hb: b[8 * i + j]! <;> simp [hb]
     . by_cases hj'': j' = j
-      . simp_all
+      . simp_all only [forall_const, lt_add_iff_pos_right, Nat.lt_one_iff, pos_of_gt, le_refl]
       . have : j' < j := by omega
         simp_lists [h1]
     . simp [Byte.testBit]
@@ -118,13 +120,13 @@ def Target.bitsToBytes.body.spec
       by_cases hj'': j' = j <;> simp_scalar <;> simp_lists [*] -- TODO: simp_lists +split
   . intros hi' j' hj' hj''
     simp_lists
-    simp [hj, hj'']
+    simp only [hj, decompose_ij]
     cases hb: b[8 * i + j]! <;> simp
     . by_cases hj''': j' = j -- TODO: simp_lists +split
       . simp_lists
       . simp_lists [h2]
     . simp_scalar
-      simp [Byte.testBit]
+      simp only [Byte.testBit, BitVec.toNat_add, BitVec.toNat_ofNat, Nat.reducePow, Nat.add_mod_mod]
       have : 256 = 2^8 := by rfl
       rw [this]; clear this
       simp_scalar
@@ -143,7 +145,7 @@ def Target.bitsToBytes.body.spec
         simp_scalar
         by_cases hk' : k < 8
         . simp_lists [h2]
-        . simp at hk'
+        . simp only [not_lt] at hk'
           have : BitVec.toNat B[i]! < 2^8 := by omega
           have : BitVec.toNat B[i]! < 2 ^ k := by simp_scalar
           simp_scalar
@@ -159,18 +161,21 @@ theorem Target.bitsToBytes.inv_8_imp_inv {l:Nat}
   {b : Vector Bool (8 * l)} {B : Vector Byte l} {i : ℕ}
   (hinv : inv b B i 8) :
   inv b B (i + 1) 0 := by
-  simp only [inv] at *; simp at *
+  simp only [inv] at *
+  simp only [mem_std_range_step_one, isEmpty_Prop, not_and, not_lt, imp_self, IsEmpty.forall_iff,
+    implies_true, BitVec.ofNat_eq_ofNat, and_imp, true_and, not_lt_zero', zero_le] at *
   obtain ⟨ h0, h1, h2 ⟩ := hinv
   split_conjs
   . intro i' hi' j' hj'
     by_cases hi'': i' = i
-    . simp [hi'']
+    . simp only [hi'']
       simp_lists [h1]
     . simp_lists [h0]
   . intros hi' j' hj'
     have : B[i+1]! = 0#8 := by
       simp_lists [h2]
-    simp [this, Byte.testBit]
+    simp only [Byte.testBit, this, BitVec.toNat_ofNat, Nat.reducePow, Nat.zero_mod,
+      Nat.zero_testBit]
   . simp_lists [*]
 
 -- TODO: this one is useless
@@ -178,22 +183,24 @@ theorem Target.bitsToBytes.inv_0_imp {l:Nat}
   {b : Vector Bool (8 * l)} {B : Vector Byte l} {i : ℕ}
   (hinv : inv b B (i + 1) 0) :
   inv b B i 8 := by
-  simp only [inv] at *; simp at *
+  simp only [inv] at *
+  simp only [not_lt_zero', IsEmpty.forall_iff, implies_true, mem_std_range_step_one, zero_le,
+    true_and, BitVec.ofNat_eq_ofNat, and_imp, isEmpty_Prop, not_and, not_lt, imp_self] at *
   obtain ⟨ h0, h1, h2 ⟩ := hinv
   split_conjs
   . simp_lists [*]
   . simp_lists [*]
   . intros i' hi' hi''
     by_cases hi''': i' = i + 1
-    . simp [← hi'''] at h1
+    . simp only [← hi'''] at h1
       have : ∀ j < 8, B[i']!.testBit j = false := by
         simp_lists [h1]
-      natify; simp
-      apply Nat.eq_of_testBit_eq; simp
+      natify; simp only [Nat.reducePow, Nat.zero_mod]
+      apply Nat.eq_of_testBit_eq; simp only [Nat.zero_testBit]
       intros j
       by_cases hj: j < 8
       . simp_lists [h1]
-      . simp at hj
+      . simp only [not_lt] at hj
         have : B[i']!.toNat < 2^j := by simp_scalar -- TODO: also make it work with scalar_tac +nonLin
         simp_scalar
     . simp_lists [h2]
@@ -203,7 +210,9 @@ theorem Target.bitsToBytes.inv_last_imp {l:Nat}
   (hi : l ≤ i)
   (hinv : inv b B i j) :
   inv b B l 0 := by
-  simp [inv] at *
+  simp only [inv, mem_std_range_step_one, and_imp, BitVec.ofNat_eq_ofNat, not_lt_zero', le_refl,
+    Vector.getElem!_default, Byte.testBit_default, le_add_iff_nonneg_right, zero_le,
+    Bool.default_bool, implies_true, lt_self_iff_false, true_and] at *
   obtain ⟨ h0, h1, h2, h3 ⟩ := hinv
   split_conjs <;> simp_lists [*]
 
@@ -221,7 +230,7 @@ def Target.bitsToBytes.recBody.spec
   else
     -- Increment j if possible
     if hj': j = 8 then
-      simp [hj'] at hinv ⊢
+      simp only [hj'] at hinv ⊢
       have hinv1 := Target.bitsToBytes.inv_8_imp_inv hinv
       have hinv2 := spec hinv1 (by omega) (by omega)
       simp +arith at hinv2 ⊢
@@ -233,7 +242,7 @@ def Target.bitsToBytes.recBody.spec
       have hinv1 := Target.bitsToBytes.body.spec hinv (by omega) (by omega)
       rw [hacc1] at hinv1
       have hinv2 := spec hinv1 (by omega) (by omega)
-      simp +arith at *
+      simp only at *
       apply hinv2
 termination_by (l - i, 8 - j)
 decreasing_by all_goals (simp_wf; omega)
@@ -244,14 +253,18 @@ irreducible_def Target.bitsToBytes.post {l:Nat} (b : Vector Bool (8 * l)) (B : V
 def Target.bitsToBytes.spec {l:Nat} (b : Vector Bool (8 * l)) :
   post b (bitsToBytes b) := by
   have hinv0 : inv b (Vector.replicate l 0) 0 0 := by
-    simp [inv, Byte.testBit]
-    split_conjs <;> simp_lists; simp
+    simp only [BitVec.ofNat_eq_ofNat, inv, not_lt_zero', Byte.testBit, IsEmpty.forall_iff,
+      implies_true, mul_zero, zero_add, mem_std_range_step_one, zero_le, true_and, and_imp]
+    split_conjs <;> simp_lists
+    simp only [BitVec.toNat_ofNat, Nat.reducePow, Nat.zero_mod, Nat.zero_testBit, implies_true]
   have hinv1 := recBody.spec hinv0 (by omega) (by omega)
-  simp at hinv1
-  simp [inv] at hinv1
+  simp only [BitVec.ofNat_eq_ofNat, mul_zero, add_zero] at hinv1
+  simp only [inv, not_lt_zero', le_refl, Vector.getElem!_default, Byte.testBit_default,
+    le_add_iff_nonneg_right, zero_le, Bool.default_bool, implies_true, lt_self_iff_false,
+    mem_std_range_step_one, true_and, BitVec.ofNat_eq_ofNat, and_imp] at hinv1
   obtain ⟨ h0, h1 ⟩ := hinv1
   unfold bitsToBytes
-  simp [post]
+  simp only [BitVec.ofNat_eq_ofNat, post]
   -- TODO: introduce notation for this, plus apply symmetry to the equation
   generalize hacc1 : recBody b (Vector.replicate l 0#8) 0 = acc1 at *
   intro i hi j hj
@@ -297,7 +310,10 @@ def Target.bytesToBits {l : Nat} (B : Vector Byte l) : Vector Bool (8 * l) :=
 theorem Target.bytesToBits.eq_spec {l : Nat} (B : Vector Byte l) :
   Target.bytesToBits B = Spec.bytesToBits B := by
   unfold bytesToBits Spec.bytesToBits bytesToBits.recBody byteToBits byteToBits.body
-  simp [Id.run]
+  simp only [BitVec.ofNat_eq_ofNat, ne_eq, decide_not, tsub_zero, Id.run, Id.pure_eq,
+    Vector.Inhabited_getElem_eq_getElem!, Vector.set_eq_set!, Id.bind_eq, forIn'_eq_forIn,
+    forIn_eq_forIn_range', size, Nat.reduceAdd, Nat.add_one_sub_one, Nat.div_one,
+    List.forIn_yield_eq_foldl, add_tsub_cancel_right]
 
 def Target.bytesToBits.inv
   {l} (C0 : Vector Byte l) (b0 : Vector Bool (8 * l))
@@ -320,26 +336,27 @@ theorem Target.byteToBits.body.spec
   bytesToBits.inv C0 b0 i (body i acc j) (j + 1) := by
   unfold body
   unfold bytesToBits.inv
-  unfold bytesToBits.inv at hinv; simp at hinv
+  unfold bytesToBits.inv at hinv; simp only [gt_iff_lt] at hinv
   obtain ⟨ h0, h1, h2, h3, h4 ⟩ := hinv
-  simp
+  simp only [BitVec.ofNat_eq_ofNat, ne_eq, decide_not, gt_iff_lt]
   generalize hC : acc.fst = C at *
   generalize hb : acc.snd = b at *
   split_conjs
   . intro i' hi' j' hj
-    simp [h4, hi]
+    simp only [hi, h4]
     simp_lists [h0]
   . intro j' hj'
     by_cases hj'': j' = j
-    . simp [*]
+    . simp only [hi, h4, hj'']
       simp_lists
-      simp [Nat.testBit_to_div_mod]
+      simp only [Nat.testBit_to_div_mod, Simp.decide_eq_not_decide, Nat.mod_two_not_eq_one,
+        eq_iff_iff]
       natify; simp
       have : 2^j % 256 = 2^j := by
         have : 2^j ≤ 2^7 := by scalar_tac +nonLin
         simp_scalar
-      simp [this, Nat.shiftRight_eq_div_pow]
-    . simp [*]
+      simp only [Nat.shiftRight_eq_div_pow]
+    . simp only [hi, h4]
       simp_lists [h1]
   . intro i' hi' hi'' j' hj'
     have : 8*i + j < 8*i' + j' := by scalar_tac
@@ -348,7 +365,8 @@ theorem Target.byteToBits.body.spec
     simp_lists [h3]
   . simp_lists [h4, hi]
     natify
-    simp [Nat.div_div_eq_div_mul, Nat.shiftRight_eq_div_pow]
+    simp only [BitVec.toNat_udiv, BitVec.toNat_ushiftRight, Nat.shiftRight_eq_div_pow,
+      BitVec.toNat_ofNat, Nat.reducePow, Nat.reduceMod, Nat.div_div_eq_div_mul, forall_const]
     ring_nf
 
 theorem Target.byteToBits.recBody.spec
@@ -362,10 +380,10 @@ theorem Target.byteToBits.recBody.spec
     unfold recBody
     have : 8 - j = (8 - (j+1)) + 1 := by omega
     simp only [this, List.range'_succ]
-    simp
+    simp only [Nat.reduceSubDiff, List.foldl_cons]
     have hinv1 := body.spec C0 b0 i acc j hinv (by omega) (by omega)
     have hinv2 := spec C0 b0 i (body i acc j) (j + 1) hinv1 (by omega) (by omega)
-    simp [recBody] at hinv2
+    simp only [recBody, Nat.reduceSubDiff] at hinv2
     apply hinv2
 termination_by 8 - j
 decreasing_by omega
@@ -376,7 +394,8 @@ theorem Target.byteToBits.spec
   (hinv : bytesToBits.inv C0 b0 i acc 8) (hi : i < l) :
   bytesToBits.inv C0 b0 (i + 1) (recBody i acc 8) 0 := by
   have hinv1 := byteToBits.recBody.spec C0 b0 i acc 8 hinv (by omega) (by simp)
-  simp [bytesToBits.inv] at hinv1 ⊢
+  simp only [bytesToBits.inv, gt_iff_lt, not_lt_zero', IsEmpty.forall_iff, implies_true,
+    BitVec.ushiftRight_zero, true_and] at hinv1 ⊢
   obtain ⟨ h0, h1, h2, h3, h4 ⟩ := hinv1
   generalize hbody: recBody i acc 8 = acc1 at *
   generalize hC1 : acc1.fst = C1 at *
@@ -384,7 +403,7 @@ theorem Target.byteToBits.spec
   split_conjs
   . intro i' hi' j hj
     by_cases hi'': i' = i
-    . simp [hi'']
+    . simp only [hi'']
       simp_lists [h1]
     . simp_lists [h0]
   . intro j' hj'
@@ -398,7 +417,7 @@ theorem Target.bytesToBits.recBody.step_eq
   recBody acc i = recBody (byteToBits acc i) (i + 1) := by
   unfold recBody
   have : l - i = (l - (i+1)) + 1 := by omega
-  simp [this, List.range'_succ]
+  simp only [this, List.range'_succ, List.foldl_cons]
 
 theorem Target.bytesToBits.recBody.spec
   {l : Nat} (C0 : Vector Byte l) (b0 : Vector Bool (8 * l))
@@ -409,13 +428,13 @@ theorem Target.bytesToBits.recBody.spec
  if hi1 : i = l then
   simp_all [recBody]
  else
-  simp (disch := omega) only [Target.bytesToBits.recBody.step_eq, hi, hi1]
+  simp_scalar [Target.bytesToBits.recBody.step_eq, hi, hi1]
   have hinv1 := byteToBits.recBody.spec C0 b0 i acc 0 hinv (by omega) (by simp)
   have hinv2 := byteToBits.spec C0 b0 i (byteToBits acc i) hinv1 (by omega)
   have : byteToBits.recBody i (byteToBits acc i) 8 =
          byteToBits acc i := by
     unfold byteToBits.recBody
-    simp
+    simp only [tsub_self, List.range'_zero, List.foldl_nil]
   rw [this] at hinv2
   have hinv3 := spec C0 b0 (byteToBits acc i) (i + 1) (by omega) hinv2
   apply hinv3
@@ -434,7 +453,8 @@ theorem Target.bytesToBits.spec
   generalize hacc0 : MProd.mk C0 b0 = acc0 at *
   have hinv0 : bytesToBits.inv C0 b0 0 acc0 0 := by
     unfold inv
-    simp [← hacc0]
+    simp only [not_lt_zero', ← hacc0, IsEmpty.forall_iff, implies_true, mul_zero, zero_add,
+      gt_iff_lt, BitVec.ushiftRight_zero, and_self]
   have hinv1 := recBody.spec C0 b0 acc0 0 (by omega) hinv0
   unfold inv at hinv1
   obtain ⟨ h0, h1, h2, h3, h4 ⟩ := hinv1
@@ -481,7 +501,10 @@ def Target.byteEncode.eq_spec (d : ℕ) (F : Polynomial (m d)) :
   byteEncode d F = Spec.byteEncode d F := by
   unfold byteEncode byteEncode.encode byteEncode.encode.recBody byteEncode.encodeElem byteEncode.encodeElem.recBody
     byteEncode.encodeElem.body Spec.byteEncode
-  simp [Id.run, Target.bitsToBytes.eq_spec]
+  simp only [tsub_zero, bitsToBytes.eq_spec, Id.run, Vector.Inhabited_getElem_eq_getElem!,
+    Id.pure_eq, Vector.set_eq_set!, Id.bind_eq, forIn'_eq_forIn, forIn_eq_forIn_range', size,
+    add_tsub_cancel_right, Nat.div_one, List.forIn_yield_eq_foldl, Nat.reduceAdd,
+    Nat.add_one_sub_one]
 
 irreducible_def Target.byteEncode.encodeElem.body.inv
   (d : ℕ) (F : Polynomial (m d)) (acc : MProd ℕ (Vector Bool (256 * d))) (i : ℕ) (j : ℕ) :=
@@ -501,7 +524,7 @@ def Target.byteEncode.encodeElem.body.spec
   (hinv : inv d F acc i j)
   (hi : i < 256 := by omega) (hj : j < d := by omega) :
   inv d F (body d i acc j) i (j + 1) := by
-  simp [inv, body] at *
+  simp only [inv, mem_std_range_step_one, and_imp, gt_iff_lt, body] at *
   obtain ⟨ h0, h1, h2, h3, h4 ⟩ := hinv
   generalize hb1: acc.snd = b1 at *
   generalize ha1: acc.fst = a1 at *
@@ -518,21 +541,23 @@ def Target.byteEncode.encodeElem.body.spec
     simp_lists [h0]
   . intros j' hj'
     by_cases hj'': j' = j
-    . simp [hj'']; simp_lists
-      simp [h3, Nat.testBit, Bool.ofNat, Nat.shiftRight_eq_div_pow]
+    . simp only [hj'']; simp_lists
+      simp only [Bool.ofNat, h3, ne_eq, Nat.mod_two_not_eq_zero, Nat.testBit,
+        Nat.shiftRight_eq_div_pow, Nat.one_and_eq_mod_two, Nat.mod_two_bne_zero]
       tauto
     . simp_lists [*]
   . intros j' hj' hj''
     have : i * d + j < i * d + j' := by omega
     have : i * d + j' < 256 * d := by omega
     simp_lists [h2]
-  . simp_lists; simp [h3]
+  . simp_lists; simp only [h3]
     have : F[i]!.val / 2 ^ j - F[i]!.val / 2 ^ j % 2 =
            2 * (F[i]!.val / 2^j / 2) := by
       have := Nat.mod_def (F[i]!.val / 2 ^ j) 2
       omega
     rw [this]
-    simp [Nat.div_div_eq_div_mul]
+    simp only [Nat.div_div_eq_div_mul, ne_eq, OfNat.ofNat_ne_zero, not_false_eq_true,
+      mul_div_cancel_left₀]
     ring_nf
   . intros i' hi' hi'' j' hj'
     have : i * d + d ≤ i' * d := by
@@ -551,9 +576,9 @@ def Target.byteEncode.encodeElem.recBody.spec
   (hi : i < 256 := by omega) (hj : j ≤ d := by omega) :
   body.inv d F (recBody d i acc j) i d := by
   if hj' : j = d then
-    simp [hj'] at *
+    simp only [hj', gt_iff_lt, le_refl] at *
     unfold recBody
-    simp
+    simp only [tsub_self, List.range'_zero, List.foldl_nil]
     apply hinv
   else
     have hinv1 := Target.byteEncode.encodeElem.body.spec hinv
@@ -562,8 +587,8 @@ def Target.byteEncode.encodeElem.recBody.spec
       unfold recBody
       have : d - j = (d - (j + 1)) + 1 := by omega
       rw [this]
-      simp [List.range'_succ]
-    simp [this] at hinv2
+      simp only [List.range'_succ, List.foldl_cons]
+    simp only [this] at hinv2
     apply hinv2
 termination_by d - j
 decreasing_by simp_wf; omega
@@ -574,12 +599,14 @@ theorem Target.byteEncode.encodeElem.body.inv_d_imp_inv
   {d : ℕ} {F : Polynomial (m d)} {acc : MProd ℕ (Vector Bool (256 * d))} {i : ℕ}
   (hinv : inv d F acc i d) :
   inv d F ⟨F[i+1]!.val, acc.snd⟩ (i + 1) 0 := by
-  simp [inv] at *
+  simp only [inv, mem_std_range_step_one, isEmpty_Prop, not_and, not_lt, imp_self,
+    IsEmpty.forall_iff, implies_true, and_imp, true_and, not_lt_zero', zero_le, pow_zero,
+    Nat.div_one] at *
   obtain ⟨ h0, h1, h2, h3 ⟩ := hinv
   split_conjs
   . intros i' hi' j' hj'
     by_cases hi'': i' = i
-    . simp [hi'']
+    . simp only [hi'']
       simp_lists [h1]
     . simp_lists [h0]
   . intros j' hj'
@@ -587,7 +614,7 @@ theorem Target.byteEncode.encodeElem.body.inv_d_imp_inv
     . simp_lists [h3]
     . have : 256 * d ≤ (i + 1) * d := by scalar_tac +nonLin
       have : 256 * d ≤ (i + 1) * d + j' := by omega
-      simp [this]
+      simp only [this, Vector.getElem!_default, Bool.default_bool]
   . simp_lists [h3]
 
 irreducible_def Target.byteEncode.encode.inv
@@ -601,7 +628,8 @@ theorem Target.byteEncode.encodeElem.body_inv_0_imp_inv
   {d : ℕ} {F : Polynomial (m d)} {acc : MProd ℕ (Vector Bool (256 * d))} {i : ℕ}
   (hinv : body.inv d F acc i 0) :
   encode.inv d F acc.snd i := by
-  simp [body.inv, encode.inv] at *
+  simp only [body.inv, not_lt_zero', IsEmpty.forall_iff, implies_true, mem_std_range_step_one,
+    zero_le, true_and, pow_zero, Nat.div_one, and_imp, encode.inv] at *
   obtain ⟨ h0, h1, h2, h3 ⟩ := hinv
   simp_lists [*]
   intros i' hi' hi'' j hj
@@ -611,7 +639,8 @@ theorem Target.byteEncode.encodeElem.inv_imp_body_inv
   {d : ℕ} {F : Polynomial (m d)} {b : Vector Bool (256 * d)} {i : ℕ}
   (hinv : encode.inv d F b i) (hi : i < 256 := by omega) :
   body.inv d F ⟨ F[i]!.val, b ⟩ i 0 := by
-  simp [body.inv, encode.inv] at *
+  simp only [encode.inv, mem_std_range_step_one, and_imp, gt_iff_lt, body.inv, not_lt_zero',
+    IsEmpty.forall_iff, implies_true, zero_le, true_and, pow_zero, Nat.div_one] at *
   obtain ⟨ h0, h1 ⟩ := hinv
   split_conjs <;> simp_lists [*]
 
@@ -620,12 +649,12 @@ def Target.byteEncode.encodeElem.spec
   (hinv : encode.inv d F b i)
   (hi : i < 256 := by omega) :
   encode.inv d F (encodeElem d F b i) (i + 1) := by
-  simp [encodeElem]
+  simp only [encodeElem]
   have := inv_imp_body_inv hinv
   have := Target.byteEncode.encodeElem.recBody.spec this
   have := body.inv_d_imp_inv this
   have := body_inv_0_imp_inv this
-  simp at this
+  simp only at this
   apply this
 
 def Target.byteEncode.encode.recBody.spec
@@ -634,16 +663,16 @@ def Target.byteEncode.encode.recBody.spec
   (hi : i ≤ 256 := by omega) :
   inv d F (recBody d F b i) 256 := by
   if hi' : i = 256 then
-    simp [hi'] at *
-    simp [recBody, hinv]
+    simp only [hi', le_refl] at *
+    simp only [recBody, tsub_self, List.range'_zero, List.foldl_nil, hinv]
   else
     have := encodeElem.spec hinv
     have := spec this
     have : recBody d F (encodeElem d F b i) (i + 1) = recBody d F b i := by
-      simp [recBody]
+      simp only [recBody, Nat.reduceSubDiff]
       have : 256 - i = (255 - i) + 1 := by omega
       rw [this]
-      simp [List.range'_succ]
+      simp only [List.range'_succ, List.foldl_cons]
     simp_all
 termination_by 256 - i
 decreasing_by simp_wf; omega
@@ -651,16 +680,18 @@ decreasing_by simp_wf; omega
 def Target.byteEncode.encode.spec (d : ℕ) (F : Polynomial (m d)) :
   ∀ i < 256, ∀ j < d, (encode d F)[i * d + j]! = F[i]!.val.testBit j := by
   have hinv0 : inv d F (Vector.replicate (256 * d) false) 0 := by
-    simp [inv]
+    simp only [inv, not_lt_zero', IsEmpty.forall_iff, implies_true, mem_std_range_step_one, zero_le,
+      true_and]
     intros i hi j hj
     have : i * d ≤ 255 * d := by scalar_tac +nonLin
     simp_lists
   have hinv1 := recBody.spec hinv0
   generalize hb : encode d F = b at *
   have : recBody d F (Vector.replicate (256 * d) false) 0 = b := by
-    simp [← hb, encode]
-  simp [this] at hinv1
-  simp [inv] at hinv1
+    simp only [← hb, encode]
+  simp only [this] at hinv1
+  simp only [inv, mem_std_range_step_one, isEmpty_Prop, not_and, not_lt, imp_self,
+    IsEmpty.forall_iff, implies_true, and_true] at hinv1
   apply hinv1
 
 /-- The important theorem! -/
@@ -672,34 +703,34 @@ def Target.byteEncode.spec (d : ℕ) (F : Polynomial (m d)) (hd : 0 < d := by om
   have h0 := encode.spec d F
   generalize hb : (Vector.cast (by ring_nf) (encode d F) : Vector Bool (8 * (32 * d))) = b at *
   have h1 := Target.bitsToBytes.spec  b
-  simp [bitsToBytes.post] at h1
+  simp only [bitsToBytes.post] at h1
   generalize hb1 : bitsToBytes b = b1 at *
   simp_lists [h1]
-  simp [← hb]
+  simp only [← hb, Vector.getElem!_cast]
 
   /- We have to play with the indices -/
   let ij := 8 * i + j
   let i' := ij / d
   let j' := ij % d
   have : i' < 256 := by
-    simp +zetaDelta
+    simp +zetaDelta only
     simp_scalar
 
   have : j' < d := by
-    simp +zetaDelta
+    simp +zetaDelta only
     scalar_tac +nonLin
 
   refold_let ij
 
   have : ij = i' * d + j' := by
     have := Nat.mod_add_div ij d
-    simp +zetaDelta at *
+    simp +zetaDelta only [gt_iff_lt] at *
     ring_nf at *
     omega
 
-  simp [this]
+  simp only [this, Nat.mul_add_mod_self_right]
   simp_lists [h0]
-  simp +zetaDelta
+  simp +zetaDelta only [dvd_refl, Nat.mod_mod_of_dvd]
   simp_scalar
 
 /-!
@@ -791,7 +822,7 @@ theorem Stream.encode.body.spec_before_flush
 
   := by
 
-  simp [inv] at hinv
+  simp only [inv, mem_std_range_step_one, and_imp] at hinv
   simp only
   obtain ⟨ h0, h1, h2, h3, h4, h5 ⟩ := hinv
 
@@ -806,7 +837,7 @@ theorem Stream.encode.body.spec_before_flush
   have hBitsEq : bits.toNat = x0.val % 2^nBits := by
     simp only [bits]
     simp only [BitVec.shiftLeft_sub_one_eq_mod]
-    simp
+    simp only [BitVec.ofNat_eq_ofNat, BitVec.toNat_umod, BitVec.toNat_ofNat, BitVec.toNat_pow, bits]
 
     have : 2 < 2 ^(8*n) := by simp_scalar
     have : 2 ^ nBits < 2 ^ (8 * n) := by simp_scalar
@@ -816,42 +847,42 @@ theorem Stream.encode.body.spec_before_flush
   -- Accumulator: prefix
   have hAccPre : ∀ j < acci, acc[j]! = F[(8 * s.bi + j) / d]!.val.testBit ((8 * s.bi + j) % d) := by
     intros j hj
-    simp [acci] at hj
-    simp [acc]
+    simp only [acci] at hj
+    simp only [BitVec.getElem!_or, acc, acci]
     by_cases hj': j < s.acci -- TODO: simp_lists +split
     . simp_lists [h4]
     . simp_lists [h5]
 
       simp [BitVec.getElem!_eq_testBit_toNat, hBitsEq]
       simp_scalar
-      simp [x0]
+      simp only [x0, acc, acci]
 
       have hij : (8 * s.bi + j) / d = i ∧
                  (8 * s.bi + j) % d = j - s.acci := by
         have := Nat.mod_add_div (d * i) (8 * n)
         have : 8 * s.bi = 8 * n * (d * i / (8 * n)) := by
-          simp [h1]
+          simp only [h1, x0, acc, acci]
           ring_nf
 
         have : 8 * s.bi + j = d * i + (j - s.acci) := by omega
 
         split_conjs
-        . have hi : (8 * s.bi + j) / d = (d * i + (j - s.acci)) / d := by simp [this]
+        . have hi : (8 * s.bi + j) / d = (d * i + (j - s.acci)) / d := by simp only [this]
           simp_scalar at hi
           apply hi
-        . have hi : (8 * s.bi + j) % d = (d * i + (j - s.acci)) % d := by simp [this]
+        . have hi : (8 * s.bi + j) % d = (d * i + (j - s.acci)) % d := by simp only [this]
           simp_scalar at hi
           apply hi
-      simp [hij]
+      simp only [hij]
 
   -- Accumulator: suffix
   have hAccPost : ∀ j ∈ [acci:8*n], acc[j]! = false := by
-    simp
+    simp only [mem_std_range_step_one, and_imp]
     intros j hj hj'
-    simp [acc]
+    simp only [BitVec.getElem!_or, Bool.or_eq_false_iff, acc]
     simp_lists [*]
-    simp [← h2]
-    simp [bits]
+    simp only [← h2, acc]
+    simp only [BitVec.shiftLeft_sub_one_eq_mod, BitVec.ofNat_eq_ofNat, bits, acc]
     simp_lists
 
   tauto
@@ -875,7 +906,7 @@ theorem Stream.encode.body.spec_no_flush
 
   -- Unfold the body and the invariant
   unfold body
-  simp [inv] at hinv
+  simp only [inv, mem_std_range_step_one, and_imp] at hinv
   obtain ⟨ h0, h1, h2, h3, h4, h5 ⟩ := hinv
   simp only
 
@@ -895,16 +926,16 @@ theorem Stream.encode.body.spec_no_flush
   simp only [inv]
 
   have hLt : s.acci < 8 * n := by
-      simp [h2]
+      simp only [h2]
       simp_scalar
   have hLt' : s.acci + nBits < 8 * n := by omega
   have nBitsEq : nBits = d := by omega
 
   -- Number of bits in the accumulator
   have hAcci : acci = d * (i + 1) % (8 * n) := by
-    simp [acci]
+    simp only [acci]
     zmodify
-    simp [h2, nBitsEq]
+    simp only [h2, ZMod.natCast_mod, Nat.cast_mul, nBitsEq, acci]
     ring_nf
 
   -- Number of bytes in the output buffer
@@ -916,7 +947,7 @@ theorem Stream.encode.body.spec_no_flush
     simp only [mul_assoc, ← h1, ← h2, ← hAcci] at hMod hMod'
     have : d * (i + 1) = d * i + d := by ring_nf
     conv at hMod' => rhs; rw [this]
-    simp [acci, nBitsEq] at hMod'
+    simp only [nBitsEq, acci] at hMod'
     have : 8 * s.bi = 8 * (n * (d * (i + 1) / (8 * n))) := by omega
     omega
 
@@ -972,13 +1003,13 @@ theorem Stream.encode.body.spec_with_flush_bi
       8 * s.bi + 8 * n + xBits = 8 * s.bi + s.acci + (nBits + xBits) := by simp only [← h0, acci]; ring_nf
       _ = 8 * s.bi + s.acci + d := by
         have : nBits + xBits = d := by omega
-        simp [this]
+        simp only [this, Nat.add_left_inj]
       _ = d * i + d := by
         -- Using the characterization of euclidean division
         have : 8 * s.bi + s.acci = d * i := by
           have hMod := Nat.mod_add_div (d * i) (8 * n)
           rw [← hMod]
-          simp [h1, h2]
+          simp only [h1, h2]
           ring_nf
         omega
       _ = d * (i + 1) := by ring_nf
@@ -987,9 +1018,9 @@ theorem Stream.encode.body.spec_with_flush_bi
       (8 * s.bi + 8 * n + xBits) % (8 * n) = ((8 * s.bi + 8 * n) + xBits) % (8 * n) := by ring_nf
       _ = xBits % (8 * n) := by
         have : (8 * s.bi + 8 * n) % (8 * n) = 0 := by
-          simp [h1, ← mul_assoc]
+          simp only [h1, ← mul_assoc, Nat.add_mod_right, Nat.mul_mod_right]
         rw [Nat.add_mod ]
-        simp [this]
+        simp only [this, zero_add, dvd_refl, Nat.mod_mod_of_dvd]
       _ = xBits := by scalar_tac +nonLin
 
     have hd2 := calc
@@ -1016,7 +1047,8 @@ theorem Stream.encode.body.spec_with_flush_bi
         F[(8 * i + j) / d]!.val.testBit ((8 * i + j) % d) := by
     -- We have to do a case disjunction:
     intros i' hi' j hj
-    have : acc.toLEBytes.length = n := by simp
+    have : acc.toLEBytes.length = n := by simp only [Nat.mul_mod_right, BitVec.toLEBytes_length,
+      ne_eq, OfNat.ofNat_ne_zero, not_false_eq_true, mul_div_cancel_left₀]
     have : s.bi + n ≤ s.b.size := by
       have :=
         calc s.bi + n = n * (d * (i + 1) / (8 * n)) := by omega
@@ -1030,7 +1062,7 @@ theorem Stream.encode.body.spec_with_flush_bi
     . simp_lists [h3]
     . simp_lists [hAccPre]
       have : 8 * s.bi + (8 * (i' - s.bi) + j) = 8 * i' + j := by omega
-      simp [this]
+      simp only [this]
 
   tauto
 
@@ -1056,7 +1088,7 @@ theorem Stream.encode.body.spec_with_flush
 
   -- Unfold the body and the invariant
   unfold body
-  simp [inv] at hinv
+  simp only [inv, mem_std_range_step_one, and_imp] at hinv
   obtain ⟨ h0, h1, h2, h3, h4, h5 ⟩ := hinv
   simp only
 
@@ -1079,7 +1111,7 @@ theorem Stream.encode.body.spec_with_flush
 
   split_conjs <;> try tauto
   . intros j hj
-    simp [bits, x, x0]
+    simp only [x, x0]
 
     have hij : (8 * (s.bi + n) + j) / d = i ∧
                 (8 * (s.bi + n) + j) % d = nBits + j
@@ -1090,12 +1122,12 @@ theorem Stream.encode.body.spec_with_flush
         _ = d * i + nBits + j := by
           -- Property of euclidean division
           have hMod := Nat.mod_add_div (d * i) (8 * n)
-          simp [mul_assoc, ← h1, ← h2] at hMod
+          simp only [← h2, mul_assoc, ← h1] at hMod
           omega
 
       have : nBits + j < d := by omega
       have hi := calc
-        (8 * (s.bi + n) + j) / d = (d * i + (nBits +j)) / d := by simp [hij]; ring_nf
+        (8 * (s.bi + n) + j) / d = (d * i + (nBits +j)) / d := by simp? [hij]; ring_nf
         _ = i := by simp_scalar
 
       have hj := calc
@@ -1103,13 +1135,15 @@ theorem Stream.encode.body.spec_with_flush
         _ = nBits + j := by simp_scalar
 
       simp only [hi, hj, Nat.add_left_inj, and_self]
-    simp [hij]
-    simp [BitVec.getElem!_eq_testBit_toNat]
+    simp only [hij]
+    simp only [BitVec.getElem!_eq_testBit_toNat, BitVec.toNat_ofNat, Nat.testBit_mod_two_pow,
+      Nat.testBit_shiftRight, Bool.and_iff_right_iff_imp, decide_eq_true_eq]
     omega
 
-  . simp [bits, x]
+  . simp only [mem_std_range_step_one, and_imp, x]
     intros j hj hj'
-    simp [BitVec.getElem!_eq_testBit_toNat, x0]
+    simp only [BitVec.getElem!_eq_testBit_toNat, BitVec.toNat_ofNat, Nat.testBit_mod_two_pow,
+      Nat.testBit_shiftRight, Bool.and_eq_false_imp, decide_eq_true_eq, x0, x]
     intros
 
     apply Nat.testBit_eq_false_of_lt
@@ -1155,19 +1189,19 @@ theorem Stream.encode.recBody.spec
   (hm : m d < 2^(8*n) := by omega) :
   inv F (recBody F s i) 256 := by
   if hi: i = 256 then
-    simp [hi]
+    simp only [hi]
     unfold recBody
-    simp
+    simp only [tsub_self, List.range'_zero, List.foldl_nil]
     simp_all
   else
     unfold recBody
     have : 256 - i = (256 - (i+1)) + 1 := by omega
     rw [this, List.range'_succ]
-    simp
+    simp only [Nat.reduceSubDiff, List.foldl_cons]
     have hinv1 := body.spec hinv
     have hinv2 := spec hinv1
     unfold recBody at hinv2
-    simp at hinv2
+    simp only [Nat.reduceSubDiff] at hinv2
     apply hinv2
 termination_by 256 - i
 decreasing_by omega
@@ -1196,27 +1230,31 @@ theorem Stream.encode.spec_aux
   -- TODO: improve glet
   glet s1 := recBody F s 0
 
-  have hinv : inv F s 0 := by unfold inv; simp [s]
+  have hinv : inv F s 0 := by
+    unfold inv
+    simp only [zero_le, mul_zero, Nat.zero_div, Nat.zero_mod, not_lt_zero', BitVec.ofNat_eq_ofNat,
+      IsEmpty.forall_iff, implies_true, BitVec.getElem!_zero, zero_add, Bool.false_eq,
+      mem_std_range_step_one, true_and, and_self, s]
 
   replace hinv := Stream.encode.recBody.spec hinv
 
   refold_let s1 at *
 
   unfold inv at hinv
-  simp at hinv
+  simp only [le_refl, mem_std_range_step_one, and_imp, true_and] at hinv
   obtain ⟨ h0, h1, h2, h3, h4 ⟩ := hinv
 
   unfold post
   intros i hi j hj
 
   have : s1.bi = 32 * d := by
-    simp [h0]
+    simp only [h0]
     have : d * 256 = 8 * (32 * d) := by ring_nf
     rw [this]
     simp_scalar
     -- TODO: we should be able to automate this
     have hn2 : n ∣ 32 * d := by apply Nat.dvd_mul_right_of_dvd hn1
-    simp [Nat.mul_div_cancel', hn2]
+    simp only [hn2, Nat.mul_div_cancel']
 
   simp_lists [h2]
 
@@ -1273,12 +1311,14 @@ def Stream.compressOpt_encode_eq {d : ℕ} (n : ℕ) (F : Vector Zq 256) [NeZero
   have := Stream.encode.spec n (F.map (fun (x : Zq) => (compressOpt d x.val : ZMod (m d))))
   rw [← this]; clear this
   --
-  simp [compressOpt_encode, encode, compressOpt_encode.recBody, encode.recBody]
+  simp only [compressOpt_encode, compressOpt_encode.recBody, BitVec.ofNat_eq_ofNat, tsub_zero,
+    encode, encode.recBody]
   apply congrArg
   apply List.forall_imp_foldl_eq
-  . simp
-  . simp; intros s i hi
-    simp [compressOpt_encode.body]
+  . simp only
+  . simp only [List.mem_range'_1, zero_le, zero_add, true_and]
+    intros s i hi
+    simp only [compressOpt_encode.body]
     simp_lists
 
 /-!
@@ -1329,16 +1369,22 @@ def compress (d : ℕ) (x : ℕ) : ℕ :=
 
 theorem compress_bv_eq (x : ℕ) (h : x < 3329) (d : ℕ) (hd : d < 12) :
   (compress_bv d x).toNat = compress d x := by
-  simp [compress_bv, compress]
-  have : x * compress.mulConstant.toNat < 3329 * 0x9d7dbb := by simp [compress.mulConstant]; omega
+  simp only [compress_bv, BitVec.natCast_eq_ofNat, BitVec.ofNat_eq_ofNat, BitVec.toNat_and,
+    BitVec.toNat_ushiftRight, BitVec.toNat_add, BitVec.toNat_mul, BitVec.toNat_ofNat, Nat.reducePow,
+    Nat.mod_mul_mod, Nat.one_mod, BitVec.toNat_sub, Nat.add_one_sub_one, Nat.add_mod_mod, compress,
+    Nat.reduceSubDiff]
+  have : x * compress.mulConstant.toNat < 3329 * 0x9d7dbb := by
+    simp only [compress.mulConstant, BitVec.toNat_ofNat, Nat.reducePow, Nat.reduceMod,
+      Nat.reduceMul]
+    omega
   have : (↑x * compress.mulConstant.toNat) >>> (compress.shiftConstant - (d + 1)) ≤ (↑x * compress.mulConstant.toNat) :=
     Nat.shiftRight_le _ _
-  simp (disch := omega) [Nat.mod_eq_of_lt]
+  simp_scalar
   have : (18446744073709551615 + 1 <<< d) % 18446744073709551616 = (1 <<< d) - 1 := by
     have : 1 <<< d > 0 := by
       have := @Nat.le_shiftLeft 1 d
       omega
-    have : 18446744073709551615 + 1 <<< d = 2^64 + ((1 <<< d) - 1) := by simp; omega
+    have : 18446744073709551615 + 1 <<< d = 2^64 + ((1 <<< d) - 1) := by simp only [Nat.reducePow]; omega
     rw [this]; clear this
     simp only [Nat.reducePow, Nat.add_mod_left, Nat.mod_succ_eq_iff_lt, Nat.succ_eq_add_one,
       Nat.reduceAdd, gt_iff_lt]
@@ -1346,7 +1392,8 @@ theorem compress_bv_eq (x : ℕ) (h : x < 3329) (d : ℕ) (hd : d < 12) :
     have := @Nat.pow_lt_pow_of_lt 2 d 64 (by simp) (by omega)
     omega
   rw [this]; clear this
-  simp [compress.mulConstant, compress.shiftConstant]
+  simp only [compress.mulConstant, BitVec.toNat_ofNat, Nat.reducePow, Nat.reduceMod,
+    compress.shiftConstant, Nat.reduceSubDiff]
 
 theorem compress_eq (x : ℕ) (h : x < 3329) (d : ℕ) (hd : d < 12) :
   compress d x = ⌈ ((2^d : ℚ) / (Q : ℚ)) * x ⌋ % (2^d)
@@ -1357,9 +1404,9 @@ theorem compress_eq (x : ℕ) (h : x < 3329) (d : ℕ) (hd : d < 12) :
 
   -- Get rid of the `⌈ ... ⌋`
   have : ((2^d : ℚ) / (Q : ℚ)) * (x : ℚ) = ((2 ^ d * x : ℕ) : ℚ) / (Q : ℚ) := by
-    simp; ring_nf
+    simp only [Nat.cast_ofNat, Nat.cast_mul, Nat.cast_pow]; ring_nf
   rw [this]; clear this
-  rw [Nat.rat_round_div]; swap; simp
+  rw [Nat.rat_round_div]; swap; simp only [ne_eq, OfNat.ofNat_ne_zero, not_false_eq_true]
 
   -- Finish the proof by simplifying everything
   simp only [BitVec.ofNat_eq_ofNat, BitVec.natCast_eq_ofNat, Nat.cast_ofNat, BitVec.reduceMul,
@@ -1369,21 +1416,22 @@ theorem compress_eq (x : ℕ) (h : x < 3329) (d : ℕ) (hd : d < 12) :
 
   have : (2 ^ d : Int) % 18446744073709551616 = 2^d := by
     apply Int.emod_eq_of_lt
-    . simp
+    . simp only [Nat.ofNat_nonneg, pow_nonneg]
     . have := @Nat.pow_lt_pow_of_lt 2 d 64 (by simp) (by omega)
       zify at this
       omega
   rw [this]; clear this
 
   congr
-  simp [← BitVec.ofNat_pow]
+  simp only [← BitVec.ofNat_pow, BitVec.toNat_ofNat, Nat.reducePow, Int.ofNat_emod, Nat.cast_pow,
+    Nat.cast_ofNat]
   have : (2^(d+1) : Int) ≤ 2^12 := by
     have := @Nat.pow_le_pow_right 2 (by simp) (d + 1) 12 (by omega)
     zify at this
     omega
   have : (2^(d + 1) : Int) % 18446744073709551616 = 2^(d+1) := by
     apply Int.emod_eq_of_lt
-    . simp
+    . simp only [Nat.ofNat_nonneg, pow_nonneg]
     . omega
   rw [this]; clear this
 
