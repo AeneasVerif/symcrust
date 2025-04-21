@@ -58,19 +58,6 @@ macro "glet" h:ident " : " x:ident " := " e:term : tactic =>
 macro "glet" x:ident " := " e:term : tactic =>
   `(tactic| (let $x := $e; refold_let $x at *))
 
--- This example comes from Verus:
--- https://verus-lang.github.io/verus/guide/nonlinear.html#example-1-integer_ring-as-a-helper-lemma-to-provide-facts-on-modular-arithmetic
--- TODO: improve and move this example
-example (x y d : ℕ) (h0 : d > 0) (h1 : x <= y) (h2 : x % d <= y % d) (h3 : y - x < d) :
-  y % d - x % d = y - x := by
-  -- TODO: we should be able to just do `zmodify d`
-  have : (y - x) % d = y - x := by scalar_tac +nonLin -- TODO: allow proving the eq the other way
-  rw [← this]
-  have : (y % d - x % d ) % d = y % d - x % d := by scalar_tac +nonLin
-  rw [← this]
-  zmodify
-  simp (disch := omega) only [Nat.cast_sub, ZMod.natCast_mod]
-
 theorem Target.bitsToBytes.eq_spec {l : Nat} (b : Vector Bool (8 * l)) :
   bitsToBytes b = Spec.bitsToBytes b := by
   unfold bitsToBytes Spec.bitsToBytes recBody body
