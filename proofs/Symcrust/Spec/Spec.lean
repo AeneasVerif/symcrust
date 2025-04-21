@@ -59,31 +59,16 @@ open Notations
 
 @[reducible] def Q : Nat := 3329
 @[reducible] def Zq := ZMod Q
-@[reducible] def Polynomial (n : ℕ := Q) := { l : List (ZMod n) // l.length = 256 }
+@[reducible] def Polynomial (n : ℕ := Q) := Vector (ZMod n) 256
 
-abbrev Polynomial.length {m : ℕ} (p : Polynomial m) : ℕ := p.val.length
+abbrev Polynomial.length {m : ℕ} (p : Polynomial m) : ℕ := p.size
 
-@[scalar_tac p.val.length]
-theorem Polynomial.length_eq {m : ℕ} (p : Polynomial m) : p.val.length = 256 := by simp
+def Polynomial.zero (n := Q) : Polynomial n := Vector.replicate 256 0
 
-def Polynomial.zero (n := Q) : Polynomial n := ⟨ List.replicate 256 0, by simp only [List.replicate_length] ⟩
+instance {m} : HAdd (Polynomial m) (Polynomial m) (Polynomial m) where
+  hAdd f g := Vector.map (fun i => f[i]! + g[i]!) (Vector.range 256)
 
-def Polynomial.get! (x : Polynomial m) (n : ℕ)  : ZMod m := x.val[n]!
-
--- TODO: condition on the length
-def Polynomial.set (x : Polynomial m) (n : ℕ) (v : ZMod m) : Polynomial m :=
-  ⟨ x.val.set n v, by cases x; simp_all ⟩
-
-/-- This activates nice notations -/
-instance : GetElem (Polynomial m) Nat (ZMod m) (fun _ i => i < 256) where
-  getElem p i _ := p.val[i]
-
-instance : HAdd (Polynomial m) (Polynomial m) (Polynomial m) where
-  hAdd f g := ⟨ List.map (fun i => f[i]! + g[i]!) (List.range 256), by simp ⟩
-
-def Polynomial.scalarMul (x : Polynomial n) (k : ZMod n) : Polynomial n :=
-  ⟨ x.val.map fun v => v * k,
-    by cases x; simp_all ⟩
+def Polynomial.scalarMul (x : Polynomial n) (k : ZMod n) : Polynomial n := x.map fun v => v * k
 
 instance : HMul (Polynomial n) (ZMod n) (Polynomial n) where
   hMul := Polynomial.scalarMul
@@ -175,7 +160,7 @@ def sampleNTT (B : {l : List Byte // l.length = 34 }) : Polynomial := Id.run do
   ctx := XOF.absorb ctx B
   let mut a := Polynomial.zero
   let mut j : Nat := 0
-  while j < 256 do
+  while hj: j < 256 do
     let (ctx', C) := XOF.squeeze ctx 3
     ctx := ctx'
     let d1 : Nat := C[0].val + 256 * (C[1].val % 16)
@@ -183,7 +168,7 @@ def sampleNTT (B : {l : List Byte // l.length = 34 }) : Polynomial := Id.run do
     if d1 < Q then
       a := a.set j d1
       j := j + 1
-    if d2 < Q ∧ j < 256 then
+    if h: d2 < Q ∧ j < 256 then
       a := a.set j d2
       j := j + 1
   pure a
@@ -233,7 +218,7 @@ def samplePolyCBD {η:Η} (B : Vector Byte (64 * η)): Polynomial := Id.run do
     have : 2 * i * η ≤ 510 * η := by scalar_tac +nonLin
     let x := ∑ (j : Fin η), Bool.toNat b[2 * i * η + j]
     let y := ∑ (j : Fin η), Bool.toNat b[2 * i * η + η + j]
-    f := f.set i (x - y)
+    f := f.set! i (x - y)
   pure f
 
 def ζ : ZMod Q := 17
@@ -248,8 +233,8 @@ def ntt (f : Polynomial) : Polynomial := Id.run do
       i := i + 1
       for j in [start:start+len] do
         let t := zeta * f[j + len]!
-        f := f.set (j + len) (f[j]! - t)
-        f := f.set j (f[j]! + t)
+        f := f.set! (j + len) (f[j]! - t)
+        f := f.set! j (f[j]! + t)
   pure f
 
 /-- # Algorithm 10 -/
@@ -262,8 +247,8 @@ def invNtt (f : Polynomial) : Polynomial := Id.run do
       i := i - 1
       for j in [start:start+len] do
         let t := f[j]!
-        f := f.set j (t + f[j + len]!)
-        f := f.set (j + len) (zeta * (f[j + len]! - t))
+        f := f.set! j (t + f[j + len]!)
+        f := f.set! (j + len) (zeta * (f[j + len]! - t))
   f := f * (3303 : Zq)
   pure f
 
@@ -278,8 +263,8 @@ def multiplyNTTs (f g : Polynomial) : Polynomial := Id.run do
   let mut h : Polynomial := Polynomial.zero
   for i in [0:128] do
     let (c0, c1) := baseCaseMultiply f[2 * i]! f[2 * i + 1]! g[2 * i]! g[2 * i + 1]! (ζ^(2 * bitRev 7 i + 1))
-    h := h.set (2 * i) c0
-    h := h.set (2 * i + 1) c1
+    h := h.set! (2 * i) c0
+    h := h.set! (2 * i + 1) c1
   pure h
 
 /-- # Algorithm 13 -/ -- TODO: k ∈ {2,3,4}

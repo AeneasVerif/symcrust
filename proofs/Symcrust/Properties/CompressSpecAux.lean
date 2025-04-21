@@ -664,7 +664,7 @@ def Target.byteEncode.encode.spec (d : ℕ) (F : Polynomial (m d)) :
   apply hinv1
 
 /-- The important theorem! -/
-def Target.byteEncode.spec (d : ℕ) (F : Polynomial (m d)) (hd : 0 < d) :
+def Target.byteEncode.spec (d : ℕ) (F : Polynomial (m d)) (hd : 0 < d := by omega) :
   ∀ i < 32 * d, ∀ j < 8,
     (byteEncode d F)[i]!.testBit j = F[(8 * i + j) / d]!.val.testBit ((8 * i + j) % d) := by
   intros i hi j hj
@@ -1220,16 +1220,26 @@ theorem Stream.encode.spec_aux
 
   simp_lists [h2]
 
-/-
 /-- `Stream.encode` is equal to `Spec.encode` -/
 theorem Stream.encode.spec
-  {d : ℕ} (n : ℕ) (F : Polynomial (m d)) [NeZero (m d)]
+  {d : ℕ} (n : ℕ) (F : Polynomial (m d))
+  (hd : 0 < d := by omega)
   (hn : 0 < n := by omega)
   (hdn : d < 8 * n := by omega)
   (hm : m d < 2^(8*n) := by omega)
   (hn1 : n ∣ 32 := by omega) :
   encode n F = Spec.byteEncode d F := by
-  sorry-/
+  -- Characterization of Stream.encode
+  have h1 := encode.spec_aux n F
+  unfold post at h1
+  -- Characterization of Spec.byteEncode
+  rw [← Target.byteEncode.eq_spec]
+  have h2 := Target.byteEncode.spec d F
+  -- Using the extensional equality
+  rw [Vector.eq_iff_forall_eq_getElem!]
+  intros i hi
+  rw [Byte.eq_iff]
+  simp_lists [*]
 
 /-!
 # Compress and encode
@@ -1237,12 +1247,39 @@ theorem Stream.encode.spec
 
 def compressOpt (d : ℕ) (x : ℕ) : ℤ := if d < 12 then ⌈ ((2^d : ℚ) / (Q : ℚ)) * x ⌋ % 2^d else x
 
-/-def Stream.compress_encode {d : ℕ} (n : ℕ) (F : Vector (ZMod (m d)) 256) [NeZero (m d)]
+def Stream.compressOpt_encode.body {d n : ℕ} (x : Spec.Zq) (s : EncodeState d n) :=
+  Stream.encode.body (compressOpt d x.val) s
+
+def Stream.compressOpt_encode.recBody {d n : ℕ} (F : Vector (ZMod Q) 256) (s : EncodeState d n) (i : ℕ) : EncodeState d n :=
+  List.foldl (fun s i => compressOpt_encode.body F[i]! s) s (List.range' i (256 - i))
+
+def Stream.compressOpt_encode
+  {d : ℕ} (n : ℕ) (F : Vector (ZMod Q) 256) : Vector Byte (32 * d) :=
+  let s : EncodeState d n := {
+    b := Vector.replicate (32 * d) 0,
+    bi := 0,
+    acc := 0,
+    acci := 0,
+  }
+  (compressOpt_encode.recBody F s 0).b
+
+def Stream.compressOpt_encode_eq {d : ℕ} (n : ℕ) (F : Vector Zq 256) [NeZero (m d)]
+  (hd : 0 < d := by omega)
   (hn : 0 < n := by omega)
   (hdn : d < 8 * n := by omega)
   (hm : m d < 2^(8*n) := by omega)
   (hn1 : n ∣ 32 := by omega) :
-  post F (encode n F).b := by-/
+  compressOpt_encode n F = Spec.byteEncode d (F.map (fun (x : Zq) => (compressOpt d x.val : ZMod (m d)))) := by
+  have := Stream.encode.spec n (F.map (fun (x : Zq) => (compressOpt d x.val : ZMod (m d))))
+  rw [← this]; clear this
+  --
+  simp [compressOpt_encode, encode, compressOpt_encode.recBody, encode.recBody]
+  apply congrArg
+  apply List.forall_imp_foldl_eq
+  . simp
+  . simp; intros s i hi
+    simp [compressOpt_encode.body]
+    simp_lists
 
 /-!
 # Compress

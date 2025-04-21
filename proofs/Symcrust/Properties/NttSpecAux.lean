@@ -38,8 +38,8 @@ namespace Target
     let zeta := ζ ^ (bitRev 7 i)
     for j in [start:start+len] do
       let t := zeta * f[j + len]!
-      f := f.set (j + len) (f[j]! - t)
-      f := f.set j (f[j]! + t)
+      f := f.set! (j + len) (f[j]! - t)
+      f := f.set! j (f[j]! + t)
     pure f
 
   def nttLayer (f : Polynomial) (i len : Nat) (hLen : 0 < len := by assumption) :
@@ -70,8 +70,8 @@ namespace Target
     let zeta := ζ ^(bitRev 7 i)
     for j in [start:start+len] do
       let t := f[j]!
-      f := f.set j (t + f[j + len]!)
-      f := f.set (j + len) (zeta * (f[j + len]! - t))
+      f := f.set! j (t + f[j + len]!)
+      f := f.set! (j + len) (zeta * (f[j + len]! - t))
     pure f
 
   def invNttLayer (f : Polynomial) (i len : Nat) (hLen : 0 < len := by assumption) : Polynomial × Nat := Id.run do
@@ -108,8 +108,8 @@ def nttLayerInner (f : Polynomial) (i : Nat) (len : Nat)
     let c0 := f[start + j]!
     let c1 := f[start + j + len]!
     let zeta := ζ ^ bitRev 7 i
-    let f := f.set (start + j) (c0 + c1 * zeta)
-    let f := f.set (start + j + len) (c0 - c1 * zeta)
+    let f := f.set! (start + j) (c0 + c1 * zeta)
+    let f := f.set! (start + j + len) (c0 - c1 * zeta)
     nttLayerInner f i len start (j + 1)
   else f
 
@@ -136,8 +136,8 @@ def invNttLayerInner (f : Polynomial) (i : Nat) (len : Nat)
     let c0 := f[start + j]!
     let c1 := f[start + j + len]!
     let zeta := ζ ^ bitRev 7 i
-    let f := f.set (start + j) (c0 + c1)
-    let f := f.set (start + j + len) (zeta * (c1 - c0))
+    let f := f.set! (start + j) (c0 + c1)
+    let f := f.set! (start + j + len) (zeta * (c1 - c0))
     invNttLayerInner f i len start (j + 1)
   else f
 
@@ -167,8 +167,8 @@ private def nttLayerInner_body (i len start : Nat) (f : Polynomial) (j : Nat) : 
   let c0 := f[start + j]!
   let c1 := f[start + j + len]!
   let zeta := ζ ^ bitRev 7 i
-  let f := f.set (start + j) (c0 + c1 * zeta)
-  let f := f.set (start + j + len) (c0 - c1 * zeta)
+  let f := f.set! (start + j) (c0 + c1 * zeta)
+  let f := f.set! (start + j + len) (c0 - c1 * zeta)
   f
 
 private theorem nttLayerInner_eq
@@ -291,8 +291,8 @@ def invNttLayerInner_body (i len start : Nat) (f : Polynomial) (j : Nat) : Polyn
   let c0 := f[start + j]!
   let c1 := f[start + j + len]!
   let zeta := ζ ^ bitRev 7 i
-  let f := f.set (start + j) (c0 + c1)
-  let f := f.set (start + j + len) (zeta * (c1 - c0))
+  let f := f.set! (start + j) (c0 + c1)
+  let f := f.set! (start + j + len) (zeta * (c1 - c0))
   f
 
 private theorem invNttLayerInner_eq
@@ -436,8 +436,8 @@ def multiplyNTTs (f g h : Polynomial) (i : Nat) : Polynomial :=
   if i < 128 then
     let c0 := baseCaseMultiply0 f g i
     let c1 := baseCaseMultiply1 f g i
-    let h := h.set (2 * i) (h[2 * i]! + c0)
-    let h := h.set (2 * i + 1) (h[2 * i + 1]! + c1)
+    let h := h.set! (2 * i) (h[2 * i]! + c0)
+    let h := h.set! (2 * i + 1) (h[2 * i + 1]! + c1)
     multiplyNTTs f g h (i + 1)
   else h
 
@@ -475,8 +475,8 @@ private theorem multiplyNTTs_getElem! (f g h : Polynomial) (i j : Nat) (hj : j <
 private def multiplyNTTs_pure (f g h : Polynomial) (i : Nat) : Polynomial :=
   if i < 128 then
     let (c0, c1) := baseCaseMultiply f[2 * i]! f[2 * i + 1]! g[2 * i]! g[2 * i + 1]! (ζ^(2 * bitRev 7 i + 1))
-    let h := h.set (2 * i) c0
-    let h := h.set (2 * i + 1) c1
+    let h := h.set! (2 * i) c0
+    let h := h.set! (2 * i + 1) c1
     multiplyNTTs_pure f g h (i + 1)
   else h
 
@@ -514,8 +514,8 @@ private def Target.multiplyNTTs_inner (f g h : Polynomial) (i0 : Nat) : Polynomi
   let mut h := h
   for i in [i0:128] do
     let (c0, c1) := baseCaseMultiply f[2 * i]! f[2 * i + 1]! g[2 * i]! g[2 * i + 1]! (ζ^(2 * bitRev 7 i + 1))
-    h := h.set (2 * i) c0
-    h := h.set (2 * i + 1) c1
+    h := h.set! (2 * i) c0
+    h := h.set! (2 * i + 1) c1
   pure h
 
 /--

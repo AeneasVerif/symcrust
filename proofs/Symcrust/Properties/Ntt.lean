@@ -37,8 +37,6 @@ theorem mod_int_4294967296_65536_eq (x : Int) : ((x % 4294967296) % 65536) = x %
 theorem mod_int_65536_4294967296_eq (x : Int) : ((x % 65536) % 4294967296) = x % 65536 := by
   apply Int.emod_eq_of_lt <;> omega
 
-attribute [local simp] Spec.Polynomial.set Spec.Polynomial.get!
-
 attribute [local simp, local scalar_tac_simps, local bvify_simps] Spec.Q
 
 /-!
@@ -55,31 +53,24 @@ bit-vectors.
 attribute [-progress] UScalar.cast.progress_spec
 attribute [local progress] UScalar.cast_inBounds_spec
 
-def to_poly (a : Array U16 256#usize) : Spec.Polynomial :=
-  ⟨ List.map (fun x => (x.val : Spec.Zq)) a.val, by simp ⟩
+def to_poly (a : Array U16 256#usize) : Spec.Polynomial := Vector.ofFn (fun i => a[i]!)
 
 @[simp]
 theorem getElem!_to_poly (a : Array U16 256#usize) (i : ℕ) :
   (to_poly a)[i]! = ((a.val[i]!) : Spec.Zq) := by
   simp [to_poly]
-  dcases hi : i < a.val.length <;> simp_all
-  rfl
+  dcases hi : i < a.val.length <;> simp_all [default, Vector.getElem!_ofFn]
 
 @[simp]
 theorem to_poly_set (a : Array U16 256#usize) (i : Usize) (x : U16) :
-  to_poly (Std.Array.set a i x) = Spec.Polynomial.set (to_poly a) i.val (x.val : Spec.Zq) := by
-  simp only [to_poly, Spec.Q, id_eq, Array.set_val_eq, List.map_set, Spec.Polynomial.set]
+  to_poly (Std.Array.set a i x) = (to_poly a).set! i.val (x.val : Spec.Zq) := by
+  simp only [to_poly, Spec.Q, id_eq, Array.set_val_eq, List.map_set]
 
 @[simp]
 theorem to_poly_getElem!_eq (a : Std.Array U16 256#usize) (i : Nat) :
   (to_poly a)[i]! = a.val[i]! := by
   fsimp [to_poly]
-  dcases h: i < 256
-  . simp only [List.Vector.length_val, UScalar.ofNat_val_eq, h, List.getElem!_map_eq]
-  . simp only [not_lt] at h
-    simp only [List.length_map, List.Vector.length_val, UScalar.ofNat_val_eq, h,
-      List.getElem!_default]
-    rfl
+  dcases h: i < 256 <;> simp_all [Vector.getElem!_ofFn, default]
 
 @[local simp]
 theorem Nat_mod_3329_mod_4294967296_eq (x : Nat) :
