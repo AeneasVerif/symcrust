@@ -99,27 +99,35 @@ theorem decompose_ij (i j : ℕ) (hj : j < 8) :
   (8 * i + j) / 8 = i ∧ (8 * i + j) % 8 = j := by
   omega
 
-attribute [simp, simp_scalar_simps] Nat.testBit_two_pow_add_eq
-attribute [simp_scalar_simps] Bool.not_eq_eq_eq_not
-attribute [simp_lists_simps] Bool.not_eq_eq_eq_not
+attribute [simp] Nat.testBit_two_pow_add_eq
 
-@[simp_scalar_simps]
+@[simp_scalar_simps, simp_lists_simps]
 theorem Nat.testBit_two_pow_add_eq' (x i j : ℕ) (h : i = j) : (2 ^ i + x).testBit j = !x.testBit i := by
   simp only [h]
   apply Nat.testBit_two_pow_add_eq
 
-@[simp_scalar_simps]
+@[simp_scalar_simps, simp_lists_simps]
 theorem Nat.testBit_add_two_pow_eq' (x i j : ℕ) (h : i = j) : (x + 2 ^ i).testBit j = !x.testBit i := by
   rw [add_comm]
   simp only [h]
   apply Nat.testBit_two_pow_add_eq
 
-attribute [simp_scalar_simps] Nat.testBit_two_pow_add_gt Nat.testBit_eq_false_of_lt
-attribute [simp_scalar_simps] Nat.testBit_two_pow Nat.testBit_mod_two_pow
+attribute [simp_scalar_simps]
+  Nat.testBit_two_pow_add_gt Nat.testBit_eq_false_of_lt
+  Nat.testBit_two_pow Nat.testBit_mod_two_pow
+  Nat.testBit_shiftRight Nat.testBit_shiftLeft
+  Nat.testBit_add_one
+  Nat.div_eq_of_lt
+  Nat.testBit_two_pow_add_eq
 
-attribute [simp_lists_simps, simp_scalar_simps] false_eq_decide_iff true_eq_decide_iff
+attribute [simp_lists_simps]
+  Nat.testBit_two_pow_add_gt Nat.testBit_eq_false_of_lt
+  Nat.testBit_two_pow Nat.testBit_mod_two_pow
+  Nat.testBit_shiftRight Nat.testBit_shiftLeft
+  Nat.testBit_add_one
+  Nat.testBit_two_pow_add_eq
 
-@[simp_scalar_simps]
+@[simp_scalar_simps, simp_lists_simps]
 theorem Nat.testBit_add_two_pow_gt {i j : ℕ} (j_lt_i : j < i) (x : ℕ) : (x + 2 ^ i).testBit j = x.testBit j := by
   rw [add_comm]
   apply Nat.testBit_two_pow_add_gt
@@ -141,33 +149,34 @@ theorem BitVec.toNat_lt_two_pow {w} (x : BitVec w) (i : ℕ) (h : w ≤ i) : x.t
 @[simp_scalar_simps] theorem Int.imp_eq_false (x y : ℤ) (h : ¬ x = y) : (x = y) ↔ False := by simp [*]
 @[simp_scalar_simps] theorem Int.not_imp_eq_false (x y : ℤ) (h : x = y) : (¬ x = y) ↔ False := by simp [*]
 
-attribute [simp_lists_simps, simp_scalar_simps]
-  Nat.testBit_shiftRight Nat.testBit_shiftLeft
+attribute [simp_lists_simps]
   zero_add add_zero
   decide_eq_false_iff_not ne_eq
+  false_eq_decide_iff true_eq_decide_iff
+  not_false_eq_true Bool.not_true
+  Bool.not_eq_eq_eq_not
 
-attribute [simp_lists_simps, simp_scalar_simps] not_false_eq_true Bool.not_true
+attribute [simp_scalar_simps]
+  zero_add add_zero
+  decide_eq_false_iff_not ne_eq
+  false_eq_decide_iff true_eq_decide_iff
+  not_false_eq_true Bool.not_true
+  Bool.not_eq_eq_eq_not
 
-attribute [simp_scalar_simps] Nat.testBit_add_one Nat.div_eq_of_lt
-
--- TODO: simproc for canceling mul then div (all those lemmas are quite specific)
-attribute [simp_scalar_simps] Nat.mul_div_cancel Nat.mul_div_cancel_left Nat.mul_div_mul_left Nat.mul_div_mul_right
-attribute [simp_scalar_simps] Nat.div_mul_cancel Nat.mul_div_cancel'
-
--- TODO: move
-attribute [simp_scalar_simps] Nat.mul_add_div Nat.mod_div_self
+-- TODO: general simproc for canceling mul then div/mod (all those lemmas are quite specific)
+attribute [simp_scalar_simps]
+  Nat.mul_div_cancel Nat.mul_div_cancel_left Nat.mul_div_mul_left Nat.mul_div_mul_right
+  Nat.div_mul_cancel Nat.mul_div_cancel'
+  Nat.mul_add_div Nat.mod_div_self
+  Nat.add_mul_div_left Nat.add_mul_div_right
+  Nat.mul_add_mod' Nat.mul_add_mod
+  Nat.add_mul_mod_self_left Nat.add_mul_mod_self_right
 
 @[simp_scalar_simps]
 theorem Nat.mul_add_div' {m : Nat} (m_pos : m > 0) (x y : Nat) : (x * m + y) / m = x + y / m := by
   have : x * m = m * x := by ring_nf
   rw [this]
   apply Nat.mul_add_div m_pos
-
--- TODO: move
-attribute [simp_scalar_simps] Nat.add_mul_div_left Nat.add_mul_div_right
-attribute [simp_scalar_simps]
-  Nat.mul_add_mod' Nat.mul_add_mod
-  Nat.add_mul_mod_self_left Nat.add_mul_mod_self_right
 
 @[simp_scalar_simps]
 theorem Nat.lt_mul_imp_div_lt {k x y : ℕ} (Hk : 0 < k ∧ x < y * k) : x / k < y := by
@@ -179,28 +188,27 @@ theorem Nat.testBit_one : Nat.testBit 1 i = decide (i = 0) := by
   . simp only [Nat.testBit_zero, Nat.mod_succ, decide_true]
   . simp only [Nat.add_eq_zero, one_ne_zero, and_false, decide_false, Nat.testBit_add_one, Nat.reduceDiv, Nat.zero_testBit]
 
--- TODO: this one might be quite expensive
+-- Remark: this one may be quite expensive
 attribute [simp_scalar_simps] Nat.sub_eq_zero_of_le
 
-attribute [simp_scalar_simps] Nat.div_le_div_right Nat.mul_div_le Nat.div_mul_le_self
+attribute [simp_scalar_simps]
+  Nat.div_le_div_right Nat.mul_div_le Nat.div_mul_le_self
+  Nat.pow_lt_pow_right Nat.mod_lt Nat.mod_le
 
--- TODO: add this to scalar_tac ?
 @[simp_scalar_simps]
 theorem Nat.div_div_eq_div_mul_true (m n k : ℕ) : (m / n / k = m / (n * k)) ↔ True := by
   simp only [Nat.div_div_eq_div_mul]
 
--- TODO: add this to scalar_tac ?
 @[simp_scalar_simps]
 theorem Nat.div_mul_eq_div_div_true (m n k : ℕ) : (m / (n * k) = m / n / k) ↔ True := by
   simp only [Nat.div_div_eq_div_mul]
 
--- TODO: congruence, etc.
+-- TODO: implement a more general simproc to reason about those equalities
 attribute [simp_scalar_simps]
   mul_eq_mul_left_iff mul_eq_mul_right_iff
   Nat.add_left_inj Nat.add_right_inj
   Nat.add_div_right Nat.add_div_left
 
--- TODO: congruence
 @[simp_scalar_simps]
 theorem Nat.eq_imp_div_eq (a b c : ℕ) (h : a = b) : a / c = b / c := by simp [*]
 
@@ -219,8 +227,6 @@ example {n d} : n * (d / (8 * n)) = n * (d / 8 / n) := by
 @[simp_scalar_simps]
 theorem Nat.sub_mod_div_eq_div {m n : ℕ} : (m - m % n) / n = m / n := by
   simp only [← Nat.div_eq_sub_mod_div]
-
-attribute [simp_scalar_simps] Nat.mod_lt Nat.mod_le
 
 @[simp_scalar_simps] theorem Nat.lt_imp_lt (a b : ℕ) : a < b → a < b := by omega
 @[simp_scalar_simps] theorem Nat.le_imp_le (a b : ℕ) : a ≤ b → a ≤ b := by omega
