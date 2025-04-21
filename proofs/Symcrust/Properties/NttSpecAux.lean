@@ -214,7 +214,7 @@ private theorem nttLayer_eq_fst_arith
   (len : Nat) (hLen : ∃ k, k ≤ 7 ∧ len = 2 ^k) :
   (255 / (2 * len) + 1) * (2 * len) = 256 := by
   -- We simply brute force the proof by making a case disjunction on k
-  -- TODO: the proof is quite simple but the theorem must be generalized (and the proof is then induction)
+  -- TODO: the proof is quite simple but the theorem must be generalized (and the proof is then by induction)
   replace ⟨ k, hLen ⟩ := hLen
   repeat (cases k <;> simp_all <;> rename_i k <;> try omega)
 
@@ -338,7 +338,7 @@ private theorem invNttLayer_eq_fst_arith
   (len : Nat) (hLen : ∃ k, k ≤ 7 ∧ len = 2 ^k) :
   (255 / (2 * len) + 1) * (2 * len) = 256 := by
   -- We simply brute force the proof by making a case disjunction on k
-  -- TODO: the proof is quite simple but the theorem must be generalized (and the proof is then induction)
+  -- TODO: the proof is quite simple but the theorem must be generalized (and the proof is then by induction)
   replace ⟨ k, hLen ⟩ := hLen
   repeat (cases k <;> simp_all <;> rename_i k <;> try omega)
 
