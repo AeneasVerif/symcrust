@@ -1127,7 +1127,7 @@ theorem Stream.encode.body.spec_with_flush
 
       have : nBits + j < d := by omega
       have hi := calc
-        (8 * (s.bi + n) + j) / d = (d * i + (nBits +j)) / d := by simp? [hij]; ring_nf
+        (8 * (s.bi + n) + j) / d = (d * i + (nBits +j)) / d := by simp only [hij]; ring_nf
         _ = i := by simp_scalar
 
       have hj := calc
