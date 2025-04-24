@@ -7,7 +7,6 @@ This specification refines the specification in `Spec`, and is refined by the co
 It does not need to be trusted.
 -/
 
---attribute [-simp] List.getElem!_eq_getElem?_getD List.reduceReplicate Aeneas.SRRange.foldWhile_step
 #setup_aeneas_simps
 
 namespace Symcrust.SpecAux
@@ -15,10 +14,9 @@ namespace Symcrust.SpecAux
 open Symcrust.Spec
 open Aeneas.SRRange
 
--- TODO: this lemma should exist somewhere
-private theorem fun_eq_arg_eq_imp_eq {α β : Type} (f g : α → β) (x y : α) :
-  f = g → x = y → f x = g y := by
-  simp +contextual
+-- TODO: move
+@[simp] theorem MProd_mk_eq (x : MProd α β) : ⟨ x.fst, x.snd ⟩ = x := by simp only
+
 
 /-!
 # Auxiliary helpers
@@ -63,7 +61,14 @@ namespace Target
     unfold nttLayer
     unfold nttLayerInner
     simp only [Id.run, pure]
-    rfl
+    simp only [Id.bind_eq, forIn_eq_forIn_range', size, add_tsub_cancel_left, add_tsub_cancel_right,
+      Nat.div_one, List.forIn_yield_eq_foldl, tsub_zero, Nat.succ_add_sub_one, forIn'_eq_forIn,
+      Aeneas.DivRange.forIn_eq_forIn_divRange, Nat.one_lt_ofNat,
+      Aeneas.DivRange.foldl_divRange_foldWhile, Aeneas.DivRange.foldWhile_step, Nat.reduceDiv,
+      ne_eq, Nat.add_eq_left, OfNat.ofNat_ne_zero, not_false_eq_true, Vector.getElem!_set!_ne,
+      Nat.reduceMul, Nat.reduceAdd, List.range'_one, List.foldl_cons, List.foldl_nil, Nat.ofNat_pos,
+      Nat.div_self, lt_self_iff_false, Aeneas.DivRange.foldWhile_id,
+      Vector.Inhabited_getElem_eq_getElem!, Vector.set_eq_set!]
 
   def invNttLayerInner (f : Polynomial) (i len start : Nat) : Polynomial := Id.run do
     let mut f := f
@@ -94,8 +99,17 @@ namespace Target
     rw [invNtt, Spec.invNtt]
     unfold invNttLayer
     unfold invNttLayerInner
-    simp only [Id.run]
-    rfl
+    simp only [pure, bind, Id.run]
+    simp only [forIn_eq_forIn_range', size, add_tsub_cancel_left, add_tsub_cancel_right,
+      Nat.div_one, List.forIn_yield_eq_foldl, tsub_zero, Nat.succ_add_sub_one,
+      Aeneas.MulRange.forIn'_eq_forIn_MulRange, List.forIn'_yield_eq_foldl,
+      Aeneas.ReduceZMod.reduceZMod, MProd_mk_eq, Vector.Inhabited_getElem_eq_getElem!,
+      Vector.set_eq_set!, forIn'_eq_forIn, Aeneas.MulRange.forIn_eq_forIn_MulRange,
+      Aeneas.MulRange.foldl_MulRange_foldWhile, Nat.reduceLT, Aeneas.MulRange.foldWhile_step,
+      Nat.reduceMul, ne_eq, left_eq_add, OfNat.ofNat_ne_zero, not_false_eq_true,
+      Vector.getElem!_set!_ne, Nat.reduceAdd, Nat.reduceDiv, List.range'_one, List.foldl_cons,
+      List.foldl_nil, lt_self_iff_false, Aeneas.MulRange.foldWhile_id]
+
 end Target
 
 /-!
@@ -525,10 +539,10 @@ private theorem Target.multiplyNTTs_inner_eq_spec (f g : Polynomial) :
   Target.multiplyNTTs_inner f g Polynomial.zero 0 = Spec.multiplyNTTs f g := by
   unfold Target.multiplyNTTs_inner Spec.multiplyNTTs
   simp only
-  generalize 0 = i -- annoying that we have to do this
-  simp only [Id.pure_eq, Id.bind_eq, Std.Range.forIn_eq_forIn_range', Std.Range.size,
-    add_tsub_cancel_right, Nat.div_one, List.forIn_yield_eq_foldl, zero_lt_one, foldl_range'_eq_foldWhile,
-    mul_one, forIn_eq_forIn_range', size]
+  simp only [Id.pure_eq, Id.bind_eq, Std.Range.forIn_eq_forIn_range', Std.Range.size, tsub_zero,
+    Nat.reduceAdd, Nat.add_one_sub_one, Nat.div_one, List.forIn_yield_eq_foldl,
+    Vector.Inhabited_getElem_eq_getElem!, Vector.set_eq_set!, forIn'_eq_forIn,
+    forIn_eq_forIn_range', size]
 
 /--
 Linking `Target.multiplyNTTs` to `multiplyNTTs_pure`
