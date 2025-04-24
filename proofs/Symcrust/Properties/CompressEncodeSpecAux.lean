@@ -20,7 +20,7 @@ This is the interesting part of the proof, which involves proving a tricky invar
 `Stream.encode.spec`.
 
 **Compress and decompress:**
-The implementation of `compress` and `decompress` is also tricky, as it has to be constant time, so
+The implementation of `compress` and `decompress` is also tricky as it has to be constant time, so
 there is a bit of arithmetic reasoning there.
 -/
 
@@ -31,7 +31,7 @@ namespace Symcrust.SpecAux
 open Symcrust.Spec
 open Aeneas Aeneas.SRRange
 
-set_option maxHeartbeats 500000
+set_option maxHeartbeats 1000000
 
 /-!
 # bitsToBytes
@@ -236,7 +236,6 @@ def Target.bitsToBytes.recBody.spec
       simp +arith at hinv2 ⊢
       apply hinv2
     else
-      --simp at *
       rw [Target.bitsToBytes.recBody.step_eq]; swap; omega
       generalize hacc1 : body b B (8 * i + j) = acc1 at *
       have hinv1 := Target.bitsToBytes.body.spec hinv (by omega) (by omega)
@@ -273,8 +272,6 @@ def Target.bitsToBytes.spec {l:Nat} (b : Vector Bool (8 * l)) :
 /-!
 # bytesToBits
 -/
-
-def byteToBits (b : Byte) : Vector Bool 8 := b.toNat.bitsn 8
 
 def Target.byteToBits.body {l : Nat}
   (i : ℕ)
@@ -743,14 +740,14 @@ This is one of the interesting theorems.
 /-- `d`: the number of bits with which to encode an element
     `n`: the number of bytes in the accumulator
 -/
-structure Stream.EncodeState (d n : ℕ) where
-  b : Vector Byte (32 * d)
+structure Stream.EncodeState (n : ℕ) where
+  b : List Byte
   bi : ℕ -- number of bytes written to `b`
   acc : BitVec (8 * n)
   acci : ℕ -- number of bits written to `acc`
 
-def Stream.encode.body {d n : ℕ} (x : ZMod (m d)) (s : EncodeState d n) :
-  EncodeState d n :=
+def Stream.encode.body (d : ℕ) {n : ℕ} (x : ZMod (m d)) (s : EncodeState n) :
+  EncodeState n :=
   let nBits := min d (8 * n - s.acci)
   let bits := BitVec.ofNat (8 * n) x.val &&& (1#(8*n) <<< nBits - 1#(8*n))
   let xBits := d - nBits
@@ -771,31 +768,165 @@ def Stream.encode.body {d n : ℕ} (x : ZMod (m d)) (s : EncodeState d n) :
   else
     {s with acc, acci}
 
-def Stream.encode.recBody {d n : ℕ} (F : Vector (ZMod (m d)) 256) (s : EncodeState d n) (i : ℕ) : EncodeState d n :=
-  List.foldl (fun s i => encode.body F[i]! s) s (List.range' i (256 - i))
+def Stream.encode.recBody (d : ℕ) {n : ℕ} (F : Vector (ZMod (m d)) 256) (s : EncodeState n) (i : ℕ) :
+  EncodeState n :=
+  List.foldl (fun s i => encode.body d F[i]! s) s (List.range' i (256 - i))
 
-def Stream.encode {d : ℕ} (n : ℕ) (F : Vector (ZMod (m d)) 256) : Vector Byte (32 * d) :=
-  let s : EncodeState d n := {
-    b := Vector.replicate (32 * d) 0,
+def Stream.encode (d n : ℕ) (F : Vector (ZMod (m d)) 256) : List Byte :=
+  let s : EncodeState n := {
+    b := List.replicate (32 * d) 0,
     bi := 0,
     acc := 0,
     acci := 0,
   }
-  (encode.recBody F s 0).b
+  (encode.recBody d F s 0).b
 
-def Stream.encode.inv
-  {d n : ℕ} (F : Vector (ZMod (m d)) 256) (s : EncodeState d n) (i : ℕ) : Prop :=
-  -- The lengths are correct
+/-- Invariant about the lengths -/
+def Stream.encode.length_inv (d n : ℕ) (b : List Byte) (bi acci i : ℕ) : Prop :=
+  b.length = 32 * d ∧
   i ≤ 256 ∧
-  s.bi = n * ((d * i) / (8 * n)) ∧
-  s.acci = (d * i) % (8 * n) ∧
+  -- This is the subtil part
+  bi = n * ((d * i) / (8 * n)) ∧
+  acci = (d * i) % (8 * n)
+
+/-- The full invariant.
+
+The best way of understanding the invariant and the proof, in particular the equations between the indices
+(`i`, `s.bi`, `s.acci`, etc.) is to make a drawing. We typically have something like this:
+
+                                        accumulator `s.acc` (`8 * n` bits)
+                                       ______________________________________
+                                      |                                      |
+                                                                  `8 * s.bi + 8 * n`
+  `8 * s.bi` bits encoded in `s.b`    `s.acci` bits in `s.acc`               |
+|------------------------------------|------------------------|--------------|---------|
+                                     |                        |   `nBits`      `xBits` |
+                                     |                        |                        |
+                                     |                     `d * i`                 `d * (i + 1)`
+                                     |            (`i` elements encoded to `d * i`
+                                     |             bits in `s.b` and `s.acc`)
+                                     |                        |
+                                     |                        |
+                     `s.bi = ((d * i) / (8 * n)) * n`         |
+                                     |________________________|
+                                    `s.acci = (d * i) % (8 * n)`
+-/
+def Stream.encode.inv
+  (d : ℕ) {n : ℕ} (F : Vector (ZMod (m d)) 256) (s : EncodeState n) (i : ℕ) : Prop :=
+  -- The lengths are correct
+  length_inv d n s.b s.bi s.acci i ∧
   -- The bits are properly set in the destination buffer
   (∀ i < s.bi, ∀ j < 8, s.b[i]!.testBit j = F[(8 * i + j) / d]!.val.testBit ((8 * i + j) % d)) ∧
   -- The bits are properly set in the accumulator
   (∀ j < s.acci, s.acc[j]! = F[(8 * s.bi + j) / d]!.val.testBit ((8 * s.bi + j) % d)) ∧
   (∀ j ∈ [s.acci:8*n], s.acc[j]! = false)
 
+/--
+Auxiliary lemma: `Stream.encode.body` preserves the length invariant.
+-/
+theorem Stream.encode.body.length_spec
+  {i d n : ℕ} (x0 : ZMod (m d)) {s : EncodeState n} [NeZero (m d)]
+  (hinv : length_inv d n s.b s.bi s.acci i)
+  (hi : i < 256 := by omega)
+  (hn : 0 < n := by omega)
+  (hdn : d < 8 * n := by omega) :
+  let s1 := body d x0 s
+  length_inv d n s1.b s1.bi s1.acci (i + 1) := by
+  revert hinv
+  simp only [length_inv, body]
 
+  glet nBits := min d (8 * n - s.acci)
+  glet bits := BitVec.ofNat (8 * n) x0.val &&& (1#(8*n) <<< nBits - 1#(8*n))
+  glet xBits := d - nBits
+
+  glet acc := s.acc ||| (bits <<< s.acci)
+  glet acci := s.acci + nBits
+
+  glet b := s.b.setSlice! s.bi acc.toLEBytes
+  glet bi := s.bi + n
+
+  intro hinv
+  obtain ⟨ h0, h1, h2, h3 ⟩ := hinv
+
+  split
+  . rename_i hif0
+
+    -- Number of bytes in the output buffer
+    have hBi : s.bi + n = n * (d * (i + 1) / (8 * n)) ∧
+                xBits = (d * (i + 1)) % (8 * n) := by
+      have hd0 := calc
+        8 * s.bi + 8 * n + xBits = 8 * s.bi + s.acci + (nBits + xBits) := by simp only [← hif0, acci]; ring_nf
+        _ = 8 * s.bi + s.acci + d := by
+          have : nBits + xBits = d := by omega
+          simp only [this, Nat.add_left_inj]
+        _ = d * i + d := by
+          -- Using the characterization of euclidean division
+          have : 8 * s.bi + s.acci = d * i := by
+            have hMod := Nat.mod_add_div (d * i) (8 * n)
+            rw [← hMod]
+            simp only [h2, h3]
+            ring_nf
+          omega
+        _ = d * (i + 1) := by ring_nf
+
+      have hd1 := calc
+        (8 * s.bi + 8 * n + xBits) % (8 * n) = ((8 * s.bi + 8 * n) + xBits) % (8 * n) := by ring_nf
+        _ = xBits % (8 * n) := by
+          have : (8 * s.bi + 8 * n) % (8 * n) = 0 := by -- TODO: make simp_scalar work here
+            simp only [h2, ← mul_assoc, Nat.add_mod_right, Nat.mul_mod_right]
+          rw [Nat.add_mod]
+          simp only [this, zero_add, dvd_refl, Nat.mod_mod_of_dvd]
+        _ = xBits := by scalar_tac +nonLin
+
+      have hd2 := calc
+        (d * (i + 1)) / (8 * n) = (d * (i + 1) - (d * (i + 1)) % (8 * n)) / (8 * n)
+            := by simp_scalar
+        _ =  (8 * s.bi + 8 * n + xBits - xBits) / (8 * n) := by simp only [← hd0, hd1]
+        _ = (8 * s.bi + 8 * n) / (8 * n) := by simp_scalar
+        _ = s.bi / n + 1 := by
+          simp_scalar
+
+      have : s.bi + n = n * (d * (i + 1) / (8 * n)) := by
+        simp_scalar [hd2, h2]
+        ring_nf
+
+      have : xBits = (d * (i + 1)) % (8 * n) := by
+        simp only [← hd0, hd1]
+
+      tauto
+
+    have : b.length = 32 * d := by scalar_tac
+
+    simp only
+    split_conjs <;> tauto
+  . have hLt : s.acci < 8 * n := by
+      simp only [h3]
+      simp_scalar
+    have hLt' : s.acci + nBits < 8 * n := by omega
+    have nBitsEq : nBits = d := by omega
+
+    -- Number of bits in the accumulator
+    have hAcci : acci = d * (i + 1) % (8 * n) := by
+      simp only [acci]
+      zmodify
+      simp only [h3, ZMod.natCast_mod, Nat.cast_mul, nBitsEq, acci]
+      ring_nf
+
+    -- Number of bytes in the output buffer
+    have hBi : s.bi = n * (d * (i + 1) / (8 * n)) := by
+      -- Using the characterization of euclidean division
+      have hMod := Nat.mod_add_div (d * i) (8 * n)
+      have hMod' := Nat.mod_add_div (d * (i + 1)) (8 * n)
+      --
+      simp only [mul_assoc, ← h2, ← h3, ← hAcci] at hMod hMod'
+      have : d * (i + 1) = d * i + d := by ring_nf
+      conv at hMod' => rhs; rw [this]
+      simp only [nBitsEq, acci] at hMod'
+      have : 8 * s.bi = 8 * (n * (d * (i + 1) / (8 * n))) := by omega
+      omega
+
+    simp only
+    tauto
 /--
 Auxiliary lemma. See `Stream.encode.body`.
 
@@ -803,8 +934,8 @@ This lemma proves important properties about the encoded bits in the accumulator
 before we flush it (if we need to flush it).
 -/
 theorem Stream.encode.body.spec_before_flush
-  {d n : ℕ} {F : Vector (ZMod (m d)) 256} {s : EncodeState d n}
-  (hinv : inv F s i) (hn : 0 < n := by omega)
+  {d n : ℕ} {F : Vector (ZMod (m d)) 256} {s : EncodeState n}
+  (hinv : inv d F s i) (hn : 0 < n := by omega)
   (hdn : d < 8 * n := by omega)
   (hm : m d < 2^(8*n) := by omega) :
   let x0 := F[i]!
@@ -824,7 +955,7 @@ theorem Stream.encode.body.spec_before_flush
 
   simp only [inv, mem_std_range_step_one, and_imp] at hinv
   simp only
-  obtain ⟨ h0, h1, h2, h3, h4, h5 ⟩ := hinv
+  obtain ⟨ ⟨ _, h0, h1, h2 ⟩, h3, h4, h5 ⟩ := hinv
 
   glet x0 := F[i]!
   glet nBits := d ⊓ (8 * n - s.acci)
@@ -853,7 +984,7 @@ theorem Stream.encode.body.spec_before_flush
     . simp_lists [h4]
     . simp_lists [h5]
 
-      simp [BitVec.getElem!_eq_testBit_toNat, hBitsEq]
+      simp only [BitVec.getElem!_eq_testBit_toNat, hBitsEq, Nat.testBit_mod_two_pow, acci, acc]
       simp_scalar
       simp only [x0, acc, acci]
 
@@ -893,63 +1024,25 @@ Auxiliary lemma.
 This lemma handles the case of `Stream.encode.body` when there is no flush.
 -/
 theorem Stream.encode.body.spec_no_flush
-  {i d n : ℕ} {F : Vector (ZMod (m d)) 256} {s : EncodeState d n} [NeZero (m d)]
-  (hinv : inv F s i) (hi : i < 256 := by omega) (hn : 0 < n := by omega)
+  {i d n : ℕ} {F : Vector (ZMod (m d)) 256} {s : EncodeState n} [NeZero (m d)]
+  (hinv : inv d F s i) (hi : i < 256 := by omega) (hn : 0 < n := by omega)
   (hdn : d < 8 * n)
   (hm : m d < 2^(8*n) := by omega)
   (hacci : ¬ s.acci + d ⊓ (8 * n - s.acci) = 8 * n)
   :
-  inv F (body F[i]! s) (i + 1) := by
+  inv d F (body d F[i]! s) (i + 1) := by
   -- Important intermediate results about the accumulator and `bits`
   have ⟨ hBitsEq, hAccPre, hAccPost ⟩ := Stream.encode.body.spec_before_flush hinv
-  revert hBitsEq hAccPre hAccPost -- TODO: refold let doesn't apply to assumptions which happen before
+  have hlinv := length_spec F[i]! hinv.left
+  revert hlinv
 
   -- Unfold the body and the invariant
-  unfold body
   simp only [inv, mem_std_range_step_one, and_imp] at hinv
-  obtain ⟨ h0, h1, h2, h3, h4, h5 ⟩ := hinv
-  simp only
-
-  -- Introducing abbreviations
-  glet x0 := F[i]!
-  glet nBits := d ⊓ (8 * n - s.acci)
-  glet bits := BitVec.ofNat (8 * n) x0.val &&& (1#(8*n) <<< nBits - 1#(8*n))
-  glet x := x0.val >>> nBits
-  glet xBits := d - nBits
-
-  glet acc := s.acc ||| (bits <<< s.acci)
-  glet acci := s.acci + nBits
-
-  intro hBitsEq hAccPre hAccPost
+  obtain ⟨ ⟨ _, h0, h1, h2 ⟩, h3, h4, h5 ⟩ := hinv
+  simp only [body]
   simp_ifs
-
   simp only [inv]
-
-  have hLt : s.acci < 8 * n := by
-      simp only [h2]
-      simp_scalar
-  have hLt' : s.acci + nBits < 8 * n := by omega
-  have nBitsEq : nBits = d := by omega
-
-  -- Number of bits in the accumulator
-  have hAcci : acci = d * (i + 1) % (8 * n) := by
-    simp only [acci]
-    zmodify
-    simp only [h2, ZMod.natCast_mod, Nat.cast_mul, nBitsEq, acci]
-    ring_nf
-
-  -- Number of bytes in the output buffer
-  have hBi : s.bi = n * (d * (i + 1) / (8 * n)) := by
-    -- Using the characterization of euclidean division
-    have hMod := Nat.mod_add_div (d * i) (8 * n)
-    have hMod' := Nat.mod_add_div (d * (i + 1)) (8 * n)
-    --
-    simp only [mul_assoc, ← h1, ← h2, ← hAcci] at hMod hMod'
-    have : d * (i + 1) = d * i + d := by ring_nf
-    conv at hMod' => rhs; rw [this]
-    simp only [nBitsEq, acci] at hMod'
-    have : 8 * s.bi = 8 * (n * (d * (i + 1) / (8 * n))) := by omega
-    omega
+  intro hlinv
 
   split_conjs <;> try tauto
 
@@ -960,8 +1053,8 @@ This lemma introduces important properties about the output buffer (`s.b`)
 after we flushed the accumulator.
 -/
 theorem Stream.encode.body.spec_with_flush_bi
-  {i d n : ℕ} {F : Vector (ZMod (m d)) 256} {s : EncodeState d n}
-  (hinv : inv F s i)
+  {i d n : ℕ} {F : Vector (ZMod (m d)) 256} {s : EncodeState n}
+  (hinv : inv d F s i)
   (hi : i < 256 := by omega) (hn : 0 < n := by omega)
   (hdn : d < 8 * n := by omega)
   (hm : m d < 2^(8*n) := by omega)
@@ -981,7 +1074,10 @@ theorem Stream.encode.body.spec_with_flush_bi
 
   -- Important intermediate results about the accumulator and `bits`
   have ⟨ hBitsEq, hAccPre, hAccPost ⟩ := Stream.encode.body.spec_before_flush hinv
-  revert hinv h0 hBitsEq hAccPre hAccPost -- TODO: refold let doesn't apply to assumptions which happen before
+  have hlinv1 := length_spec F[i]! hinv.left
+  simp only [body] at hlinv1
+  simp_ifs at hlinv1
+  revert hinv h0 hBitsEq hAccPre hAccPost hlinv1 -- TODO: refold let doesn't apply to assumptions which happen before
 
   -- Introducing abbreviations
   glet x0 := F[i]!
@@ -993,52 +1089,9 @@ theorem Stream.encode.body.spec_with_flush_bi
   glet acc := s.acc ||| (bits <<< s.acci)
   glet acci := s.acci + nBits
 
-  intro hinv h0 hBitsEq hAccPre hAccPost
-  obtain ⟨ _, h1, h2, h3, h4, h5 ⟩ := hinv
-
-  -- Number of bytes in the output buffer
-  have hBi : s.bi + n = n * (d * (i + 1) / (8 * n)) ∧
-              xBits = (d * (i + 1)) % (8 * n) := by
-    have hd0 := calc
-      8 * s.bi + 8 * n + xBits = 8 * s.bi + s.acci + (nBits + xBits) := by simp only [← h0, acci]; ring_nf
-      _ = 8 * s.bi + s.acci + d := by
-        have : nBits + xBits = d := by omega
-        simp only [this, Nat.add_left_inj]
-      _ = d * i + d := by
-        -- Using the characterization of euclidean division
-        have : 8 * s.bi + s.acci = d * i := by
-          have hMod := Nat.mod_add_div (d * i) (8 * n)
-          rw [← hMod]
-          simp only [h1, h2]
-          ring_nf
-        omega
-      _ = d * (i + 1) := by ring_nf
-
-    have hd1 := calc
-      (8 * s.bi + 8 * n + xBits) % (8 * n) = ((8 * s.bi + 8 * n) + xBits) % (8 * n) := by ring_nf
-      _ = xBits % (8 * n) := by
-        have : (8 * s.bi + 8 * n) % (8 * n) = 0 := by
-          simp only [h1, ← mul_assoc, Nat.add_mod_right, Nat.mul_mod_right]
-        rw [Nat.add_mod ]
-        simp only [this, zero_add, dvd_refl, Nat.mod_mod_of_dvd]
-      _ = xBits := by scalar_tac +nonLin
-
-    have hd2 := calc
-      (d * (i + 1)) / (8 * n) = (d * (i + 1) - (d * (i + 1)) % (8 * n)) / (8 * n)
-          := by simp_scalar
-      _ =  (8 * s.bi + 8 * n + xBits - xBits) / (8 * n) := by simp only [← hd0, hd1]
-      _ = (8 * s.bi + 8 * n) / (8 * n) := by simp_scalar
-      _ = s.bi / n + 1 := by
-        simp_scalar
-
-    have : s.bi + n = n * (d * (i + 1) / (8 * n)) := by
-      simp_scalar [hd2, h1]
-      ring_nf
-
-    have : xBits = (d * (i + 1)) % (8 * n) := by
-      simp only [← hd0, hd1]
-
-    tauto
+  intro hinv h0 hBitsEq hAccPre hAccPost hlinv1
+  obtain ⟨ ⟨ _, _, h1, h2 ⟩, h3, h4, h5 ⟩ := hinv
+  obtain ⟨ _, _, hBi ⟩ := hlinv1
 
   -- Bits in the output buffer
   have :
@@ -1049,12 +1102,15 @@ theorem Stream.encode.body.spec_with_flush_bi
     intros i' hi' j hj
     have : acc.toLEBytes.length = n := by simp only [Nat.mul_mod_right, BitVec.toLEBytes_length,
       ne_eq, OfNat.ofNat_ne_zero, not_false_eq_true, mul_div_cancel_left₀]
-    have : s.bi + n ≤ s.b.size := by
+    have : s.bi + n ≤ s.b.length := by
       have :=
         calc s.bi + n = n * (d * (i + 1) / (8 * n)) := by omega
               _ = n * (d * (i + 1) / 8 / n) := by simp_scalar
               _ ≤ d * (i + 1) / 8 := by simp_scalar
-              _ ≤ d * 256 / 8 := by apply Nat.div_le_div_right; scalar_tac +nonLin -- TODO: improve
+              _ ≤ d * 256 / 8 := by
+                -- TODO: improve
+                have : d * (i + 1) ≤ d * 256 := by simp_scalar
+                simp_scalar
               _ = 32 * d := by omega
       scalar_tac
 
@@ -1073,13 +1129,13 @@ Auxiliary lemma.
 This lemma handles the case of `Stream.encode.body` when there is a flush.
 -/
 theorem Stream.encode.body.spec_with_flush
-  {i d n : ℕ} {F : Vector (ZMod (m d)) 256} {s : EncodeState d n} [NeZero (m d)]
-  (hinv : inv F s i) (hi : i < 256 := by omega) (hn : 0 < n := by omega)
+  {i d n : ℕ} {F : Vector (ZMod (m d)) 256} {s : EncodeState n} [NeZero (m d)]
+  (hinv : inv d F s i) (hi : i < 256 := by omega) (hn : 0 < n := by omega)
   (hdn : d < 8 * n)
   (hm : m d < 2^(8*n) := by omega)
   (h0 : s.acci + d ⊓ (8 * n - s.acci) = 8 * n)
   :
-  inv F (body F[i]! s) (i + 1) := by
+  inv d F (body d F[i]! s) (i + 1) := by
   -- Important intermediate results about the accumulator and `bits`
   have ⟨ hBitsEq, hAccPre, hAccPost ⟩ := Stream.encode.body.spec_before_flush hinv
   -- Intermediate results about the output buffer
@@ -1088,8 +1144,8 @@ theorem Stream.encode.body.spec_with_flush
 
   -- Unfold the body and the invariant
   unfold body
-  simp only [inv, mem_std_range_step_one, and_imp] at hinv
-  obtain ⟨ h0, h1, h2, h3, h4, h5 ⟩ := hinv
+  simp only [inv, length_inv, mem_std_range_step_one, and_imp, and_assoc] at hinv
+  obtain ⟨ _, h0, h1, h2, h3, h4, h5 ⟩ := hinv
   simp only
 
   -- Introducing abbreviations
@@ -1105,11 +1161,12 @@ theorem Stream.encode.body.spec_with_flush
   intro h0 hBitsEq hAccPre hAccPost hBi hsb
 
   simp_ifs
-  simp only [inv]
+  simp only [inv, length_inv, and_assoc]
 
   glet bits := BitVec.ofNat (8 * n) x &&& (1#(8*n) <<< nBits - 1#(8*n))
 
   split_conjs <;> try tauto
+  . scalar_tac
   . intros j hj
     simp only [x, x0]
 
@@ -1159,35 +1216,23 @@ theorem Stream.encode.body.spec_with_flush
 /--
 The important lemma about `Stream.encode.body`: calling this function once preserves the invariant
 (but we encoded one more element, so the index goes from `i` to `i + 1`).
-
-The best way of understanding the proof, in particular the equations between the indices (`i`, `s.bi`, `s.acci`, etc.)
-is to make a drawing. We typically have something like this:
-
-                                                                  `8 * s.bi + 8 * n`
-  `8 * s.bi` bits encoded in `s.b`    `s.acci` bits in `s.acc`               |
-|------------------------------------|------------------------|--------------|---------|
-                                                              |   `nBits`      `xBits` |
-                                                           `d * i`                 `d * (i + 1)`
-                                                  (`i` elements encoded to `d * i`
-                                                   bits in `s.b` and `s.acc`)
-
 -/
 theorem Stream.encode.body.spec
-  {i d n : ℕ} {F : Vector (ZMod (m d)) 256} {s : EncodeState d n} [NeZero (m d)]
-  (hinv : inv F s i) (hi : i < 256 := by omega) (hn : 0 < n := by omega)
+  {i d n : ℕ} {F : Vector (ZMod (m d)) 256} {s : EncodeState n} [NeZero (m d)]
+  (hinv : inv d F s i) (hi : i < 256 := by omega) (hn : 0 < n := by omega)
   (hdn : d < 8 * n := by omega)
   (hm : m d < 2^(8*n) := by omega) :
-  inv F (body F[i]! s) (i + 1) := by
+  inv d F (body d F[i]! s) (i + 1) := by
   by_cases h0 : s.acci + d ⊓ (8 * n - s.acci) = 8 * n
   . apply spec_with_flush hinv <;> omega
   . apply Stream.encode.body.spec_no_flush hinv <;> omega
 
 theorem Stream.encode.recBody.spec
-  {i d n : ℕ} {F : Vector (ZMod (m d)) 256} {s : EncodeState d n} [NeZero (m d)]
-  (hinv : inv F s i) (hi : i ≤ 256 := by omega) (hn : 0 < n := by omega)
+  {i d n : ℕ} {F : Vector (ZMod (m d)) 256} {s : EncodeState n} [NeZero (m d)]
+  (hinv : inv d F s i) (hi : i ≤ 256 := by omega) (hn : 0 < n := by omega)
   (hdn : d < 8 * n := by omega)
   (hm : m d < 2^(8*n) := by omega) :
-  inv F (recBody F s i) 256 := by
+  inv d F (recBody d F s i) 256 := by
   if hi: i = 256 then
     simp only [hi]
     unfold recBody
@@ -1206,78 +1251,91 @@ theorem Stream.encode.recBody.spec
 termination_by 256 - i
 decreasing_by omega
 
-def Stream.encode.post {d : ℕ} (F : Vector (ZMod (m d)) 256) (b : Vector Byte (32 * d)) : Prop :=
-  ∀ i < 32 * d, ∀ j < 8, b[i]!.testBit j = F[(8 * i + j) / d]!.val.testBit ((8 * i + j) % d)
+def Stream.encode.post (d : ℕ) (F : Vector (ZMod (m d)) 256) (b : List Byte ) : Prop :=
+  b.length = 32 * d ∧
+  (∀ i < 32 * d, ∀ j < 8, b[i]!.testBit j = F[(8 * i + j) / d]!.val.testBit ((8 * i + j) % d))
 
 /-- Auxiliary spec for `Stream.encode`: we use the post-condition to prove that it is actually equal to `Spec.encode` -/
 theorem Stream.encode.spec_aux
-  {d : ℕ} (n : ℕ) (F : Vector (ZMod (m d)) 256) [NeZero (m d)]
+  (d n : ℕ) (F : Vector (ZMod (m d)) 256) [NeZero (m d)]
   (hn : 0 < n := by omega)
   (hdn : d < 8 * n := by omega)
   (hm : m d < 2^(8*n) := by omega)
   (hn1 : n ∣ 32 := by omega) :
-  post F (encode n F) := by
+  post d F (encode d n F) := by
   unfold encode
   simp only
   -- TODO: improve glet to have type annotations
   glet s := ({
-    b := Vector.replicate (32 * d) 0,
+    b := List.replicate (32 * d) 0,
     bi := 0,
     acc := 0,
     acci := 0,
-  } : EncodeState d n)
+  } : EncodeState n)
 
   -- TODO: improve glet
-  glet s1 := recBody F s 0
+  glet s1 := recBody d F s 0
 
-  have hinv : inv F s 0 := by
-    unfold inv
-    simp only [zero_le, mul_zero, Nat.zero_div, Nat.zero_mod, not_lt_zero', BitVec.ofNat_eq_ofNat,
-      IsEmpty.forall_iff, implies_true, BitVec.getElem!_zero, zero_add, Bool.false_eq,
-      mem_std_range_step_one, true_and, and_self, s]
+  have hinv : inv d F s 0 := by
+    unfold inv length_inv
+    simp only [BitVec.ofNat_eq_ofNat, List.length_replicate, zero_le, mul_zero, Nat.zero_div,
+      Nat.zero_mod, not_lt_zero', IsEmpty.forall_iff, implies_true, BitVec.getElem!_zero, zero_add,
+      Bool.false_eq, mem_std_range_step_one, true_and, and_self, and_assoc, s]
 
   replace hinv := Stream.encode.recBody.spec hinv
 
   refold_let s1 at *
 
-  unfold inv at hinv
-  simp only [le_refl, mem_std_range_step_one, and_imp, true_and] at hinv
-  obtain ⟨ h0, h1, h2, h3, h4 ⟩ := hinv
+  unfold inv length_inv at hinv
+  simp only [le_refl, mem_std_range_step_one, and_imp, and_assoc, true_and] at hinv
+  obtain ⟨ _, h0, h1, h2, h3, h4 ⟩ := hinv
 
   unfold post
-  intros i hi j hj
+  split_conjs
+  . scalar_tac
+  . intros i hi j hj
 
-  have : s1.bi = 32 * d := by
-    simp only [h0]
-    have : d * 256 = 8 * (32 * d) := by ring_nf
-    rw [this]
-    simp_scalar
-    -- TODO: we should be able to automate this
-    have hn2 : n ∣ 32 * d := by apply Nat.dvd_mul_right_of_dvd hn1
-    simp only [hn2, Nat.mul_div_cancel']
+    have : s1.bi = 32 * d := by
+      simp only [h0]
+      have : d * 256 = 8 * (32 * d) := by ring_nf
+      rw [this]
+      simp_scalar
+      -- TODO: we should be able to automate this
+      have hn2 : n ∣ 32 * d := by apply Nat.dvd_mul_right_of_dvd hn1
+      simp only [hn2, Nat.mul_div_cancel']
 
-  simp_lists [h2]
+    simp_lists [h2]
+
+-- TODO: move
+@[simp, simp_lists_simps]
+theorem Vector.getElem!_toList {α} {n} [Inhabited α] (v : Vector α n) (i : ℕ) :
+  v.toList[i]! = v[i]! := by
+  simp only [Vector.getElem!_eq_toArray_getElem!, Array.getElem!_eq_toList_getElem!]
 
 /-- `Stream.encode` is equal to `Spec.encode` -/
 theorem Stream.encode.spec
-  {d : ℕ} (n : ℕ) (F : Polynomial (m d))
+  (d n : ℕ) (F : Polynomial (m d))
   (hd : 0 < d := by omega)
   (hn : 0 < n := by omega)
-  (hdn : d < 8 * n := by omega)
+  (hdn : d < 8 * n := by omega) -- TODO: this assumption is too strong. We should have: `d < 2 * 8 * n`
   (hm : m d < 2^(8*n) := by omega)
   (hn1 : n ∣ 32 := by omega) :
-  encode n F = Spec.byteEncode d F := by
+  encode d n F = (Spec.byteEncode d F).toList := by
   -- Characterization of Stream.encode
-  have h1 := encode.spec_aux n F
+  have h1 := encode.spec_aux d n F
   unfold post at h1
+  obtain ⟨ h1, h1' ⟩ := h1
   -- Characterization of Spec.byteEncode
   rw [← Target.byteEncode.eq_spec]
   have h2 := Target.byteEncode.spec d F
   -- Using the extensional equality
-  rw [Vector.eq_iff_forall_eq_getElem!]
-  intros i hi
-  rw [Byte.eq_iff]
-  simp_lists [*]
+  rw [List.eq_iff_forall_eq_getElem!]
+  simp
+  split_conjs
+  . scalar_tac
+  . intros i hi
+    rw [Byte.eq_iff]
+    simp_lists [*]
 
 /-!
 # Compress and encode
@@ -1285,30 +1343,31 @@ theorem Stream.encode.spec
 
 def compressOpt (d : ℕ) (x : ℕ) : ℤ := if d < 12 then ⌈ ((2^d : ℚ) / (Q : ℚ)) * x ⌋ % 2^d else x
 
-def Stream.compressOpt_encode.body {d n : ℕ} (x : Spec.Zq) (s : EncodeState d n) :=
-  Stream.encode.body (compressOpt d x.val) s
+def Stream.compressOpt_encode.body (d : ℕ) {n : ℕ} (x : Spec.Zq) (s : EncodeState n) :=
+  Stream.encode.body d (compressOpt d x.val) s
 
-def Stream.compressOpt_encode.recBody {d n : ℕ} (F : Vector (ZMod Q) 256) (s : EncodeState d n) (i : ℕ) : EncodeState d n :=
-  List.foldl (fun s i => compressOpt_encode.body F[i]! s) s (List.range' i (256 - i))
+def Stream.compressOpt_encode.recBody (d : ℕ) {n : ℕ} (F : Vector (ZMod Q) 256) (s : EncodeState n) (i : ℕ) :
+  EncodeState n :=
+  List.foldl (fun s i => compressOpt_encode.body d F[i]! s) s (List.range' i (256 - i))
 
 def Stream.compressOpt_encode
-  {d : ℕ} (n : ℕ) (F : Vector (ZMod Q) 256) : Vector Byte (32 * d) :=
-  let s : EncodeState d n := {
-    b := Vector.replicate (32 * d) 0,
+  (d n : ℕ) (F : Vector (ZMod Q) 256) : List Byte :=
+  let s : EncodeState n := {
+    b := List.replicate (32 * d) 0,
     bi := 0,
     acc := 0,
     acci := 0,
   }
-  (compressOpt_encode.recBody F s 0).b
+  (compressOpt_encode.recBody d F s 0).b
 
-def Stream.compressOpt_encode_eq {d : ℕ} (n : ℕ) (F : Vector Zq 256) [NeZero (m d)]
+def Stream.compressOpt_encode_eq (d n : ℕ) (F : Vector Zq 256) [NeZero (m d)]
   (hd : 0 < d := by omega)
   (hn : 0 < n := by omega)
   (hdn : d < 8 * n := by omega)
   (hm : m d < 2^(8*n) := by omega)
   (hn1 : n ∣ 32 := by omega) :
-  compressOpt_encode n F = Spec.byteEncode d (F.map (fun (x : Zq) => (compressOpt d x.val : ZMod (m d)))) := by
-  have := Stream.encode.spec n (F.map (fun (x : Zq) => (compressOpt d x.val : ZMod (m d))))
+  compressOpt_encode d n F = (Spec.byteEncode d (F.map (fun (x : Zq) => (compressOpt d x.val : ZMod (m d))))).toList := by
+  have := Stream.encode.spec d n (F.map (fun (x : Zq) => (compressOpt d x.val : ZMod (m d))))
   rw [← this]; clear this
   --
   simp only [compressOpt_encode, compressOpt_encode.recBody, BitVec.ofNat_eq_ofNat, tsub_zero,

@@ -6,13 +6,15 @@ Properties about the polynomials
 
 #setup_aeneas_simps
 
-namespace Symcrust.Spec
+namespace Symcrust
 
 open Aeneas
 
 /-!
 # Polynomials
 -/
+
+namespace Spec
 
 theorem Polynomial.eq_iff {n} (f g : Polynomial n) :
   f = g ↔ ∀ i < 256, f[i]! = g[i]! := by
@@ -75,4 +77,6 @@ theorem Polynomial.zero_getElem! (i : Nat) :
   by_cases hi: i < 256 <;>
   simp_all only [not_lt, Vector.getElem!_default, Vector.getElem!_replicate, default]
 
-end Symcrust.Spec
+end Spec
+
+end Symcrust
