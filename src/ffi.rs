@@ -199,3 +199,17 @@ pub extern "C" fn SymCryptMlKemDecapsulate(
 pub extern "C" fn SymCryptMlKemSelftest() {
     println!("SELF-TEST: DOING NOTHING");
 }
+
+// It is not possible to both link to and export a symbol with the same name
+// in a generic Rust-y way: https://github.com/rust-lang/rfcs/issues/2771
+//
+// Instead we export some Sctest functions which correspond to production SymCrypt symbols
+#[no_mangle]
+pub extern "C" fn SctestModuleInit() {
+    crate::common::init();
+}
+
+#[no_mangle]
+pub extern "C" fn SctestWipe(pb_data: *mut u8, cb_data: usize) {
+    crate::common::wipe(pb_data, cb_data);
+}

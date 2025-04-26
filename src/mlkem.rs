@@ -4,8 +4,6 @@
 // Copyright (c) Microsoft Corporation. Licensed under the MIT license.
 //
 
-use zeroize::Zeroize;
-
 use crate::common::*;
 use crate::key::*;
 use crate::ntt::*;
@@ -222,8 +220,8 @@ fn key_expand_from_private_seed(
     key_compute_encapsulation_key_hash(pk_mlkem_key, p_comp_temps);
 
     // Cleanup!
-    private_seed_hash.zeroize();
-    cbd_sample_buffer.zeroize();
+    crate::common::wipe_slice( &mut private_seed_hash );
+    crate::common::wipe_slice( &mut cbd_sample_buffer );
 }
 
 //=====================================================
@@ -665,7 +663,8 @@ fn encapsulate_internal(
 
     // Set pv_tmp to 0
     // TODO: write a helper function -- any way to do this better?
-    pv_tmp.copy_from_slice(&vec![POLYELEMENT_ZERO; n_rows as usize].into_boxed_slice());
+    vector_set_zero( pv_tmp );
+    // pv_tmp.copy_from_slice(&vec![POLYELEMENT_ZERO; n_rows as usize].into_boxed_slice());
     // VectorSetZero( pv_tmp );
 
     // pv_tmp = (Atranspose o rInner) ./ R

@@ -18,11 +18,18 @@ add_executable(test
     ${PROJECT_SOURCE_DIR}/test-symcrypt.c
 )
 
-if(DEFINED ENV{SYMCRYPT_LIB_PATH})
-  message("Symcrypt path: $ENV{SYMCRYPT_LIB_PATH}")
-  target_include_directories(test PRIVATE $ENV{SYMCRYPT_LIB_PATH}/../../../inc)
-  target_link_directories(test PRIVATE $ENV{SYMCRYPT_LIB_PATH})
-  target_link_libraries(test PRIVATE symcrypt)
+if(DEFINED ENV{SYMCRYPT_INC_PATH})
+  message("SymCrypt include path: $ENV{SYMCRYPT_INC_PATH}")
 else()
-  error("Please define SYMCRYPT_LIB_PATH to path/to/SymCrypt/build/modules/generic")
-endif(DEFINED ENV{SYMCRYPT_LIB_PATH})
+  error("Please define SYMCRYPT_INC_PATH to path/to/SymCrypt/inc")
+endif()
+
+if(DEFINED ENV{SYMCRYPT_LIB_PATH})
+  message("SymCrypt module path: $ENV{SYMCRYPT_LIB_PATH}")
+else()
+  error("Please define SYMCRYPT_LIB_PATH to path/to/SymCrypt/dynamic/module")
+endif()
+
+target_include_directories(test PRIVATE $ENV{SYMCRYPT_INC_PATH})
+target_link_directories(test PRIVATE $ENV{SYMCRYPT_LIB_PATH})
+target_link_libraries(test PRIVATE symcrypt)
