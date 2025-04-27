@@ -12,8 +12,8 @@ namespace Symcrust.ntt
 
 open Result
 
-attribute [-progress] UScalar.cast.progress_spec
-attribute [local progress] UScalar.cast_inBounds_spec
+attribute [-progress] UScalar.cast.progress_spec U32.sub_spec
+attribute [local progress] UScalar.cast_inBounds_spec U32.sub_bv_spec
 
 set_option maxHeartbeats 2000000
 
@@ -96,8 +96,6 @@ theorem min_spec (x y : U32) :
   z.val = Min.min x.val y.val := by
   unfold min
   split <;> progress* <;> scalar_tac
-
--- TODO: use U32.sub_bv_spec by default
 
 set_option maxRecDepth 512
 
@@ -265,7 +263,6 @@ def poly_element_compress_and_encode_loop.progress_spec
     let* ⟨ ⟩ ← massert_spec
     let* ⟨ coefficient1, coefficient1_post_1, coefficient1_post_2 ⟩ ← compress_coeff.spec
     let* ⟨ b1, bi1, acci1, i1, h0, h1, h2 ⟩ ← encode_coefficient.progress_spec
-    · scalar_tac -- TODO: we shouldn't need this
     let* ⟨ i2, i2_post ⟩ ← Usize.add_spec
     let* ⟨ res, res_post, h5, h6, h7 ⟩ ← progress_spec
     -- We need to unfold one step of `List.foldl` in the goal, before simplifying everything
