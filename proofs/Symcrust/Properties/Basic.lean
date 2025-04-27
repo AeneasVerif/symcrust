@@ -83,6 +83,42 @@ theorem key.MLWE_POLYNOMIAL_COEFFICIENTS_eq : key.MLWE_POLYNOMIAL_COEFFICIENTS.v
 
 @[simp] theorem INTT_FIXUP_TIMES_RSQR_TIMES_NEQ_Q_INV_MOD_R.bv_eq : INTT_FIXUP_TIMES_RSQR_TIMES_NEQ_Q_INV_MOD_R.bv = 10079#32 := by simp [global_simps]
 
+attribute [simp, scalar_tac_simps, bvify_simps] Spec.Q
+
+-- TODO: macro for this
+@[simp, scalar_tac_simps, bvify_simps]
+theorem COMPRESS_MULCONSTANT.spec : COMPRESS_MULCONSTANT.val = 10321339 := by prove_eval_global
+
+@[simp, scalar_tac_simps, bvify_simps]
+theorem COMPRESS_SHIFTCONSTANT.spec : COMPRESS_SHIFTCONSTANT.val = 35 := by prove_eval_global
+
+def to_bytes (b : Slice U8) : List Byte :=
+  b.val.map fun x => x.bv
+
+@[simp, simp_lists_simps]
+theorem getElem!_to_bytes (b : Slice U8) (i : ℕ) :
+  (to_bytes b)[i]! = b.val[i]! := by
+  simp only [to_bytes, BitVec.natCast_eq_ofNat, Bvify.UScalar.BitVec_ofNat_setWidth,
+    UScalarTy.U8_numBits_eq, Bvify.U8.UScalar_bv, BitVec.setWidth_eq]
+  by_cases hi: i < b.length
+  . simp_lists
+  . simp_lists -- TODO: simp_lists accepts function definitions like `default`
+    simp only [default, BitVec.zero_eq, U8.ofNat_bv, UScalarTy.U8_numBits_eq]
+
+@[simp, simp_lists_simps]
+theorem to_bytes_update {b : Slice U8} (i : Usize) (x : U8) :
+  to_bytes (b.set i x) = (to_bytes b).set i x.bv := by
+  simp only [to_bytes, Slice.set_val_eq, List.map_set]
+
+@[simp, simp_lists_simps, simp_scalar_simps, scalar_tac_simps, scalar_tac to_bytes b]
+theorem to_bytes_length (b : Slice U8) : (to_bytes b).length = b.length := by
+  simp only [to_bytes, List.length_map, Slice.length]
+
+@[simp, simp_lists_simps]
+theorem to_bytes_setSlice! {b : Slice U8} (i : Usize) (s : List U8) :
+  to_bytes (b.setSlice! i s) = (to_bytes b).setSlice! i (s.map U8.bv) := by
+  simp only [to_bytes, Slice.setSlice!_val, List.map_setSlice!]
+
 end ntt
 
 end Symcrust

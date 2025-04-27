@@ -1306,18 +1306,12 @@ theorem Stream.encode.spec_aux
 
     simp_lists [h2]
 
--- TODO: move
-@[simp, simp_lists_simps]
-theorem Vector.getElem!_toList {α} {n} [Inhabited α] (v : Vector α n) (i : ℕ) :
-  v.toList[i]! = v[i]! := by
-  simp only [Vector.getElem!_eq_toArray_getElem!, Array.getElem!_eq_toList_getElem!]
-
 /-- `Stream.encode` is equal to `Spec.encode` -/
 theorem Stream.encode.spec
   (d n : ℕ) (F : Polynomial (m d))
   (hd : 0 < d := by omega)
   (hn : 0 < n := by omega)
-  (hdn : d < 8 * n := by omega) -- TODO: this assumption is too strong. We should have: `d < 2 * 8 * n`
+  (hdn : d < 8 * n := by omega)
   (hm : m d < 2^(8*n) := by omega)
   (hn1 : n ∣ 32 := by omega) :
   encode d n F = (Spec.byteEncode d F).toList := by

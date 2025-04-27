@@ -12,25 +12,8 @@ namespace Symcrust.ntt
 
 open Result
 
--- TODO: put this in a common file
-attribute [scalar_tac_simps] Spec.Q
-
--- TODO: macro for this
-@[simp, scalar_tac_simps, bvify_simps]
-theorem COMPRESS_MULCONSTANT.spec : COMPRESS_MULCONSTANT.val = 10321339 := by prove_eval_global
-
-@[simp, scalar_tac_simps, bvify_simps]
-theorem COMPRESS_SHIFTCONSTANT.spec : COMPRESS_SHIFTCONSTANT.val = 35 := by prove_eval_global
-
 attribute [-progress] UScalar.cast.progress_spec
 attribute [local progress] UScalar.cast_inBounds_spec
-
--- TODO: move
-attribute [simp_scalar_simps] ZMod.val_natCast ZMod.val_intCast
-
-@[simp, simp_scalar_simps]
-theorem ZMod.cast_intCast {n : ℕ} (a : ℤ) [NeZero n] : ((a : ZMod n).cast : ℤ) = a % ↑n := by
-  simp only [ZMod.cast_eq_val, ZMod.val_intCast]
 
 set_option maxHeartbeats 2000000
 
@@ -41,8 +24,8 @@ theorem compress_coeff.spec_aux (d coeff : U32) (hd : d.val ≤ 12) (hc: coeff.v
   := by
   unfold compress_coefficient
   split
-  . let* ⟨ coeff1, coeff1_post ⟩ ← UScalar.cast.progress_spec
-    let* ⟨ mulc, mulc_post ⟩ ← UScalar.cast.progress_spec
+  . let* ⟨ coeff1, coeff1_post ⟩ ← UScalar.cast_inBounds_spec -- TODO: replace
+    let* ⟨ mulc, mulc_post ⟩ ← UScalar.cast_inBounds_spec -- TODO: replace
     let* ⟨ multiplication, multiplication_post ⟩ ← U64.mul_spec
     let* ⟨ i2, i2_post ⟩ ← U32.add_spec
     let* ⟨ i3, i3_post ⟩ ← U32.sub_spec
@@ -106,29 +89,6 @@ theorem compress_coeff.spec (d coeff : U32) (hd : d.val ≤ 12) (hc: coeff.val <
   zify
   simp_scalar
 
--- TODO: move
-def to_bytes (b : Slice U8) : List Byte :=
-  b.val.map fun x => x.bv
-
-@[simp, simp_lists_simps]
-theorem getElem!_to_bytes (b : Slice U8) (i : ℕ) :
-  (to_bytes b)[i]! = b.val[i]! := by
-  simp only [to_bytes, BitVec.natCast_eq_ofNat, Bvify.UScalar.BitVec_ofNat_setWidth,
-    UScalarTy.U8_numBits_eq, Bvify.U8.UScalar_bv, BitVec.setWidth_eq]
-  by_cases hi: i < b.length
-  . simp_lists
-  . simp_lists -- TODO: simp_lists accepts function definitions like `default`
-    simp only [default, BitVec.zero_eq, U8.ofNat_bv, UScalarTy.U8_numBits_eq]
-
-@[simp, simp_lists_simps]
-theorem to_bytes_update {b : Slice U8} (i : Usize) (x : U8) :
-  to_bytes (b.set i x) = (to_bytes b).set i x.bv := by
-  simp only [to_bytes, Slice.set_val_eq, List.map_set]
-
-@[simp, simp_lists_simps, simp_scalar_simps, scalar_tac_simps, scalar_tac to_bytes b]
-theorem to_bytes_length (b : Slice U8) : (to_bytes b).length = b.length := by
-  simp only [to_bytes, List.length_map, Slice.length]
-
 -- TODO: use the Std min in Rust
 @[progress]
 theorem min_spec (x y : U32) :
@@ -137,109 +97,9 @@ theorem min_spec (x y : U32) :
   unfold min
   split <;> progress* <;> scalar_tac
 
--- TODO: move
-attribute [simp_ifs_simps] true_and and_true
-
 -- TODO: use U32.sub_bv_spec by default
 
--- TODO: mark the bvify lemmas as simp_scalar_simps
-attribute [simp_scalar_simps]
-  Bvify.UScalar.BitVec_ofNat_setWidth UScalarTy.U32_numBits_eq
-  Bvify.U32.UScalar_bv BitVec.setWidth_eq
-  Bvify.BitVec.ofNat_shift_U32_val
-
--- TODO: mark the scalar lemmas as simp_scalar_simps
-attribute [simp_scalar_simps] U32.ofNat_bv BitVec.ofNat_eq_ofNat
-
 set_option maxRecDepth 512
-
--- TODO: move
-@[simp, simp_scalar_simps]
-theorem one_le_pow (a n : ℕ) (h : 0 < a) : 1 ≤ a ^ n := by
-  have : 0 < a ^n := by simp [*]
-  omega
-
-@[simp, progress_simps]
-theorem Slice.index_mut_SliceIndexRangeUsizeSliceInst (s : Slice α) (r : core.ops.range.Range Usize) :
-  core.slice.index.Slice.index_mut (core.slice.index.SliceIndexRangeUsizeSliceInst α) s r = core.slice.index.SliceIndexRangeUsizeSlice.index_mut r s := by
-  rfl
-
--- TODO: equivalent definitions and theorems for Array, Vec
-def _root_.Aeneas.Std.Slice.setSlice! {α : Type u} (s : Slice α) (i : ℕ) (s' : List α) : Slice α :=
-  ⟨s.val.setSlice! i s', by scalar_tac⟩
-
-@[simp_lists_simps]
-theorem Slice.setSlice!_getElem!_prefix {α} [Inhabited α]
-  (s : Slice α) (s' : List α) (i j : ℕ) (h : j < i) :
-  (s.setSlice! i s')[j]! = s[j]! := by
-  simp only [Slice.setSlice!, Slice.getElem!_Nat_eq]
-  simp_lists
-
-@[simp_lists_simps]
-theorem Slice.setSlice!_getElem!_middle {α} [Inhabited α]
-  (s : Slice α) (s' : List α) (i j : ℕ) (h : i ≤ j ∧ j - i < s'.length ∧ j < s.length) :
-  (s.setSlice! i s')[j]! = s'[j - i]! := by
-  simp only [Slice.setSlice!, Slice.getElem!_Nat_eq]
-  simp_lists
-
-theorem Slice.setSlice!_getElem!_suffix {α} [Inhabited α]
-  (s : Slice α) (s' : List α) (i j : ℕ) (h : i + s'.length ≤ j) :
-  (s.setSlice! i s')[j]! = s[j]! := by
-  simp only [Slice.setSlice!, Slice.getElem!_Nat_eq]
-  simp_lists
-
-@[progress]
-theorem core.slice.index.SliceIndexRangeUsizeSlice.index_mut.progress_spec (r : core.ops.range.Range Usize) (s : Slice α)
-  (h0 : r.start ≤ r.end_) (h1 : r.end_ ≤ s.length) :
-  ∃ s1 index_mut_back, core.slice.index.SliceIndexRangeUsizeSlice.index_mut r s = ok (s1, index_mut_back) ∧
-  s1.val = s.val.slice r.start r.end_ ∧
-  s1.length = r.end_ - r.start ∧
-  ∀ s2, s2.length = s1.length → index_mut_back s2 = s.setSlice! r.start.val s2 := by sorry
-
--- TODO
-@[progress]
-theorem core.num.U32.to_le_bytes.progress_spec (x : U32) :
-  ∃ y, toResult (core.num.U32.to_le_bytes x) = ok y ∧ y.val = x.bv.toLEBytes.map (@UScalar.mk UScalarTy.U8) := by
-  sorry
-
--- TODO: not sure about the length check
-@[progress]
-theorem core.slice.Slice.copy_from_slice.progress_spec (copyInst : core.marker.Copy α) (s0 s1 : Slice α)
-  (h : s0.length = s1.length) :
-  core.slice.Slice.copy_from_slice copyInst s0 s1 = ok s1 := by sorry
-
-attribute [simp_scalar_simps] reduceIte
-
-@[simp, simp_lists_simps]
-theorem Array.val_to_slice {α} {n} (a : Array α n) : a.to_slice.val = a.val := by
-  simp only [Array.to_slice]
-
-@[simp, scalar_tac_simps, simp_scalar_simps, simp_lists_simps]
-theorem Slice.setSlice!_length {α : Type u} (s : Slice α) (i : ℕ) (s' : List α) :
-  (s.setSlice! i s').length = s.length := by
-  simp only [Slice.length, Slice.setSlice!, List.setSlice!_length]
-
-@[simp, simp_lists_simps]
-theorem to_bytes_setSlice! {b : Slice U8} (i : Usize) (s : List U8) :
-  to_bytes (b.setSlice! i s) = (to_bytes b).setSlice! i (s.map U8.bv) := by
-  simp [to_bytes, Slice.set_val_eq, List.map_set]
-  sorry
-
-attribute [simp_lists_simps] List.map_map
-
--- TODO: generalize
-@[simp, simp_lists_simps, simp_scalar_simps]
-theorem UScalar.bv_mk {ty} : (@UScalar.bv ty) ∘ UScalar.mk = id := by rfl
-
-@[simp, simp_lists_simps, simp_scalar_simps]
-theorem U8.bv_UScalar_mk : U8.bv ∘ UScalar.mk = id := by rfl
-
-attribute [simp_lists_simps] List.map_id_fun List.map_id_fun' id_eq
-
-@[simp, simp_lists_simps, simp_scalar_simps, scalar_tac a.to_slice]
-theorem Array.to_slice_length (a : Array α n) :
-  a.to_slice.length = n := by
-  simp only [Slice.length, Array.to_slice, List.Vector.length_val]
 
 -- TODO: collapse the proof
 open SpecAux in

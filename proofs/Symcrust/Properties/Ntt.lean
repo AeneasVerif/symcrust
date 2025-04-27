@@ -39,8 +39,6 @@ theorem mod_int_4294967296_65536_eq (x : Int) : ((x % 4294967296) % 65536) = x %
 theorem mod_int_65536_4294967296_eq (x : Int) : ((x % 65536) % 4294967296) = x % 65536 := by
   apply Int.emod_eq_of_lt <;> omega
 
-attribute [local simp, local scalar_tac_simps, local bvify_simps] Spec.Q
-
 /-!
 We want to use specifications which manipulate bit-vector representations
 -/
@@ -662,11 +660,22 @@ theorem poly_element_intt_and_mul_r_spec (peSrc : Std.Array U16 256#usize)
 -/
 
 -- TODO: move
-@[local scalar_tac (x &&& RMASK).val]
-private theorem and_RMASK (x : U32) : (x &&& RMASK).val ≤ 65535 := by bv_tac 32
+-- TODO: an annoying point is that we simplify before saturating, so it's not always easy
+-- to properly write the scalar_tac lemmas so that they get applied properly.
+-- Maybe we should saturate twice.
+-- TODO: if we don't put the type annotation, the type inference fails but it doesn't
+-- get detected by `scalar_tac`, leading to failures afterwards
+@[local scalar_tac x.val &&& (65535 : ℕ)]
+private theorem and_RMASK (x : U32) : x.val &&& 65535 ≤ 65535 := by
+  have : (x &&& 65535#32) ≤ 65535 := by bv_tac 32
+  natify at this
+  simp only [BitVec.natCast_eq_ofNat, Bvify.UScalar.BitVec_ofNat_setWidth, UScalarTy.U32_numBits_eq,
+    Bvify.U32.UScalar_bv, BitVec.setWidth_eq, UScalar.bv_toNat, Nat.reducePow, Nat.reduceMod,
+    nat_and_65535_eq_mod, BitVec.ofNat_eq_ofNat, BitVec.toNat_ofNat, ge_iff_le] at *
+  assumption
 
 -- TODO: we need to make this more convenient, and improve reasoning about non linear arithmetic
-private theorem Zq_mul_in_bounds (a b : U32) :
+private theorem U16_Zq_mul_in_bounds (a b : U16) :
   a.val ≥ 3329 ∨ b.val ≥ 3329 ∨ a.val * b.val ≤ 3328 * 3328 := by
   simp only [Classical.or_iff_not_imp_left]
   intros
@@ -676,7 +685,7 @@ section
   -- TODO: failure cases of scalar_tac +nonLin
 
   -- TODO: make this more convenient
-  attribute [local scalar_tac a.val * b.val] Zq_mul_in_bounds
+  attribute [local scalar_tac a.val * b.val] U16_Zq_mul_in_bounds
 
   /- TODO: we should implement tactics to automatically refold parts of the code back into
      functions. -/
@@ -954,7 +963,7 @@ theorem poly_element_mul_and_accumulate_spec
 section
 
   -- TODO: make this more convenient
-  attribute [local scalar_tac a.val * b.val] Zq_mul_in_bounds
+  attribute [local scalar_tac a.val * b.val] U16_Zq_mul_in_bounds
 
   /-- Auxiliary helper: the reduced multiplication performed by reduce and add.
 
