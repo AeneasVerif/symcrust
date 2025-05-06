@@ -24,8 +24,8 @@ theorem compress_coeff.spec_aux (d coeff : U32) (hd : d.val ≤ 12) (hc: coeff.v
   := by
   unfold compress_coefficient
   split
-  . let* ⟨ coeff1, coeff1_post ⟩ ← UScalar.cast_inBounds_spec -- TODO: replace
-    let* ⟨ mulc, mulc_post ⟩ ← UScalar.cast_inBounds_spec -- TODO: replace
+  . let* ⟨ coeff1, coeff1_post ⟩ ← UScalar.cast_inBounds_spec
+    let* ⟨ mulc, mulc_post ⟩ ← UScalar.cast_inBounds_spec
     let* ⟨ multiplication, multiplication_post ⟩ ← U64.mul_spec
     let* ⟨ i2, i2_post ⟩ ← U32.add_spec
     let* ⟨ i3, i3_post ⟩ ← U32.sub_spec
@@ -97,9 +97,6 @@ theorem min_spec (x y : U32) :
   unfold min
   split <;> progress* <;> scalar_tac
 
-set_option maxRecDepth 512
-
--- TODO: collapse the proof
 open SpecAux in
 def encode_coefficient.progress_spec_aux
   (x : U32) (d : U32) (dst : Slice U8)
@@ -123,48 +120,19 @@ def encode_coefficient.progress_spec_aux
   -- It is actually more natural to write the equality in this direction
   Stream.encode.body d.val x.val s0 = { b := to_bytes dst1, bi := bi1.val, acc := acc1.bv, acci := acci1.val }
   := by
-  -- The proof - TODO: collapse
-  unfold Symcrust.ntt.encode_coefficient
-  let* ⟨ i, i_post ⟩ ← U32.sub_spec
-  let* ⟨ n_bits_to_encode, n_bits_to_encode_post ⟩ ← min_spec
-  let* ⟨ i1, i1_post_1, i1_post_2 ⟩ ← U32.ShiftLeft_spec
-  let* ⟨ i2, i2_post_1, i2_post_2 ⟩ ← U32.sub_bv_spec
-  · -- TODO: we want to be able to do simp [*]: change the postcondition of sub
-    simp [i1_post_1, n_bits_to_encode_post, U32.size]
-    simp [Nat.shiftLeft_eq_mul_pow]
-    have : 2^Min.min d.val i.val < 2^U32.numBits := by simp_scalar
+  have : 1 ≤ 2 ^ Min.min d.val (32 - acci.val) % U32.size := by
+    have : 2 ^ Min.min d.val (32 - acci.val) < 2^U32.numBits := by simp_scalar
     simp_scalar
-  let* ⟨ bits_to_encode, bits_to_encode_post_1, bits_to_encode_post_2 ⟩ ← UScalar.and_spec
-  let* ⟨ n_bits_in_coefficient1, n_bits_in_coefficient1_post ⟩ ← U32.sub_spec
-  let* ⟨ i3, i3_post_1, i3_post_2 ⟩ ← U32.ShiftLeft_spec
-  let* ⟨ accumulator1, accumulator1_post_1, accumulator1_post_2 ⟩ ← UScalar.or_spec
-  let* ⟨ n_bits_in_accumulator1, n_bits_in_accumulator1_post ⟩ ← U32.add_spec
-  split
-  . let* ⟨ i4, i4_post ⟩ ← Usize.add_spec
-    -- TODO: improve code extraction to have better names when using tuples
-    let* ⟨ dst1, index_mut_back, dst1_post_1, dst1_post_2 ⟩ ←
-      core.slice.index.SliceIndexRangeUsizeSlice.index_mut.progress_spec
-    let* ⟨ a, a_post ⟩ ← core.num.U32.to_le_bytes.progress_spec
-    let* ⟨ s1, s1_post ⟩ ← Array.to_slice.progress_spec
-    have : dst1.length = s1.length := by
-      -- TODO: the simp_all in scalar_tac fails because of the posts of sub
-      clear i2_post_1 n_bits_in_coefficient1_post
-      scalar_tac
-    let* ⟨ ⟩ ← core.slice.Slice.copy_from_slice.progress_spec
-    let* ⟨ accumulator2, accumulator2_post_1, accumulator2_post_2 ⟩ ← U32.ShiftRight_spec
-    simp only [Slice.length, Stream.encode.body, Nat.reduceMul, ZMod.val_natCast,
+  unfold Symcrust.ntt.encode_coefficient
+  progress*
+  . simp only [Slice.length, Stream.encode.body, Nat.reduceMul, ZMod.val_natCast,
       BitVec.shiftLeft_sub_one_eq_mod, BitVec.ofNat_eq_ofNat, exists_and_left, exists_eq_left']
-    -- TODO: the postcondition of subtraction is annoying, we should change it
-    have n_bits_in_coefficient1_post' : n_bits_in_coefficient1.val = d.val - n_bits_to_encode.val := by scalar_tac
-    clear i2_post_1 n_bits_in_coefficient1_post
     simp only [*]
     simp_scalar
     simp_lists [*]
     simp_scalar
   . simp [Stream.encode.body]
     simp_ifs
-    -- TODO: the postcondition of subtraction is annoying, we should change it
-    clear i2_post_1 n_bits_in_coefficient1_post
     simp only [*, Stream.encode.body.length_spec]
     simp_scalar
 

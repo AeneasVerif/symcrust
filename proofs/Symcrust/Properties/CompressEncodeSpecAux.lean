@@ -50,14 +50,6 @@ def Target.bitsToBytes.recBody
 def Target.bitsToBytes {l : Nat} (b : Vector Bool (8 * l)) : Vector Byte l :=
   bitsToBytes.recBody b (Vector.replicate l 0) 0
 
-
-macro "glet" h:ident " : " x:ident " := " e:term : tactic =>
-  -- TODO: don't manage to make the syntax `generalize $h : ...` work
-  `(tactic| (generalize h: $e = $x at *; rename _ => $h; replace $h := Eq.symm $h))
-
-macro "glet" x:ident " := " e:term : tactic =>
-  `(tactic| (let $x := $e; refold_let $x at *))
-
 theorem Target.bitsToBytes.eq_spec {l : Nat} (b : Vector Bool (8 * l)) :
   bitsToBytes b = Spec.bitsToBytes b := by
   unfold bitsToBytes Spec.bitsToBytes recBody body
@@ -265,7 +257,7 @@ def Target.bitsToBytes.spec {l:Nat} (b : Vector Bool (8 * l)) :
   unfold bitsToBytes
   simp only [BitVec.ofNat_eq_ofNat, post]
   -- TODO: introduce notation for this, plus apply symmetry to the equation
-  generalize hacc1 : recBody b (Vector.replicate l 0#8) 0 = acc1 at *
+  glet hacc1 : acc1 := recBody b (Vector.replicate l 0#8) 0
   intro i hi j hj
   simp_lists [h0]
 
@@ -832,10 +824,9 @@ theorem Stream.encode.body.length_spec
   (hdn : d < 8 * n := by omega) :
   let s1 := body d x0 s
   length_inv d n s1.b s1.bi s1.acci (i + 1) := by
-  revert hinv
   simp only [length_inv, body]
-
   glet nBits := min d (8 * n - s.acci)
+
   glet bits := BitVec.ofNat (8 * n) x0.val &&& (1#(8*n) <<< nBits - 1#(8*n))
   glet xBits := d - nBits
 
@@ -845,7 +836,6 @@ theorem Stream.encode.body.length_spec
   glet b := s.b.setSlice! s.bi acc.toLEBytes
   glet bi := s.bi + n
 
-  intro hinv
   obtain ⟨ h0, h1, h2, h3 ⟩ := hinv
 
   split
@@ -1077,7 +1067,6 @@ theorem Stream.encode.body.spec_with_flush_bi
   have hlinv1 := length_spec F[i]! hinv.left
   simp only [body] at hlinv1
   simp_ifs at hlinv1
-  revert hinv h0 hBitsEq hAccPre hAccPost hlinv1 -- TODO: refold let doesn't apply to assumptions which happen before
 
   -- Introducing abbreviations
   glet x0 := F[i]!
@@ -1089,7 +1078,6 @@ theorem Stream.encode.body.spec_with_flush_bi
   glet acc := s.acc ||| (bits <<< s.acci)
   glet acci := s.acci + nBits
 
-  intro hinv h0 hBitsEq hAccPre hAccPost hlinv1
   obtain ⟨ ⟨ _, _, h1, h2 ⟩, h3, h4, h5 ⟩ := hinv
   obtain ⟨ _, _, hBi ⟩ := hlinv1
 
@@ -1265,16 +1253,12 @@ theorem Stream.encode.spec_aux
   post d F (encode d n F) := by
   unfold encode
   simp only
-  -- TODO: improve glet to have type annotations
-  glet s := ({
+  glet s : EncodeState n := {
     b := List.replicate (32 * d) 0,
     bi := 0,
     acc := 0,
     acci := 0,
-  } : EncodeState n)
-
-  -- TODO: improve glet
-  glet s1 := recBody d F s 0
+  }
 
   have hinv : inv d F s 0 := by
     unfold inv length_inv
@@ -1284,7 +1268,7 @@ theorem Stream.encode.spec_aux
 
   replace hinv := Stream.encode.recBody.spec hinv
 
-  refold_let s1 at *
+  glet s1 := recBody d F s 0
 
   unfold inv length_inv at hinv
   simp only [le_refl, mem_std_range_step_one, and_imp, and_assoc, true_and] at hinv
