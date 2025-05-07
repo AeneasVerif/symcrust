@@ -256,8 +256,7 @@ def Target.bitsToBytes.spec {l:Nat} (b : Vector Bool (8 * l)) :
   obtain ⟨ h0, h1 ⟩ := hinv1
   unfold bitsToBytes
   simp only [BitVec.ofNat_eq_ofNat, post]
-  -- TODO: introduce notation for this, plus apply symmetry to the equation
-  glet hacc1 : acc1 := recBody b (Vector.replicate l 0#8) 0
+  tlet acc1 := recBody b (Vector.replicate l 0#8) 0
   intro i hi j hj
   simp_lists [h0]
 
@@ -825,16 +824,16 @@ theorem Stream.encode.body.length_spec
   let s1 := body d x0 s
   length_inv d n s1.b s1.bi s1.acci (i + 1) := by
   simp only [length_inv, body]
-  glet nBits := min d (8 * n - s.acci)
+  tlet nBits := min d (8 * n - s.acci)
 
-  glet bits := BitVec.ofNat (8 * n) x0.val &&& (1#(8*n) <<< nBits - 1#(8*n))
-  glet xBits := d - nBits
+  tlet bits := BitVec.ofNat (8 * n) x0.val &&& (1#(8*n) <<< nBits - 1#(8*n))
+  tlet xBits := d - nBits
 
-  glet acc := s.acc ||| (bits <<< s.acci)
-  glet acci := s.acci + nBits
+  tlet acc := s.acc ||| (bits <<< s.acci)
+  tlet acci := s.acci + nBits
 
-  glet b := s.b.setSlice! s.bi acc.toLEBytes
-  glet bi := s.bi + n
+  tlet b := s.b.setSlice! s.bi acc.toLEBytes
+  tlet bi := s.bi + n
 
   obtain ⟨ h0, h1, h2, h3 ⟩ := hinv
 
@@ -947,13 +946,13 @@ theorem Stream.encode.body.spec_before_flush
   simp only
   obtain ⟨ ⟨ _, h0, h1, h2 ⟩, h3, h4, h5 ⟩ := hinv
 
-  glet x0 := F[i]!
-  glet nBits := d ⊓ (8 * n - s.acci)
-  glet bits := BitVec.ofNat (8 * n) x0.val &&& (1#(8*n) <<< nBits - 1#(8*n))
-  glet x := x0.val >>> nBits
+  tlet x0 := F[i]!
+  tlet nBits := d ⊓ (8 * n - s.acci)
+  tlet bits := BitVec.ofNat (8 * n) x0.val &&& (1#(8*n) <<< nBits - 1#(8*n))
+  tlet x := x0.val >>> nBits
 
-  glet acc := s.acc ||| (bits <<< s.acci)
-  glet acci := s.acci + nBits
+  tlet acc := s.acc ||| (bits <<< s.acci)
+  tlet acci := s.acci + nBits
 
   have hBitsEq : bits.toNat = x0.val % 2^nBits := by
     simp only [bits]
@@ -1069,14 +1068,14 @@ theorem Stream.encode.body.spec_with_flush_bi
   simp_ifs at hlinv1
 
   -- Introducing abbreviations
-  glet x0 := F[i]!
-  glet nBits := d ⊓ (8 * n - s.acci)
-  glet bits := BitVec.ofNat (8 * n) x0.val &&& (1#(8*n) <<< nBits - 1#(8*n))
-  glet x := x0.val >>> nBits
-  glet xBits := d - nBits
+  tlet x0 := F[i]!
+  tlet nBits := d ⊓ (8 * n - s.acci)
+  tlet bits := BitVec.ofNat (8 * n) x0.val &&& (1#(8*n) <<< nBits - 1#(8*n))
+  tlet x := x0.val >>> nBits
+  tlet xBits := d - nBits
 
-  glet acc := s.acc ||| (bits <<< s.acci)
-  glet acci := s.acci + nBits
+  tlet acc := s.acc ||| (bits <<< s.acci)
+  tlet acci := s.acci + nBits
 
   obtain ⟨ ⟨ _, _, h1, h2 ⟩, h3, h4, h5 ⟩ := hinv
   obtain ⟨ _, _, hBi ⟩ := hlinv1
@@ -1128,7 +1127,6 @@ theorem Stream.encode.body.spec_with_flush
   have ⟨ hBitsEq, hAccPre, hAccPost ⟩ := Stream.encode.body.spec_before_flush hinv
   -- Intermediate results about the output buffer
   have ⟨ hBi, hsb ⟩ := Stream.encode.body.spec_with_flush_bi hinv
-  revert h0 hBitsEq hAccPre hAccPost hBi hsb -- TODO: refold let doesn't apply to assumptions which happen before
 
   -- Unfold the body and the invariant
   unfold body
@@ -1137,21 +1135,19 @@ theorem Stream.encode.body.spec_with_flush
   simp only
 
   -- Introducing abbreviations
-  glet x0 := F[i]!
-  glet nBits := d ⊓ (8 * n - s.acci)
-  glet bits := BitVec.ofNat (8 * n) x0.val &&& (1#(8*n) <<< nBits - 1#(8*n))
-  glet x := x0.val >>> nBits
-  glet xBits := d - nBits
+  tlet x0 := F[i]!
+  tlet nBits := d ⊓ (8 * n - s.acci)
+  tlet bits := BitVec.ofNat (8 * n) x0.val &&& (1#(8*n) <<< nBits - 1#(8*n))
+  tlet x := x0.val >>> nBits
+  tlet xBits := d - nBits
 
-  glet acc := s.acc ||| (bits <<< s.acci)
-  glet acci := s.acci + nBits
-
-  intro h0 hBitsEq hAccPre hAccPost hBi hsb
+  tlet acc := s.acc ||| (bits <<< s.acci)
+  tlet acci := s.acci + nBits
 
   simp_ifs
   simp only [inv, length_inv, and_assoc]
 
-  glet bits := BitVec.ofNat (8 * n) x &&& (1#(8*n) <<< nBits - 1#(8*n))
+  tlet bits := BitVec.ofNat (8 * n) x &&& (1#(8*n) <<< nBits - 1#(8*n))
 
   split_conjs <;> try tauto
   . scalar_tac
@@ -1253,7 +1249,7 @@ theorem Stream.encode.spec_aux
   post d F (encode d n F) := by
   unfold encode
   simp only
-  glet s : EncodeState n := {
+  tlet s : EncodeState n := {
     b := List.replicate (32 * d) 0,
     bi := 0,
     acc := 0,
@@ -1268,7 +1264,7 @@ theorem Stream.encode.spec_aux
 
   replace hinv := Stream.encode.recBody.spec hinv
 
-  glet s1 := recBody d F s 0
+  tlet s1 := recBody d F s 0
 
   unfold inv length_inv at hinv
   simp only [le_refl, mem_std_range_step_one, and_imp, and_assoc, true_and] at hinv
