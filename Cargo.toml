@@ -7,7 +7,6 @@ edition = "2021"
 libc = "0.2"
 hex = "0.4"
 itertools = "0.14.0"
-zeroize = "1.8.1"
 
 [lib]
 crate-type = ["cdylib"]
@@ -16,3 +15,4 @@ crate-type = ["cdylib"]
 # TODO: try "fat" (with quotes) instead of true
 lto = true
 codegen-units = 1
+debug = true

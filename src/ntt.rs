@@ -1,5 +1,5 @@
 //
-// ntt.rs: a minimal NTT taken from SymCrypt, rewritten in Rust, to be verified with Aeneas and
+// ntt.rs: ML-KEM primitives taken from SymCrypt, rewritten in Rust, to be verified with Aeneas and
 // extracted to C with Eurydice
 //
 // Copyright (c) Microsoft Corporation. Licensed under the MIT license.
@@ -45,8 +45,6 @@ macro_rules! c_for {
     }
 }
 
-use zeroize::Zeroize;
-
 use crate::key::*;
 use crate::common::*;
 
@@ -55,7 +53,7 @@ use crate::common::*;
 //
 
 pub(crate)
-type PolyElementAccumulator = [u32; MLWE_POLYNOMIAL_COEFFICIENTS ];
+type PolyElementAccumulator = [u32; MLWE_POLYNOMIAL_COEFFICIENTS];
 
 // Currently maximum size of MLKEM matrices is baked in, they are always square and up to 4x4.
 pub(crate)
@@ -220,45 +218,45 @@ const ZETA_TO_TIMES_BIT_REV_PLUS_1_TIMES_R: [u16; 128] = [
      958, 2371, 1869, 1460, 1522, 1807, 1628, 1701,
 ];
 
-
 #[inline(always)]
-fn mod_add(a: u32, b: u32) -> u32 {
-    debug_assert!( a < Q );
-    debug_assert!( b < Q );
+fn mod_reduce(a: u32) -> u32 {
+    debug_assert!( a < 2*Q );
 
     // In the comments below, we manipulate unbounded integers.
-    // res = (a + b) - Q
-    let res = (a + b).wrapping_sub(Q); // -Q <= res < Q
+    // res = a - Q
+    let res = a.wrapping_sub(Q); // -Q <= res < Q
     debug_assert!( ((res >> 16) == 0) || ((res >> 16) == 0xffff) );
     // If res < 0, then: Q & (res >> 16) = Q
     // Otherwise: Q & (res >> 16) = 0
     let res = res.wrapping_add(Q & (res >> 16));
+    // 0 <= res < 2 * Q
     debug_assert!( res < Q );
 
     res
 }
 
 #[inline(always)]
+fn mod_add(a: u32, b: u32) -> u32 {
+    debug_assert!( a < Q );
+    debug_assert!( b < Q );
+
+    mod_reduce( a + b )
+}
+
+#[inline(always)]
 fn mod_sub(a: u32, b: u32) -> u32 {
-    // This function is called in two situations:
-    // - when we want to substract to field elements which are < Q
-    // - when we performed an addition and want to substract Q so
-    //   that the result is < Q
-    debug_assert!( a < 2*Q );
-    debug_assert!( b <= Q );
+    debug_assert!( a < Q );
+    debug_assert!( b < Q );
 
     // In the comments below, we manipulate unbounded integers.
     // res = a - b
-    let res = a.wrapping_sub(b); // -Q <= res < 2 * Q
+    let res = a.wrapping_sub(b); // -Q < res < Q
     debug_assert!( ((res >> 16) == 0) || ((res >> 16) == 0xffff) );
     // If res < 0, then: Q & (res >> 16) = Q
     // Otherwise: Q & (res >> 16) = 0
     let res = res.wrapping_add(Q & (res >> 16));
     // 0 <= res < 2 * Q
-    debug_assert!( res < Q ); // SH: how do we justify this given the bound: a < 2*Q?
-    // SH: I believe it depends on the situation: we may have to prove several
-    // auxiliary lemmas for this (there are situations where we call this function
-    // with a < Q for instance).
+    debug_assert!( res < Q );
 
     res
 }
@@ -276,7 +274,7 @@ fn mont_mul(a: u32, b: u32, b_mont: u32) -> u32 {
     debug_assert!( (res & RMASK) == 0 );
     res >>= RLOG2;
 
-    mod_sub( res, Q )
+    mod_reduce( res )
 }
 
 fn poly_element_ntt_layer_c(pe_src: &mut PolyElement, mut k: usize, len: usize) {
@@ -679,7 +677,7 @@ poly_element_decode_and_decompress(
             coefficient >>= 1;  // in range [0, Q]
 
             // modular reduction by conditional subtraction
-            coefficient = mod_sub( coefficient, Q );
+            coefficient = mod_reduce( coefficient );
             debug_assert!( coefficient < Q );
         }
         else if coefficient > Q
@@ -863,7 +861,7 @@ matrix_vector_mont_mul_and_add(
     assert_eq!( pv_dst.len() ,n_rows );
 
     // Zero pa_tmp
-    pa_tmp.zeroize();
+    crate::common::wipe_slice( pa_tmp );
 
     c_for!(let mut i = 0; i < n_rows; i += 1;
     {
@@ -901,8 +899,8 @@ vector_mont_dot_product(
     debug_assert!( pv_src2.len() == n_rows );
 
     // Zero pa_tmp and pe_dst
-    pa_tmp.zeroize();
-    pe_dst.zeroize();
+    crate::common::wipe_slice( pa_tmp );
+    crate::common::wipe_slice( pe_dst );
 
     c_for!(let mut i = 0; i < n_rows; i += 1;
     {
@@ -913,6 +911,7 @@ vector_mont_dot_product(
     montgomery_reduce_and_add_poly_element_accumulator_to_poly_element( pa_tmp, pe_dst );
 }
 
+pub(crate)
 fn
 vector_set_zero(
     pv_src: &mut Vector
@@ -924,7 +923,7 @@ vector_set_zero(
     debug_assert!( n_rows <= MATRIX_MAX_NROWS );
 
     c_for!(let mut i = 0; i < n_rows; i += 1; {
-        pv_src[i].zeroize();
+        crate::common::wipe_slice( &mut pv_src[i] );
     });
 }
 

@@ -64,9 +64,11 @@ impl std::ops::FromResidual<Result<std::convert::Infallible, Error>> for Error {
 // }
 
 // #[cfg(feature = "dynamic")]
+#[link(name = "symcrypt")]
 extern "C" {
     fn SymCryptRandom(pbBuffer: *mut u8, cbBuffer: usize);
     fn SymCryptModuleInit(api: u32, minor: u32);
+    fn SymCryptWipe(pb_data: *mut u8, cb_data: usize);
 }
 
 pub(crate) fn random(dst: &mut [u8]) -> Error {
@@ -82,8 +84,18 @@ pub(crate) fn random(dst: &mut [u8]) -> Error {
 }
 
 // TODO: manually kept in sync with C code -- can this be automated?
-pub fn init() {
+pub(crate) fn init() {
     unsafe {
         SymCryptModuleInit(103, 8);
     }
+}
+
+pub fn wipe(pb_data: *mut u8, cb_data: usize) {
+    unsafe {
+        SymCryptWipe(pb_data, cb_data);
+    }
+}
+
+pub fn wipe_slice<T>(pb_dst: &mut [T]) {
+    wipe(pb_dst.as_mut_ptr() as *mut u8, pb_dst.len() * size_of::<T>() );
 }
