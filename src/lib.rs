@@ -9,11 +9,14 @@
 #![feature(try_trait_v2)]
 
 pub mod common;
-pub mod ffi;
+
 pub mod hash;
 pub mod key;
 pub mod mlkem;
 pub mod ntt;
+
+#[cfg(not(eurydice))]
+pub mod ffi;
 
 #[cfg(test)]
 pub mod test;
