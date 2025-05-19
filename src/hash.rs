@@ -33,10 +33,10 @@ pub(crate) const UNINITIALIZED_HASH_STATE: HashState = HashState {
             inputBlockSize: 0,
             stateIndex: 0,
             paddingValue: 0,
-            squeezeMode: 0
+            squeezeMode: 0,
         },
         magic: 0,
-    }
+    },
 };
 
 pub const SHAKE128_RESULT_SIZE: usize = 32;
@@ -53,11 +53,11 @@ pub const SHA3_512_INPUT_BLOCK_SIZE: usize = 72;
 
 // SHAKE128
 
-fn get_shake128(s: &mut HashState) -> &mut [ crate::symcrypt_internal::SYMCRYPT_SHAKE128_STATE ] {
+fn get_shake128(s: &mut HashState) -> &mut [crate::symcrypt_internal::SYMCRYPT_SHAKE128_STATE] {
     std::slice::from_mut(unsafe { &mut s.shake128_state })
 }
 
-fn get_shake128_imm(s: & HashState) -> & [ crate::symcrypt_internal::SYMCRYPT_SHAKE128_STATE ] {
+fn get_shake128_imm(s: &HashState) -> &[crate::symcrypt_internal::SYMCRYPT_SHAKE128_STATE] {
     std::slice::from_ref(unsafe { &s.shake128_state })
 }
 
@@ -66,12 +66,7 @@ pub(crate) fn shake128_default(data: &[u8], dst: &mut [u8; SHAKE128_RESULT_SIZE]
 }
 
 pub(crate) fn shake128(pb_data: &[u8], pb_result: &mut [u8]) {
-    crate::shake::SymCryptShake128(
-        pb_data,
-        pb_data.len(),
-        pb_result,
-        pb_result.len(),
-    );
+    crate::shake::SymCryptShake128(pb_data, pb_data.len(), pb_result, pb_result.len());
 }
 
 pub(crate) fn shake128_init(p_state: &mut HashState) {
@@ -94,14 +89,13 @@ pub(crate) fn shake128_state_copy(p_src: &HashState, p_dst: &mut HashState) {
     crate::shake::SymCryptShake128StateCopy(get_shake128_imm(p_src), get_shake128(p_dst));
 }
 
-
 // SHAKE256
 
-fn get_shake256(s: &mut HashState) -> &mut [ crate::symcrypt_internal::SYMCRYPT_SHAKE256_STATE ] {
+fn get_shake256(s: &mut HashState) -> &mut [crate::symcrypt_internal::SYMCRYPT_SHAKE256_STATE] {
     std::slice::from_mut(unsafe { &mut s.shake256_state })
 }
 
-fn get_shake256_imm(s: & HashState) -> & [ crate::symcrypt_internal::SYMCRYPT_SHAKE256_STATE ] {
+fn get_shake256_imm(s: &HashState) -> &[crate::symcrypt_internal::SYMCRYPT_SHAKE256_STATE] {
     std::slice::from_ref(unsafe { &s.shake256_state })
 }
 
@@ -110,12 +104,7 @@ pub(crate) fn shake256_default(data: &[u8], dst: &mut [u8; SHAKE256_RESULT_SIZE]
 }
 
 pub(crate) fn shake256(pb_data: &[u8], pb_result: &mut [u8]) {
-    crate::shake::SymCryptShake256(
-        pb_data,
-        pb_data.len(),
-        pb_result,
-        pb_result.len(),
-    );
+    crate::shake::SymCryptShake256(pb_data, pb_data.len(), pb_result, pb_result.len());
 }
 
 pub(crate) fn shake256_init(p_state: &mut HashState) {
@@ -138,14 +127,13 @@ pub(crate) fn shake256_state_copy(p_src: &HashState, p_dst: &mut HashState) {
     crate::shake::SymCryptShake256StateCopy(get_shake256_imm(p_src), get_shake256(p_dst));
 }
 
-
 // SHA3_256
 
-fn get_sha3_256(s: &mut HashState) -> &mut [ crate::symcrypt_internal::SYMCRYPT_SHA3_256_STATE ] {
+fn get_sha3_256(s: &mut HashState) -> &mut [crate::symcrypt_internal::SYMCRYPT_SHA3_256_STATE] {
     std::slice::from_mut(unsafe { &mut s.sha3_256_state })
 }
 
-fn get_sha3_256_imm(s: & HashState) -> & [ crate::symcrypt_internal::SYMCRYPT_SHA3_256_STATE ] {
+fn get_sha3_256_imm(s: &HashState) -> &[crate::symcrypt_internal::SYMCRYPT_SHA3_256_STATE] {
     std::slice::from_ref(unsafe { &s.sha3_256_state })
 }
 
@@ -169,14 +157,13 @@ pub(crate) fn sha3_256_state_copy(p_src: &HashState, p_dst: &mut HashState) {
     crate::sha3_256::SymCryptSha3_256StateCopy(get_sha3_256_imm(p_src), get_sha3_256(p_dst));
 }
 
-
 // SHA3_512
 
-fn get_sha3_512(s: &mut HashState) -> &mut [ crate::symcrypt_internal::SYMCRYPT_SHA3_512_STATE ] {
+fn get_sha3_512(s: &mut HashState) -> &mut [crate::symcrypt_internal::SYMCRYPT_SHA3_512_STATE] {
     std::slice::from_mut(unsafe { &mut s.sha3_512_state })
 }
 
-fn get_sha3_512_imm(s: & HashState) -> & [ crate::symcrypt_internal::SYMCRYPT_SHA3_512_STATE ] {
+fn get_sha3_512_imm(s: &HashState) -> &[crate::symcrypt_internal::SYMCRYPT_SHA3_512_STATE] {
     std::slice::from_ref(unsafe { &s.sha3_512_state })
 }
 

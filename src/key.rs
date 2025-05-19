@@ -103,7 +103,7 @@ pub(crate) struct InternalParams {
     pub(crate) n_bits_of_u: u8, // corresponds to d_u from FIPS 203; number of bits that the coefficients of the polynomial
     // ring elements of u are compressed to in encapsulation for encoding into ciphertext
     pub(crate) n_bits_of_v: u8, // corresponds to d_v from FIPS 203; number of bits that the coefficients of the polynomial
-                             // ring element v is compressed to in encapsulation for encoding into ciphertext
+                                // ring element v is compressed to in encapsulation for encoding into ciphertext
 }
 
 /******************************************************************************
@@ -156,8 +156,8 @@ pub(crate) struct Key1 {
 
     // A o s + e = t
     pm_a_transpose: Matrix1, // public matrix in NTT form (derived from publicSeed)
-    pvt: Box<Vector>,      // public vector in NTT form
-    pvs: Box<Vector>,      // private vector in NTT form
+    pvt: Box<Vector>,        // public vector in NTT form
+    pvs: Box<Vector>,        // private vector in NTT form
 }
 
 #[allow(dead_code)]
@@ -301,8 +301,7 @@ impl Key2 {
 fn key_allocate2(params: Params) -> Result<Box<Key2>, Error> {
     match params {
         Params::MlKem512 => {
-            const PARAMS: InternalParams =
-                get_internal_params_from_params(Params::MlKem512);
+            const PARAMS: InternalParams = get_internal_params_from_params(Params::MlKem512);
             const N_ROWS: usize = PARAMS.n_rows as usize;
             // !!! Make sure to build using &PreKey2, not &Key2, otherwise, the errors are really
             // hard to parse.
@@ -321,8 +320,7 @@ fn key_allocate2(params: Params) -> Result<Box<Key2>, Error> {
             }))
         }
         Params::MlKem768 => {
-            const PARAMS: InternalParams =
-                get_internal_params_from_params(Params::MlKem768);
+            const PARAMS: InternalParams = get_internal_params_from_params(Params::MlKem768);
             const N_ROWS: usize = PARAMS.n_rows as usize;
             // !!! Make sure to build using &PreKey2, not &Key2, otherwise, the errors are really
             // hard to parse.
@@ -341,8 +339,7 @@ fn key_allocate2(params: Params) -> Result<Box<Key2>, Error> {
             }))
         }
         Params::MlKem1024 => {
-            const PARAMS: InternalParams =
-                get_internal_params_from_params(Params::MlKem1024);
+            const PARAMS: InternalParams = get_internal_params_from_params(Params::MlKem1024);
             const N_ROWS: usize = PARAMS.n_rows as usize;
             // !!! Make sure to build using &PreKey2, not &Key2, otherwise, the errors are really
             // hard to parse.
@@ -387,7 +384,10 @@ impl Key3 {
     // FIXME OFFSET COMPUTATIONS INCORRECT HERE SEE KEY2, ABOVE
     pub fn atranspose(&self) -> &[PolyElement] {
         unsafe {
-            std::slice::from_raw_parts((&raw const self.data).cast::<PolyElement>(), 2 * self.n_rows)
+            std::slice::from_raw_parts(
+                (&raw const self.data).cast::<PolyElement>(),
+                2 * self.n_rows,
+            )
         }
     }
     pub fn t(&self) -> &[PolyElement] {

@@ -86,12 +86,10 @@ pub(crate) fn init() {
 use rand::prelude::*;
 
 #[cfg(feature = "rand")]
-pub(crate)
-fn init() {}
+pub(crate) fn init() {}
 
 #[cfg(feature = "rand")]
-pub(crate)
-fn random(dst: &mut[u8]) -> Error {
+pub(crate) fn random(dst: &mut [u8]) -> Error {
     rand::rng().fill(dst);
     Error::NoError
 }

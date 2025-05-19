@@ -39,10 +39,7 @@ const CIPHERTEXT_SIZE_MLKEM1024: usize = 1568;
 //      importing a key (from test vectors, for example) or exporting a key.
 //      The internal format of the keys is not visible to the caller.
 
-pub fn sizeof_key_format_from_params(
-    params: Params,
-    format: crate::key::Format,
-) -> usize {
+pub fn sizeof_key_format_from_params(params: Params, format: crate::key::Format) -> usize {
     let internal_params = get_internal_params_from_params(params);
 
     match format {
@@ -73,7 +70,8 @@ pub fn sizeof_ciphertext_from_params(params: Params) -> usize {
         (internal_params.params != Params::MlKem768) || ((cb_u + cb_v) == CIPHERTEXT_SIZE_MLKEM768)
     );
     debug_assert!(
-        (internal_params.params != Params::MlKem1024) || ((cb_u + cb_v) == CIPHERTEXT_SIZE_MLKEM1024)
+        (internal_params.params != Params::MlKem1024)
+            || ((cb_u + cb_v) == CIPHERTEXT_SIZE_MLKEM1024)
     );
 
     cb_u + cb_v
@@ -144,7 +142,8 @@ fn key_expand_from_private_seed(
 
     // (rho || sigma) = G(d || k)
     // use cbd_sample_buffer to concatenate the private seed and encoding of n_rows
-    cbd_sample_buffer[0..pk_mlkem_key.private_seed.len()].copy_from_slice(&pk_mlkem_key.private_seed);
+    cbd_sample_buffer[0..pk_mlkem_key.private_seed.len()]
+        .copy_from_slice(&pk_mlkem_key.private_seed);
     cbd_sample_buffer[pk_mlkem_key.private_seed.len() /* == 32 */] = n_rows;
     crate::hash::sha3_512(
         &cbd_sample_buffer[0..pk_mlkem_key.private_seed.len() + 1],
@@ -350,8 +349,7 @@ pub fn key_set_value(
                 .copy_from_slice(&pb_src[pb_curr..pb_curr + cb_encoded_vector]);
             pb_curr += cb_encoded_vector;
             let (t, encoded_t) = pk_mlkem_key.t_encoded_t_mut();
-            let sc_error =
-                vector_decode_and_decompress(&encoded_t[0..cb_encoded_vector], 12, t);
+            let sc_error = vector_decode_and_decompress(&encoded_t[0..cb_encoded_vector], 12, t);
             if sc_error != Error::NoError {
                 return sc_error;
             }
@@ -395,8 +393,7 @@ pub fn key_set_value(
                 .copy_from_slice(&pb_src[pb_curr..pb_curr + cb_encoded_vector]);
             pb_curr += cb_encoded_vector;
             let (t, encoded_t) = pk_mlkem_key.t_encoded_t_mut();
-            let sc_error =
-                vector_decode_and_decompress(&encoded_t[0..cb_encoded_vector], 12, t);
+            let sc_error = vector_decode_and_decompress(&encoded_t[0..cb_encoded_vector], 12, t);
             if sc_error != Error::NoError {
                 return sc_error;
             }
@@ -487,11 +484,7 @@ pub fn key_get_value(
 
             // We don't precompute byte-encoding of private key as exporting decapsulation key is not a critical path operation
             // All other fields are kept in memory
-            vector_compress_and_encode(
-                pk_mlkem_key.s(),
-                12,
-                &mut pb_dst[0..cb_encoded_vector],
-            );
+            vector_compress_and_encode(pk_mlkem_key.s(), 12, &mut pb_dst[0..cb_encoded_vector]);
             pb_curr += cb_encoded_vector;
 
             pb_dst[pb_curr..pb_curr + cb_encoded_vector]
@@ -576,8 +569,7 @@ pub fn key_generate(pk_mlkem_key: &mut Key, flags: u32) -> Error {
     Error::NoError
 }
 
-pub
-const SIZEOF_MAX_CIPHERTEXT: usize = 1568;
+pub const SIZEOF_MAX_CIPHERTEXT: usize = 1568;
 const SIZEOF_AGREED_SECRET: usize = 32;
 const SIZEOF_ENCAPS_RANDOM: usize = 32;
 
@@ -847,7 +839,8 @@ pub fn decapsulate(
     };
     pb_comp_ciphers.resize(2 * cb_ciphertext, 0u8);
     let mut pb_comp_ciphers = pb_comp_ciphers.into_boxed_slice();
-    let (pb_read_ciphertext, pb_reencapsulated_ciphertext) = pb_comp_ciphers.split_at_mut(cb_ciphertext);
+    let (pb_read_ciphertext, pb_reencapsulated_ciphertext) =
+        pb_comp_ciphers.split_at_mut(cb_ciphertext);
 
     //     ERROR sc_error = NO_ERROR;
     //     SIZE_T cb_u, cb_v, cbCopy;

@@ -47,20 +47,17 @@ macro_rules! c_for {
 
 use zeroize::Zeroize;
 
-use crate::key::*;
 use crate::common::*;
+use crate::key::*;
 
 //=====================================================
 //  ML-KEM internal high level types
 //
 
-pub(crate)
-type PolyElementAccumulator = [u32; MLWE_POLYNOMIAL_COEFFICIENTS ];
+pub(crate) type PolyElementAccumulator = [u32; MLWE_POLYNOMIAL_COEFFICIENTS];
 
 // Currently maximum size of MLKEM matrices is baked in, they are always square and up to 4x4.
-pub(crate)
-const MATRIX_MAX_NROWS: usize = 4;
-
+pub(crate) const MATRIX_MAX_NROWS: usize = 4;
 
 //=====================================================
 //  ML-KEM primitives
@@ -79,28 +76,19 @@ pub const SIZEOF_MAX_CIPHERTEXT: usize = 1568;
 pub const SIZEOF_AGREED_SECRET: usize = 32;
 pub const SIZEOF_ENCAPS_RANDOM: usize = 32;
 
-
 // Note (Rust): caller allocates these temporaries whichever way they want, and passes us a mutable
 // reference to such a struct. If we need to use several fields at once, we can use a `ref mut`
 // pattern in Rust.
 // FIXME: the Default trait only works for arrays of lengths up to 32??
 // #[derive(Default)]
-pub(crate)
-struct InternalComputationTemporaries {
-pub(crate)
-    ab_vector_buffer0: [PolyElement; MATRIX_MAX_NROWS],
-pub(crate)
-    ab_vector_buffer1: [PolyElement; MATRIX_MAX_NROWS],
-pub(crate)
-    ab_poly_element_buffer0: PolyElement,
-pub(crate)
-    ab_poly_element_buffer1: PolyElement,
-pub(crate)
-    ab_poly_element_accumulator_buffer: PolyElementAccumulator,
-pub(crate)
-    hash_state0: crate::hash::HashState,
-pub(crate)
-    hash_state1: crate::hash::HashState,
+pub(crate) struct InternalComputationTemporaries {
+    pub(crate) ab_vector_buffer0: [PolyElement; MATRIX_MAX_NROWS],
+    pub(crate) ab_vector_buffer1: [PolyElement; MATRIX_MAX_NROWS],
+    pub(crate) ab_poly_element_buffer0: PolyElement,
+    pub(crate) ab_poly_element_buffer1: PolyElement,
+    pub(crate) ab_poly_element_accumulator_buffer: PolyElementAccumulator,
+    pub(crate) hash_state0: crate::hash::HashState,
+    pub(crate) hash_state1: crate::hash::HashState,
 }
 
 //
@@ -156,22 +144,14 @@ const RSQR_TIMES_NEG_Q_INV_MOD_R: u32 = 44983;
 //
 // MlKemZetaBitRevTimesR = [ (pow(17, bitRev(i), 3329) << 16) % 3329 for i in range(128) ]
 const ZETA_BIT_REV_TIMES_R: [u16; 128] = [
-    2285, 2571, 2970, 1812, 1493, 1422,  287,  202,
-    3158,  622, 1577,  182,  962, 2127, 1855, 1468,
-     573, 2004,  264,  383, 2500, 1458, 1727, 3199,
-    2648, 1017,  732,  608, 1787,  411, 3124, 1758,
-    1223,  652, 2777, 1015, 2036, 1491, 3047, 1785,
-     516, 3321, 3009, 2663, 1711, 2167,  126, 1469,
-    2476, 3239, 3058,  830,  107, 1908, 3082, 2378,
-    2931,  961, 1821, 2604,  448, 2264,  677, 2054,
-    2226,  430,  555,  843, 2078,  871, 1550,  105,
-     422,  587,  177, 3094, 3038, 2869, 1574, 1653,
-    3083,  778, 1159, 3182, 2552, 1483, 2727, 1119,
-    1739,  644, 2457,  349,  418,  329, 3173, 3254,
-     817, 1097,  603,  610, 1322, 2044, 1864,  384,
-    2114, 3193, 1218, 1994, 2455,  220, 2142, 1670,
-    2144, 1799, 2051,  794, 1819, 2475, 2459,  478,
-    3221, 3021,  996,  991,  958, 1869, 1522, 1628,
+    2285, 2571, 2970, 1812, 1493, 1422, 287, 202, 3158, 622, 1577, 182, 962, 2127, 1855, 1468, 573,
+    2004, 264, 383, 2500, 1458, 1727, 3199, 2648, 1017, 732, 608, 1787, 411, 3124, 1758, 1223, 652,
+    2777, 1015, 2036, 1491, 3047, 1785, 516, 3321, 3009, 2663, 1711, 2167, 126, 1469, 2476, 3239,
+    3058, 830, 107, 1908, 3082, 2378, 2931, 961, 1821, 2604, 448, 2264, 677, 2054, 2226, 430, 555,
+    843, 2078, 871, 1550, 105, 422, 587, 177, 3094, 3038, 2869, 1574, 1653, 3083, 778, 1159, 3182,
+    2552, 1483, 2727, 1119, 1739, 644, 2457, 349, 418, 329, 3173, 3254, 817, 1097, 603, 610, 1322,
+    2044, 1864, 384, 2114, 3193, 1218, 1994, 2455, 220, 2142, 1670, 2144, 1799, 2051, 794, 1819,
+    2475, 2459, 478, 3221, 3021, 996, 991, 958, 1869, 1522, 1628,
 ];
 
 // This table is a lookup for ((Zeta^(BitRev(index)) * R) mod Q) * -Q^(-1) mod R
@@ -179,22 +159,16 @@ const ZETA_BIT_REV_TIMES_R: [u16; 128] = [
 //
 // MlKemZetaBitRevTimesRTimesNegQInvModR = [ (((pow(17, bitRev(i), Q) << 16) % Q) * 3327) & 0xffff for i in range(128) ]
 const ZETA_BIT_REV_TIMES_R_TIMES_NEG_Q_INV_MOD_R: [u16; 128] = [
-       19, 34037, 50790, 64748, 52011, 12402, 37345, 16694,
-    20906, 37778,  3799, 15690, 54846, 64177, 11201, 34372,
-     5827, 48172, 26360, 29057, 59964,  1102, 44097, 26241,
-    28072, 41223, 10532, 56736, 47109, 56677, 38860, 16162,
-     5689,  6516, 64039, 34569, 23564, 45357, 44825, 40455,
-    12796, 38919, 49471, 12441, 56401,   649, 25986, 37699,
-    45652, 28249, 15886,  8898, 28309, 56460, 30198, 47286,
-    52109, 51519, 29155, 12756, 48704, 61224, 24155, 17914,
-      334, 54354, 11477, 52149, 32226, 14233, 45042, 21655,
-    27738, 52405, 64591,  4586, 14882, 42443, 59354, 60043,
-    33525, 32502, 54905, 35218, 36360, 18741, 28761, 52897,
-    18485, 45436, 47975, 47011, 14430, 46007,  5275, 12618,
-    31183, 45239, 40101, 63390,  7382, 50180, 41144, 32384,
-    20926,  6279, 54590, 14902, 41321, 11044, 48546, 51066,
-    55200, 21497,  7933, 20198, 22501, 42325, 54629, 17442,
-    33899, 23859, 36892, 20257, 41538, 57779, 17422, 42404,
+    19, 34037, 50790, 64748, 52011, 12402, 37345, 16694, 20906, 37778, 3799, 15690, 54846, 64177,
+    11201, 34372, 5827, 48172, 26360, 29057, 59964, 1102, 44097, 26241, 28072, 41223, 10532, 56736,
+    47109, 56677, 38860, 16162, 5689, 6516, 64039, 34569, 23564, 45357, 44825, 40455, 12796, 38919,
+    49471, 12441, 56401, 649, 25986, 37699, 45652, 28249, 15886, 8898, 28309, 56460, 30198, 47286,
+    52109, 51519, 29155, 12756, 48704, 61224, 24155, 17914, 334, 54354, 11477, 52149, 32226, 14233,
+    45042, 21655, 27738, 52405, 64591, 4586, 14882, 42443, 59354, 60043, 33525, 32502, 54905,
+    35218, 36360, 18741, 28761, 52897, 18485, 45436, 47975, 47011, 14430, 46007, 5275, 12618,
+    31183, 45239, 40101, 63390, 7382, 50180, 41144, 32384, 20926, 6279, 54590, 14902, 41321, 11044,
+    48546, 51066, 55200, 21497, 7933, 20198, 22501, 42325, 54629, 17442, 33899, 23859, 36892,
+    20257, 41538, 57779, 17422, 42404,
 ];
 
 // This table is a lookup for ((Zeta^(2*BitRev(index) + 1) * R) mod Q)
@@ -202,38 +176,29 @@ const ZETA_BIT_REV_TIMES_R_TIMES_NEG_Q_INV_MOD_R: [u16; 128] = [
 //
 // zetaTwoTimesBitRevPlus1TimesR =  [ (pow(17, 2*bitRev(i)+1, 3329) << 16) % 3329 for i in range(128) ]
 const ZETA_TO_TIMES_BIT_REV_PLUS_1_TIMES_R: [u16; 128] = [
-    2226, 1103,  430, 2899,  555, 2774,  843, 2486,
-    2078, 1251,  871, 2458, 1550, 1779,  105, 3224,
-     422, 2907,  587, 2742,  177, 3152, 3094,  235,
-    3038,  291, 2869,  460, 1574, 1755, 1653, 1676,
-    3083,  246,  778, 2551, 1159, 2170, 3182,  147,
-    2552,  777, 1483, 1846, 2727,  602, 1119, 2210,
-    1739, 1590,  644, 2685, 2457,  872,  349, 2980,
-     418, 2911,  329, 3000, 3173,  156, 3254,   75,
-     817, 2512, 1097, 2232,  603, 2726,  610, 2719,
-    1322, 2007, 2044, 1285, 1864, 1465,  384, 2945,
-    2114, 1215, 3193,  136, 1218, 2111, 1994, 1335,
-    2455,  874,  220, 3109, 2142, 1187, 1670, 1659,
-    2144, 1185, 1799, 1530, 2051, 1278,  794, 2535,
-    1819, 1510, 2475,  854, 2459,  870,  478, 2851,
-    3221,  108, 3021,  308,  996, 2333,  991, 2338,
-     958, 2371, 1869, 1460, 1522, 1807, 1628, 1701,
+    2226, 1103, 430, 2899, 555, 2774, 843, 2486, 2078, 1251, 871, 2458, 1550, 1779, 105, 3224, 422,
+    2907, 587, 2742, 177, 3152, 3094, 235, 3038, 291, 2869, 460, 1574, 1755, 1653, 1676, 3083, 246,
+    778, 2551, 1159, 2170, 3182, 147, 2552, 777, 1483, 1846, 2727, 602, 1119, 2210, 1739, 1590,
+    644, 2685, 2457, 872, 349, 2980, 418, 2911, 329, 3000, 3173, 156, 3254, 75, 817, 2512, 1097,
+    2232, 603, 2726, 610, 2719, 1322, 2007, 2044, 1285, 1864, 1465, 384, 2945, 2114, 1215, 3193,
+    136, 1218, 2111, 1994, 1335, 2455, 874, 220, 3109, 2142, 1187, 1670, 1659, 2144, 1185, 1799,
+    1530, 2051, 1278, 794, 2535, 1819, 1510, 2475, 854, 2459, 870, 478, 2851, 3221, 108, 3021, 308,
+    996, 2333, 991, 2338, 958, 2371, 1869, 1460, 1522, 1807, 1628, 1701,
 ];
-
 
 #[inline(always)]
 fn mod_add(a: u32, b: u32) -> u32 {
-    debug_assert!( a < Q );
-    debug_assert!( b < Q );
+    debug_assert!(a < Q);
+    debug_assert!(b < Q);
 
     // In the comments below, we manipulate unbounded integers.
     // res = (a + b) - Q
     let res = (a + b).wrapping_sub(Q); // -Q <= res < Q
-    debug_assert!( ((res >> 16) == 0) || ((res >> 16) == 0xffff) );
+    debug_assert!(((res >> 16) == 0) || ((res >> 16) == 0xffff));
     // If res < 0, then: Q & (res >> 16) = Q
     // Otherwise: Q & (res >> 16) = 0
     let res = res.wrapping_add(Q & (res >> 16));
-    debug_assert!( res < Q );
+    debug_assert!(res < Q);
 
     res
 }
@@ -244,39 +209,39 @@ fn mod_sub(a: u32, b: u32) -> u32 {
     // - when we want to substract to field elements which are < Q
     // - when we performed an addition and want to substract Q so
     //   that the result is < Q
-    debug_assert!( a < 2*Q );
-    debug_assert!( b <= Q );
+    debug_assert!(a < 2 * Q);
+    debug_assert!(b <= Q);
 
     // In the comments below, we manipulate unbounded integers.
     // res = a - b
     let res = a.wrapping_sub(b); // -Q <= res < 2 * Q
-    debug_assert!( ((res >> 16) == 0) || ((res >> 16) == 0xffff) );
+    debug_assert!(((res >> 16) == 0) || ((res >> 16) == 0xffff));
     // If res < 0, then: Q & (res >> 16) = Q
     // Otherwise: Q & (res >> 16) = 0
     let res = res.wrapping_add(Q & (res >> 16));
     // 0 <= res < 2 * Q
-    debug_assert!( res < Q ); // SH: how do we justify this given the bound: a < 2*Q?
-    // SH: I believe it depends on the situation: we may have to prove several
-    // auxiliary lemmas for this (there are situations where we call this function
-    // with a < Q for instance).
+    debug_assert!(res < Q); // SH: how do we justify this given the bound: a < 2*Q?
+                            // SH: I believe it depends on the situation: we may have to prove several
+                            // auxiliary lemmas for this (there are situations where we call this function
+                            // with a < Q for instance).
 
     res
 }
 
 #[inline(always)]
 fn mont_mul(a: u32, b: u32, b_mont: u32) -> u32 {
-    debug_assert!( a < Q );
-    debug_assert!( b < Q );
-    debug_assert!( b_mont <= RMASK );
-    debug_assert!( b_mont == ((b * NEG_Q_INV_MOD_R) & RMASK) );
+    debug_assert!(a < Q);
+    debug_assert!(b < Q);
+    debug_assert!(b_mont <= RMASK);
+    debug_assert!(b_mont == ((b * NEG_Q_INV_MOD_R) & RMASK));
 
     let mut res = a * b;
     let inv = (a * b_mont) & RMASK;
     res += inv * Q;
-    debug_assert!( (res & RMASK) == 0 );
+    debug_assert!((res & RMASK) == 0);
     res >>= RLOG2;
 
-    mod_sub( res, Q )
+    mod_sub(res, Q)
 }
 
 fn poly_element_ntt_layer_c(pe_src: &mut PolyElement, mut k: usize, len: usize) {
@@ -348,10 +313,10 @@ fn poly_element_intt_layer(pe_src: &mut PolyElement, k: usize, len: usize) {
 }
 
 fn poly_element_mul_and_accumulate(
-    pe_src1: & PolyElement,
-    pe_src2: & PolyElement,
-    pa_dst: &mut PolyElementAccumulator )
-{
+    pe_src1: &PolyElement,
+    pe_src2: &PolyElement,
+    pa_dst: &mut PolyElementAccumulator,
+) {
     // FIXME
     c_for!(let mut i = 0; i < MLWE_POLYNOMIAL_COEFFICIENTS / 2; i += 1; {
         let a0: u32 = pe_src1[2*i].into();
@@ -406,11 +371,10 @@ fn poly_element_mul_and_accumulate(
     });
 }
 
-fn
-montgomery_reduce_and_add_poly_element_accumulator_to_poly_element(
+fn montgomery_reduce_and_add_poly_element_accumulator_to_poly_element(
     pa_src: &mut PolyElementAccumulator,
-    pe_dst: &mut PolyElement)
-{
+    pe_dst: &mut PolyElement,
+) {
     // FIXME
     c_for!(let mut i = 0; i < MLWE_POLYNOMIAL_COEFFICIENTS; i += 1; {
         let mut a = pa_src[i];
@@ -441,10 +405,7 @@ montgomery_reduce_and_add_poly_element_accumulator_to_poly_element(
     });
 }
 
-fn poly_element_mul_r(
-    pe_src: & PolyElement,
-    pe_dst: &mut PolyElement)
-{
+fn poly_element_mul_r(pe_src: &PolyElement, pe_dst: &mut PolyElement) {
     // FIXME
     c_for!(let mut i = 0; i < MLWE_POLYNOMIAL_COEFFICIENTS; i += 1;
     {
@@ -453,12 +414,11 @@ fn poly_element_mul_r(
     });
 }
 
-pub(crate)
-fn poly_element_add(
-    pe_src1: & PolyElement,
-    pe_src2: & PolyElement,
-    pe_dst: & mut PolyElement )
-{
+pub(crate) fn poly_element_add(
+    pe_src1: &PolyElement,
+    pe_src2: &PolyElement,
+    pe_dst: &mut PolyElement,
+) {
     // FIXME
     c_for!(let mut i = 0; i < MLWE_POLYNOMIAL_COEFFICIENTS; i += 1;
     {
@@ -466,28 +426,25 @@ fn poly_element_add(
     });
 }
 
-pub(crate)
-fn poly_element_sub(
-    pe_src1: & PolyElement,
-    pe_src2: & PolyElement,
-    pe_dst : & mut PolyElement)
-{
+pub(crate) fn poly_element_sub(
+    pe_src1: &PolyElement,
+    pe_src2: &PolyElement,
+    pe_dst: &mut PolyElement,
+) {
     c_for!(let mut i = 0; i < MLWE_POLYNOMIAL_COEFFICIENTS; i += 1;
     {
         pe_dst[i] = mod_sub( pe_src1[i].into(), pe_src2[i].into() ) as u16;
     });
 }
 
-fn poly_element_ntt(
-    pe_src: &mut PolyElement )
-{
-    poly_element_ntt_layer( pe_src,  1, 128 );
-    poly_element_ntt_layer( pe_src,  2,  64 );
-    poly_element_ntt_layer( pe_src,  4,  32 );
-    poly_element_ntt_layer( pe_src,  8,  16 );
-    poly_element_ntt_layer( pe_src, 16,   8 );
-    poly_element_ntt_layer( pe_src, 32,   4 );
-    poly_element_ntt_layer( pe_src, 64,   2 );
+fn poly_element_ntt(pe_src: &mut PolyElement) {
+    poly_element_ntt_layer(pe_src, 1, 128);
+    poly_element_ntt_layer(pe_src, 2, 64);
+    poly_element_ntt_layer(pe_src, 4, 32);
+    poly_element_ntt_layer(pe_src, 8, 16);
+    poly_element_ntt_layer(pe_src, 16, 8);
+    poly_element_ntt_layer(pe_src, 32, 4);
+    poly_element_ntt_layer(pe_src, 64, 2);
 }
 
 // INTTFixupTimesRsqr = R^2 * 3303 = (3303<<32) mod Q
@@ -496,17 +453,14 @@ fn poly_element_ntt(
 const INTT_FIXUP_TIMES_RSQR: u32 = 1441;
 const INTT_FIXUP_TIMES_RSQR_TIMES_NEQ_Q_INV_MOD_R: u32 = 10079;
 
-pub(crate)
-fn poly_element_intt_and_mul_r(
-    pe_src: &mut PolyElement )
-{
-    poly_element_intt_layer( pe_src, 127,   2 );
-    poly_element_intt_layer( pe_src,  63,   4 );
-    poly_element_intt_layer( pe_src,  31,   8 );
-    poly_element_intt_layer( pe_src,  15,  16 );
-    poly_element_intt_layer( pe_src,   7,  32 );
-    poly_element_intt_layer( pe_src,   3,  64 );
-    poly_element_intt_layer( pe_src,   1, 128 );
+pub(crate) fn poly_element_intt_and_mul_r(pe_src: &mut PolyElement) {
+    poly_element_intt_layer(pe_src, 127, 2);
+    poly_element_intt_layer(pe_src, 63, 4);
+    poly_element_intt_layer(pe_src, 31, 8);
+    poly_element_intt_layer(pe_src, 15, 16);
+    poly_element_intt_layer(pe_src, 7, 32);
+    poly_element_intt_layer(pe_src, 3, 64);
+    poly_element_intt_layer(pe_src, 1, 128);
 
     c_for!(let mut i = 0; i < MLWE_POLYNOMIAL_COEFFICIENTS; i += 1;
     {
@@ -526,22 +480,26 @@ const COMPRESS_SHIFTCONSTANT: u32 = 35;
 
 // FIXME: can't use std::cmp::min due to required vs provided methods, tracked via https://github.com/AeneasVerif/charon/issues/180
 // use std::cmp::min;
-fn min(x: u32, y: u32) -> u32 { if x <= y { x } else { y } }
+fn min(x: u32, y: u32) -> u32 {
+    if x <= y {
+        x
+    } else {
+        y
+    }
+}
 
-pub(crate)
-fn
-poly_element_compress_and_encode(
-    pe_src: & PolyElement,
+pub(crate) fn poly_element_compress_and_encode(
+    pe_src: &PolyElement,
     n_bits_per_coefficient: u32,
     // _Out_writes_bytes_(n_bits_per_coefficient*(MLWE_POLYNOMIAL_COEFFICIENTS / 8))
-    pb_dst: &mut [u8] )
-{
+    pb_dst: &mut [u8],
+) {
     let mut cb_dst_written: usize = 0;
     let mut accumulator: u32 = 0;
     let mut n_bits_in_accumulator: u32 = 0;
 
-    debug_assert!( n_bits_per_coefficient >  0  );
-    debug_assert!( n_bits_per_coefficient <= 12 );
+    debug_assert!(n_bits_per_coefficient > 0);
+    debug_assert!(n_bits_per_coefficient <= 12);
 
     c_for!(let mut i = 0; i < MLWE_POLYNOMIAL_COEFFICIENTS; i += 1;
     {
@@ -598,31 +556,31 @@ poly_element_compress_and_encode(
     });
 
     debug_assert!(n_bits_in_accumulator == 0);
-    debug_assert!(cb_dst_written == (n_bits_per_coefficient*(MLWE_POLYNOMIAL_COEFFICIENTS as u32 / 8)) as usize);
+    debug_assert!(
+        cb_dst_written
+            == (n_bits_per_coefficient * (MLWE_POLYNOMIAL_COEFFICIENTS as u32 / 8)) as usize
+    );
 }
 
 // FIXME:
 #[inline(always)]
 #[charon::opaque]
-fn slice_to_sub_array<const N : usize>(s: &[u8], i: usize) -> [u8; N] {
-    s[i..i+N].try_into().unwrap()
+fn slice_to_sub_array<const N: usize>(s: &[u8], i: usize) -> [u8; N] {
+    s[i..i + N].try_into().unwrap()
 }
 
-
-pub(crate)
-fn
-poly_element_decode_and_decompress(
+pub(crate) fn poly_element_decode_and_decompress(
     // _In_reads_bytes_(n_bits_per_coefficient*(MLWE_POLYNOMIAL_COEFFICIENTS / 8))
     pb_src: &[u8],
     n_bits_per_coefficient: u32,
-    pe_dst: &mut PolyElement ) -> Error
-{
+    pe_dst: &mut PolyElement,
+) -> Error {
     let mut cb_src_read: usize = 0;
     let mut accumulator: u32 = 0;
     let mut n_bits_in_accumulator: u32 = 0;
 
-    debug_assert!( n_bits_per_coefficient >  0  );
-    debug_assert!( n_bits_per_coefficient <= 12 );
+    debug_assert!(n_bits_per_coefficient > 0);
+    debug_assert!(n_bits_per_coefficient <= 12);
 
     // FIXME
     c_for!(let mut i = 0; i < MLWE_POLYNOMIAL_COEFFICIENTS; i += 1;
@@ -694,57 +652,58 @@ poly_element_decode_and_decompress(
     });
 
     debug_assert!(n_bits_in_accumulator == 0);
-    debug_assert!(cb_src_read == (n_bits_per_coefficient*(MLWE_POLYNOMIAL_COEFFICIENTS as u32 / 8)) as usize);
+    debug_assert!(
+        cb_src_read
+            == (n_bits_per_coefficient * (MLWE_POLYNOMIAL_COEFFICIENTS as u32 / 8)) as usize
+    );
 
     Error::NoError
 }
 
-pub(crate)
-fn poly_element_sample_ntt_from_shake128(
+pub(crate) fn poly_element_sample_ntt_from_shake128(
     p_state: &mut crate::hash::HashState,
-    pe_dst: &mut PolyElement )
-{
+    pe_dst: &mut PolyElement,
+) {
     let mut i: usize = 0;
-    let mut shake_output_buf = [0u8; 3*8]; // Keccak likes extracting multiples of 8-bytes
+    let mut shake_output_buf = [0u8; 3 * 8]; // Keccak likes extracting multiples of 8-bytes
     let mut curr_buf_index: usize = shake_output_buf.len();
 
-    while i<MLWE_POLYNOMIAL_COEFFICIENTS
-    {
+    while i < MLWE_POLYNOMIAL_COEFFICIENTS {
         debug_assert!(curr_buf_index <= shake_output_buf.len());
-        if curr_buf_index == shake_output_buf.len()
-        {
+        if curr_buf_index == shake_output_buf.len() {
             // Note (Rust): shakeOutputBuf[..] seems unnecessary and trips Eurydice (FIXME, see #14)
             crate::hash::shake128_extract(p_state, &mut shake_output_buf, false);
             curr_buf_index = 0;
         }
 
-        let sample0 = u16::from_le_bytes(slice_to_sub_array::<2>(&shake_output_buf, curr_buf_index)) & 0xfff;
+        let sample0 =
+            u16::from_le_bytes(slice_to_sub_array::<2>(&shake_output_buf, curr_buf_index)) & 0xfff;
         // TODO: Aeneas crashes if we comment the code below this line
-        let sample1 = u16::from_le_bytes(slice_to_sub_array::<2>(&shake_output_buf, curr_buf_index+1)) >> 4;
+        let sample1 = u16::from_le_bytes(slice_to_sub_array::<2>(
+            &shake_output_buf,
+            curr_buf_index + 1,
+        )) >> 4;
         curr_buf_index += 3;
 
         pe_dst[i] = sample0;
         i += ((sample0 as u32) < Q) as usize;
 
-        if i<MLWE_POLYNOMIAL_COEFFICIENTS
-        {
+        if i < MLWE_POLYNOMIAL_COEFFICIENTS {
             pe_dst[i] = sample1;
             i += ((sample1 as u32) < Q) as usize;
         }
     }
 }
 
-pub(crate)
-fn poly_element_sample_cbd_from_bytes(
+pub(crate) fn poly_element_sample_cbd_from_bytes(
     pb_src: &[u8],
     eta: u32,
-    pe_dst: &mut PolyElement)
-{
+    pe_dst: &mut PolyElement,
+) {
     // Note (Rust): using an index rather than incrementing pb_src in place.
     let mut src_i = 0usize;
     debug_assert!((eta == 2) || (eta == 3));
-    if eta == 3
-    {
+    if eta == 3 {
         c_for!(let mut i = 0; i < MLWE_POLYNOMIAL_COEFFICIENTS; i += 4;
         {
             // unconditionally load 4 bytes into sample_bits, but only treat the load
@@ -775,9 +734,7 @@ fn poly_element_sample_cbd_from_bytes(
             }
             then_inner_loop(pe_dst, i, &mut sample_bits);
         });
-    }
-    else
-    {
+    } else {
         c_for!(let mut i = 0; i < MLWE_POLYNOMIAL_COEFFICIENTS; i += 8;
         {
             // unconditionally load 4 bytes (32-bits -> 8 coefficients) into sample_bits
@@ -809,14 +766,10 @@ fn poly_element_sample_cbd_from_bytes(
     }
 }
 
-pub(crate)
-fn matrix_transpose(
-    pm_src: &mut Matrix,
-    n_rows: u8)
-{
+pub(crate) fn matrix_transpose(pm_src: &mut Matrix, n_rows: u8) {
     let n_rows = n_rows as usize;
-    debug_assert!( n_rows >  0 );
-    debug_assert!( n_rows <= MATRIX_MAX_NROWS );
+    debug_assert!(n_rows > 0);
+    debug_assert!(n_rows <= MATRIX_MAX_NROWS);
 
     c_for!(let mut i = 0; i < n_rows; i += 1;
     {
@@ -835,32 +788,29 @@ fn matrix_transpose(
 #[inline(always)]
 fn poly_element_mul_and_accumulate_aux<'a>(
     pm_src1: &mut Matrix,
-    n_rows : usize,
+    n_rows: usize,
     i: usize,
-    j : usize,
+    j: usize,
     pe_src2: &PolyElement,
-    pa_tmp: &mut PolyElementAccumulator)
-{
-    let src1 : &PolyElement = &pm_src1[(i*n_rows) + j];
-    poly_element_mul_and_accumulate(src1, pe_src2, pa_tmp );
+    pa_tmp: &mut PolyElementAccumulator,
+) {
+    let src1: &PolyElement = &pm_src1[(i * n_rows) + j];
+    poly_element_mul_and_accumulate(src1, pe_src2, pa_tmp);
 }
 
-pub(crate)
-fn
-matrix_vector_mont_mul_and_add(
+pub(crate) fn matrix_vector_mont_mul_and_add(
     pm_src1: &mut Matrix,
     pv_src2: &Vector,
     pv_dst: &mut Vector,
     pa_tmp: &mut PolyElementAccumulator,
-    n_rows: u8
-)
-{
+    n_rows: u8,
+) {
     let n_rows = n_rows as usize;
 
-    debug_assert!( n_rows >  0 );
-    debug_assert!( n_rows <= MATRIX_MAX_NROWS );
-    assert_eq!( pv_src2.len(), n_rows );
-    assert_eq!( pv_dst.len() ,n_rows );
+    debug_assert!(n_rows > 0);
+    debug_assert!(n_rows <= MATRIX_MAX_NROWS);
+    assert_eq!(pv_src2.len(), n_rows);
+    assert_eq!(pv_dst.len(), n_rows);
 
     // Zero pa_tmp
     pa_tmp.zeroize();
@@ -886,19 +836,17 @@ matrix_vector_mont_mul_and_add(
     });
 }
 
-pub(crate)
-fn
-vector_mont_dot_product(
+pub(crate) fn vector_mont_dot_product(
     pv_src1: &mut Vector,
     pv_src2: &mut Vector,
     pe_dst: &mut PolyElement,
-    pa_tmp: &mut PolyElementAccumulator )
-{
+    pa_tmp: &mut PolyElementAccumulator,
+) {
     let n_rows = pv_src1.len();
 
-    debug_assert!( n_rows >  0 );
-    debug_assert!( n_rows <= MATRIX_MAX_NROWS );
-    debug_assert!( pv_src2.len() == n_rows );
+    debug_assert!(n_rows > 0);
+    debug_assert!(n_rows <= MATRIX_MAX_NROWS);
+    debug_assert!(pv_src2.len() == n_rows);
 
     // Zero pa_tmp and pe_dst
     pa_tmp.zeroize();
@@ -910,35 +858,26 @@ vector_mont_dot_product(
     });
 
     // write accumulator to dest and zero accumulator
-    montgomery_reduce_and_add_poly_element_accumulator_to_poly_element( pa_tmp, pe_dst );
+    montgomery_reduce_and_add_poly_element_accumulator_to_poly_element(pa_tmp, pe_dst);
 }
 
-fn
-vector_set_zero(
-    pv_src: &mut Vector
-)
-{
+fn vector_set_zero(pv_src: &mut Vector) {
     let n_rows = pv_src.len();
 
-    debug_assert!( n_rows >  0 );
-    debug_assert!( n_rows <= MATRIX_MAX_NROWS );
+    debug_assert!(n_rows > 0);
+    debug_assert!(n_rows <= MATRIX_MAX_NROWS);
 
     c_for!(let mut i = 0; i < n_rows; i += 1; {
         pv_src[i].zeroize();
     });
 }
 
-pub(crate)
-fn
-vector_mul_r(
-    pv_src: & Vector,
-    pv_dst: &mut Vector )
-{
+pub(crate) fn vector_mul_r(pv_src: &Vector, pv_dst: &mut Vector) {
     let n_rows = pv_src.len();
 
-    debug_assert!( n_rows >  0 );
-    debug_assert!( n_rows <= MATRIX_MAX_NROWS );
-    debug_assert!( pv_dst.len() == n_rows );
+    debug_assert!(n_rows > 0);
+    debug_assert!(n_rows <= MATRIX_MAX_NROWS);
+    debug_assert!(pv_dst.len() == n_rows);
 
     c_for!(let mut i = 0; i < n_rows; i += 1;
     {
@@ -946,18 +885,13 @@ vector_mul_r(
     });
 }
 
-fn
-vector_add(
-    pv_src1: &Vector,
-    pv_src2: &Vector,
-    pv_dst: &mut Vector )
-{
+fn vector_add(pv_src1: &Vector, pv_src2: &Vector, pv_dst: &mut Vector) {
     let n_rows = pv_src1.len();
 
-    debug_assert!( n_rows >  0 );
-    debug_assert!( n_rows <= MATRIX_MAX_NROWS );
-    debug_assert!( pv_src2.len() == n_rows );
-    debug_assert!( pv_dst.len() == n_rows );
+    debug_assert!(n_rows > 0);
+    debug_assert!(n_rows <= MATRIX_MAX_NROWS);
+    debug_assert!(pv_src2.len() == n_rows);
+    debug_assert!(pv_dst.len() == n_rows);
 
     c_for!(let mut i = 0; i < n_rows; i += 1;
     {
@@ -965,18 +899,13 @@ vector_add(
     });
 }
 
-fn
-vector_sub(
-    pv_src1: &Vector,
-    pv_src2: &Vector,
-    pv_dst: &mut Vector )
-{
+fn vector_sub(pv_src1: &Vector, pv_src2: &Vector, pv_dst: &mut Vector) {
     let n_rows = pv_src1.len();
 
-    debug_assert!( n_rows >  0 );
-    debug_assert!( n_rows <= MATRIX_MAX_NROWS );
-    debug_assert!( pv_src2.len() == n_rows );
-    debug_assert!( pv_dst.len() == n_rows );
+    debug_assert!(n_rows > 0);
+    debug_assert!(n_rows <= MATRIX_MAX_NROWS);
+    debug_assert!(pv_src2.len() == n_rows);
+    debug_assert!(pv_dst.len() == n_rows);
 
     c_for!(let mut i = 0; i < n_rows; i += 1;
     {
@@ -984,15 +913,11 @@ vector_sub(
     });
 }
 
-pub(crate)
-fn
-vector_ntt(
-    pv_src: &mut Vector )
-{
+pub(crate) fn vector_ntt(pv_src: &mut Vector) {
     let n_rows = pv_src.len();
 
-    debug_assert!( n_rows >  0 );
-    debug_assert!( n_rows <= MATRIX_MAX_NROWS );
+    debug_assert!(n_rows > 0);
+    debug_assert!(n_rows <= MATRIX_MAX_NROWS);
 
     c_for!(let mut i = 0; i < n_rows; i += 1;
     {
@@ -1000,15 +925,11 @@ vector_ntt(
     });
 }
 
-pub(crate)
-fn
-vector_intt_and_mul_r(
-    pv_src: &mut Vector )
-{
+pub(crate) fn vector_intt_and_mul_r(pv_src: &mut Vector) {
     let n_rows = pv_src.len();
 
-    debug_assert!( n_rows >  0 );
-    debug_assert!( n_rows <= MATRIX_MAX_NROWS );
+    debug_assert!(n_rows > 0);
+    debug_assert!(n_rows <= MATRIX_MAX_NROWS);
 
     c_for!(let mut i = 0; i < n_rows; i += 1;
     {
@@ -1016,20 +937,22 @@ vector_intt_and_mul_r(
     });
 }
 
-pub(crate)
-fn
-vector_compress_and_encode(
+pub(crate) fn vector_compress_and_encode(
     pv_src: &Vector,
     n_bits_per_coefficient: u32,
-    pb_dst: &mut[u8])
-{
+    pb_dst: &mut [u8],
+) {
     let n_rows = pv_src.len();
 
-    debug_assert!( n_rows >  0 );
-    debug_assert!( n_rows <= MATRIX_MAX_NROWS );
-    debug_assert!( n_bits_per_coefficient >  0  );
-    debug_assert!( n_bits_per_coefficient <= 12 );
-    debug_assert!( pb_dst.len() == n_rows*((n_bits_per_coefficient*(MLWE_POLYNOMIAL_COEFFICIENTS as u32 / 8)) as usize) );
+    debug_assert!(n_rows > 0);
+    debug_assert!(n_rows <= MATRIX_MAX_NROWS);
+    debug_assert!(n_bits_per_coefficient > 0);
+    debug_assert!(n_bits_per_coefficient <= 12);
+    debug_assert!(
+        pb_dst.len()
+            == n_rows
+                * ((n_bits_per_coefficient * (MLWE_POLYNOMIAL_COEFFICIENTS as u32 / 8)) as usize)
+    );
 
     c_for!(let mut i = 0; i < n_rows; i += 1;
     {
@@ -1040,24 +963,25 @@ vector_compress_and_encode(
     });
 }
 
-pub(crate)
-fn
-vector_decode_and_decompress(
+pub(crate) fn vector_decode_and_decompress(
     pb_src: &[u8],
     n_bits_per_coefficient: u32,
-    pv_dst: &mut Vector ) -> Error
-{
+    pv_dst: &mut Vector,
+) -> Error {
     let n_rows = pv_dst.len();
 
-    debug_assert!( n_rows >  0 );
-    debug_assert!( n_rows <= MATRIX_MAX_NROWS );
-    debug_assert!( n_bits_per_coefficient >  0  );
-    debug_assert!( n_bits_per_coefficient <= 12 );
-    debug_assert!( pb_src.len() == n_rows*(n_bits_per_coefficient as usize)*(MLWE_POLYNOMIAL_COEFFICIENTS / 8) );
+    debug_assert!(n_rows > 0);
+    debug_assert!(n_rows <= MATRIX_MAX_NROWS);
+    debug_assert!(n_bits_per_coefficient > 0);
+    debug_assert!(n_bits_per_coefficient <= 12);
+    debug_assert!(
+        pb_src.len()
+            == n_rows * (n_bits_per_coefficient as usize) * (MLWE_POLYNOMIAL_COEFFICIENTS / 8)
+    );
 
     c_for!(let mut i = 0; i < n_rows; i += 1;
     {
-        let pb_src_index = i * (n_bits_per_coefficient as usize)*(MLWE_POLYNOMIAL_COEFFICIENTS / 8); 
+        let pb_src_index = i * (n_bits_per_coefficient as usize)*(MLWE_POLYNOMIAL_COEFFICIENTS / 8);
         let sc_error = poly_element_decode_and_decompress( &pb_src[pb_src_index..], n_bits_per_coefficient, &mut pv_dst[i] );
         match sc_error { Error::NoError => (), _ => return sc_error };
     });

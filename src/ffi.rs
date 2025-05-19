@@ -83,10 +83,7 @@ pub extern "C" fn SymCryptMlKemSizeofKeyFormatFromParams(
     format: CFormat,
     sz: &mut size_t,
 ) -> Error {
-    *sz = crate::mlkem::sizeof_key_format_from_params(
-        params.try_into()?,
-        format.try_into()?,
-    );
+    *sz = crate::mlkem::sizeof_key_format_from_params(params.try_into()?, format.try_into()?);
     Error::NoError
 }
 
@@ -150,7 +147,8 @@ pub extern "C" fn SymCryptMlKemEncapsulate(
     cb_ciphertext: size_t,
 ) -> Error {
     let mut k = unsafe { Box::from_raw(k) };
-    let agreed_secret = unsafe { std::slice::from_raw_parts_mut(pb_agreed_secret, cb_agreed_secret) };
+    let agreed_secret =
+        unsafe { std::slice::from_raw_parts_mut(pb_agreed_secret, cb_agreed_secret) };
     let ciphertext = unsafe { std::slice::from_raw_parts_mut(pb_ciphertext, cb_ciphertext) };
     let r = crate::mlkem::encapsulate(&mut (*k), agreed_secret, ciphertext);
     // Note: we probably (check) need this to prevent Drop from being called.
@@ -170,7 +168,8 @@ pub extern "C" fn SymCryptMlKemEncapsulateEx(
 ) -> Error {
     let mut k = unsafe { Box::from_raw(k) };
     let random = unsafe { std::slice::from_raw_parts_mut(pb_random, cb_random) };
-    let agreed_secret = unsafe { std::slice::from_raw_parts_mut(pb_agreed_secret, cb_agreed_secret) };
+    let agreed_secret =
+        unsafe { std::slice::from_raw_parts_mut(pb_agreed_secret, cb_agreed_secret) };
     let ciphertext = unsafe { std::slice::from_raw_parts_mut(pb_ciphertext, cb_ciphertext) };
     let r = crate::mlkem::encapsulate_ex(&mut (*k), random, agreed_secret, ciphertext);
     // Note: we probably (check) need this to prevent Drop from being called.
@@ -187,7 +186,8 @@ pub extern "C" fn SymCryptMlKemDecapsulate(
     cb_agreed_secret: size_t,
 ) -> Error {
     let mut k = unsafe { Box::from_raw(k) };
-    let agreed_secret = unsafe { std::slice::from_raw_parts_mut(pb_agreed_secret, cb_agreed_secret) };
+    let agreed_secret =
+        unsafe { std::slice::from_raw_parts_mut(pb_agreed_secret, cb_agreed_secret) };
     let ciphertext = unsafe { std::slice::from_raw_parts(pb_ciphertext, cb_ciphertext) };
     let r = crate::mlkem::decapsulate(&mut (*k), ciphertext, agreed_secret);
     // Note: we probably (check) need this to prevent Drop from being called.
