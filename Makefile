@@ -28,7 +28,7 @@ Symcrust/Symcrust.lean: symcrust.llbc
 # Alternatively, this could be marked as a phony target, since cargo (and hence
 # charon) can skip recompilations if the sources have not changed.
 symcrust.llbc: $(wildcard */*.rs)
-	$(CHARON_EXE) --hide-marker-traits --exclude=core::fmt::Debug::fmt --opaque=core::fmt::Formatter
+	RUSTFLAGS="--cfg eurydice" $(CHARON_EXE) --hide-marker-traits --exclude=core::fmt::Debug::fmt --opaque=core::fmt::Formatter
 
 # 3. Transpiling to C via eurydice
 # --------------------------------
