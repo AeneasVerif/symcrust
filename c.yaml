@@ -1,0 +1,20 @@
+files:
+  - name: symcrust_common
+    private:
+      - [ symcrust, common, "*" ]
+      - [ core, "*" ]
+      - [ Eurydice, "*" ]
+
+  - name: symcrust_hash
+    library: true
+    include_in_h:
+      - '"hash_shims.h"'
+    private:
+      - [ symcrust, hash, "*" ]
+
+  - name: symcrust_mlkem
+    api:
+      - [ symcrust, mlkem, "*" ]
+      - [ symcrust, key, "*" ]
+    private:
+      - [ symcrust, "*" ]
