@@ -13,9 +13,11 @@ You need SymCrypt: https://github.com/microsoft/SymCrypt.
 Then, you need to set up a few environment variables.
 
 ```
-export SYMCRYPT_LIB_PATH=path/to/SymCrypt/build/module/generic
-export DYLD_LIBRARY_PATH=path/to/SymCrypt/build/module/generic:$DYLD_LIBRARY_PATH
+export SYMCRYPT_INC_PATH=path/to/SymCrypt/inc
+export SYMCRYPT_LIB_PATH=path/to/SymCrypt/dynamic/module
 ```
+
+(change `DYLD_LIBRARY_PATH` to `LD_LIBRARY_PATH` on Linux, or `PATH` on Windows)
 
 Then, you should be able to run:
 

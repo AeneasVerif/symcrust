@@ -27,7 +27,7 @@ extract: symcrust-aeneas.llbc proofs/Symcrust/Code/Funs.lean proofs/Symcrust/Cod
 # Alternatively, this could be marked as a phony target, since cargo (and hence
 # charon) can skip recompilations if the sources have not changed.
 symcrust.llbc: $(wildcard */*.rs)
-	$(CHARON_EXE) --hide-marker-traits --exclude=core::fmt::Debug::fmt --opaque=core::fmt::Formatter --remove-associated-types='*'
+	RUSTFLAGS="--cfg eurydice" $(CHARON_EXE) --hide-marker-traits --exclude=core::fmt::Debug::fmt --opaque=core::fmt::Formatter
 
 symcrust-aeneas.llbc: $(wildcard */*.rs)
 	$(CHARON_EXE) --hide-marker-traits --exclude=core::fmt::Debug::fmt --opaque=core::fmt::Formatter --remove-associated-types='*' \
@@ -56,7 +56,6 @@ symcrust-aeneas.llbc: $(wildcard */*.rs)
 # TODO: `DiscriminantKind` should be eliminated by Charon
 # TODO: why does `core::fmt::Arguments` appear in the crate?
 # TODO: having to include `Clone::clone_from` is annoying
-
 
 # 3. Transpiling to C via eurydice
 # --------------------------------

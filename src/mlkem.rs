@@ -4,8 +4,6 @@
 // Copyright (c) Microsoft Corporation. Licensed under the MIT license.
 //
 
-use zeroize::Zeroize;
-
 use crate::common::*;
 use crate::key::*;
 use crate::ntt::*;
@@ -66,13 +64,13 @@ pub fn sizeof_ciphertext_from_params(params: Params) -> usize {
     // v polynomial encoded with n_bits_of_v * MLWE_POLYNOMIAL_COEFFICIENTS bits
     let cb_v = (internal_params.n_bits_of_v as usize) * (MLWE_POLYNOMIAL_COEFFICIENTS / 8);
 
-    assert!(
+    debug_assert!(
         (internal_params.params != Params::MlKem512) || ((cb_u + cb_v) == CIPHERTEXT_SIZE_MLKEM512)
     );
-    assert!(
+    debug_assert!(
         (internal_params.params != Params::MlKem768) || ((cb_u + cb_v) == CIPHERTEXT_SIZE_MLKEM768)
     );
-    assert!(
+    debug_assert!(
         (internal_params.params != Params::MlKem1024) || ((cb_u + cb_v) == CIPHERTEXT_SIZE_MLKEM1024)
     );
 
@@ -135,8 +133,8 @@ fn key_expand_from_private_seed(
     // const UINT32 cbPolyElement = pk_mlkem_key->params.cbPolyElement;
     // const UINT32 cb_vector = pk_mlkem_key->params.cb_vector;
 
-    assert!(pk_mlkem_key.has_private_seed);
-    assert!((n_eta1 == 2) || (n_eta1 == 3));
+    debug_assert!(pk_mlkem_key.has_private_seed);
+    debug_assert!((n_eta1 == 2) || (n_eta1 == 3));
 
     // Note(Rust): there's a whole lot of NULL-checking going on in C, which presumably does not
     // happen here -- the checks for NULL in the C code seem to be unreachable, because at the
@@ -222,8 +220,8 @@ fn key_expand_from_private_seed(
     key_compute_encapsulation_key_hash(pk_mlkem_key, p_comp_temps);
 
     // Cleanup!
-    private_seed_hash.zeroize();
-    cbd_sample_buffer.zeroize();
+    crate::common::wipe_slice( &mut private_seed_hash );
+    crate::common::wipe_slice( &mut cbd_sample_buffer );
 }
 
 //=====================================================
@@ -426,7 +424,7 @@ pub fn key_set_value(
     //     goto cleanup;
     // }
 
-    assert!(pb_curr == pb_src.len());
+    debug_assert!(pb_curr == pb_src.len());
 
     Error::NoError
     // cleanup:
@@ -530,7 +528,7 @@ pub fn key_get_value(
           // }
     };
 
-    assert!(pb_curr == pb_dst.len());
+    debug_assert!(pb_curr == pb_dst.len());
 
     // cleanup:
     //     return sc_error;
@@ -629,7 +627,7 @@ fn encapsulate_internal(
     crate::hash::sha3_512_append(&mut p_comp_temps.hash_state0, pb_random);
     crate::hash::sha3_512_append(&mut p_comp_temps.hash_state0, &pk_mlkem_key.encaps_key_hash);
     // Note (Rust): should we have a type that is less strict for the output of sha3_512_result?
-    // Note (Rust): no assert!(SIZEOF_AGREED_SECRET < SHA3_512_RESULT_SIZE)?
+    // Note (Rust): no debug_assert!(SIZEOF_AGREED_SECRET < SHA3_512_RESULT_SIZE)?
     crate::hash::sha3_512_result(
         &mut p_comp_temps.hash_state0,
         (&mut cbd_sample_buffer[0..crate::hash::SHA3_512_RESULT_SIZE])
@@ -665,7 +663,8 @@ fn encapsulate_internal(
 
     // Set pv_tmp to 0
     // TODO: write a helper function -- any way to do this better?
-    pv_tmp.copy_from_slice(&vec![POLYELEMENT_ZERO; n_rows as usize].into_boxed_slice());
+    vector_set_zero( pv_tmp );
+    // pv_tmp.copy_from_slice(&vec![POLYELEMENT_ZERO; n_rows as usize].into_boxed_slice());
     // VectorSetZero( pv_tmp );
 
     // pv_tmp = (Atranspose o rInner) ./ R
@@ -884,7 +883,7 @@ pub fn decapsulate(
     // Decode and decompress u
     let sc_error =
         vector_decode_and_decompress(&mut pb_read_ciphertext[0..cb_u], n_bits_of_u as u32, pvu);
-    assert!(sc_error == Error::NoError);
+    debug_assert!(sc_error == Error::NoError);
 
     // Perform NTT on u
     vector_ntt(pvu);
@@ -901,7 +900,7 @@ pub fn decapsulate(
         n_bits_of_v as u32,
         pe_tmp1,
     );
-    assert!(sc_error == Error::NoError);
+    debug_assert!(sc_error == Error::NoError);
 
     // pe_tmp0 = w = v - INTT(s o NTT(u))
     // FIXME
@@ -921,7 +920,7 @@ pub fn decapsulate(
         &mut pb_decrypted_random,
         &mut p_comp_temps,
     );
-    assert!(sc_error == Error::NoError);
+    debug_assert!(sc_error == Error::NoError);
 
     // Compute the secret we will return if using implicit rejection
     // pbImplicitRejectionSecret = K_bar = SHAKE256( z || c )

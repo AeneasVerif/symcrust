@@ -121,12 +121,14 @@ pub(crate) struct InternalParams {
 // Note (Rust): again, allocation to be handled by the caller or the owner.
 // Note (Rust): to avoid a const-generic, the array of pointers to elements is possibly oversized
 #[allow(dead_code)]
+#[cfg(not(eurydice))]
 pub(crate) struct Matrix1 {
     pub(crate) n_rows: usize,
     pub(crate) ap_poly_elements: Box<[PolyElement]>,
 }
 
 #[allow(dead_code)]
+#[cfg(not(eurydice))]
 pub(crate) struct Key1 {
     pub(crate) f_algorithm_info: u32, // Tracks which algorithms the key can be used in
     // Also tracks which per-key selftests have been performed on this key
@@ -161,6 +163,7 @@ pub(crate) struct Key1 {
 }
 
 #[allow(dead_code)]
+#[cfg(not(eurydice))]
 impl Key1 {
     pub fn atranspose(&self) -> &[PolyElement] {
         &self.pm_a_transpose.ap_poly_elements
@@ -183,6 +186,7 @@ impl Key1 {
 }
 
 #[allow(dead_code)]
+#[cfg(not(eurydice))]
 fn key_allocate1(params: Params) -> Result<Box<Key1>, Error> {
     // Note (Rust): this function could previously fail. Now that we use an enum for the choice of
     // algorithm, match exhaustiveness checks obviate the need for an error code.
@@ -380,10 +384,12 @@ fn key_allocate2(params: Params) -> Result<Box<Key2>, Error> {
 // - writing accessors requires the use of a cast
 
 #[allow(dead_code)]
+#[cfg(not(eurydice))]
 pub(crate) type Key3 = PreKey2<[u64]>;
 
 #[allow(dead_code)]
 #[charon::opaque]
+#[cfg(not(eurydice))]
 impl Key3 {
     // FIXME OFFSET COMPUTATIONS INCORRECT HERE SEE KEY2, ABOVE
     pub fn atranspose(&self) -> &[PolyElement] {
