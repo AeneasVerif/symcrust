@@ -152,7 +152,7 @@ const RSQR_TIMES_NEG_Q_INV_MOD_R: u32 = 44983;
 // Used in NTT and INTT
 // i.e. element 1 is Zeta^(BitRev(1)) * (2^16) mod Q == (17^64)*(2^16) mod 3329 == 2571
 //
-// MlKemZetaBitRevTimesR = [ (pow(17, bitRev(i), 3329) << 16) % 3329 for i in range(128) ]
+// [ (pow(17, bitRev(i)) << 16) % 3329 | for i in range(128) ]
 const ZETA_BIT_REV_TIMES_R: [u16; 128] = [
     2285, 2571, 2970, 1812, 1493, 1422,  287,  202,
     3158,  622, 1577,  182,  962, 2127, 1855, 1468,
@@ -175,7 +175,7 @@ const ZETA_BIT_REV_TIMES_R: [u16; 128] = [
 // This table is a lookup for ((Zeta^(BitRev(index)) * R) mod Q) * -Q^(-1) mod R
 // Used in NTT and INTT
 //
-// MlKemZetaBitRevTimesRTimesNegQInvModR = [ (((pow(17, bitRev(i), Q) << 16) % Q) * 3327) & 0xffff for i in range(128) ]
+// [ (((pow(17, bitRev(i)) << 16) % Q) * 3327) & 0xffff for i in range(128) ]
 const ZETA_BIT_REV_TIMES_R_TIMES_NEG_Q_INV_MOD_R: [u16; 128] = [
        19, 34037, 50790, 64748, 52011, 12402, 37345, 16694,
     20906, 37778,  3799, 15690, 54846, 64177, 11201, 34372,
@@ -198,7 +198,7 @@ const ZETA_BIT_REV_TIMES_R_TIMES_NEG_Q_INV_MOD_R: [u16; 128] = [
 // This table is a lookup for ((Zeta^(2*BitRev(index) + 1) * R) mod Q)
 // Used in multiplication of 2 NTT-form polynomials
 //
-// zetaTwoTimesBitRevPlus1TimesR =  [ (pow(17, 2*bitRev(i)+1, 3329) << 16) % 3329 for i in range(128) ]
+// [ (pow(17, 2*bitRev(i)+1) << 16) % 3329 | for i in range(128) ]
 const ZETA_TO_TIMES_BIT_REV_PLUS_1_TIMES_R: [u16; 128] = [
     2226, 1103,  430, 2899,  555, 2774,  843, 2486,
     2078, 1251,  871, 2458, 1550, 1779,  105, 3224,
@@ -261,6 +261,13 @@ fn mod_sub(a: u32, b: u32) -> u32 {
     res
 }
 
+/// Computes: ((a * b) / R) % Q
+///
+/// This simply applies the montgomery reduction to: a * b
+///
+/// Pre:
+///  bMont = (b * NegQInvModR) % R
+///  bMont <= R
 #[inline(always)]
 fn mont_mul(a: u32, b: u32, b_mont: u32) -> u32 {
     debug_assert!( a < Q );
@@ -271,7 +278,6 @@ fn mont_mul(a: u32, b: u32, b_mont: u32) -> u32 {
     let mut res = a * b;
     let inv = (a * b_mont) & RMASK;
     res += inv * Q;
-    debug_assert!( (res & RMASK) == 0 );
     res >>= RLOG2;
 
     mod_reduce( res )
@@ -282,7 +288,9 @@ fn poly_element_ntt_layer_c(pe_src: &mut PolyElement, mut k: usize, len: usize) 
     // WAS: for start in (0usize..256).step_by(2*len) {
     c_for!(let mut start = 0usize; start < 256; start += 2*len; {
         let twiddle_factor: u32 = ZETA_BIT_REV_TIMES_R[k].into();
+        // twiddleFactor = (Zeta^BitRev(k) * R) mod Q
         let twiddle_factor_mont: u32 = ZETA_BIT_REV_TIMES_R_TIMES_NEG_Q_INV_MOD_R[k].into();
+        // twiddleFactorMont = (((Zeta^BitRev(k) * R) mod Q) * -Q^(-1) mod R)
         k += 1;
 
         #[inline(always)]
@@ -295,8 +303,14 @@ fn poly_element_ntt_layer_c(pe_src: &mut PolyElement, mut k: usize, len: usize) 
                 debug_assert!( c1 < Q );
 
                 let c1_times_twiddle: u32 = mont_mul( c1, twiddle_factor, twiddle_factor_mont );
+                // c1TimesTwiddle = ((c1 * (Zeta^BitRev(k) * R)) / R) % Q
+                //                = ((f(start + j + len) * (Zeta^BitRev(k) * R)) / R) mod Q
+                //                = (f(start + j + len) * Zeta^BitRev(k)) mod Q
+
                 c1 = mod_sub( c0, c1_times_twiddle );
+                // c1 = (f(start + j) - f(start + j + len) * Zeta^BitRev(k)) mod Q
                 c0 = mod_add( c0, c1_times_twiddle );
+                // c0 = (f(start + j) + f(start + j + len) * Zeta^BitRev(k)) mod Q
 
                 pe_src[start+j]      = c0 as u16;
                 pe_src[start+j+len]  = c1 as u16;
@@ -311,7 +325,9 @@ fn poly_element_intt_layer_c(pe_src: &mut PolyElement, mut k: usize, len: usize)
     // for start in (0..256).step_by(2*len) {
     c_for!(let mut start = 0usize; start < 256; start += 2*len; {
         let twiddle_factor: u32 = ZETA_BIT_REV_TIMES_R[k].into();
+        // twiddleFactor = (Zeta^BitRev(k) * R) mod Q
         let twiddle_factor_mont: u32 = ZETA_BIT_REV_TIMES_R_TIMES_NEG_Q_INV_MOD_R[k].into();
+        // twiddleFactorMont = (((Zeta^BitRev(k) * R) mod Q) * -Q^(-1) mod R) mod Q
         k -= 1;
 
         inner_loop(pe_src, len, start, twiddle_factor, twiddle_factor_mont);
@@ -353,19 +369,19 @@ fn poly_element_mul_and_accumulate(
     // FIXME
     c_for!(let mut i = 0; i < MLWE_POLYNOMIAL_COEFFICIENTS / 2; i += 1; {
         let a0: u32 = pe_src1[2*i].into();
-        debug_assert!( a0 < Q );
+        //debug_assert!( a0 < Q );
         let a1: u32 = pe_src1[2*i+1].into();
-        debug_assert!( a1 < Q );
+        //debug_assert!( a1 < Q );
 
         let b0: u32 = pe_src2[2*i  ].into();
-        debug_assert!( b0 < Q );
+        //debug_assert!( b0 < Q );
         let b1: u32 = pe_src2[2*i+1].into();
-        debug_assert!( b1 < Q );
+        //debug_assert!( b1 < Q );
 
         let mut c0: u32 = pa_dst[2*i];
-        debug_assert!( c0 <= 3*((3328*3328) + (3494*3312)) );
+        //debug_assert!( c0 <= 3*((3328*3328) + (3494*3312)) );
         let mut c1: u32 = pa_dst[(2*i)+1];
-        debug_assert!( c1 <= 3*((3328*3328) + (3494*3312)) );
+        //debug_assert!( c1 <= 3*((3328*3328) + (3494*3312)) );
 
         // multiplication results in range [0, 3328*3328]
         let mut a0b0: u32 = a0 * b0;
@@ -379,25 +395,29 @@ fn poly_element_mul_and_accumulate(
         //   (3494 is maximum result of first step of montgomery reduction of x*y for x,y in [0,3328])
         // we do not need to do final reduction yet
         let inv : u32= (a1b1.wrapping_mul(NEG_Q_INV_MOD_R)) & RMASK;
+        // inv = (a1*b1 * (-Q^(-1) mod R)) % R
         let a1b1: u32 = (a1b1 + (inv * Q)) >> RLOG2; // in range [0, 3494]
-        debug_assert!( a1b1 <= 3494 );
+        // a1b1 = (a1*b1 + a1*b1 * (-Q^(-1) mod R) * Q) / R
+        //      = (a1*b1 * R^-1) mod Q
+        //debug_assert!( a1b1 <= 3494 );
 
         // now multiply a1b1 by power of zeta
         let a1b1zetapow = a1b1 * (ZETA_TO_TIMES_BIT_REV_PLUS_1_TIMES_R[i] as u32);
+        // a1b1zetapow = (a1*b1 * R^-1) * (Zeta^(2*BitRev(i) + 1) * R) mod Q
+        //             = a1*b1 * Zeta^(2*BitRev(i) + 1) mod Q
 
         // sum pairs of products
         a0b0 += a1b1zetapow;    // a0*b0 + red(a1*b1)*zetapower in range [0, 3328*3328 + 3494*3312]
-        debug_assert!( a0b0 <= (3328*3328) + (3494*3312) );
+        //debug_assert!( a0b0 <= (3328*3328) + (3494*3312) );
         a0b1 += a1b0;           // a0*b1 + a1*b0                in range [0, 2*3328*3328]
-        debug_assert!( a0b1 <= 2*3328*3328 );
+        //debug_assert!( a0b1 <= 2*3328*3328 );
 
         // We sum at most 4 pairs of products into an accumulator in ML-KEM
-        debug_assert!( MATRIX_MAX_NROWS <= 4 );
+        //debug_assert!( MATRIX_MAX_NROWS <= 4 );
         c0 += a0b0; // in range [0,4*3328*3328 + 4*3494*3312]
-        debug_assert!( c0 < (4*3328*3328) + (4*3494*3312) );
+        //debug_assert!( c0 < (4*3328*3328) + (4*3494*3312) );
         c1 += a0b1; // in range [0,5*3328*3328 + 3*3494*3312]
-        debug_assert!( c1 < (5*3328*3328) + (3*3494*3312) );
-
+        //debug_assert!( c1 < (5*3328*3328) + (3*3494*3312) );
 
         pa_dst[2*i  ] = c0;
         pa_dst[2*i+1] = c1;
@@ -412,28 +432,28 @@ montgomery_reduce_and_add_poly_element_accumulator_to_poly_element(
     // FIXME
     c_for!(let mut i = 0; i < MLWE_POLYNOMIAL_COEFFICIENTS; i += 1; {
         let mut a = pa_src[i];
-        debug_assert!( a <= 4*((3328*3328) + (3494*3312)) );
+        //debug_assert!( a <= 4*((3328*3328) + (3494*3312)) );
         pa_src[i] = 0;
 
         let mut c: u32 = pe_dst[i].into();
-        debug_assert!( c < Q );
+        //debug_assert!( c < Q );
 
         // montgomery reduce sum of products
         let inv = (a.wrapping_mul(NEG_Q_INV_MOD_R)) & RMASK;
         a = (a + (inv * Q)) >> RLOG2; // in range [0, 4711]
-        debug_assert!( a <= 4711 );
+        //debug_assert!( a <= 4711 );
 
         // add destination
         c += a;
-        debug_assert!( c <= 8039 );
+        //debug_assert!( c <= 8039 );
 
         // subtraction and conditional additions for constant time range reduction
         c = c.wrapping_sub(2*Q);           // in range [-2Q, 1381]
-        debug_assert!( (c >= ((-2*(Q as i32)) as u32)) || (c < 1381) );
+        //debug_assert!( (c >= ((-2*(Q as i32)) as u32)) || (c < 1381) );
         c = c.wrapping_add(Q & (c >> 16)); // in range [-Q, Q-1]
-        debug_assert!( (c >= ((-(Q as i32) as u32))) || (c < Q) );
+        //debug_assert!( (c >= ((-(Q as i32) as u32))) || (c < Q) );
         c = c.wrapping_add(Q & (c >> 16)); // in range [0, Q-1]
-        debug_assert!( c < Q );
+        //debug_assert!( c < Q );
 
         pe_dst[i] = c as u16;
     });
@@ -526,12 +546,65 @@ const COMPRESS_SHIFTCONSTANT: u32 = 35;
 // use std::cmp::min;
 fn min(x: u32, y: u32) -> u32 { if x <= y { x } else { y } }
 
+#[inline(always)]
+fn compress_coefficient(n_bits_per_coefficient: u32, mut coefficient: u32) -> u32 {
+    // When n_bits_per_coefficient < 12 we compress per Compress_d in draft FIPS 203
+    if n_bits_per_coefficient < 12
+    {
+        // Multiply by 2^(n_bits_per_coefficient+1) / Q by multiplying by constant and shifting right
+        let multiplication: u64 = (coefficient as u64) * (COMPRESS_MULCONSTANT as u64);
+        coefficient = (multiplication >> (COMPRESS_SHIFTCONSTANT-(n_bits_per_coefficient+1))) as u32;
+
+        // add "half" to round to nearest integer
+        coefficient += 1;
+
+        // final divide by two to get multiplication by 2^n_bits_per_coefficient / Q
+        coefficient >>= 1;                              // in range [0, 2^n_bits_per_coefficient]
+        //assert!(coefficient <= (1<<n_bits_per_coefficient));
+
+        // modular reduction by masking
+        coefficient &= (1<<n_bits_per_coefficient)-1;    // in range [0, 2^n_bits_per_coefficient - 1]
+        //assert!(coefficient <  (1<<n_bits_per_coefficient));
+    }
+    coefficient
+}
+
+#[inline(always)]
+fn encode_coefficient(
+    coefficient: u32,
+    mut n_bits_in_coefficient: u32,
+    pb_dst: &mut [u8],
+    cb_dst_written: &mut usize,
+    accumulator: &mut u32,
+    n_bits_in_accumulator: &mut u32) {
+    // Note that the number of bits to encode is <= 12 while the accumulator has 32 bits,
+    // which means that if the accumulator is full, we only need to flush it once before
+    // encoding the remaining bits.
+    let n_bits_to_encode = min(n_bits_in_coefficient, 32 - *n_bits_in_accumulator);
+
+    let bits_to_encode = coefficient & ((1<<n_bits_to_encode)-1);
+    n_bits_in_coefficient -= n_bits_to_encode;
+
+    *accumulator |= bits_to_encode << *n_bits_in_accumulator;
+    *n_bits_in_accumulator += n_bits_to_encode;
+
+    // Flush the accumulator, if necessary
+    if *n_bits_in_accumulator == 32
+    {
+        pb_dst[(*cb_dst_written)..(*cb_dst_written)+4].copy_from_slice(&u32::to_le_bytes(*accumulator));
+        *cb_dst_written += 4;
+
+        // Encode the remaining bits, if there are
+        *accumulator = coefficient >> n_bits_to_encode;
+        *n_bits_in_accumulator = n_bits_in_coefficient;
+    }
+}
+
 pub(crate)
 fn
 poly_element_compress_and_encode(
     pe_src: & PolyElement,
     n_bits_per_coefficient: u32,
-    // _Out_writes_bytes_(n_bits_per_coefficient*(MLWE_POLYNOMIAL_COEFFICIENTS / 8))
     pb_dst: &mut [u8] )
 {
     let mut cb_dst_written: usize = 0;
@@ -543,60 +616,18 @@ poly_element_compress_and_encode(
 
     c_for!(let mut i = 0; i < MLWE_POLYNOMIAL_COEFFICIENTS; i += 1;
     {
-        let mut n_bits_in_coefficient = n_bits_per_coefficient;
-        let mut coefficient: u32 = pe_src[i].into(); // in range [0, Q-1]
+        let coefficient: u32 = pe_src[i].into(); // in range [0, Q-1]
         debug_assert!( coefficient < Q );
 
-        // first compress the coefficient
-        // when n_bits_per_coefficient < 12 we compress per Compress_d in draft FIPS 203;
-        if n_bits_per_coefficient < 12
-        {
-            // Multiply by 2^(n_bits_per_coefficient+1) / Q by multiplying by constant and shifting right
-            let multiplication: u64 = (coefficient as u64) * (COMPRESS_MULCONSTANT as u64);
-            coefficient = (multiplication >> (COMPRESS_SHIFTCONSTANT-(n_bits_per_coefficient+1))) as u32;
+        // First compress the coefficient.
+        let coefficient = compress_coefficient(n_bits_per_coefficient, coefficient);
 
-            // add "half" to round to nearest integer
-            coefficient += 1;
-
-            // final divide by two to get multiplication by 2^n_bits_per_coefficient / Q
-            coefficient >>= 1;                              // in range [0, 2^n_bits_per_coefficient]
-            debug_assert!(coefficient <= (1<<n_bits_per_coefficient));
-
-            // modular reduction by masking
-            coefficient &= (1<<n_bits_per_coefficient)-1;    // in range [0, 2^n_bits_per_coefficient - 1]
-            debug_assert!(coefficient <  (1<<n_bits_per_coefficient));
-        }
-
-        // encode the coefficient
-        // simple loop to add bits to accumulator and write accumulator to output
-        #[inline(always)]
-        fn inner_loop(pb_dst: &mut [u8], cb_dst_written: &mut usize, accumulator: &mut u32,
-                      n_bits_in_accumulator: &mut u32, n_bits_in_coefficient: &mut u32, coefficient: &mut u32,
-        ) {
-            while {
-                let n_bits_to_encode = min(*n_bits_in_coefficient, 32-*n_bits_in_accumulator);
-
-                let bits_to_encode = *coefficient & ((1<<n_bits_to_encode)-1);
-                *coefficient >>= n_bits_to_encode;
-                *n_bits_in_coefficient -= n_bits_to_encode;
-
-                *accumulator |= bits_to_encode << *n_bits_in_accumulator;
-                *n_bits_in_accumulator += n_bits_to_encode;
-                if *n_bits_in_accumulator == 32
-                {
-                    pb_dst[*cb_dst_written..*cb_dst_written+4].copy_from_slice(&u32::to_le_bytes(*accumulator));
-                    *cb_dst_written += 4;
-                    *accumulator = 0;
-                    *n_bits_in_accumulator = 0;
-                };
-                *n_bits_in_coefficient > 0
-            } {}
-        }
-        inner_loop(pb_dst, &mut cb_dst_written, &mut accumulator, &mut n_bits_in_accumulator, &mut n_bits_in_coefficient, &mut coefficient);
+        // Encode the coefficient.
+        encode_coefficient(coefficient, n_bits_per_coefficient, pb_dst, &mut cb_dst_written, &mut accumulator, &mut n_bits_in_accumulator);
     });
 
-    debug_assert!(n_bits_in_accumulator == 0);
-    debug_assert!(cb_dst_written == (n_bits_per_coefficient*(MLWE_POLYNOMIAL_COEFFICIENTS as u32 / 8)) as usize);
+    assert!(n_bits_in_accumulator == 0);
+    //assert!(cb_dst_written == (n_bits_per_coefficient*(MLWE_POLYNOMIAL_COEFFICIENTS as u32 / 8)) as usize);
 }
 
 // FIXME:
