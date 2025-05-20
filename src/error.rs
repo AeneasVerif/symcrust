@@ -1,3 +1,5 @@
+use crate::common::*;
+
 // Allows printing errors, which is a prerequisite for using ERROR as an argument to
 // std::result::Result.
 impl std::fmt::Display for Error {
