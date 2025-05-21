@@ -3,6 +3,7 @@ files:
     private:
       - [ symcrust, common, "*" ]
       - [ core, "*" ]
+      - [ alloc, "*" ]
       - [ Eurydice, "*" ]
 
   - name: symcrust_hash
@@ -13,6 +14,8 @@ files:
       - [ symcrust, hash, "*" ]
 
   - name: symcrust_mlkem
+    include_in_h:
+      - '"hash_shims.h"'
     api:
       - [ symcrust, mlkem, "*" ]
       - [ symcrust, key, "*" ]
