@@ -7,7 +7,7 @@ files:
 
   - name: symcrust_hash
     library: true
-    include_in_h:
+    include_in_internal_h:
       - '"hash_shims.h"'
     private:
       - [ symcrust, hash, "*" ]

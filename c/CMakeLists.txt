@@ -29,4 +29,4 @@ target_link_libraries(test PRIVATE symcrypt)
 
 # Add more include directories if needed
 target_include_directories(test PUBLIC "${CMAKE_SOURCE_DIR}/include" "${CMAKE_SOURCE_DIR}"
-  "$ENV{KRML_HOME}/include" "$ENV{EURYDICE_HOME}/include" "$ENV{SYMCRYPT_LIB_PATH}/../../../include")
+  "$ENV{KRML_HOME}/include" "$ENV{EURYDICE_HOME}/include" "$ENV{SYMCRYPT_LIB_PATH}/../../../inc")

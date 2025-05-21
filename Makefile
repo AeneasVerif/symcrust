@@ -37,7 +37,7 @@ transpile: c/symcrust.c
 
 c/symcrust.c: symcrust.llbc
 	mkdir -p $(dir $@)
-	$(EURYDICE_HOME)/eurydice $< --output $(dir $@) -fcomments
+	$(EURYDICE_HOME)/eurydice $< --output $(dir $@) -fcomments --config c.yaml
 
 # Misc
 # ----

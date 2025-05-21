@@ -15,6 +15,8 @@
 extern "C" {
 #endif
 
+#include "hash_shims.h"
+
 extern size_t symcrust_hash_SHA3_512_RESULT_SIZE;
 
 extern symcrust_hash_HashState symcrust_hash_UNINITIALIZED_HASH_STATE;
