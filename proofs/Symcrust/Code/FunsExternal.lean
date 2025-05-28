@@ -45,20 +45,4 @@ def common.PartialEqsymcrustcommonErrorsymcrustcommonError.ne
 def key.PartialEqsymcrustkeyParamssymcrustkeyParams.ne
   : key.Params → key.Params → Result Bool := sorry
 
--- TODO: we shouldn't have this
-/- [core::array::{core::clone::Clone for @Array<T, N>}#20::clone_from]:
-   Source: '/rustc/library/core/src/array/mod.rs', lines 437:4-437:42
-   Name pattern: [core::array::{core::clone::Clone<[@T; @N]>}::clone_from] -/
-def core.array.CloneArray.clone_from
-  {T : Type} {N : Usize} (cloneCloneInst : core.clone.Clone T) :
-  Array T N → Array T N → Result (Array T N) := sorry
-
--- TODO: we shouldn't have this
-/- [core::clone::Clone::clone_from]:
-   Source: '/rustc/library/core/src/clone.rs', lines 174:4-174:43
-   Name pattern: [core::clone::Clone::clone_from] -/
-def core.clone.Clone.clone_from.default
-  {Self : Type} (self_clause : core.clone.Clone Self) :
-  Self → Self → Result Self := sorry
-
 namespace Symcrust
