@@ -9,22 +9,30 @@ set_option linter.hashCommand false
 set_option linter.unusedVariables false
 open Symcrust
 
-/- [symcrust::common::{core::cmp::PartialEq<symcrust::common::Error> for symcrust::common::Error}#4::ne]:
+/- [symcrust::common::{core::cmp::PartialEq<symcrust::common::Error> for symcrust::common::Error}#1::ne]:
    Source: '/rustc/library/core/src/cmp.rs', lines 262:4-262:37 -/
 axiom common.PartialEqsymcrustcommonErrorsymcrustcommonError.ne
   : common.Error → common.Error → Result Bool
 
 /- [symcrust::common::SymCryptRandom]:
-   Source: 'src/common.rs', lines 68:4-68:58 -/
+   Source: 'src/common.rs', lines 46:4-46:58 -/
 axiom common.SymCryptRandom : MutRawPtr U8 → Usize → Result Unit
 
 /- [symcrust::common::SymCryptModuleInit]:
-   Source: 'src/common.rs', lines 69:4-69:48 -/
+   Source: 'src/common.rs', lines 47:4-47:48 -/
 axiom common.SymCryptModuleInit : U32 → U32 → Result Unit
 
+/- [symcrust::common::SymCryptWipe]:
+   Source: 'src/common.rs', lines 48:4-48:54 -/
+axiom common.SymCryptWipe : MutRawPtr U8 → Usize → Result Unit
+
 /- [symcrust::common::random]:
-   Source: 'src/common.rs', lines 72:0-82:1 -/
+   Source: 'src/common.rs', lines 51:0-61:1 -/
 axiom common.random : Slice U8 → Result (common.Error × (Slice U8))
+
+/- [symcrust::common::wipe_slice]:
+   Source: 'src/common.rs', lines 76:0-78:1 -/
+axiom common.wipe_slice {T : Type} : Slice T → Result (Slice T)
 
 /- [symcrust::hash::shake128_extract]:
    Source: 'src/hash.rs', lines 146:0-150:1 -/
@@ -46,20 +54,7 @@ axiom core.array.CloneArray.clone_from
   Array T N → Array T N → Result (Array T N)
 
 /- [symcrust::ntt::slice_to_sub_array]:
-   Source: 'src/ntt.rs', lines 642:0-644:1 -/
+   Source: 'src/ntt.rs', lines 636:0-638:1 -/
 axiom ntt.slice_to_sub_array
   (N : Usize) : Slice U8 → Usize → Result (Array U8 N)
-
-/- [zeroize::{zeroize::Zeroize for @Array<Z, N>}#4::zeroize]:
-   Source: '/Users/sonho/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zeroize-1.8.1/src/lib.rs', lines 373:4-373:25
-   Name pattern: [zeroize::{zeroize::Zeroize<[@Z; @N]>}::zeroize] -/
-axiom zeroize.ZeroizeArray.zeroize
-  {Z : Type} {N : Usize} (ZeroizeInst : zeroize.Zeroize Z) :
-  Array Z N → Result (Array Z N)
-
-/- [zeroize::{zeroize::Zeroize for Z}::zeroize]:
-   Source: '/Users/sonho/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zeroize-1.8.1/src/lib.rs', lines 301:4-301:25
-   Name pattern: [zeroize::{zeroize::Zeroize<@Z>}::zeroize] -/
-axiom zeroize.Zeroize.Blanket.zeroize
-  {Z : Type} (DefaultIsZeroesInst : zeroize.DefaultIsZeroes Z) : Z → Result Z
 

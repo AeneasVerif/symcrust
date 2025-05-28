@@ -39,18 +39,19 @@ symcrust-aeneas.llbc: $(wildcard */*.rs)
 	  --include=crate::hash::shake128_extract --opaque=crate::hash::shake128_extract \
 	  --exclude=symcrust::key::Key3 --exclude=symcrust::key::Key3::* \
 	  --opaque=symcrust::common::random \
+	  --opaque=symcrust::common::wipe_slice \
 	  --exclude=core::intrinsics::discriminant_value --exclude=core::marker::DiscriminantKind \
 	  --exclude=core::fmt::Arguments \
 	  --exclude='symcrust::common::{core::fmt::Debug for symcrust::common::Error}::*' \
 	  --exclude='symcrust::common::{core::fmt::Debug for symcrust::common::Error}' \
 	  --exclude='core::fmt::Display' \
 	  --exclude='core::fmt::Display::*' \
-	  --exclude='symcrust::common::{core::fmt::Display for symcrust::common::Error}::*' \
-	  --exclude='symcrust::common::{core::fmt::Display for symcrust::common::Error}' \
+	  --exclude='symcrust::error::{core::fmt::Display for symcrust::common::Error}::*' \
+	  --exclude='symcrust::error::{core::fmt::Display for symcrust::common::Error}' \
 	  --exclude='core::error::Error' \
 	  --exclude='core::error::Error::*' \
-          --exclude='symcrust::common::{core::error::Error for symcrust::common::Error}' \
-	  --exclude='symcrust::common::{core::error::Error for symcrust::common::Error}::*' \
+          --exclude='symcrust::error::{core::error::Error for symcrust::common::Error}' \
+	  --exclude='symcrust::error::{core::error::Error for symcrust::common::Error}::*' \
 	  --translate-all-methods \
           --include=core::clone::Clone::clone_from
 # TODO: `DiscriminantKind` should be eliminated by Charon

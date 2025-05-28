@@ -91,13 +91,13 @@ structure key.InternalParams where
   n_bits_of_v : U8
 
 /- [symcrust::key::Matrix1]
-   Source: 'src/key.rs', lines 124:0-127:1 -/
+   Source: 'src/key.rs', lines 125:0-128:1 -/
 structure key.Matrix1 where
   n_rows : Usize
   ap_poly_elements : Slice (Array U16 256#usize)
 
 /- [symcrust::key::Key1]
-   Source: 'src/key.rs', lines 130:0-161:1 -/
+   Source: 'src/key.rs', lines 132:0-163:1 -/
 structure key.Key1 where
   f_algorithm_info : U32
   params : key.InternalParams
@@ -113,7 +113,7 @@ structure key.Key1 where
   pvs : Slice (Array U16 256#usize)
 
 /- [symcrust::key::PreKey2]
-   Source: 'src/key.rs', lines 225:0-244:1 -/
+   Source: 'src/key.rs', lines 229:0-248:1 -/
 structure key.PreKey2 (U : Type) where
   algorithm_info : U32
   params : key.InternalParams
@@ -134,18 +134,5 @@ inductive core.panicking.AssertKind where
 | Eq : core.panicking.AssertKind
 | Ne : core.panicking.AssertKind
 | Match : core.panicking.AssertKind
-
-/- Trait declaration: [zeroize::Zeroize]
-   Source: '/Users/sonho/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zeroize-1.8.1/src/lib.rs', lines 272:0-272:17
-   Name pattern: [zeroize::Zeroize] -/
-structure zeroize.Zeroize (Self : Type) where
-  zeroize : Self → Result Self
-
-/- Trait declaration: [zeroize::DefaultIsZeroes]
-   Source: '/Users/sonho/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zeroize-1.8.1/src/lib.rs', lines 282:0-282:49
-   Name pattern: [zeroize::DefaultIsZeroes] -/
-structure zeroize.DefaultIsZeroes (Self : Type) where
-  coremarkerCopyInst : core.marker.Copy Self
-  coredefaultDefaultInst : core.default.Default Self
 
 end Symcrust

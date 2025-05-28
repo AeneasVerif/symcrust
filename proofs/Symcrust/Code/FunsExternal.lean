@@ -19,24 +19,19 @@ def common.SymCryptRandom : MutRawPtr U8 → Usize → Result Unit := sorry
 /- [symcrust::common::SymCryptModuleInit] -/
 def common.SymCryptModuleInit : U32 → U32 → Result Unit := sorry
 
+/- [symcrust::common::SymCryptWipe]:
+   Source: 'src/common.rs', lines 48:4-48:54 -/
+def common.SymCryptWipe : MutRawPtr U8 → Usize → Result Unit := sorry
+
 /- [symcrust::common::random] -/
 def common.random : Slice U8 → Result (common.Error × (Slice U8)) := sorry
 
+/- [symcrust::common::wipe_slice]:
+   Source: 'src/common.rs', lines 76:0-78:1 -/
+def common.wipe_slice {T : Type} : Slice T → Result (Slice T) := sorry
+
 /- [symcrust::hash::shake128_extract] -/
 def hash.shake128_extract : hash.HashState → Slice U8 → Bool → Result (hash.HashState × (Slice U8)) := sorry
-
-/- [zeroize::{zeroize::Zeroize for @Array<Z, N>}#4::zeroize]:
-   Source: '/Users/sonho/.cargo/registry/src/index.crates.io-6f17d22bba15001f/zeroize-1.8.1/src/lib.rs', lines 373:4-373:25
-   Name pattern: [zeroize::{zeroize::Zeroize<[@Z; @N]>}::zeroize] -/
-def zeroize.ZeroizeArray.zeroize
-  {Z : Type} {N : Usize} (ZeroizeInst : zeroize.Zeroize Z) :
-  Array Z N → Result (Array Z N) := sorry
-
-/- [zeroize::{zeroize::Zeroize for Z}::zeroize]:
-   Source: '/Users/sonho/.cargo/registry/src/index.crates.io-6f17d22bba15001f/zeroize-1.8.1/src/lib.rs', lines 301:4-301:25
-   Name pattern: [zeroize::{zeroize::Zeroize<@Z>}::zeroize] -/
-def zeroize.Zeroize.Blanket.zeroize
-  {Z : Type} (DefaultIsZeroesInst : zeroize.DefaultIsZeroes Z) : Z → Result Z := sorry
 
 -- TODO: we shouldn't have this
 /- [symcrust::common::{core::cmp::PartialEq<symcrust::common::Error> for symcrust::common::Error}#2::ne]:
