@@ -66,52 +66,62 @@ theorem Int_mod_3329_mod_4294967296_eq (x : Int) :
 namespace ntt
 
 /-!
-# Addition modulo
+# "Simple" Reduction Modulo
 -/
-def mod_add' (a : U32) (b : U32) : Result U32 :=
-  do
-  massert (a < Q)
-  massert (b < Q)
-  let i ← a + b
-  let res ← (↑(core.num.U32.wrapping_sub i Q) : Result U32)
+
+def mod_reduce' (a : U32) : Result U32 := do
+  let i ← 2#u32 * ntt.Q
+  massert (a < i)
+  let res ← (↑(core.num.U32.wrapping_sub a ntt.Q) : Result U32)
   let i1 ← res >>> 16#i32
-  massert (i1 = 0#u32 ∨ i1 = 65535#u32)
-  let i2 ← (↑(Q &&& i1) : Result U32)
+  massert (i1 = 0#u32 || i1 = 65535#u32)
+  let i2 ← (↑(ntt.Q &&& i1) : Result U32)
   let res1 ← (↑(core.num.U32.wrapping_add res i2) : Result U32)
-  massert (res1 < Q)
+  massert (res1 < ntt.Q)
   ok res1
 
 @[simp, progress_simps]
-def mod_add_eq (a : U32) (b : U32) :
-  mod_add a b = mod_add' a b := by
-  unfold mod_add mod_add'
+def mod_reduce_eq (a : U32) :
+  mod_reduce a = mod_reduce' a := by
+  unfold mod_reduce mod_reduce'
   fsimp
   intros
   split <;> fsimp [*]
 
 @[local progress]
-theorem mod_add'_spec (a : U32) (b : U32)
-  (ha : a.val < Spec.Q) (hb : b.val < Spec.Q) :
-  ∃ (c : U32), mod_add' a b = ok c ∧
-  (c.val : Spec.Zq) = (a.val : Spec.Zq) + (b.val : Spec.Zq) ∧
-  c.val < Spec.Q := by
-  unfold mod_add'
+theorem mod_reduce'_spec (a : U32)
+  (ha : a.val < 2 * Spec.Q) :
+  ∃ (a' : U32), mod_reduce' a = ok a' ∧
+  (a'.val : Spec.Zq) = (a.val : Spec.Zq) ∧
+  a'.val < Spec.Q := by
+  unfold mod_reduce'
   progress* <;> bv_tac 32
 
 /-!
-# Subtraction modulo
+# Addition Modulo
+-/
+@[local progress]
+theorem mod_add_spec (a : U32) (b : U32)
+  (ha : a.val < Spec.Q) (hb : b.val < Spec.Q) :
+  ∃ (c : U32), mod_add a b = ok c ∧
+  (c.val : Spec.Zq) = (a.val : Spec.Zq) + (b.val : Spec.Zq) ∧
+  c.val < Spec.Q := by
+  unfold mod_add
+  progress*; bv_tac 32
+
+/-!
+# Subtraction Modulo
 -/
 
 def mod_sub' (a : U32) (b : U32) : Result U32 := do
-  let i ← 2#u32 * Q
-  massert (a < i)
-  massert (b <= Q)
+  massert (a < ntt.Q)
+  massert (b < ntt.Q)
   let res ← (↑(core.num.U32.wrapping_sub a b) : Result U32)
-  let i1 ← res >>> 16#i32
-  massert (i1 = 0#u32 ∨ i1 = 65535#u32)
-  let i2 ← (↑(Q &&& i1) : Result U32)
-  let res1 ← (↑(core.num.U32.wrapping_add res i2) : Result U32)
-  massert (res1 < Q)
+  let i ← res >>> 16#i32
+  massert (i = 0#u32 || i = 65535#u32)
+  let i1 ← (↑(ntt.Q &&& i) : Result U32)
+  let res1 ← (↑(core.num.U32.wrapping_add res i1) : Result U32)
+  massert (res1 < ntt.Q)
   ok res1
 
 @[simp, progress_simps]
@@ -124,9 +134,8 @@ def mod_sub_eq (a : U32) (b : U32) :
 
 @[local progress]
 theorem mod_sub'_spec (a : U32) (b : U32)
-  (_ : a.val ≤ 2*3329)
-  (ha : a.val < b.val + 3329)
-  (hb : b.val ≤ 3329) :
+  (_ : a.val < 3329)
+  (_ : b.val < 3329) :
   ∃ (c : U32), mod_sub' a b = ok c ∧
   (c.val : Spec.Zq) = (a.val : Spec.Zq) - (b.val : Spec.Zq) ∧
   c.val < Spec.Q := by
@@ -134,7 +143,7 @@ theorem mod_sub'_spec (a : U32) (b : U32)
   progress* <;> bv_tac 32
 
 /-!
-Montgomery reduction
+# Montgomery Reduction
 -/
 
 theorem mont_reduce_bv_spec (a b bMont tR t : U32)
@@ -1285,7 +1294,7 @@ def poly_element_add_loop_spec
   split
   . let* ⟨ i1, i1_post_1, i1_post_2 ⟩ ← wfArray_index
     let* ⟨ i3, i3_post_1, i3_post_2 ⟩ ← wfArray_index
-    let* ⟨ i5, i5_post_1, i5_post_2 ⟩ ← mod_add'_spec
+    let* ⟨ i5, i5_post_1, i5_post_2 ⟩ ← mod_add_spec
     let* ⟨ i6, i6_post ⟩ ← UScalar.cast_inBounds_spec
     let* ⟨ peDst1, peDst1_post ⟩ ← Array.update_spec -- TODO: by default it is wfArray_update
     let* ⟨ i7, i7_post ⟩ ← Usize.add_spec
