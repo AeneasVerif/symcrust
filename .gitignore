@@ -1,3 +1,10 @@
+# Rust
 /target
 *.orig
 *.llbc
+
+# Lean
+*.lake
+
+# Misc
+*~
