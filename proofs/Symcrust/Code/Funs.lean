@@ -1945,9 +1945,9 @@ def ntt.poly_element_compress_and_encode
   ntt.poly_element_compress_and_encode_loop pe_src n_bits_per_coefficient
     pb_dst 0#usize 0#u32 0#u32 0#usize
 
-/- [symcrust::ntt::poly_element_decode_and_decompress::inner_loop]: loop 0:
-   Source: 'src/ntt.rs', lines 669:12-689:13 -/
-def ntt.poly_element_decode_and_decompress.inner_loop_loop
+/- [symcrust::ntt::decode_coefficient]:
+   Source: 'src/ntt.rs', lines 641:0-691:1 -/
+def ntt.decode_coefficient
   (pb_src : Slice U8) (n_bits_per_coefficient : U32) (cb_src_read : Usize)
   (accumulator : U32) (n_bits_in_accumulator : U32) (coefficient : U32)
   (n_bits_in_coefficient : U32) :
@@ -1972,9 +1972,23 @@ def ntt.poly_element_decode_and_decompress.inner_loop_loop
     let n_bits_in_coefficient1 ← n_bits_in_coefficient + n_bits_to_decode
     if n_bits_per_coefficient > n_bits_in_coefficient1
     then
-      ntt.poly_element_decode_and_decompress.inner_loop_loop pb_src
-        n_bits_per_coefficient cb_src_read1 accumulator2 n_bits_in_accumulator1
-        coefficient1 n_bits_in_coefficient1
+      do
+      massert (n_bits_in_accumulator1 = 0#u32)
+      let a1 ← ntt.slice_to_sub_array 4#usize pb_src cb_src_read1
+      let accumulator3 ← (↑(core.num.U32.from_le_bytes a1) : Result U32)
+      let cb_src_read2 ← cb_src_read1 + 4#usize
+      let n_bits_to_decode1 ← n_bits_per_coefficient - n_bits_in_coefficient1
+      massert (n_bits_to_decode1 <= 32#u32)
+      let i4 ← 1#u32 <<< n_bits_to_decode1
+      let i5 ← i4 - 1#u32
+      let bits_to_decode1 ← (↑(accumulator3 &&& i5) : Result U32)
+      let accumulator4 ← accumulator3 >>> n_bits_to_decode1
+      let n_bits_in_accumulator2 ← 32#u32 - n_bits_to_decode1
+      let i6 ← bits_to_decode1 <<< n_bits_in_coefficient1
+      let coefficient2 ← (↑(coefficient1 ||| i6) : Result U32)
+      let n_bits_in_coefficient2 ← n_bits_in_coefficient1 + n_bits_to_decode1
+      ok (cb_src_read2, accumulator4, n_bits_in_accumulator2, coefficient2,
+        n_bits_in_coefficient2)
     else
       ok (cb_src_read1, accumulator2, n_bits_in_accumulator1, coefficient1,
         n_bits_in_coefficient1)
@@ -1993,29 +2007,58 @@ def ntt.poly_element_decode_and_decompress.inner_loop_loop
     let n_bits_in_coefficient1 ← n_bits_in_coefficient + n_bits_to_decode
     if n_bits_per_coefficient > n_bits_in_coefficient1
     then
-      ntt.poly_element_decode_and_decompress.inner_loop_loop pb_src
-        n_bits_per_coefficient cb_src_read accumulator1 n_bits_in_accumulator1
-        coefficient1 n_bits_in_coefficient1
+      do
+      massert (n_bits_in_accumulator1 = 0#u32)
+      let a ← ntt.slice_to_sub_array 4#usize pb_src cb_src_read
+      let accumulator2 ← (↑(core.num.U32.from_le_bytes a) : Result U32)
+      let cb_src_read1 ← cb_src_read + 4#usize
+      let n_bits_to_decode1 ← n_bits_per_coefficient - n_bits_in_coefficient1
+      massert (n_bits_to_decode1 <= 32#u32)
+      let i4 ← 1#u32 <<< n_bits_to_decode1
+      let i5 ← i4 - 1#u32
+      let bits_to_decode1 ← (↑(accumulator2 &&& i5) : Result U32)
+      let accumulator3 ← accumulator2 >>> n_bits_to_decode1
+      let n_bits_in_accumulator2 ← 32#u32 - n_bits_to_decode1
+      let i6 ← bits_to_decode1 <<< n_bits_in_coefficient1
+      let coefficient2 ← (↑(coefficient1 ||| i6) : Result U32)
+      let n_bits_in_coefficient2 ← n_bits_in_coefficient1 + n_bits_to_decode1
+      ok (cb_src_read1, accumulator3, n_bits_in_accumulator2, coefficient2,
+        n_bits_in_coefficient2)
     else
       ok (cb_src_read, accumulator1, n_bits_in_accumulator1, coefficient1,
         n_bits_in_coefficient1)
-partial_fixpoint
 
-/- [symcrust::ntt::poly_element_decode_and_decompress::inner_loop]:
-   Source: 'src/ntt.rs', lines 664:8-690:9 -/
-@[reducible]
-def ntt.poly_element_decode_and_decompress.inner_loop
-  (pb_src : Slice U8) (n_bits_per_coefficient : U32) (cb_src_read : Usize)
-  (accumulator : U32) (n_bits_in_accumulator : U32) (coefficient : U32)
-  (n_bits_in_coefficient : U32) :
-  Result (Usize × U32 × U32 × U32 × U32)
+/- [symcrust::ntt::decompress_coefficient]:
+   Source: 'src/ntt.rs', lines 694:0-729:1 -/
+def ntt.decompress_coefficient
+  (i : Usize) (n_bits_per_coefficient : U32) (coefficient : U32)
+  (pe_dst : Array U16 256#usize) :
+  Result (common.Error × U32 × (Array U16 256#usize))
   :=
-  ntt.poly_element_decode_and_decompress.inner_loop_loop pb_src
-    n_bits_per_coefficient cb_src_read accumulator n_bits_in_accumulator
-    coefficient n_bits_in_coefficient
+  if n_bits_per_coefficient < 12#u32
+  then
+    do
+    let coefficient1 ← coefficient * ntt.Q
+    let i1 ← n_bits_per_coefficient - 1#u32
+    let coefficient2 ← coefficient1 >>> i1
+    let coefficient3 ← coefficient2 + 1#u32
+    let coefficient4 ← coefficient3 >>> 1#i32
+    let coefficient5 ← ntt.mod_reduce coefficient4
+    massert (coefficient5 < ntt.Q)
+    let i2 ← (↑(UScalar.cast .U16 coefficient5) : Result U16)
+    let pe_dst1 ← Array.update pe_dst i i2
+    ok (common.Error.NoError, coefficient5, pe_dst1)
+  else
+    if coefficient > ntt.Q
+    then ok (common.Error.InvalidBlob, coefficient, pe_dst)
+    else
+      do
+      let i1 ← (↑(UScalar.cast .U16 coefficient) : Result U16)
+      let pe_dst1 ← Array.update pe_dst i i1
+      ok (common.Error.NoError, coefficient, pe_dst1)
 
 /- [symcrust::ntt::poly_element_decode_and_decompress]: loop 0:
-   Source: 'src/ntt.rs', lines 42:12-692:93 -/
+   Source: 'src/ntt.rs', lines 42:12-753:101 -/
 def ntt.poly_element_decode_and_decompress_loop
   (pb_src : Slice U8) (n_bits_per_coefficient : U32)
   (pe_dst : Array U16 256#usize) (cb_src_read : Usize) (accumulator : U32)
@@ -2027,36 +2070,14 @@ def ntt.poly_element_decode_and_decompress_loop
     do
     let (cb_src_read1, accumulator1, n_bits_in_accumulator1, coefficient,
       n_bits_in_coefficient) ←
-      ntt.poly_element_decode_and_decompress.inner_loop pb_src
-        n_bits_per_coefficient cb_src_read accumulator n_bits_in_accumulator
-        0#u32 0#u32
+      ntt.decode_coefficient pb_src n_bits_per_coefficient cb_src_read
+        accumulator n_bits_in_accumulator 0#u32 0#u32
     massert (n_bits_in_coefficient = n_bits_per_coefficient)
-    if n_bits_per_coefficient < 12#u32
-    then
-      do
-      let coefficient1 ← coefficient * ntt.Q
-      let i1 ← n_bits_per_coefficient - 1#u32
-      let coefficient2 ← coefficient1 >>> i1
-      let coefficient3 ← coefficient2 + 1#u32
-      let coefficient4 ← coefficient3 >>> 1#i32
-      let coefficient5 ← ntt.mod_reduce coefficient4
-      massert (coefficient5 < ntt.Q)
-      let i2 ← (↑(UScalar.cast .U16 coefficient5) : Result U16)
-      let pe_dst1 ← Array.update pe_dst i i2
-      let i3 ← i + 1#usize
-      ntt.poly_element_decode_and_decompress_loop pb_src n_bits_per_coefficient
-        pe_dst1 cb_src_read1 accumulator1 n_bits_in_accumulator1 i3
-    else
-      if coefficient > ntt.Q
-      then ok (common.Error.InvalidBlob, pe_dst)
-      else
-        do
-        let i1 ← (↑(UScalar.cast .U16 coefficient) : Result U16)
-        let pe_dst1 ← Array.update pe_dst i i1
-        let i2 ← i + 1#usize
-        ntt.poly_element_decode_and_decompress_loop pb_src
-          n_bits_per_coefficient pe_dst1 cb_src_read1 accumulator1
-          n_bits_in_accumulator1 i2
+    let (_, _, pe_dst1) ←
+      ntt.decompress_coefficient i n_bits_per_coefficient coefficient pe_dst
+    let i1 ← i + 1#usize
+    ntt.poly_element_decode_and_decompress_loop pb_src n_bits_per_coefficient
+      pe_dst1 cb_src_read1 accumulator1 n_bits_in_accumulator1 i1
   else
     do
     massert (n_bits_in_accumulator = 0#u32)
@@ -2070,7 +2091,7 @@ def ntt.poly_element_decode_and_decompress_loop
 partial_fixpoint
 
 /- [symcrust::ntt::poly_element_decode_and_decompress]:
-   Source: 'src/ntt.rs', lines 641:0-729:1 -/
+   Source: 'src/ntt.rs', lines 731:0-763:1 -/
 def ntt.poly_element_decode_and_decompress
   (pb_src : Slice U8) (n_bits_per_coefficient : U32)
   (pe_dst : Array U16 256#usize) :
@@ -2083,7 +2104,7 @@ def ntt.poly_element_decode_and_decompress
     pe_dst 0#usize 0#u32 0#u32 0#usize
 
 /- [symcrust::ntt::poly_element_sample_ntt_from_shake128]: loop 0:
-   Source: 'src/ntt.rs', lines 740:10-740:40 -/
+   Source: 'src/ntt.rs', lines 774:10-774:40 -/
 def ntt.poly_element_sample_ntt_from_shake128_loop
   (p_state : hash.HashState) (pe_dst : Array U16 256#usize) (i : Usize)
   (shake_output_buf : Array U8 24#usize) (curr_buf_index : Usize) :
@@ -2171,7 +2192,7 @@ def ntt.poly_element_sample_ntt_from_shake128_loop
 partial_fixpoint
 
 /- [symcrust::ntt::poly_element_sample_ntt_from_shake128]:
-   Source: 'src/ntt.rs', lines 731:0-764:1 -/
+   Source: 'src/ntt.rs', lines 765:0-798:1 -/
 def ntt.poly_element_sample_ntt_from_shake128
   (p_state : hash.HashState) (pe_dst : Array U16 256#usize) :
   Result (hash.HashState × (Array U16 256#usize))
@@ -2184,7 +2205,7 @@ def ntt.poly_element_sample_ntt_from_shake128
     shake_output_buf curr_buf_index
 
 /- [symcrust::ntt::poly_element_sample_cbd_from_bytes::else_inner_loop]: loop 0:
-   Source: 'src/ntt.rs', lines 42:12-827:85 -/
+   Source: 'src/ntt.rs', lines 42:12-861:85 -/
 def ntt.poly_element_sample_cbd_from_bytes.else_inner_loop_loop
   (pe_dst : Array U16 256#usize) (i : Usize) (sample_bits : U32) (j : Usize) :
   Result ((Array U16 256#usize) × U32)
@@ -2230,7 +2251,7 @@ def ntt.poly_element_sample_cbd_from_bytes.else_inner_loop_loop
 partial_fixpoint
 
 /- [symcrust::ntt::poly_element_sample_cbd_from_bytes::else_inner_loop]:
-   Source: 'src/ntt.rs', lines 820:12-835:13 -/
+   Source: 'src/ntt.rs', lines 854:12-869:13 -/
 @[reducible]
 def ntt.poly_element_sample_cbd_from_bytes.else_inner_loop
   (pe_dst : Array U16 256#usize) (i : Usize) (sample_bits : U32) :
@@ -2240,7 +2261,7 @@ def ntt.poly_element_sample_cbd_from_bytes.else_inner_loop
     sample_bits 0#usize
 
 /- [symcrust::ntt::poly_element_sample_cbd_from_bytes::then_inner_loop]: loop 0:
-   Source: 'src/ntt.rs', lines 42:12-796:85 -/
+   Source: 'src/ntt.rs', lines 42:12-830:85 -/
 def ntt.poly_element_sample_cbd_from_bytes.then_inner_loop_loop
   (pe_dst : Array U16 256#usize) (i : Usize) (sample_bits : U32) (j : Usize) :
   Result ((Array U16 256#usize) × U32)
@@ -2286,7 +2307,7 @@ def ntt.poly_element_sample_cbd_from_bytes.then_inner_loop_loop
 partial_fixpoint
 
 /- [symcrust::ntt::poly_element_sample_cbd_from_bytes::then_inner_loop]:
-   Source: 'src/ntt.rs', lines 789:12-804:13 -/
+   Source: 'src/ntt.rs', lines 823:12-838:13 -/
 @[reducible]
 def ntt.poly_element_sample_cbd_from_bytes.then_inner_loop
   (pe_dst : Array U16 256#usize) (i : Usize) (sample_bits : U32) :
@@ -2296,7 +2317,7 @@ def ntt.poly_element_sample_cbd_from_bytes.then_inner_loop
     sample_bits 0#usize
 
 /- [symcrust::ntt::poly_element_sample_cbd_from_bytes]: loop 0:
-   Source: 'src/ntt.rs', lines 41:8-806:9 -/
+   Source: 'src/ntt.rs', lines 41:8-840:9 -/
 def ntt.poly_element_sample_cbd_from_bytes_loop0
   (pb_src : Slice U8) (pe_dst : Array U16 256#usize) (src_i : Usize)
   (i : Usize) :
@@ -2324,7 +2345,7 @@ def ntt.poly_element_sample_cbd_from_bytes_loop0
 partial_fixpoint
 
 /- [symcrust::ntt::poly_element_sample_cbd_from_bytes]: loop 1:
-   Source: 'src/ntt.rs', lines 41:8-837:9 -/
+   Source: 'src/ntt.rs', lines 41:8-871:9 -/
 def ntt.poly_element_sample_cbd_from_bytes_loop1
   (pb_src : Slice U8) (pe_dst : Array U16 256#usize) (src_i : Usize)
   (i : Usize) :
@@ -2349,7 +2370,7 @@ def ntt.poly_element_sample_cbd_from_bytes_loop1
 partial_fixpoint
 
 /- [symcrust::ntt::poly_element_sample_cbd_from_bytes]: loop 2:
-   Source: 'src/ntt.rs', lines 41:8-806:9 -/
+   Source: 'src/ntt.rs', lines 41:8-840:9 -/
 def ntt.poly_element_sample_cbd_from_bytes_loop2
   (pb_src : Slice U8) (pe_dst : Array U16 256#usize) (src_i : Usize)
   (i : Usize) :
@@ -2377,7 +2398,7 @@ def ntt.poly_element_sample_cbd_from_bytes_loop2
 partial_fixpoint
 
 /- [symcrust::ntt::poly_element_sample_cbd_from_bytes]: loop 3:
-   Source: 'src/ntt.rs', lines 41:8-837:9 -/
+   Source: 'src/ntt.rs', lines 41:8-871:9 -/
 def ntt.poly_element_sample_cbd_from_bytes_loop3
   (pb_src : Slice U8) (pe_dst : Array U16 256#usize) (src_i : Usize)
   (i : Usize) :
@@ -2402,7 +2423,7 @@ def ntt.poly_element_sample_cbd_from_bytes_loop3
 partial_fixpoint
 
 /- [symcrust::ntt::poly_element_sample_cbd_from_bytes]:
-   Source: 'src/ntt.rs', lines 766:0-839:1 -/
+   Source: 'src/ntt.rs', lines 800:0-873:1 -/
 def ntt.poly_element_sample_cbd_from_bytes
   (pb_src : Slice U8) (eta : U32) (pe_dst : Array U16 256#usize) :
   Result (Array U16 256#usize)
@@ -2428,7 +2449,7 @@ def ntt.poly_element_sample_cbd_from_bytes
         0#usize
 
 /- [symcrust::ntt::matrix_transpose::inner_loop]: loop 0:
-   Source: 'src/ntt.rs', lines 41:8-857:13 -/
+   Source: 'src/ntt.rs', lines 41:8-891:13 -/
 def ntt.matrix_transpose.inner_loop_loop
   (pm_src : Slice (Array U16 256#usize)) (n_rows : Usize) (i : Usize)
   (j : Usize) :
@@ -2448,7 +2469,7 @@ def ntt.matrix_transpose.inner_loop_loop
 partial_fixpoint
 
 /- [symcrust::ntt::matrix_transpose::inner_loop]:
-   Source: 'src/ntt.rs', lines 853:8-858:9 -/
+   Source: 'src/ntt.rs', lines 887:8-892:9 -/
 def ntt.matrix_transpose.inner_loop
   (pm_src : Slice (Array U16 256#usize)) (n_rows : Usize) (i : Usize) :
   Result (Slice (Array U16 256#usize))
@@ -2458,7 +2479,7 @@ def ntt.matrix_transpose.inner_loop
   ntt.matrix_transpose.inner_loop_loop pm_src n_rows i j
 
 /- [symcrust::ntt::matrix_transpose]: loop 0:
-   Source: 'src/ntt.rs', lines 41:8-860:5 -/
+   Source: 'src/ntt.rs', lines 41:8-894:5 -/
 def ntt.matrix_transpose_loop
   (pm_src : Slice (Array U16 256#usize)) (n_rows : Usize) (i : Usize) :
   Result (Slice (Array U16 256#usize))
@@ -2473,7 +2494,7 @@ def ntt.matrix_transpose_loop
 partial_fixpoint
 
 /- [symcrust::ntt::matrix_transpose]:
-   Source: 'src/ntt.rs', lines 841:0-861:1 -/
+   Source: 'src/ntt.rs', lines 875:0-895:1 -/
 def ntt.matrix_transpose
   (pm_src : Slice (Array U16 256#usize)) (n_rows : U8) :
   Result (Slice (Array U16 256#usize))
@@ -2485,7 +2506,7 @@ def ntt.matrix_transpose
   ntt.matrix_transpose_loop pm_src n_rows1 0#usize
 
 /- [symcrust::ntt::poly_element_mul_and_accumulate_aux]:
-   Source: 'src/ntt.rs', lines 865:0-875:1 -/
+   Source: 'src/ntt.rs', lines 899:0-909:1 -/
 def ntt.poly_element_mul_and_accumulate_aux
   (pm_src1 : Slice (Array U16 256#usize)) (n_rows : Usize) (i : Usize)
   (j : Usize) (pe_src2 : Array U16 256#usize) (pa_tmp : Array U32 256#usize) :
@@ -2499,7 +2520,7 @@ def ntt.poly_element_mul_and_accumulate_aux
   ok (pm_src1, pa_tmp1)
 
 /- [symcrust::ntt::matrix_vector_mont_mul_and_add::inner_loop]: loop 0:
-   Source: 'src/ntt.rs', lines 41:8-909:13 -/
+   Source: 'src/ntt.rs', lines 41:8-943:13 -/
 def ntt.matrix_vector_mont_mul_and_add.inner_loop_loop
   (pm_src1 : Slice (Array U16 256#usize))
   (pv_src2 : Slice (Array U16 256#usize)) (pa_tmp : Array U32 256#usize)
@@ -2519,7 +2540,7 @@ def ntt.matrix_vector_mont_mul_and_add.inner_loop_loop
 partial_fixpoint
 
 /- [symcrust::ntt::matrix_vector_mont_mul_and_add::inner_loop]:
-   Source: 'src/ntt.rs', lines 900:8-910:9 -/
+   Source: 'src/ntt.rs', lines 934:8-944:9 -/
 @[reducible]
 def ntt.matrix_vector_mont_mul_and_add.inner_loop
   (pm_src1 : Slice (Array U16 256#usize))
@@ -2531,7 +2552,7 @@ def ntt.matrix_vector_mont_mul_and_add.inner_loop
     n_rows i 0#usize
 
 /- [symcrust::ntt::matrix_vector_mont_mul_and_add]: loop 0:
-   Source: 'src/ntt.rs', lines 41:8-915:5 -/
+   Source: 'src/ntt.rs', lines 41:8-949:5 -/
 def ntt.matrix_vector_mont_mul_and_add_loop
   (pm_src1 : Slice (Array U16 256#usize))
   (pv_src2 : Slice (Array U16 256#usize))
@@ -2558,7 +2579,7 @@ def ntt.matrix_vector_mont_mul_and_add_loop
 partial_fixpoint
 
 /- [symcrust::ntt::matrix_vector_mont_mul_and_add]:
-   Source: 'src/ntt.rs', lines 877:0-916:1 -/
+   Source: 'src/ntt.rs', lines 911:0-950:1 -/
 def ntt.matrix_vector_mont_mul_and_add
   (pm_src1 : Slice (Array U16 256#usize))
   (pv_src2 : Slice (Array U16 256#usize))
@@ -2584,7 +2605,7 @@ def ntt.matrix_vector_mont_mul_and_add
     n_rows1 0#usize
 
 /- [symcrust::ntt::vector_mont_dot_product]: loop 0:
-   Source: 'src/ntt.rs', lines 41:8-939:5 -/
+   Source: 'src/ntt.rs', lines 41:8-973:5 -/
 def ntt.vector_mont_dot_product_loop
   (pv_src1 : Slice (Array U16 256#usize))
   (pv_src2 : Slice (Array U16 256#usize)) (pe_dst : Array U16 256#usize)
@@ -2608,7 +2629,7 @@ def ntt.vector_mont_dot_product_loop
 partial_fixpoint
 
 /- [symcrust::ntt::vector_mont_dot_product]:
-   Source: 'src/ntt.rs', lines 918:0-943:1 -/
+   Source: 'src/ntt.rs', lines 952:0-977:1 -/
 def ntt.vector_mont_dot_product
   (pv_src1 : Slice (Array U16 256#usize))
   (pv_src2 : Slice (Array U16 256#usize)) (pe_dst : Array U16 256#usize)
@@ -2638,7 +2659,7 @@ def ntt.vector_mont_dot_product
   ok (pv_src1, pv_src2, pe_dst1, pa_tmp2)
 
 /- [symcrust::ntt::vector_set_zero]: loop 0:
-   Source: 'src/ntt.rs', lines 41:8-958:5 -/
+   Source: 'src/ntt.rs', lines 41:8-992:5 -/
 def ntt.vector_set_zero_loop
   (pv_src : Slice (Array U16 256#usize)) (n_rows : Usize) (i : Usize) :
   Result (Slice (Array U16 256#usize))
@@ -2659,7 +2680,7 @@ def ntt.vector_set_zero_loop
 partial_fixpoint
 
 /- [symcrust::ntt::vector_set_zero]:
-   Source: 'src/ntt.rs', lines 945:0-959:1 -/
+   Source: 'src/ntt.rs', lines 979:0-993:1 -/
 def ntt.vector_set_zero
   (pv_src : Slice (Array U16 256#usize)) :
   Result (Slice (Array U16 256#usize))
@@ -2671,7 +2692,7 @@ def ntt.vector_set_zero
   ntt.vector_set_zero_loop pv_src n_rows 0#usize
 
 /- [symcrust::ntt::vector_mul_r]: loop 0:
-   Source: 'src/ntt.rs', lines 41:8-976:5 -/
+   Source: 'src/ntt.rs', lines 41:8-1010:5 -/
 def ntt.vector_mul_r_loop
   (pv_src : Slice (Array U16 256#usize)) (pv_dst : Slice (Array U16 256#usize))
   (n_rows : Usize) (i : Usize) :
@@ -2690,7 +2711,7 @@ def ntt.vector_mul_r_loop
 partial_fixpoint
 
 /- [symcrust::ntt::vector_mul_r]:
-   Source: 'src/ntt.rs', lines 961:0-977:1 -/
+   Source: 'src/ntt.rs', lines 995:0-1011:1 -/
 def ntt.vector_mul_r
   (pv_src : Slice (Array U16 256#usize)) (pv_dst : Slice (Array U16 256#usize))
   :
@@ -2705,7 +2726,7 @@ def ntt.vector_mul_r
   ntt.vector_mul_r_loop pv_src pv_dst n_rows 0#usize
 
 /- [symcrust::ntt::vector_add]: loop 0:
-   Source: 'src/ntt.rs', lines 41:8-995:5 -/
+   Source: 'src/ntt.rs', lines 41:8-1029:5 -/
 def ntt.vector_add_loop
   (pv_src1 : Slice (Array U16 256#usize))
   (pv_src2 : Slice (Array U16 256#usize))
@@ -2726,7 +2747,7 @@ def ntt.vector_add_loop
 partial_fixpoint
 
 /- [symcrust::ntt::vector_add]:
-   Source: 'src/ntt.rs', lines 979:0-996:1 -/
+   Source: 'src/ntt.rs', lines 1013:0-1030:1 -/
 def ntt.vector_add
   (pv_src1 : Slice (Array U16 256#usize))
   (pv_src2 : Slice (Array U16 256#usize))
@@ -2744,7 +2765,7 @@ def ntt.vector_add
   ntt.vector_add_loop pv_src1 pv_src2 pv_dst n_rows 0#usize
 
 /- [symcrust::ntt::vector_sub]: loop 0:
-   Source: 'src/ntt.rs', lines 41:8-1014:5 -/
+   Source: 'src/ntt.rs', lines 41:8-1048:5 -/
 def ntt.vector_sub_loop
   (pv_src1 : Slice (Array U16 256#usize))
   (pv_src2 : Slice (Array U16 256#usize))
@@ -2765,7 +2786,7 @@ def ntt.vector_sub_loop
 partial_fixpoint
 
 /- [symcrust::ntt::vector_sub]:
-   Source: 'src/ntt.rs', lines 998:0-1015:1 -/
+   Source: 'src/ntt.rs', lines 1032:0-1049:1 -/
 def ntt.vector_sub
   (pv_src1 : Slice (Array U16 256#usize))
   (pv_src2 : Slice (Array U16 256#usize))
@@ -2783,7 +2804,7 @@ def ntt.vector_sub
   ntt.vector_sub_loop pv_src1 pv_src2 pv_dst n_rows 0#usize
 
 /- [symcrust::ntt::vector_ntt]: loop 0:
-   Source: 'src/ntt.rs', lines 41:8-1030:5 -/
+   Source: 'src/ntt.rs', lines 41:8-1064:5 -/
 def ntt.vector_ntt_loop
   (pv_src : Slice (Array U16 256#usize)) (n_rows : Usize) (i : Usize) :
   Result (Slice (Array U16 256#usize))
@@ -2800,7 +2821,7 @@ def ntt.vector_ntt_loop
 partial_fixpoint
 
 /- [symcrust::ntt::vector_ntt]:
-   Source: 'src/ntt.rs', lines 1017:0-1031:1 -/
+   Source: 'src/ntt.rs', lines 1051:0-1065:1 -/
 def ntt.vector_ntt
   (pv_src : Slice (Array U16 256#usize)) :
   Result (Slice (Array U16 256#usize))
@@ -2812,7 +2833,7 @@ def ntt.vector_ntt
   ntt.vector_ntt_loop pv_src n_rows 0#usize
 
 /- [symcrust::ntt::vector_intt_and_mul_r]: loop 0:
-   Source: 'src/ntt.rs', lines 41:8-1046:5 -/
+   Source: 'src/ntt.rs', lines 41:8-1080:5 -/
 def ntt.vector_intt_and_mul_r_loop
   (pv_src : Slice (Array U16 256#usize)) (n_rows : Usize) (i : Usize) :
   Result (Slice (Array U16 256#usize))
@@ -2829,7 +2850,7 @@ def ntt.vector_intt_and_mul_r_loop
 partial_fixpoint
 
 /- [symcrust::ntt::vector_intt_and_mul_r]:
-   Source: 'src/ntt.rs', lines 1033:0-1047:1 -/
+   Source: 'src/ntt.rs', lines 1067:0-1081:1 -/
 def ntt.vector_intt_and_mul_r
   (pv_src : Slice (Array U16 256#usize)) :
   Result (Slice (Array U16 256#usize))
@@ -2841,7 +2862,7 @@ def ntt.vector_intt_and_mul_r
   ntt.vector_intt_and_mul_r_loop pv_src n_rows 0#usize
 
 /- [symcrust::ntt::vector_compress_and_encode]: loop 0:
-   Source: 'src/ntt.rs', lines 41:8-1070:5 -/
+   Source: 'src/ntt.rs', lines 41:8-1104:5 -/
 def ntt.vector_compress_and_encode_loop
   (pv_src : Slice (Array U16 256#usize)) (n_bits_per_coefficient : U32)
   (pb_dst : Slice U8) (n_rows : Usize) (i : Usize) :
@@ -2868,7 +2889,7 @@ def ntt.vector_compress_and_encode_loop
 partial_fixpoint
 
 /- [symcrust::ntt::vector_compress_and_encode]:
-   Source: 'src/ntt.rs', lines 1049:0-1071:1 -/
+   Source: 'src/ntt.rs', lines 1083:0-1105:1 -/
 def ntt.vector_compress_and_encode
   (pv_src : Slice (Array U16 256#usize)) (n_bits_per_coefficient : U32)
   (pb_dst : Slice U8) :
@@ -2892,7 +2913,7 @@ def ntt.vector_compress_and_encode
     n_rows 0#usize
 
 /- [symcrust::ntt::vector_decode_and_decompress]: loop 0:
-   Source: 'src/ntt.rs', lines 41:8-1095:1 -/
+   Source: 'src/ntt.rs', lines 41:8-1129:1 -/
 def ntt.vector_decode_and_decompress_loop
   (pb_src : Slice U8) (n_bits_per_coefficient : U32)
   (pv_dst : Slice (Array U16 256#usize)) (n_rows : Usize) (i : Usize) :
@@ -2989,7 +3010,7 @@ def ntt.vector_decode_and_decompress_loop
 partial_fixpoint
 
 /- [symcrust::ntt::vector_decode_and_decompress]:
-   Source: 'src/ntt.rs', lines 1073:0-1095:1 -/
+   Source: 'src/ntt.rs', lines 1107:0-1129:1 -/
 def ntt.vector_decode_and_decompress
   (pb_src : Slice U8) (n_bits_per_coefficient : U32)
   (pv_dst : Slice (Array U16 256#usize)) :

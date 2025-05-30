@@ -637,6 +637,96 @@ fn slice_to_sub_array<const N : usize>(s: &[u8], i: usize) -> [u8; N] {
     s[i..i+N].try_into().unwrap()
 }
 
+#[inline(always)]
+fn decode_coefficient(
+    pb_src: &[u8],
+    n_bits_per_coefficient: u32,
+    cb_src_read: &mut usize,
+    accumulator: &mut u32,
+    n_bits_in_accumulator: &mut u32,
+    coefficient: &mut u32,
+    n_bits_in_coefficient: &mut u32
+){
+    if *n_bits_in_accumulator == 0
+    {
+        // FIXME
+        // *accumulator = u32::from_le_bytes(&pb_src[*cb_src_read..*cb_src_read+4]).try_into().unwrap());
+        *accumulator = u32::from_le_bytes(slice_to_sub_array::<4>(pb_src, *cb_src_read));
+        *cb_src_read += 4;
+        *n_bits_in_accumulator = 32;
+    }
+
+    let n_bits_to_decode = min(n_bits_per_coefficient-*n_bits_in_coefficient, *n_bits_in_accumulator);
+    debug_assert!(n_bits_to_decode <= *n_bits_in_accumulator);
+
+    let bits_to_decode = *accumulator & ((1<<n_bits_to_decode)-1);
+    *accumulator >>= n_bits_to_decode;
+    *n_bits_in_accumulator -= n_bits_to_decode;
+
+    *coefficient |= bits_to_decode << *n_bits_in_coefficient;
+    *n_bits_in_coefficient += n_bits_to_decode;
+
+    // If there are more bits in the coefficient to extract, then flush the accumulator and extract the remainder of
+    // the coefficient's bits
+    if n_bits_per_coefficient > *n_bits_in_coefficient
+    {
+        debug_assert!(*n_bits_in_accumulator == 0); // This line is only reached if the accumulator's bits were exhausted
+        // FIXME
+        // *accumulator = u32::from_le_bytes(&pb_src[*cb_src_read..*cb_src_read+4]).try_into().unwrap());
+        *accumulator = u32::from_le_bytes(slice_to_sub_array::<4>(pb_src, *cb_src_read));
+        *cb_src_read += 4;
+        *n_bits_in_accumulator = 32;
+
+        // n_bits_per_coefficient-*n_bits_in_coefficient < *n_bits_in_accumulator because *n_bits_in_accumulator was just set to 32
+        let n_bits_to_decode = n_bits_per_coefficient-*n_bits_in_coefficient;
+        debug_assert!(n_bits_to_decode <= *n_bits_in_accumulator);
+
+        let bits_to_decode = *accumulator & ((1<<n_bits_to_decode)-1);
+        *accumulator >>= n_bits_to_decode;
+        *n_bits_in_accumulator -= n_bits_to_decode;
+
+        *coefficient |= bits_to_decode << *n_bits_in_coefficient;
+        *n_bits_in_coefficient += n_bits_to_decode;
+    }
+}
+
+#[inline(always)]
+fn decompress_coefficient(
+    i : usize,
+    n_bits_per_coefficient: u32,
+    coefficient: &mut u32,
+    pe_dst: &mut PolyElement) -> Error
+{
+    // decompress the coefficient
+    // when n_bits_per_coefficient < 12 we decompress per Decompress_d in draft FIPS 203
+    // otherwise we perform input validation per 203 6.2 Input validation 2 (Modulus check)
+    if n_bits_per_coefficient < 12
+    {
+        // Multiply by Q / 2^(n_bits_per_coefficient-1) by multiplying by constant and shifting right
+        *coefficient *= Q;
+        *coefficient >>= n_bits_per_coefficient-1;
+
+        // add "half" to round to nearest integer
+        *coefficient += 1;
+
+        // final divide by two to get multiplication by Q / 2^n_bits_per_coefficient
+        *coefficient >>= 1;  // in range [0, Q]
+
+        // modular reduction by conditional subtraction
+        *coefficient = mod_reduce( *coefficient );
+        debug_assert!( *coefficient < Q );
+    }
+    else if *coefficient > Q
+    {
+        // input validation failure - this can happen with a malformed or corrupt encapsulation
+        // or decapsulation key, but this validation failure only triggers on public data; we
+        // do not need to be constant time
+        return Error::InvalidBlob;
+    }
+
+    pe_dst[i] = *coefficient as u16;
+    Error::NoError
+}
 
 pub(crate)
 fn
@@ -659,67 +749,11 @@ poly_element_decode_and_decompress(
         let mut coefficient = 0;
         let mut n_bits_in_coefficient = 0;
 
-        // first gather and decode bits from pb_src
-        #[inline(always)]
-        fn inner_loop(pb_src: &[u8], n_bits_per_coefficient: u32,
-                      cb_src_read: &mut usize, accumulator: &mut u32,
-                      n_bits_in_accumulator: &mut u32, coefficient: &mut u32,
-                      n_bits_in_coefficient: &mut u32) {
-            while
-            {
-                if *n_bits_in_accumulator == 0
-                {
-                    // FIXME
-                    //*accumulator = u32::from_le_bytes(&pb_src[*cb_src_read..*cb_src_read+4]).try_into().unwrap());
-                    *accumulator = u32::from_le_bytes(slice_to_sub_array::<4>(pb_src, *cb_src_read));
-                    *cb_src_read += 4;
-                    *n_bits_in_accumulator = 32;
-                }
-
-                let n_bits_to_decode = min(n_bits_per_coefficient-*n_bits_in_coefficient, *n_bits_in_accumulator);
-                debug_assert!(n_bits_to_decode <= *n_bits_in_accumulator);
-
-                let bits_to_decode = *accumulator & ((1<<n_bits_to_decode)-1);
-                *accumulator >>= n_bits_to_decode;
-                *n_bits_in_accumulator -= n_bits_to_decode;
-
-                *coefficient |= bits_to_decode << *n_bits_in_coefficient;
-                *n_bits_in_coefficient += n_bits_to_decode;
-                n_bits_per_coefficient > *n_bits_in_coefficient
-            } {}
-        }
-        inner_loop(pb_src, n_bits_per_coefficient, &mut cb_src_read, &mut accumulator,
-                   &mut n_bits_in_accumulator, &mut coefficient, &mut n_bits_in_coefficient);
+        decode_coefficient(pb_src, n_bits_per_coefficient, &mut cb_src_read, &mut accumulator,
+                           &mut n_bits_in_accumulator, &mut coefficient, &mut n_bits_in_coefficient);
         debug_assert!(n_bits_in_coefficient == n_bits_per_coefficient);
 
-        // decompress the coefficient
-        // when n_bits_per_coefficient < 12 we decompress per Decompress_d in draft FIPS 203
-        // otherwise we perform input validation per 203 6.2 Input validation 2 (Modulus check)
-        if n_bits_per_coefficient < 12
-        {
-            // Multiply by Q / 2^(n_bits_per_coefficient-1) by multiplying by constant and shifting right
-            coefficient *= Q;
-            coefficient >>= n_bits_per_coefficient-1;
-
-            // add "half" to round to nearest integer
-            coefficient += 1;
-
-            // final divide by two to get multiplication by Q / 2^n_bits_per_coefficient
-            coefficient >>= 1;  // in range [0, Q]
-
-            // modular reduction by conditional subtraction
-            coefficient = mod_reduce( coefficient );
-            debug_assert!( coefficient < Q );
-        }
-        else if coefficient > Q
-        {
-            // input validation failure - this can happen with a malformed or corrupt encapsulation
-            // or decapsulation key, but this validation failure only triggers on public data; we
-            // do not need to be constant time
-            return Error::InvalidBlob;
-        }
-
-        pe_dst[i] = coefficient as u16;
+        decompress_coefficient(i, n_bits_per_coefficient, &mut coefficient, pe_dst);
     });
 
     debug_assert!(n_bits_in_accumulator == 0);
