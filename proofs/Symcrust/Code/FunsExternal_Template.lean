@@ -46,13 +46,6 @@ axiom hash.shake128_extract
 axiom key.PartialEqsymcrustkeyParamssymcrustkeyParams.ne
   : key.Params → key.Params → Result Bool
 
-/- [core::array::{core::clone::Clone for @Array<T, N>}#20::clone_from]:
-   Source: '/rustc/library/core/src/array/mod.rs', lines 424:4-424:42
-   Name pattern: [core::array::{core::clone::Clone<[@T; @N]>}::clone_from] -/
-axiom core.array.CloneArray.clone_from
-  {T : Type} {N : Usize} (cloneCloneInst : core.clone.Clone T) :
-  Array T N → Array T N → Result (Array T N)
-
 /- [symcrust::ntt::slice_to_sub_array]:
    Source: 'src/ntt.rs', lines 636:0-638:1 -/
 axiom ntt.slice_to_sub_array
