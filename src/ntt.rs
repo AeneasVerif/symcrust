@@ -644,8 +644,7 @@ fn decode_coefficient(
     cb_src_read: &mut usize,
     accumulator: &mut u32,
     n_bits_in_accumulator: &mut u32,
-    coefficient: &mut u32,
-    n_bits_in_coefficient: &mut u32
+    coefficient: &mut u32
 ){
     if *n_bits_in_accumulator == 0
     {
@@ -656,19 +655,19 @@ fn decode_coefficient(
         *n_bits_in_accumulator = 32;
     }
 
-    let n_bits_to_decode = min(n_bits_per_coefficient-*n_bits_in_coefficient, *n_bits_in_accumulator);
+    let n_bits_to_decode = min(n_bits_per_coefficient, *n_bits_in_accumulator);
     debug_assert!(n_bits_to_decode <= *n_bits_in_accumulator);
 
     let bits_to_decode = *accumulator & ((1<<n_bits_to_decode)-1);
     *accumulator >>= n_bits_to_decode;
     *n_bits_in_accumulator -= n_bits_to_decode;
 
-    *coefficient |= bits_to_decode << *n_bits_in_coefficient;
-    *n_bits_in_coefficient += n_bits_to_decode;
+    *coefficient |= bits_to_decode;
+    let n_bits_in_coefficient = n_bits_to_decode;
 
     // If there are more bits in the coefficient to extract, then flush the accumulator and extract the remainder of
     // the coefficient's bits
-    if n_bits_per_coefficient > *n_bits_in_coefficient
+    if n_bits_per_coefficient > n_bits_in_coefficient
     {
         debug_assert!(*n_bits_in_accumulator == 0); // This line is only reached if the accumulator's bits were exhausted
         // FIXME
@@ -677,16 +676,15 @@ fn decode_coefficient(
         *cb_src_read += 4;
         *n_bits_in_accumulator = 32;
 
-        // n_bits_per_coefficient-*n_bits_in_coefficient < *n_bits_in_accumulator because *n_bits_in_accumulator was just set to 32
-        let n_bits_to_decode = n_bits_per_coefficient-*n_bits_in_coefficient;
+        // n_bits_per_coefficient-n_bits_in_coefficient < *n_bits_in_accumulator because *n_bits_in_accumulator was just set to 32
+        let n_bits_to_decode = n_bits_per_coefficient-n_bits_in_coefficient;
         debug_assert!(n_bits_to_decode <= *n_bits_in_accumulator);
 
         let bits_to_decode = *accumulator & ((1<<n_bits_to_decode)-1);
         *accumulator >>= n_bits_to_decode;
         *n_bits_in_accumulator -= n_bits_to_decode;
 
-        *coefficient |= bits_to_decode << *n_bits_in_coefficient;
-        *n_bits_in_coefficient += n_bits_to_decode;
+        *coefficient |= bits_to_decode << n_bits_in_coefficient;
     }
 }
 
@@ -747,11 +745,9 @@ poly_element_decode_and_decompress(
     c_for!(let mut i = 0; i < MLWE_POLYNOMIAL_COEFFICIENTS; i += 1;
     {
         let mut coefficient = 0;
-        let mut n_bits_in_coefficient = 0;
 
         decode_coefficient(pb_src, n_bits_per_coefficient, &mut cb_src_read, &mut accumulator,
-                           &mut n_bits_in_accumulator, &mut coefficient, &mut n_bits_in_coefficient);
-        debug_assert!(n_bits_in_coefficient == n_bits_per_coefficient);
+                           &mut n_bits_in_accumulator, &mut coefficient);
 
         decompress_coefficient(i, n_bits_per_coefficient, &mut coefficient, pe_dst);
     });

@@ -84,6 +84,14 @@ def Target.byteDecode.spec1 {m d : ℕ} (B : Vector Byte (32 * d)) :
   rw [decodeCoefficient.inv] at h
   simp [h.1 i i_lt_256]
 
+/-- Auxiliary lemma for `Target.byteDecode.spec2` -/
+theorem testBitOfSum {m d : ℕ} {f : Fin d → Bool} (j k : ℕ) (hj : j < d) (hk : k ≤ j) :
+  (∑ x, (f x).toNat * (2 : ZMod m) ^ (x : ℕ)).val.testBit j = f ⟨j, hj⟩ := by
+  simp only [Finset.sum, Fin.univ_val_map, Multiset.sum_coe, List.sum]
+  rw [← List.foldl_eq_foldr]
+  simp [List.ofFn]
+  sorry
+
 def Target.byteDecode.spec2 {m d : ℕ} (B : Vector Byte (32 * d)) :
   ∀ i < 256, ∀ j < d, (byteDecode m d B)[i]!.val.testBit j = B[(d * i + j) / 8]!.testBit ((d * i + j) % 8) := by
   intro i i_lt_256 j j_lt_d
@@ -101,8 +109,95 @@ def Target.byteDecode.spec2 {m d : ℕ} (B : Vector Byte (32 * d)) :
       have : j < d * 256 - d * i → d * i + j < 256 * d := by omega
       apply this
       rw [← Nat.mul_sub_left_distrib]
-      have : d * 1 ≤ d * (256 - i) := by apply mul_le_mul <;> omega
+      have : d * 1 ≤ d * (256 - i) := by simp_scalar
       omega
     . simp_scalar
   rw [this]
-  sorry
+  have h := Target.bytesToBits.spec B
+  simp only [bytesToBits.post] at h
+  have h' : ∀ j < d, (bytesToBits B)[i * d + j]! = B[(i * d + j) / 8]!.testBit ((i * d + j) % 8) := by
+    intro j j_lt_d
+    have : i * d + j < 256 * d := by
+      have : j < 256 * d - i * d → i * d + j < 256 * d := by omega
+      apply this
+      rw [← Nat.mul_sub_right_distrib]
+      have : 1 ≤ 256 - i := by omega
+      exact Nat.lt_of_lt_of_le (by omega : j < 1 * d) (Nat.mul_le_mul_right d this)
+    have : (i * d + j) / 8 < 32 * d := by omega
+    have h' := h ((i * d + j) / 8) this ((i * d + j) % 8) (by omega)
+    have : 8 * ((i * d + j) / 8) + (i * d + j) % 8 = i * d + j := by scalar_tac
+    rw [this] at h'
+    exact h'
+  simp only [Fin.is_lt, h']
+  rw [mul_comm d i, h' j j_lt_d]
+  exact testBitOfSum j 0 j_lt_d (zero_le j)
+
+/-!
+# Streamed byteDecode
+
+Below, we prove that the streamed version of `byteDecode` is correct.
+-/
+
+/-- `d`: the number of bits used to represent an element/coefficient
+    `n`: the number of bytes in the accumulator
+-/
+structure Stream.DecodeState (d n : ℕ) where
+  b : List Byte
+  hb : b.length = 32 * d
+  num_bytes_read_from_b : ℕ
+  acc : BitVec (8 * n)
+  num_bits_in_acc : ℕ
+
+/-- Given a current decode state, `Stream.decode.body` decodes the next coefficient and returns
+    the resulting coefficient and state.
+
+    The reason we have the hypothesis `hn` is because this code is not sound if `s.num_bytes_read_from_b`
+    is too large (specifically, large enough that attempting to read the next slice of `b` would yield
+    an Array out of bounds issue) -/
+def Stream.decode.body {d n : ℕ} (s : DecodeState d n) (hn : n ≤ 32 * d - s.num_bytes_read_from_b) :
+  ℕ × DecodeState d n :=
+  if s.num_bits_in_acc == 0 then
+    let bytes_to_decode := List.slice s.num_bytes_read_from_b (s.num_bytes_read_from_b + n) s.b
+    let acc1 : BitVec (8 * bytes_to_decode.length) := BitVec.fromLEBytes bytes_to_decode
+    have hlength : bytes_to_decode.length = n := by
+      rw [List.slice_length s.num_bytes_read_from_b (s.num_bytes_read_from_b + n) s.b]
+      simp only [add_tsub_cancel_left, inf_eq_right, ge_iff_le]
+      rw [s.hb]
+      exact hn
+    -- I use the name `acc1'` rather than `acc2` so that `acc2` corresponds with `accumulator2` in Funs.lean
+    let acc1' : BitVec (8 * n) := by rw [← hlength]; exact acc1
+    let num_bytes_read_from_b := s.num_bytes_read_from_b + n
+    let num_bits_in_acc := 8 * n
+    -- `d < num_bits_in_acc` in practice, but because `d` and `n` are parameters here, we need to use `min`
+    let num_bits_to_decode := min d num_bits_in_acc
+    let mask := (1#(8*n) <<< num_bits_to_decode) - 1
+    let bits_to_decode := acc1' &&& mask
+    let acc2 := acc1' >>> num_bits_to_decode
+    let num_bits_in_acc := num_bits_in_acc - num_bits_to_decode
+    (bits_to_decode.toNat, {s with num_bytes_read_from_b, acc := acc2, num_bits_in_acc})
+  else
+    -- Here, the `min` is nontrivial because `s.num_bits_in_acc` might genuinely be less than `d`
+    let num_bits_to_decode := min d s.num_bits_in_acc
+    let mask := (1#(8*n) <<< num_bits_to_decode) - 1
+    let bits_to_decode := s.acc &&& mask
+    let acc1 := s.acc >>> num_bits_to_decode
+    let num_bits_in_acc := s.num_bits_in_acc - num_bits_to_decode
+    if d > num_bits_to_decode then
+      let bytes_to_decode := List.slice s.num_bytes_read_from_b (s.num_bytes_read_from_b + n) s.b
+      let acc2 : BitVec (8 * bytes_to_decode.length) := BitVec.fromLEBytes bytes_to_decode
+      have hlength : bytes_to_decode.length = n := by
+        rw [List.slice_length s.num_bytes_read_from_b (s.num_bytes_read_from_b + n) s.b]
+        simp only [add_tsub_cancel_left, inf_eq_right, ge_iff_le]
+        rw [s.hb]
+        exact hn
+      let acc2' : BitVec (8 * n) := by rw [← hlength]; exact acc2
+      let num_bytes_read_from_b := s.num_bytes_read_from_b + n
+      -- Using the name `num_bits_to_decode1` to match Funs.lean's `n_bits_to_decode1`
+      let num_bits_to_decode1 := d - num_bits_to_decode
+      let bits_to_decode1 := acc2' &&& mask
+      let acc3 := acc2' >>> num_bits_to_decode1
+      let num_bits_in_acc2 := 8 * n - num_bits_to_decode1
+      let coefficient := bits_to_decode ||| (bits_to_decode1 <<< num_bits_to_decode)
+      (coefficient.toNat, {s with num_bytes_read_from_b, acc := acc3, num_bits_in_acc := num_bits_in_acc2})
+    else
+      (bits_to_decode.toNat, {s with acc := acc1, num_bits_in_acc})
