@@ -142,31 +142,19 @@ Below, we prove that the streamed version of `byteDecode` is correct.
     `n`: the number of bytes in the accumulator
 -/
 structure Stream.DecodeState (d n : ℕ) where
-  b : List Byte
-  hb : b.length = 32 * d
-  num_bytes_read_from_b : ℕ
+  F : Vector (ZMod (m d)) 256
+  num_bytes_read : ℕ
   acc : BitVec (8 * n)
   num_bits_in_acc : ℕ
 
-/-- Given a current decode state, `Stream.decode.body` decodes the next coefficient and returns
-    the resulting coefficient and state.
-
-    The reason we have the hypothesis `hn` is because this code is not sound if `s.num_bytes_read_from_b`
-    is too large (specifically, large enough that attempting to read the next slice of `b` would yield
-    an Array out of bounds issue) -/
-def Stream.decode.body {d n : ℕ} (s : DecodeState d n) (hn : n ≤ 32 * d - s.num_bytes_read_from_b) :
-  ℕ × DecodeState d n :=
+def Stream.decode.body {d n : ℕ} (b : List Byte) (hb : b.length = 32 * d) (s : DecodeState d n) (idx : ℕ) :
+  DecodeState d n :=
   if s.num_bits_in_acc == 0 then
-    let bytes_to_decode := List.slice s.num_bytes_read_from_b (s.num_bytes_read_from_b + n) s.b
+    let bytes_to_decode := List.slice s.num_bytes_read (s.num_bytes_read + n) b
     let acc1 : BitVec (8 * bytes_to_decode.length) := BitVec.fromLEBytes bytes_to_decode
-    have hlength : bytes_to_decode.length = n := by
-      rw [List.slice_length s.num_bytes_read_from_b (s.num_bytes_read_from_b + n) s.b]
-      simp only [add_tsub_cancel_left, inf_eq_right, ge_iff_le]
-      rw [s.hb]
-      exact hn
     -- I use the name `acc1'` rather than `acc2` so that `acc2` corresponds with `accumulator2` in Funs.lean
-    let acc1' : BitVec (8 * n) := by rw [← hlength]; exact acc1
-    let num_bytes_read_from_b := s.num_bytes_read_from_b + n
+    let acc1' : BitVec (8 * n) := acc1.setWidth' (by simp_scalar)
+    let num_bytes_read := s.num_bytes_read + n
     let num_bits_in_acc := 8 * n
     -- `d < num_bits_in_acc` in practice, but because `d` and `n` are parameters here, we need to use `min`
     let num_bits_to_decode := min d num_bits_in_acc
@@ -174,7 +162,8 @@ def Stream.decode.body {d n : ℕ} (s : DecodeState d n) (hn : n ≤ 32 * d - s.
     let bits_to_decode := acc1' &&& mask
     let acc2 := acc1' >>> num_bits_to_decode
     let num_bits_in_acc := num_bits_in_acc - num_bits_to_decode
-    (bits_to_decode.toNat, {s with num_bytes_read_from_b, acc := acc2, num_bits_in_acc})
+    let F := s.F.set! idx bits_to_decode.toNat
+    {s with F, num_bytes_read, acc := acc2, num_bits_in_acc}
   else
     -- Here, the `min` is nontrivial because `s.num_bits_in_acc` might genuinely be less than `d`
     let num_bits_to_decode := min d s.num_bits_in_acc
@@ -183,21 +172,22 @@ def Stream.decode.body {d n : ℕ} (s : DecodeState d n) (hn : n ≤ 32 * d - s.
     let acc1 := s.acc >>> num_bits_to_decode
     let num_bits_in_acc := s.num_bits_in_acc - num_bits_to_decode
     if d > num_bits_to_decode then
-      let bytes_to_decode := List.slice s.num_bytes_read_from_b (s.num_bytes_read_from_b + n) s.b
+      let bytes_to_decode := List.slice s.num_bytes_read (s.num_bytes_read + n) b
       let acc2 : BitVec (8 * bytes_to_decode.length) := BitVec.fromLEBytes bytes_to_decode
-      have hlength : bytes_to_decode.length = n := by
-        rw [List.slice_length s.num_bytes_read_from_b (s.num_bytes_read_from_b + n) s.b]
-        simp only [add_tsub_cancel_left, inf_eq_right, ge_iff_le]
-        rw [s.hb]
-        exact hn
-      let acc2' : BitVec (8 * n) := by rw [← hlength]; exact acc2
-      let num_bytes_read_from_b := s.num_bytes_read_from_b + n
+      let acc2' : BitVec (8 * n) := acc2.setWidth' (by simp_scalar)
+      let num_bytes_read := s.num_bytes_read + n
       -- Using the name `num_bits_to_decode1` to match Funs.lean's `n_bits_to_decode1`
       let num_bits_to_decode1 := d - num_bits_to_decode
       let bits_to_decode1 := acc2' &&& mask
       let acc3 := acc2' >>> num_bits_to_decode1
       let num_bits_in_acc2 := 8 * n - num_bits_to_decode1
       let coefficient := bits_to_decode ||| (bits_to_decode1 <<< num_bits_to_decode)
-      (coefficient.toNat, {s with num_bytes_read_from_b, acc := acc3, num_bits_in_acc := num_bits_in_acc2})
+      let F := s.F.set! idx coefficient.toNat
+      {s with F, num_bytes_read, acc := acc3, num_bits_in_acc := num_bits_in_acc2}
     else
-      (bits_to_decode.toNat, {s with acc := acc1, num_bits_in_acc})
+      let F := s.F.set! idx bits_to_decode.toNat
+      {s with F, acc := acc1, num_bits_in_acc}
+
+def Stream.decode.recBody {d n : ℕ} (b : List Byte) (hb : b.length = 32 * d) (s : DecodeState d n) (i : ℕ) :
+  DecodeState d n :=
+  List.foldl (fun s i => decode.body b hb s i) s (List.range' i (256 - i))
