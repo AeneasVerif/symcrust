@@ -269,8 +269,8 @@ def Stream.decode.inv {d n : ℕ} (b : List Byte) (s : DecodeState d n) (i : ℕ
   ∀ j ∈ [s.num_bits_in_acc:8*n], s.acc[j]! = false
 
 def Stream.decode.body.length_spec {d n : ℕ} (b : List Byte) (hb : b.length = 32 * d)
-  (s : DecodeState d n) (i : ℕ) (hi : i < 256 := by omega) (hn : 0 < n := by omega)
-  (hdn : d < 8 * n := by omega) (hinv : length_inv d n s.num_bytes_read s.num_bits_in_acc i) :
+  (s : DecodeState d n) (i : ℕ) (hi : i < 256 := by omega) (hdn : d < 8 * n := by omega)
+  (hinv : length_inv d n s.num_bytes_read s.num_bits_in_acc i) :
   let s1 := body b hb s i; length_inv d n s1.num_bytes_read s1.num_bits_in_acc (i + 1) := by
   simp only [length_inv, body]
   simp only [length_inv] at hinv
@@ -279,27 +279,38 @@ def Stream.decode.body.length_spec {d n : ℕ} (b : List Byte) (hb : b.length = 
   . omega
   . split
     . next num_bits_in_acc_eq_zero =>
-      sorry
+      simp only [beq_iff_eq] at num_bits_in_acc_eq_zero
+      simp only [num_bits_in_acc_eq_zero, add_zero] at hinv2
+      simp only [pop_bits_from_acc, BitVec.setWidth'_eq, BitVec.ofNat_eq_ofNat,
+        BitVec.shiftLeft_sub_one_eq_mod]
+      constructor
+      . simp_scalar [mul_add] -- Automation note: We need `mul_add` to ensure that `hinv1` is applied
+      . simp_scalar [mul_add, mul_one]
+        have : d * i + d + (8 * n - d) = d * i + 8 * n := by omega
+        simp only [this, Nat.add_mod_right, hinv2]
     . next num_bits_in_acc_ne_zero =>
       split
       . next num_bits_in_acc_lt_d =>
         simp only [gt_iff_lt, inf_lt_left, not_le] at num_bits_in_acc_lt_d
-        simp only [BitVec.setWidth'_eq]
-        sorry
-      . constructor
-        . next hmin =>
-          simp only [gt_iff_lt, inf_lt_left, not_le, not_lt] at hmin
-          simp only [hinv1, hmin, inf_of_le_left]
-          /- Automation note: I'm suprised `scalar_nf; omega` succeeds but none of the following work:
+        simp only [pop_bits_from_acc, BitVec.setWidth'_eq, BitVec.ofNat_eq_ofNat,
+          BitVec.shiftLeft_sub_one_eq_mod]
+        constructor
+        . simp_scalar [mul_add] -- Automation note: We need `mul_add` to ensure that `hinv1` is applied
+        . simp_scalar [mul_add, mul_one]
+          have : d * i + d + (8 * n - (d - s.num_bits_in_acc)) = d * i + s.num_bits_in_acc + 8 * n := by
+            omega
+          simp only [this, Nat.add_mod_right, hinv2]
+      . next hmin =>
+        simp only [gt_iff_lt, inf_lt_left, not_le, not_lt] at hmin
+        simp only [hinv1, hmin, inf_of_le_left]
+        constructor
+        . /- Automation note: I'm suprised `scalar_nf; omega` succeeds but none of the following work:
              - `scalar_tac`
              - `simp_scalar`
              - `scalar_eq_nf` -/
           scalar_nf
           omega
-        . next hmin =>
-          simp only [gt_iff_lt, inf_lt_left, not_le, not_lt] at hmin
-          simp only [hmin, inf_of_le_left]
-          scalar_nf at hinv2
+        . scalar_nf at hinv2
           scalar_nf
           have : d + d * i + (s.num_bits_in_acc - d) = d * i + s.num_bits_in_acc := by omega
           rw [this, hinv2]
