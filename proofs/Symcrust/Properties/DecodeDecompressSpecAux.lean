@@ -191,6 +191,19 @@ structure Stream.DecodeState (d n : ℕ) where
   acc : BitVec (8 * n)
   num_bits_in_acc : ℕ
 
+/-- A helper function that isolates some code that appears multiple times in `ntt.decode_coefficient`.
+    `Stream.decode.pop_bits_from_acc` outputs:
+    - `bits_to_decode` (As many bits of the next coefficient as could be retrieved from `acc`)
+    - An updated `acc`
+    - An updated `num_bits_in_acc` -/
+def Stream.decode.pop_bits_from_acc {n : ℕ} (acc : BitVec (8 * n))
+  (num_bits_to_decode num_bits_in_acc : ℕ) : BitVec (8 * n) × BitVec (8 * n) × ℕ :=
+  let mask := (1#(8*n) <<< num_bits_to_decode) - 1
+  let bits_to_decode := acc &&& mask
+  let updated_acc := acc >>> num_bits_to_decode
+  let updated_num_bits_in_acc := num_bits_in_acc - num_bits_to_decode
+  (bits_to_decode, updated_acc, updated_num_bits_in_acc)
+
 def Stream.decode.body {d n : ℕ} (b : List Byte) (hb : b.length = 32 * d) (s : DecodeState d n) (idx : ℕ) :
   DecodeState d n :=
   if s.num_bits_in_acc == 0 then
@@ -202,10 +215,8 @@ def Stream.decode.body {d n : ℕ} (b : List Byte) (hb : b.length = 32 * d) (s :
     let num_bits_in_acc := 8 * n
     -- `d < num_bits_in_acc` in practice, but because `d` and `n` are parameters here, we need to use `min`
     let num_bits_to_decode := min d num_bits_in_acc
-    let mask := (1#(8*n) <<< num_bits_to_decode) - 1
-    let bits_to_decode := acc1' &&& mask
-    let acc2 := acc1' >>> num_bits_to_decode
-    let num_bits_in_acc := num_bits_in_acc - num_bits_to_decode
+    let (bits_to_decode, acc2, num_bits_in_acc) :=
+      Stream.decode.pop_bits_from_acc acc1' num_bits_to_decode num_bits_in_acc
     let F := s.F.set! idx bits_to_decode.toNat
     {s with F, num_bytes_read, acc := acc2, num_bits_in_acc}
   else
@@ -222,9 +233,7 @@ def Stream.decode.body {d n : ℕ} (b : List Byte) (hb : b.length = 32 * d) (s :
       let num_bytes_read := s.num_bytes_read + n
       -- Using the name `num_bits_to_decode1` to match Funs.lean's `n_bits_to_decode1`
       let num_bits_to_decode1 := d - num_bits_to_decode
-      let bits_to_decode1 := acc2' &&& mask
-      let acc3 := acc2' >>> num_bits_to_decode1
-      let num_bits_in_acc2 := 8 * n - num_bits_to_decode1
+      let (bits_to_decode1, acc3, num_bits_in_acc2) := Stream.decode.pop_bits_from_acc acc2' num_bits_to_decode1 (8 * n)
       let coefficient := bits_to_decode ||| (bits_to_decode1 <<< num_bits_to_decode)
       let F := s.F.set! idx coefficient.toNat
       {s with F, num_bytes_read, acc := acc3, num_bits_in_acc := num_bits_in_acc2}
