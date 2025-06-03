@@ -204,7 +204,7 @@ def Stream.decode.pop_bits_from_acc {n : ℕ} (acc : BitVec (8 * n))
   let updated_num_bits_in_acc := num_bits_in_acc - num_bits_to_decode
   (bits_to_decode, updated_acc, updated_num_bits_in_acc)
 
-def Stream.decode.body {d n : ℕ} (b : List Byte) (hb : b.length = 32 * d) (s : DecodeState d n) (idx : ℕ) :
+def Stream.decode.body {d n : ℕ} (b : List Byte) (hb : b.length = 32 * d) (s : DecodeState d n) (i : ℕ) :
   DecodeState d n :=
   if s.num_bits_in_acc == 0 then
     let bytes_to_decode := List.slice s.num_bytes_read (s.num_bytes_read + n) b
@@ -217,7 +217,7 @@ def Stream.decode.body {d n : ℕ} (b : List Byte) (hb : b.length = 32 * d) (s :
     let num_bits_to_decode := min d num_bits_in_acc
     let (bits_to_decode, acc2, num_bits_in_acc) :=
       Stream.decode.pop_bits_from_acc acc1' num_bits_to_decode num_bits_in_acc
-    let F := s.F.set! idx bits_to_decode.toNat
+    let F := s.F.set! i bits_to_decode.toNat
     {s with F, num_bytes_read, acc := acc2, num_bits_in_acc}
   else
     -- Here, the `min` is nontrivial because `s.num_bits_in_acc` might genuinely be less than `d`
@@ -235,10 +235,10 @@ def Stream.decode.body {d n : ℕ} (b : List Byte) (hb : b.length = 32 * d) (s :
       let num_bits_to_decode1 := d - num_bits_to_decode
       let (bits_to_decode1, acc3, num_bits_in_acc2) := Stream.decode.pop_bits_from_acc acc2' num_bits_to_decode1 (8 * n)
       let coefficient := bits_to_decode ||| (bits_to_decode1 <<< num_bits_to_decode)
-      let F := s.F.set! idx coefficient.toNat
+      let F := s.F.set! i coefficient.toNat
       {s with F, num_bytes_read, acc := acc3, num_bits_in_acc := num_bits_in_acc2}
     else
-      let F := s.F.set! idx bits_to_decode.toNat
+      let F := s.F.set! i bits_to_decode.toNat
       {s with F, acc := acc1, num_bits_in_acc}
 
 def Stream.decode.recBody {d n : ℕ} (b : List Byte) (hb : b.length = 32 * d) (s : DecodeState d n) (i : ℕ) :
@@ -254,13 +254,10 @@ def Stream.decode (d n : ℕ) (b : List Byte) (hb : b.length = 32 * d) : Vector 
   }
   (decode.recBody b hb s 0).F
 
--- **TODO** Once it becomes apparent what equation would be helpful, modify the `num_bytes_read``
--- formula to have an equational form
 def Stream.decode.length_inv (d n : ℕ) (num_bytes_read num_bits_in_acc i : ℕ) : Prop :=
   i ≤ 256 ∧
-  -- `(((d * i) + (8 * n - 1)) / (8 * n))` = `((d * i) / (8 * n))` with division rounding up
-  num_bytes_read = n * (((d * i) + (8 * n - 1)) / (8 * n)) ∧
-  num_bits_in_acc = (d * i) % (8 * n)
+  8 * num_bytes_read = d * i + num_bits_in_acc ∧
+  (d * i + num_bits_in_acc) % (8 * n) = 0
 
 def Stream.decode.inv {d n : ℕ} (b : List Byte) (s : DecodeState d n) (i : ℕ) : Prop :=
   -- The lengths are correct
@@ -270,3 +267,39 @@ def Stream.decode.inv {d n : ℕ} (b : List Byte) (s : DecodeState d n) (i : ℕ
   -- All bits are properly set in the accummulator
   ∀ j < s.num_bits_in_acc, s.acc[j]! = b[(d * i + j) / 8]!.testBit ((d * i + j) % 8) ∧
   ∀ j ∈ [s.num_bits_in_acc:8*n], s.acc[j]! = false
+
+def Stream.decode.body.length_spec {d n : ℕ} (b : List Byte) (hb : b.length = 32 * d)
+  (s : DecodeState d n) (i : ℕ) (hi : i < 256 := by omega) (hn : 0 < n := by omega)
+  (hdn : d < 8 * n := by omega) (hinv : length_inv d n s.num_bytes_read s.num_bits_in_acc i) :
+  let s1 := body b hb s i; length_inv d n s1.num_bytes_read s1.num_bits_in_acc (i + 1) := by
+  simp only [length_inv, body]
+  simp only [length_inv] at hinv
+  obtain ⟨hinv0, hinv1, hinv2⟩ := hinv
+  constructor
+  . omega
+  . split
+    . next num_bits_in_acc_eq_zero =>
+      sorry
+    . next num_bits_in_acc_ne_zero =>
+      split
+      . next num_bits_in_acc_lt_d =>
+        simp only [gt_iff_lt, inf_lt_left, not_le] at num_bits_in_acc_lt_d
+        simp only [BitVec.setWidth'_eq]
+        sorry
+      . constructor
+        . next hmin =>
+          simp only [gt_iff_lt, inf_lt_left, not_le, not_lt] at hmin
+          simp only [hinv1, hmin, inf_of_le_left]
+          /- Automation note: I'm suprised `scalar_nf; omega` succeeds but none of the following work:
+             - `scalar_tac`
+             - `simp_scalar`
+             - `scalar_eq_nf` -/
+          scalar_nf
+          omega
+        . next hmin =>
+          simp only [gt_iff_lt, inf_lt_left, not_le, not_lt] at hmin
+          simp only [hmin, inf_of_le_left]
+          scalar_nf at hinv2
+          scalar_nf
+          have : d + d * i + (s.num_bits_in_acc - d) = d * i + s.num_bits_in_acc := by omega
+          rw [this, hinv2]
