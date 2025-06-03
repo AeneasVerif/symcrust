@@ -222,10 +222,8 @@ def Stream.decode.body {d n : ℕ} (b : List Byte) (hb : b.length = 32 * d) (s :
   else
     -- Here, the `min` is nontrivial because `s.num_bits_in_acc` might genuinely be less than `d`
     let num_bits_to_decode := min d s.num_bits_in_acc
-    let mask := (1#(8*n) <<< num_bits_to_decode) - 1
-    let bits_to_decode := s.acc &&& mask
-    let acc1 := s.acc >>> num_bits_to_decode
-    let num_bits_in_acc := s.num_bits_in_acc - num_bits_to_decode
+    let (bits_to_decode, acc1, num_bits_in_acc) :=
+      Stream.decode.pop_bits_from_acc s.acc num_bits_to_decode s.num_bits_in_acc
     if d > num_bits_to_decode then
       let bytes_to_decode := List.slice s.num_bytes_read (s.num_bytes_read + n) b
       let acc2 : BitVec (8 * bytes_to_decode.length) := BitVec.fromLEBytes bytes_to_decode
@@ -263,9 +261,9 @@ def Stream.decode.inv {d n : ℕ} (b : List Byte) (s : DecodeState d n) (i : ℕ
   -- The lengths are correct
   length_inv d n s.num_bytes_read s.num_bits_in_acc i ∧
   -- All coefficients up to i have been properly set in F
-  ∀ j < i, ∀ k < d, s.F[j]!.val.testBit k = b[(d * j + k) / 8]!.testBit ((d * j + k) % 8) ∧
+  (∀ j < i, ∀ k < d, s.F[j]!.val.testBit k = b[(d * j + k) / 8]!.testBit ((d * j + k) % 8)) ∧
   -- All bits are properly set in the accummulator
-  ∀ j < s.num_bits_in_acc, s.acc[j]! = b[(d * i + j) / 8]!.testBit ((d * i + j) % 8) ∧
+  (∀ j < s.num_bits_in_acc, s.acc[j]! = b[(d * i + j) / 8]!.testBit ((d * i + j) % 8)) ∧
   ∀ j ∈ [s.num_bits_in_acc:8*n], s.acc[j]! = false
 
 def Stream.decode.body.length_spec {d n : ℕ} (b : List Byte) (hb : b.length = 32 * d)
@@ -302,7 +300,8 @@ def Stream.decode.body.length_spec {d n : ℕ} (b : List Byte) (hb : b.length = 
           simp only [this, Nat.add_mod_right, hinv2]
       . next hmin =>
         simp only [gt_iff_lt, inf_lt_left, not_le, not_lt] at hmin
-        simp only [hinv1, hmin, inf_of_le_left]
+        simp only [hinv1, pop_bits_from_acc, hmin, inf_of_le_left, BitVec.ofNat_eq_ofNat,
+          BitVec.shiftLeft_sub_one_eq_mod]
         constructor
         . /- Automation note: I'm suprised `scalar_nf; omega` succeeds but none of the following work:
              - `scalar_tac`
@@ -314,3 +313,34 @@ def Stream.decode.body.length_spec {d n : ℕ} (b : List Byte) (hb : b.length = 
           scalar_nf
           have : d + d * i + (s.num_bits_in_acc - d) = d * i + s.num_bits_in_acc := by omega
           rw [this, hinv2]
+
+def Stream.decode.pop_bits_from_acc.spec {n : ℕ} (acc : BitVec (8 * n))
+  (num_bits_to_decode num_bits_in_acc : ℕ) :
+  let res := pop_bits_from_acc acc num_bits_to_decode num_bits_in_acc;
+  -- **TODO**
+  True := by
+  sorry
+
+def Stream.decode.body.spec_no_flush {d n : ℕ} (b : List Byte) (hb : b.length = 32 * d)
+  (s : DecodeState d n) (i : ℕ) (hi : i < 256 := by omega) (hdn : d < 8 * n := by omega)
+  (hinv : inv b s i) (hd : d ≤ s.num_bits_in_acc) (h_num_bits_in_acc : s.num_bits_in_acc ≠ 0) :
+  let s1 := body b hb s i; inv b s1 (i + 1) := by
+  unfold inv at hinv
+  obtain ⟨hinv1, hinv2, hinv3, hinv4⟩ := hinv
+  simp only [mem_std_range_step_one, and_imp] at hinv4
+  unfold inv
+  constructor -- Automation note: I'm surprised that `split_conjs` doesn't do anything here
+  . apply length_spec <;> simp_all
+  . simp only [body, beq_iff_eq, h_num_bits_in_acc, ↓reduceIte, hd, inf_of_le_left, gt_iff_lt,
+      lt_self_iff_false, mem_std_range_step_one, and_imp]
+    split_conjs
+    . intro j j_le_i k k_lt_d
+      dcases hj : i = j
+      . rw [hj, Vector.getElem!_set!]
+        . sorry
+        . omega
+      . rw [Vector.getElem!_set!_ne hj, hinv2 j (by omega) k k_lt_d]
+    . intro j hj
+      sorry
+    . intro j hj1 hj2
+      sorry
