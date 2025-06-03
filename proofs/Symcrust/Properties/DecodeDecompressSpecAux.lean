@@ -1,4 +1,5 @@
 import Symcrust.Properties.CompressEncodeSpecAux
+import Mathlib.Algebra.BigOperators.Fin
 
 #setup_aeneas_simps
 
@@ -84,12 +85,55 @@ def Target.byteDecode.spec1 {m d : ℕ} (B : Vector Byte (32 * d)) :
   rw [decodeCoefficient.inv] at h
   simp [h.1 i i_lt_256]
 
+theorem Finset.univ_sum_eq_range {β} [AddCommMonoid β] (n : ℕ) (f : ℕ → β) :
+  ∑ (j : Fin n), f j = ∑ j ∈ Finset.range n, f j := by
+  match n with
+  | 0 => simp
+  | n'+1 =>
+   simp [Finset.sum_range_succ, Fin.sum_univ_succAbove, Fin.sum_univ_castSucc]
+   -- recursive call
+   simp [Finset.univ_sum_eq_range]
+
+theorem Finset.sum_range_decompose (f : ℕ → ℕ) (d i : ℕ) (h : i < d) :
+  ∑ j ∈ Finset.range d, f j = ∑ j ∈ Finset.range i, f j + f i + ∑ j ∈ Finset.range (d - i - 1), f (i + j + 1) := by
+  have : d = i + 1 + (d - i - 1) := by omega
+  -- Remark: we could also use: Finset.sum_range_add_sum_Ico
+  conv => lhs; rw [this]; simp only [Finset.sum_range_add]
+  simp
+  congr
+  apply funext; intro j
+  congr 1; omega
+
+theorem sum_pow_two_eq (n : ℕ) : ∑ i ∈ Finset.range n, 2^i = 2^n - 1 := by
+  match n with
+  | 0 => simp
+  | n'+1 =>
+   simp [Finset.sum_range_succ, Nat.pow_add_one]
+   simp [sum_pow_two_eq]
+   omega
+
+theorem sum_lt_testBit_eq_false (n d i : ℕ) (h : i < d) (f : ℕ → ℕ) :
+  (∑ j ∈ Finset.range n, f j * 2 ^ (d + j)).testBit i = false := by
+  have : ∑ j ∈ Finset.range n, f j * 2 ^ (d + j) = 2 ^ d * (∑ j ∈ Finset.range n, f j * 2 ^ j) := by
+    simp only [Nat.pow_add]
+    conv => lhs; arg 2; ext; arg 2; rw [Nat.mul_comm]
+    simp only [← Nat.mul_assoc, ← Finset.sum_mul]
+    exact Nat.mul_comm (∑ i ∈ Finset.range n, f i * 2 ^ i) (2 ^ d)
+  simp [this, Nat.testBit_two_pow_mul]
+  intro h
+  omega
+
 /-- Auxiliary lemma for `Target.byteDecode.spec2` -/
 theorem testBitOfSum {m d : ℕ} {f : Fin d → Bool} (j k : ℕ) (hj : j < d) (hk : k ≤ j) :
-  (∑ x, (f x).toNat * (2 : ZMod m) ^ (x : ℕ)).val.testBit j = f ⟨j, hj⟩ := by
-  simp only [Finset.sum, Fin.univ_val_map, Multiset.sum_coe, List.sum]
-  rw [← List.foldl_eq_foldr]
-  simp [List.ofFn]
+  (∑ (x : Fin d), (f x).toNat * (2 : ZMod m) ^ (x : ℕ)).val.testBit j = f ⟨j, hj⟩ := by
+  let f' : ℕ → Bool := fun x => if h : x < d then f ⟨x, h⟩ else false
+  have f'_eq_f : ∀ x : Fin d, f' x.val = f x := fun x => dif_pos x.isLt
+  simp only [← f'_eq_f]
+  let sum_formula := fun x => (f' x).toNat * (2 : ZMod m) ^ (x : ℕ)
+  rw [Finset.univ_sum_eq_range d sum_formula]
+  -- **TODO** sum_formula has output type ZMod m but sum_range_decompose_sum_formula requires
+  -- the function's output type to be ℕ (so `rw [Finset.sum_range_decompose sum_formula d j hj]`
+  -- does not yet work)
   sorry
 
 def Target.byteDecode.spec2 {m d : ℕ} (B : Vector Byte (32 * d)) :
@@ -191,3 +235,29 @@ def Stream.decode.body {d n : ℕ} (b : List Byte) (hb : b.length = 32 * d) (s :
 def Stream.decode.recBody {d n : ℕ} (b : List Byte) (hb : b.length = 32 * d) (s : DecodeState d n) (i : ℕ) :
   DecodeState d n :=
   List.foldl (fun s i => decode.body b hb s i) s (List.range' i (256 - i))
+
+def Stream.decode (d n : ℕ) (b : List Byte) (hb : b.length = 32 * d) : Vector (ZMod (m d)) 256 :=
+  let s : DecodeState d n := {
+    F := Vector.replicate 256 0,
+    num_bytes_read := 0,
+    acc := 0,
+    num_bits_in_acc := 0
+  }
+  (decode.recBody b hb s 0).F
+
+-- **TODO** Once it becomes apparent what equation would be helpful, modify the `num_bytes_read``
+-- formula to have an equational form
+def Stream.decode.length_inv (d n : ℕ) (num_bytes_read num_bits_in_acc i : ℕ) : Prop :=
+  i ≤ 256 ∧
+  -- `(((d * i) + (8 * n - 1)) / (8 * n))` = `((d * i) / (8 * n))` with division rounding up
+  num_bytes_read = n * (((d * i) + (8 * n - 1)) / (8 * n)) ∧
+  num_bits_in_acc = (d * i) % (8 * n)
+
+def Stream.decode.inv {d n : ℕ} (b : List Byte) (s : DecodeState d n) (i : ℕ) : Prop :=
+  -- The lengths are correct
+  length_inv d n s.num_bytes_read s.num_bits_in_acc i ∧
+  -- All coefficients up to i have been properly set in F
+  ∀ j < i, ∀ k < d, s.F[j]!.val.testBit k = b[(d * j + k) / 8]!.testBit ((d * j + k) % 8) ∧
+  -- All bits are properly set in the accummulator
+  ∀ j < s.num_bits_in_acc, s.acc[j]! = b[(d * i + j) / 8]!.testBit ((d * i + j) % 8) ∧
+  ∀ j ∈ [s.num_bits_in_acc:8*n], s.acc[j]! = false
