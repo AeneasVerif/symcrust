@@ -710,8 +710,8 @@ fn decompress_coefficient(
         // final divide by two to get multiplication by Q / 2^n_bits_per_coefficient
         *coefficient >>= 1;  // in range [0, Q]
 
-        // modular reduction by conditional subtraction
-        *coefficient = mod_reduce( *coefficient );
+        // modular reduction by conditional subtraction (commented out because it is unnecessary)
+        // *coefficient = mod_reduce( *coefficient );
         debug_assert!( *coefficient < Q );
     }
     else if *coefficient > Q

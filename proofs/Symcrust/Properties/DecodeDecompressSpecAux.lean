@@ -193,6 +193,13 @@ structure Stream.DecodeState (d n : ℕ) where
   acc : BitVec (8 * n)
   num_bits_in_acc : ℕ
 
+/-- A helper function that isolates some code that appears multiple times in `ntt.decode_coefficient` -/
+def Stream.decode.load_acc {d n : ℕ} (b : List Byte) (hb : b.length = 32 * d) (s : DecodeState d n) :
+  BitVec (8 * n) :=
+  let bytes_to_decode := List.slice s.num_bytes_read (s.num_bytes_read + n) b
+  let acc := BitVec.fromLEBytes bytes_to_decode
+  acc.setWidth' (by simp_scalar)
+
 /-- A helper function that isolates some code that appears multiple times in `ntt.decode_coefficient`.
     `Stream.decode.pop_bits_from_acc` outputs:
     - `bits_to_decode` (As many bits of the next coefficient as could be retrieved from `acc`)
@@ -209,31 +216,25 @@ def Stream.decode.pop_bits_from_acc {n : ℕ} (acc : BitVec (8 * n))
 def Stream.decode.body {d n : ℕ} (b : List Byte) (hb : b.length = 32 * d) (s : DecodeState d n) (i : ℕ) :
   DecodeState d n :=
   if s.num_bits_in_acc == 0 then
-    let bytes_to_decode := List.slice s.num_bytes_read (s.num_bytes_read + n) b
-    let acc1 : BitVec (8 * bytes_to_decode.length) := BitVec.fromLEBytes bytes_to_decode
-    -- I use the name `acc1'` rather than `acc2` so that `acc2` corresponds with `accumulator2` in Funs.lean
-    let acc1' : BitVec (8 * n) := acc1.setWidth' (by simp_scalar)
+    let acc1 := decode.load_acc b hb s
     let num_bytes_read := s.num_bytes_read + n
     let num_bits_in_acc := 8 * n
     -- `d < num_bits_in_acc` in practice, but because `d` and `n` are parameters here, we need to use `min`
     let num_bits_to_decode := min d num_bits_in_acc
-    let (bits_to_decode, acc2, num_bits_in_acc) :=
-      Stream.decode.pop_bits_from_acc acc1' num_bits_to_decode num_bits_in_acc
+    let (bits_to_decode, acc2, num_bits_in_acc) := pop_bits_from_acc acc1 num_bits_to_decode num_bits_in_acc
     let F := s.F.set! i bits_to_decode.toNat
     {s with F, num_bytes_read, acc := acc2, num_bits_in_acc}
   else
     -- Here, the `min` is nontrivial because `s.num_bits_in_acc` might genuinely be less than `d`
     let num_bits_to_decode := min d s.num_bits_in_acc
     let (bits_to_decode, acc1, num_bits_in_acc) :=
-      Stream.decode.pop_bits_from_acc s.acc num_bits_to_decode s.num_bits_in_acc
+      pop_bits_from_acc s.acc num_bits_to_decode s.num_bits_in_acc
     if d > num_bits_to_decode then
-      let bytes_to_decode := List.slice s.num_bytes_read (s.num_bytes_read + n) b
-      let acc2 : BitVec (8 * bytes_to_decode.length) := BitVec.fromLEBytes bytes_to_decode
-      let acc2' : BitVec (8 * n) := acc2.setWidth' (by simp_scalar)
+      let acc2 := decode.load_acc b hb s
       let num_bytes_read := s.num_bytes_read + n
       -- Using the name `num_bits_to_decode1` to match Funs.lean's `n_bits_to_decode1`
       let num_bits_to_decode1 := d - num_bits_to_decode
-      let (bits_to_decode1, acc3, num_bits_in_acc2) := Stream.decode.pop_bits_from_acc acc2' num_bits_to_decode1 (8 * n)
+      let (bits_to_decode1, acc3, num_bits_in_acc2) := pop_bits_from_acc acc2 num_bits_to_decode1 (8 * n)
       let coefficient := bits_to_decode ||| (bits_to_decode1 <<< num_bits_to_decode)
       let F := s.F.set! i coefficient.toNat
       {s with F, num_bytes_read, acc := acc3, num_bits_in_acc := num_bits_in_acc2}
@@ -316,13 +317,21 @@ def Stream.decode.body.length_spec {d n : ℕ} (b : List Byte) (hb : b.length = 
           have : d + d * i + (s.num_bits_in_acc - d) = d * i + s.num_bits_in_acc := by omega
           rw [this, hinv2]
 
+def Stream.decode.load_acc.spec {d n : ℕ} (b : List Byte) (hb : b.length = 32 * d)
+  (s : DecodeState d n) :
+  let res := load_acc b hb s;
+  --**TODO**
+  True := by
+  sorry
+
 /- **TODO** Need an assumption that the next `num_bits_to_decode` bits of `acc`
    yield a number that is `≤ m d`. When `d < 12`, this is equivalent to saying
    `2 ^ num_bits_to_decode ≤ m d`, but when `d = num_bits_to_decode = 12`, the
    assumption is more complicated. This assumption is to facilitate the proof of
    `h0 : ∀ j < num_bits_to_decode, (res.1.toNat : ZMod (m d)).val.testBit j = res.1[j]!` -/
 def Stream.decode.pop_bits_from_acc.spec {n : ℕ} (d : ℕ) (acc : BitVec (8 * n))
-  (num_bits_to_decode num_bits_in_acc : ℕ) :
+  (num_bits_to_decode num_bits_in_acc : ℕ)
+  (h : ∀ j ∈ [num_bits_in_acc:8*n], acc[j]! = false):
   let res := pop_bits_from_acc acc num_bits_to_decode num_bits_in_acc;
   (∀ j < num_bits_to_decode, (res.1.toNat : ZMod (m d)).val.testBit j = res.1[j]!) ∧
   (∀ j < num_bits_to_decode, res.1[j]! = acc[j]!) ∧
@@ -334,7 +343,8 @@ def Stream.decode.pop_bits_from_acc.spec {n : ℕ} (d : ℕ) (acc : BitVec (8 * 
   simp only [ZMod.val_natCast, mem_std_range_step_one, and_imp]
   split_conjs
   . intro j j_lt_num_bits_to_decode
-    have : res.1.toNat < m d := sorry -- Not provable yet, need the appropriate assumption about `acc`
+    have : res.1.toNat < m d := by
+      sorry -- Not provable yet, need the appropriate assumption about `acc`
     rw [Nat.mod_eq_of_lt this]
     exact Eq.symm (BitVec.getElem!_eq_testBit_toNat res.1 j)
   . intro j hj
@@ -347,8 +357,12 @@ def Stream.decode.pop_bits_from_acc.spec {n : ℕ} (d : ℕ) (acc : BitVec (8 * 
   . intro j hj1 hj2
     simp only [pop_bits_from_acc, BitVec.ofNat_eq_ofNat, BitVec.shiftLeft_sub_one_eq_mod,
       BitVec.getElem!_shiftRight, res]
-    -- Not provable yet, need an appropriate assumption about `acc` and `num_bits_in_acc`
-    sorry
+    simp only [mem_std_range_step_one, and_imp, res] at h
+    -- **NOTE** If `num_bits_to_decode + j` is out of bounds, we rely on the default behavior of
+    -- `BitVec.getElem!` as defined by `BitVec.getElem!_eq_false`
+    dcases bounds_check : num_bits_to_decode + j < 8 * n
+    . exact h (num_bits_to_decode + j) (by omega) bounds_check
+    . simp_all only [tsub_le_iff_right, not_lt, BitVec.getElem!_eq_false]
   . simp [res, pop_bits_from_acc]
 
 /-- Yields `Stream.decode.body.spec` in the case that the accumulator does not need to be loaded at all -/
@@ -358,13 +372,12 @@ def Stream.decode.body.spec_no_load {d n : ℕ} (b : List Byte) (hb : b.length =
   let s1 := body b hb s i; inv b s1 (i + 1) := by
   unfold inv at hinv
   obtain ⟨hinv1, hinv2, hinv3, hinv4⟩ := hinv
-  simp only [mem_std_range_step_one, and_imp] at hinv4
   unfold inv
   constructor -- Automation note: I'm surprised that `split_conjs` doesn't do anything here
   . apply length_spec <;> simp_all
   . simp only [body, beq_iff_eq, h_num_bits_in_acc, ↓reduceIte, hd, inf_of_le_left, gt_iff_lt,
       lt_self_iff_false, mem_std_range_step_one, and_imp]
-    obtain ⟨h0, h1, h2, h3, h4, h5⟩ := pop_bits_from_acc.spec d s.acc d s.num_bits_in_acc
+    obtain ⟨h0, h1, h2, h3, h4, h5⟩ := pop_bits_from_acc.spec d s.acc d s.num_bits_in_acc hinv4
     split_conjs
     . intro j j_le_i k k_lt_d
       dcases hj : i = j
@@ -392,13 +405,26 @@ def Stream.decode.body.spec_early_load {d n : ℕ} (b : List Byte) (hb : b.lengt
   . apply length_spec <;> simp_all
   . simp only [body, h_num_bits_in_acc, beq_self_eq_true, ↓reduceIte, BitVec.setWidth'_eq,
       mem_std_range_step_one, and_imp]
+    obtain ⟨h0, h1, h2, h3, h4, h5⟩ :=
+      pop_bits_from_acc.spec d (load_acc b hb s) (min d (8 * n)) (8 * n) (by simp)
     split_conjs
     . intro j j_le_i k k_lt_d
-      sorry
+      dcases hj : i = j
+      . rw [hj, Vector.getElem!_set!]
+        . simp only [lt_inf_iff, ZMod.val_natCast, and_imp] at h0
+          simp only [lt_inf_iff, and_imp] at h1
+          simp only [ZMod.val_natCast, h0 k k_lt_d (by omega), h1 k k_lt_d (by omega)]
+          sorry
+        . omega
+      . rw [Vector.getElem!_set!_ne hj, hinv2 j (by omega) k k_lt_d]
     . intro j hj
+      rw [h5] at hj
+      rw [h3 j hj]
       sorry
     . intro j hj1 hj2
-      sorry
+      rw [h5] at hj1
+      simp only [mem_std_range_step_one, tsub_le_iff_right, and_imp] at h4
+      exact h4 j (by omega) hj2
 
 /-- Yields `Stream.decode.body.spec` in the case that the accumulator needs to be loaded after popping
     less than a full coefficient's worth of bits -/
@@ -414,13 +440,19 @@ def Stream.decode.body.spec_late_load {d n : ℕ} (b : List Byte) (hb : b.length
   . apply length_spec <;> simp_all
   . simp only [body, beq_iff_eq, h_num_bits_in_acc, ↓reduceIte, gt_iff_lt, inf_lt_left, not_le, hd,
       BitVec.setWidth'_eq, BitVec.toNat_or, BitVec.toNat_shiftLeft, mem_std_range_step_one, and_imp]
+    simp_lists_scalar -- Automation note: I'd really like to have `simp_lists_scalar?`
+    obtain ⟨h0, h1, h2, h3, h4, h5⟩ :=
+      pop_bits_from_acc.spec d (load_acc b hb s) (d - s.num_bits_in_acc) (8 * n) (by simp)
     split_conjs
     . intro j j_le_i k k_lt_d
       sorry
     . intro j hj
+      rw [h5] at hj
+      rw [h3 j hj]
       sorry
     . intro j hj1 hj2
-      sorry
+      simp only [mem_std_range_step_one, tsub_le_iff_right, and_imp] at h4
+      exact h4 j (by simp_lists_scalar) hj2
 
 def Stream.decode.body.spec {d n : ℕ} (b : List Byte) (hb : b.length = 32 * d)
   (s : DecodeState d n) (i : ℕ) (hi : i < 256 := by omega) (hdn : d < 8 * n := by omega)
