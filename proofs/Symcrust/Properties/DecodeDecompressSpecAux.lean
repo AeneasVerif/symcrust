@@ -1,5 +1,6 @@
 import Symcrust.Properties.CompressEncodeSpecAux
 import Mathlib.Algebra.BigOperators.Fin
+import Symcrust.Properties.Brute
 
 #setup_aeneas_simps
 
@@ -122,6 +123,18 @@ theorem sum_lt_testBit_eq_false (n d i : ℕ) (h : i < d) (f : ℕ → ℕ) :
   simp [this, Nat.testBit_two_pow_mul]
   intro h
   omega
+
+#check Fintype
+
+set_option trace.compiler.ir true in
+example : ∀ f : Fin 3 → Bool, ∀ x < 3, f x ∨ ¬f x := by
+  decide +native
+
+/-- Auxiliary lemma for `Target.byteDecode.spec2` -/
+theorem testBitOfSum_forBrute :
+  ∀ d < 13, ∀ j : Nat, ∀ hj : j < d, ∀ k < j + 1, ∀ f : Fin d → Bool,
+  (∑ (x : Fin d), (f x).toNat * (2 : ZMod (m d)) ^ (x : ℕ)).val.testBit j = f ⟨j, hj⟩ := by
+  sorry
 
 /-- Auxiliary lemma for `Target.byteDecode.spec2` -/
 theorem testBitOfSum {m d : ℕ} {f : Fin d → Bool} (j k : ℕ) (hj : j < d) (hk : k ≤ j) :
@@ -439,6 +452,65 @@ def Stream.decode.body.spec_early_load {d n : ℕ} (b : List Byte) (hb : b.lengt
       rw [h5] at hj1
       simp only [mem_std_range_step_one, tsub_le_iff_right, and_imp] at h4
       exact h4 j (by omega) hj2
+
+lemma bitwise_or_eq_and (x y d : ℕ) (h : x < 2^d) (h : y < 2^d) : x ||| (y <<< d) == x + (y <<< d) := by
+  -- `grind` gives a crazy output: "failed to synthesize Decidable (2 = 2)"
+  sorry
+
+lemma bitwise_or_eq_and2 (d : ℕ) (x y : BitVec n) (h : x < (1#n).shiftLeft d) :
+  BitVec.or x (y.shiftLeft d) = BitVec.add x (y.shiftLeft d) := by
+  sorry
+
+/-- A temporary lemma to make it easier to work on this proof without constantly rerunning the slow
+    `simp_lists_scalar` call in `spec_late_load`. -/
+theorem Stream.decode.body.extracted_1 {d n : ℕ} (b : List Byte) (hb : b.length = 32 * d)
+  (s : DecodeState d n) (i : ℕ) (hi : i < 256 := by omega) (hdn : d < 8 * n := by omega) (hd : s.num_bits_in_acc < d)
+  (h_num_bits_in_acc : s.num_bits_in_acc ≠ 0) (hinv1 : length_inv d n s.num_bytes_read s.num_bits_in_acc i)
+  (hinv2 : ∀ j < i, ∀ k < d, s.F[j]!.val.testBit k = b[(d * j + k) / 8]!.testBit ((d * j + k) % 8))
+  (hinv3 :
+    ∀ j < s.num_bits_in_acc,
+      s.acc[j]! =
+        b[(8 * s.num_bytes_read - s.num_bits_in_acc + j) / 8]!.testBit
+          ((8 * s.num_bytes_read - s.num_bits_in_acc + j) % 8))
+  (hinv4 : ∀ j ∈ [s.num_bits_in_acc: 8 * n], s.acc[j]! = false)
+  (h0 :
+    ∀ j < d - s.num_bits_in_acc,
+      (↑(pop_bits_from_acc (load_acc b hb s) (d - s.num_bits_in_acc) (8 * n)).1.toNat : ZMod (m d)).val.testBit j =
+        (pop_bits_from_acc (load_acc b hb s) (d - s.num_bits_in_acc) (8 * n)).1[j]!)
+  (h1 :
+    ∀ j < d - s.num_bits_in_acc,
+      (pop_bits_from_acc (load_acc b hb s) (d - s.num_bits_in_acc) (8 * n)).1[j]! = (load_acc b hb s)[j]!)
+  (h2 :
+    ∀ j ∈ [d - s.num_bits_in_acc: 8 * n],
+      (pop_bits_from_acc (load_acc b hb s) (d - s.num_bits_in_acc) (8 * n)).1[j]! = false)
+  (h3 :
+    ∀ j < 8 * n - (d - s.num_bits_in_acc),
+      (pop_bits_from_acc (load_acc b hb s) (d - s.num_bits_in_acc) (8 * n)).2.1[j]! =
+        (load_acc b hb s)[j + (d - s.num_bits_in_acc)]!)
+  (h4 :
+    ∀ j ∈ [8 * n - (d - s.num_bits_in_acc): 8 * n],
+      (pop_bits_from_acc (load_acc b hb s) (d - s.num_bits_in_acc) (8 * n)).2.1[j]! = false)
+  (h5 : (pop_bits_from_acc (load_acc b hb s) (d - s.num_bits_in_acc) (8 * n)).2.2 = 8 * n - (d - s.num_bits_in_acc))
+  (j : ℕ) (j_le_i : j < i + 1) (k : ℕ) (k_lt_d : k < d) (hj : i = j) :
+  (s.F.set! i
+              ↑((pop_bits_from_acc s.acc s.num_bits_in_acc s.num_bits_in_acc).1.toNat |||
+                  (pop_bits_from_acc (load_acc b hb s) (d - s.num_bits_in_acc) (8 * n)).1.toNat <<< s.num_bits_in_acc %
+                    2 ^ (8 * n)))[j]!.val.testBit
+      k =
+    b[(d * j + k) / 8]!.testBit ((d * j + k) % 8) := by
+  obtain ⟨h0', h1', h2', h3', h4', h5'⟩ :=
+    pop_bits_from_acc.spec d s.acc s.num_bits_in_acc s.num_bits_in_acc hinv4
+  simp_lists_scalar
+  -- simp [instHOrOfOrOp, OrOp.or, Nat.lor.eq_1]
+  have : ((pop_bits_from_acc s.acc s.num_bits_in_acc s.num_bits_in_acc).1.toNat |||
+          (pop_bits_from_acc (load_acc b hb s) (d - s.num_bits_in_acc) (8 * n)).1.toNat <<< s.num_bits_in_acc %
+            2 ^ (8 * n)) =
+         ((pop_bits_from_acc s.acc s.num_bits_in_acc s.num_bits_in_acc).1.toNat +
+          (pop_bits_from_acc (load_acc b hb s) (d - s.num_bits_in_acc) (8 * n)).1.toNat <<< s.num_bits_in_acc %
+            2 ^ (8 * n)) := by
+    sorry
+  rw [this]
+  sorry
 
 /-- Yields `Stream.decode.body.spec` in the case that the accumulator needs to be loaded after popping
     less than a full coefficient's worth of bits -/

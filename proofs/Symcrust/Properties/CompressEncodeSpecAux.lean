@@ -1,5 +1,6 @@
 import Symcrust.Spec
 import Symcrust.Properties.Polynomials
+import Symcrust.Properties.Brute
 
 /-!
 An auxiliary specification that we use to prove a refinement result.
@@ -1371,6 +1372,7 @@ def compress_bv (d : ℕ) (x : BitVec 64) : BitVec 64 :=
   let coefficient := coefficient &&& (1 <<< d) - 1#64
   coefficient
 
+/-
 set_option maxHeartbeats 10000000 in
 /-- The compression is implemented in a clever way.
     We brute force the proof by enumerating all the cases for `d < 12`, then using `bv_decide`.
@@ -1392,6 +1394,7 @@ private theorem compress_bv_eq_aux (x : BitVec 64) (h : x < 3329#64) (d : ℕ) (
   cases d; simp; bv_decide; rename_i d
   cases d; simp; bv_decide; rename_i d
   ring_nf at hd; simp at hd
+-/
 
 def compress (d : ℕ) (x : ℕ) : ℕ :=
   let multiplication := x * 0x9d7dbb
@@ -1402,6 +1405,9 @@ def compress (d : ℕ) (x : ℕ) : ℕ :=
 
 theorem compress_bv_eq (x : ℕ) (h : x < 3329) (d : ℕ) (hd : d < 12) :
   (compress_bv d x).toNat = compress d x := by
+  revert d x
+  brute
+  /-
   simp only [compress_bv, BitVec.natCast_eq_ofNat, BitVec.ofNat_eq_ofNat, BitVec.toNat_and,
     BitVec.toNat_ushiftRight, BitVec.toNat_add, BitVec.toNat_mul, BitVec.toNat_ofNat, Nat.reducePow,
     Nat.mod_mul_mod, Nat.one_mod, BitVec.toNat_sub, Nat.add_one_sub_one, Nat.add_mod_mod, compress,
@@ -1427,10 +1433,16 @@ theorem compress_bv_eq (x : ℕ) (h : x < 3329) (d : ℕ) (hd : d < 12) :
   rw [this]; clear this
   simp only [compress.mulConstant, BitVec.toNat_ofNat, Nat.reducePow, Nat.reduceMod,
     compress.shiftConstant, Nat.reduceSubDiff]
+  -/
+
+#print axioms compress_bv_eq
 
 theorem compress_eq (x : ℕ) (h : x < 3329) (d : ℕ) (hd : d < 12) :
   compress d x = ⌈ ((2^d : ℚ) / (Q : ℚ)) * x ⌋ % (2^d)
   := by
+  revert d x
+  brute
+  /-
   -- Use `compres_bv` as an intermediate step
   rw [← compress_bv_eq x h d hd]
   rw [compress_bv_eq_aux] <;> try (simp -failIfUnchanged; omega)
@@ -1475,6 +1487,9 @@ theorem compress_eq (x : ℕ) (h : x < 3329) (d : ℕ) (hd : d < 12) :
   rw [this]; clear this
 
   ring_nf
+  -/
+
+#print axioms compress_eq
 
 /-!
 # Decompress
