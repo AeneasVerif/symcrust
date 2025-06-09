@@ -130,10 +130,12 @@ set_option trace.compiler.ir true in
 example : ∀ f : Fin 3 → Bool, ∀ x < 3, f x ∨ ¬f x := by
   decide +native
 
+set_option trace.brute.debug true in
 /-- Auxiliary lemma for `Target.byteDecode.spec2` -/
 theorem testBitOfSum_forBrute :
-  ∀ d < 13, ∀ j : Nat, ∀ hj : j < d, ∀ k < j + 1, ∀ f : Fin d → Bool,
+  ∀ d < 13, ∀ j : Nat, ∀ hj : j < d, ∀ k < j + 1, True ∧ ∀ f : Fin d → Bool,
   (∑ (x : Fin d), (f x).toNat * (2 : ZMod (m d)) ^ (x : ℕ)).val.testBit j = f ⟨j, hj⟩ := by
+  -- brute
   sorry
 
 /-- Auxiliary lemma for `Target.byteDecode.spec2` -/
