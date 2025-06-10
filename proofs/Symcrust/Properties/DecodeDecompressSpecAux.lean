@@ -124,39 +124,18 @@ theorem sum_lt_testBit_eq_false (n d i : ℕ) (h : i < d) (f : ℕ → ℕ) :
   intro h
   omega
 
-#check Fintype
-
-set_option trace.compiler.ir true in
-example : ∀ f : Fin 3 → Bool, ∀ x < 3, f x ∨ ¬f x := by
-  decide +native
-
-set_option trace.brute.debug true in
-/-- Auxiliary lemma for `Target.byteDecode.spec2` -/
-theorem testBitOfSum_forBrute :
-  ∀ d < 13, ∀ j : Nat, ∀ hj : j < d, ∀ k < j + 1, True ∧ ∀ f : Fin d → Bool,
+-- `testBitOfSum` currently takes 15-45s on my computer to typecheck. This isn't unacceptably slow,
+-- but adding special treatment for goals of the form `∀ f : Fin d → Bool, ...` might make this faster
+set_option profiler true in
+theorem testBitOfSum :
+  ∀ d < 12, ∀ j : Nat, ∀ hj : j < d, ∀ k < j + 1, ∀ f : Fin d → Bool,
   (∑ (x : Fin d), (f x).toNat * (2 : ZMod (m d)) ^ (x : ℕ)).val.testBit j = f ⟨j, hj⟩ := by
-  -- brute
-  sorry
+  brute
 
-/-- Auxiliary lemma for `Target.byteDecode.spec2` -/
-theorem testBitOfSum {m d : ℕ} {f : Fin d → Bool} (j k : ℕ) (hj : j < d) (hk : k ≤ j) :
-  (∑ (x : Fin d), (f x).toNat * (2 : ZMod m) ^ (x : ℕ)).val.testBit j = f ⟨j, hj⟩ := by
-  let f' : ℕ → Bool := fun x => if h : x < d then f ⟨x, h⟩ else false
-  have f'_eq_f : ∀ x : Fin d, f' x.val = f x := fun x => dif_pos x.isLt
-  simp only [← f'_eq_f]
-  let sum_formula := fun x => (f' x).toNat * (2 : ZMod m) ^ (x : ℕ)
-  rw [Finset.univ_sum_eq_range d sum_formula, Finset.sum_range_decompose sum_formula d j hj]
-  unfold sum_formula
-  -- In order to use `sum_lt_testBit_eq_false`, we need to show that everything inside of `(...).val`
-  -- is `< m` (to ensure that `ZMod.val` is the identity)
-  rw [ZMod.val_add_of_lt]
-  . sorry
-  . sorry
-
-def Target.byteDecode.spec2 {m d : ℕ} (B : Vector Byte (32 * d)) :
-  ∀ i < 256, ∀ j < d, (byteDecode m d B)[i]!.val.testBit j = B[(d * i + j) / 8]!.testBit ((d * i + j) % 8) := by
+def Target.byteDecode.spec2 {d : ℕ} (B : Vector Byte (32 * d)) (hd : d < 12):
+  ∀ i < 256, ∀ j < d, (byteDecode (m d) d B)[i]!.val.testBit j = B[(d * i + j) / 8]!.testBit ((d * i + j) % 8) := by
   intro i i_lt_256 j j_lt_d
-  rw [@spec1 m d B i i_lt_256]
+  rw [@spec1 (m d) d B i i_lt_256]
   have : B[(d * i + j) / 8]!.testBit ((d * i + j) % 8) = (bytesToBits B)[d * i + j]! := by
     have := bytesToBits.spec B
     rw [bytesToBits.post] at this
@@ -191,7 +170,7 @@ def Target.byteDecode.spec2 {m d : ℕ} (B : Vector Byte (32 * d)) :
     exact h'
   simp only [Fin.is_lt, h']
   rw [mul_comm d i, h' j j_lt_d]
-  exact testBitOfSum j 0 j_lt_d (zero_le j)
+  exact testBitOfSum d hd j j_lt_d 0 (Nat.zero_lt_succ j) _
 
 /-!
 # Streamed byteDecode
@@ -455,13 +434,12 @@ def Stream.decode.body.spec_early_load {d n : ℕ} (b : List Byte) (hb : b.lengt
       simp only [mem_std_range_step_one, tsub_le_iff_right, and_imp] at h4
       exact h4 j (by omega) hj2
 
-lemma bitwise_or_eq_and (x y d : ℕ) (h : x < 2^d) (h : y < 2^d) : x ||| (y <<< d) == x + (y <<< d) := by
-  -- `grind` gives a crazy output: "failed to synthesize Decidable (2 = 2)"
-  sorry
-
-lemma bitwise_or_eq_and2 (d : ℕ) (x y : BitVec n) (h : x < (1#n).shiftLeft d) :
-  BitVec.or x (y.shiftLeft d) = BitVec.add x (y.shiftLeft d) := by
-  sorry
+set_option profiler true in -- This takes 10-20s to typecheck
+lemma bitwise_or_eq_and (x y d : ℕ) (hd : d < 13) (hx : x < 2^d) (hy : y < 2^d) : x ||| (y <<< d) == x + (y <<< d) := by
+  revert y
+  revert x
+  revert d
+  brute
 
 /-- A temporary lemma to make it easier to work on this proof without constantly rerunning the slow
     `simp_lists_scalar` call in `spec_late_load`. -/
