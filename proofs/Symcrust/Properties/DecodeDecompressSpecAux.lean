@@ -331,7 +331,7 @@ def Stream.decode.pop_bits_from_acc.spec {n : ℕ} (d : ℕ) (acc : BitVec (8 * 
   (num_bits_to_decode num_bits_in_acc : ℕ)
   (h : ∀ j ∈ [num_bits_in_acc:8*n], acc[j]! = false):
   let res := pop_bits_from_acc acc num_bits_to_decode num_bits_in_acc;
-  (∀ j < num_bits_to_decode, (res.1.toNat : ZMod (m d)).val.testBit j = res.1[j]!) ∧
+  (res.1.toNat : ZMod (m d)).val = res.1.toNat ∧
   (∀ j < num_bits_to_decode, res.1[j]! = acc[j]!) ∧
   (∀ j ∈ [num_bits_to_decode: 8 * n], res.1[j]! = false) ∧
   (∀ j < num_bits_in_acc - num_bits_to_decode, res.2.1[j]! = acc[j + num_bits_to_decode]!) ∧
@@ -340,11 +340,9 @@ def Stream.decode.pop_bits_from_acc.spec {n : ℕ} (d : ℕ) (acc : BitVec (8 * 
   intro res
   simp only [ZMod.val_natCast, mem_std_range_step_one, and_imp]
   split_conjs
-  . intro j j_lt_num_bits_to_decode
-    have : res.1.toNat < m d := by
+  . have : res.1.toNat < m d := by
       sorry -- Not provable yet, need the appropriate assumption about `acc`
     rw [Nat.mod_eq_of_lt this]
-    exact Eq.symm (BitVec.getElem!_eq_testBit_toNat res.1 j)
   . intro j hj
     simp only [pop_bits_from_acc, BitVec.ofNat_eq_ofNat, BitVec.shiftLeft_sub_one_eq_mod, res]
     exact BitVec.getElem!_mod_pow2_eq acc num_bits_to_decode j hj
@@ -382,7 +380,7 @@ def Stream.decode.body.spec_no_load {d n : ℕ} (b : List Byte) (hb : b.length =
       dcases hj : i = j
       . rw [hj, Vector.getElem!_set!]
         . have : 8 * s.num_bytes_read - s.num_bits_in_acc = d * i := by omega
-          rw [h0 k k_lt_d, h1 k k_lt_d, hinv3 k (by omega), this, hj]
+          rw [h0, ← BitVec.getElem!_eq_testBit_toNat, h1 k k_lt_d, hinv3 k (by omega), this, hj]
         . omega
       . rw [Vector.getElem!_set!_ne hj, hinv2 j (by omega) k k_lt_d]
     . intro j hj
@@ -419,8 +417,8 @@ def Stream.decode.body.spec_early_load {d n : ℕ} (b : List Byte) (hb : b.lengt
       . rw [hj, Vector.getElem!_set!]
         . simp only [lt_inf_iff, ZMod.val_natCast, and_imp] at h0
           simp only [lt_inf_iff, and_imp] at h1
-          simp only [ZMod.val_natCast, h0 k k_lt_d (by omega), h1 k k_lt_d (by omega)]
-          rw [load_acc.spec b hb s k (by omega)]
+          simp only [ZMod.val_natCast, h0, ← BitVec.getElem!_eq_testBit_toNat, h1 k k_lt_d (by omega)]
+          rw [load_acc.spec b hb s k (by omega), Byte.testBit, ← BitVec.getElem!_eq_testBit_toNat]
           scalar_tac
         . omega
       . rw [Vector.getElem!_set!_ne hj, hinv2 j (by omega) k k_lt_d]
@@ -434,8 +432,9 @@ def Stream.decode.body.spec_early_load {d n : ℕ} (b : List Byte) (hb : b.lengt
       simp only [mem_std_range_step_one, tsub_le_iff_right, and_imp] at h4
       exact h4 j (by omega) hj2
 
+-- **TODO** Need to modify this lemma: `x` and `y` shouldn't have the same upper bound
 set_option profiler true in -- This takes 10-20s to typecheck
-lemma bitwise_or_eq_and (x y d : ℕ) (hd : d < 13) (hx : x < 2^d) (hy : y < 2^d) : x ||| (y <<< d) == x + (y <<< d) := by
+lemma bitwise_or_eq_and (x y d : ℕ) (hd : d < 13) (hx : x < 2^d) (hy : y < 2^d) : x ||| (y <<< d) = x + (y <<< d) := by
   revert y
   revert x
   revert d
@@ -481,16 +480,41 @@ theorem Stream.decode.body.extracted_1 {d n : ℕ} (b : List Byte) (hb : b.lengt
   obtain ⟨h0', h1', h2', h3', h4', h5'⟩ :=
     pop_bits_from_acc.spec d s.acc s.num_bits_in_acc s.num_bits_in_acc hinv4
   simp_lists_scalar
-  -- simp [instHOrOfOrOp, OrOp.or, Nat.lor.eq_1]
-  have : ((pop_bits_from_acc s.acc s.num_bits_in_acc s.num_bits_in_acc).1.toNat |||
-          (pop_bits_from_acc (load_acc b hb s) (d - s.num_bits_in_acc) (8 * n)).1.toNat <<< s.num_bits_in_acc %
-            2 ^ (8 * n)) =
-         ((pop_bits_from_acc s.acc s.num_bits_in_acc s.num_bits_in_acc).1.toNat +
-          (pop_bits_from_acc (load_acc b hb s) (d - s.num_bits_in_acc) (8 * n)).1.toNat <<< s.num_bits_in_acc %
-            2 ^ (8 * n)) := by
+  tlet x := (pop_bits_from_acc s.acc s.num_bits_in_acc s.num_bits_in_acc).1
+  tlet y := (pop_bits_from_acc (load_acc b hb s) (d - s.num_bits_in_acc) (8 * n)).1
+  have heq1 : y.toNat <<< s.num_bits_in_acc % 2 ^ (8 * n) = y.toNat <<< s.num_bits_in_acc := by
+    apply Nat.mod_eq_of_lt
+    have test : y.toNat < 2^(d - s.num_bits_in_acc) := sorry
+    have : y.toNat < 2 ^ (8 * n - s.num_bits_in_acc) → y.toNat <<< s.num_bits_in_acc < 2 ^ (8 * n) := by
+      rw [Nat.shiftLeft_eq y.toNat s.num_bits_in_acc]
+      simp only [gt_iff_lt] at hdn hd
+      have test2 := hd
+      -- This is true because s.num_bits_in_acc < d < 8 * n
+      sorry
+    apply this
+    have : 2 ^ (d - s.num_bits_in_acc) < 2 ^ (8 * n - s.num_bits_in_acc) := by scalar_tac +nonLin
+    exact Nat.lt_trans test this
+  have heq2 : (x.toNat + y.toNat <<< s.num_bits_in_acc) % m d = x.toNat + y.toNat <<< s.num_bits_in_acc := by
     sorry
-  rw [this]
-  sorry
+  have heq3 : (x.toNat + y.toNat <<< s.num_bits_in_acc).testBit k =
+    if k < s.num_bits_in_acc then x.toNat.testBit k else y.toNat.testBit (k - s.num_bits_in_acc) := by
+    split
+    . next hk =>
+      sorry
+    . next hk =>
+      sorry
+  rw [heq1, bitwise_or_eq_and x.toNat y.toNat s.num_bits_in_acc sorry sorry sorry, heq2, heq3]
+  split
+  . next hk =>
+    have : d * j + s.num_bits_in_acc - s.num_bits_in_acc + k = d * j + k := by omega
+    rw [← BitVec.getElem!_eq_testBit_toNat, h1' k hk, hinv3 k hk, hinv1.2.1, hj, this]
+  . next hk =>
+    simp only [not_lt] at hk
+    rw [← BitVec.getElem!_eq_testBit_toNat, h1 (k - s.num_bits_in_acc) (by omega), load_acc.spec b hb s]
+    . have : d * j + s.num_bits_in_acc + (k - s.num_bits_in_acc) = d * j + k := by
+        omega
+      rw [hinv1.2.1, hj, this]
+    . omega
 
 /-- Yields `Stream.decode.body.spec` in the case that the accumulator needs to be loaded after popping
     less than a full coefficient's worth of bits -/
