@@ -129,11 +129,131 @@ theorem ofMkFold3EqTrue (b1 : Nat) (b2 : (x : Nat) → (hx : x < b1) → Nat)
     ∀ z : Nat, ∀ hz : z < b3 x hx y hy, f x hx y hy z hz := by
   simp only [ofMkFold3EqTrueAux, true_and, imp_self]
 
+def mkFold4 (b1 : Nat) (b2 : (x : Nat) → (hx : x < b1) → Nat)
+  (b3 : (x : Nat) → (hx : x < b1) → (y : Nat) → (hy : y < b2 x hx) → Nat)
+  (b4 : (x : Nat) → (hx : x < b1) → (y : Nat) → (hy : y < b2 x hx) → (z : Nat) → (hz : z < b3 x hx y hy) → Nat)
+  (f : (x : Nat) → (hx : x < b1) → (y : Nat) → (hy : y < b2 x hx) → (z : Nat) → (hz : z < b3 x hx y hy) →
+    (a : Nat) → (ha : a < b4 x hx y hy z hz) → Bool)
+  (acc : Bool) : Bool :=
+  Fin.foldr b1 (fun (x : Fin b1) (acc : Bool) => mkFold3 (b2 x.1 x.2) (b3 x.1 x.2) (b4 x.1 x.2) (f x.1 x.2) acc) acc
+
+theorem ofMkFold4EqTrueAux (b1 : Nat) (b2 : (x : Nat) → (hx : x < b1) → Nat)
+  (b3 : (x : Nat) → (hx : x < b1) → (y : Nat) → (hy : y < b2 x hx) → Nat)
+  (b4 : (x : Nat) → (hx : x < b1) → (y : Nat) → (hy : y < b2 x hx) → (z : Nat) → (hz : z < b3 x hx y hy) → Nat)
+  (f : (x : Nat) → (hx : x < b1) → (y : Nat) → (hy : y < b2 x hx) → (z : Nat) → (hz : z < b3 x hx y hy) →
+    (a : Nat) → (ha : a < b4 x hx y hy z hz) → Bool)
+  (acc : Bool) : mkFold4 b1 b2 b3 b4 f acc = (acc ∧ ∀ x : Nat, ∀ hx : x < b1, ∀ y : Nat, ∀ hy : y < b2 x hx,
+    ∀ z : Nat, ∀ hz : z < b3 x hx y hy, ∀ a : Nat, ∀ ha : a < b4 x hx y hy z hz, f x hx y hy z hz a ha) := by
+  simp only [mkFold4, eq_iff_iff]
+  induction b1 generalizing acc
+  . simp
+  . next b1 ih1 =>
+    simp only [Fin.foldr_succ_last, Fin.coe_castSucc, Fin.val_last]
+    tlet acc' := mkFold3 (b2 b1 (by omega)) (b3 b1 (by omega)) (b4 b1 (by omega)) (f b1 (by omega)) acc
+    let b4' := fun (x : Nat) (hx : x < b1) (y : Nat) (hy : y < b2 x (by omega)) (z : Nat)
+      (hz : z < b3 x (by omega) y (by omega)) => b4 x (by omega) y hy z hz
+    let b3' := fun (x : Nat) (hx : x < b1) (y : Nat) (hy : y < b2 x (by omega)) => b3 x (by omega) y hy
+    let b2' := fun (x : Nat) (hx : x < b1) => b2 x (by omega)
+    let f' := fun (x : Nat) (hx : x < b1) (y : Nat) (hy : y < b2' x hx) => f x (by omega) y hy
+    rw [ih1 b2' b3' b4' f' acc',
+      ofMkFold3EqTrueAux (b2 b1 (by omega)) (b3 b1 (by omega)) (b4 b1 (by omega)) (f b1 (by omega)) acc]
+    constructor
+    . rintro ⟨⟨h1, h2⟩, h3⟩
+      simp only [h1, true_and]
+      intro x hx y hy
+      rcases Nat.lt_or_eq_of_le $ Nat.le_of_lt_succ hx with x_lt_b1 | x_eq_b1
+      . exact h3 x x_lt_b1 y hy
+      . simp only [x_eq_b1]
+        simp only [x_eq_b1] at hy
+        exact h2 y hy
+    . rintro ⟨h1, h2⟩
+      constructor
+      . simp only [h1, true_and]
+        intro y hy
+        exact h2 b1 (by omega) y hy
+      . intro x hx y hy
+        exact h2 x _ y hy
+
+theorem ofMkFold4EqTrue (b1 : Nat) (b2 : (x : Nat) → (hx : x < b1) → Nat)
+  (b3 : (x : Nat) → (hx : x < b1) → (y : Nat) → (hy : y < b2 x hx) → Nat)
+  (b4 : (x : Nat) → (hx : x < b1) → (y : Nat) → (hy : y < b2 x hx) → (z : Nat) → (hz : z < b3 x hx y hy) → Nat)
+  (f : (x : Nat) → (hx : x < b1) → (y : Nat) → (hy : y < b2 x hx) → (z : Nat) → (hz : z < b3 x hx y hy) →
+    (a : Nat) → (ha : a < b4 x hx y hy z hz) → Bool) :
+  mkFold4 b1 b2 b3 b4 f true → ∀ x : Nat, ∀ hx : x < b1, ∀ y : Nat, ∀ hy : y < b2 x hx,
+    ∀ z : Nat, ∀ hz : z < b3 x hx y hy, ∀ a : Nat, ∀ ha : a < b4 x hx y hy z hz, f x hx y hy z hz a ha := by
+  simp only [ofMkFold4EqTrueAux, true_and, imp_self]
+
+def mkFold5 (b1 : Nat) (b2 : (x : Nat) → (hx : x < b1) → Nat)
+  (b3 : (x : Nat) → (hx : x < b1) → (y : Nat) → (hy : y < b2 x hx) → Nat)
+  (b4 : (x : Nat) → (hx : x < b1) → (y : Nat) → (hy : y < b2 x hx) → (z : Nat) → (hz : z < b3 x hx y hy) → Nat)
+  (b5 : (x : Nat) → (hx : x < b1) → (y : Nat) → (hy : y < b2 x hx) → (z : Nat) → (hz : z < b3 x hx y hy) →
+    (a : Nat) → (ha : a < b4 x hx y hy z hz) → Nat)
+  (f : (x : Nat) → (hx : x < b1) → (y : Nat) → (hy : y < b2 x hx) → (z : Nat) → (hz : z < b3 x hx y hy) →
+    (a : Nat) → (ha : a < b4 x hx y hy z hz) → (b : Nat) → (hb : b < b5 x hx y hy z hz a ha) → Bool)
+  (acc : Bool) : Bool :=
+  Fin.foldr b1 (fun (x : Fin b1) (acc : Bool) =>
+    mkFold4 (b2 x.1 x.2) (b3 x.1 x.2) (b4 x.1 x.2) (b5 x.1 x.2) (f x.1 x.2) acc) acc
+
+theorem ofMkFold5EqTrueAux (b1 : Nat) (b2 : (x : Nat) → (hx : x < b1) → Nat)
+  (b3 : (x : Nat) → (hx : x < b1) → (y : Nat) → (hy : y < b2 x hx) → Nat)
+  (b4 : (x : Nat) → (hx : x < b1) → (y : Nat) → (hy : y < b2 x hx) → (z : Nat) → (hz : z < b3 x hx y hy) → Nat)
+  (b5 : (x : Nat) → (hx : x < b1) → (y : Nat) → (hy : y < b2 x hx) → (z : Nat) → (hz : z < b3 x hx y hy) →
+    (a : Nat) → (ha : a < b4 x hx y hy z hz) → Nat)
+  (f : (x : Nat) → (hx : x < b1) → (y : Nat) → (hy : y < b2 x hx) → (z : Nat) → (hz : z < b3 x hx y hy) →
+    (a : Nat) → (ha : a < b4 x hx y hy z hz) → (b : Nat) → (hb : b < b5 x hx y hy z hz a ha) → Bool)
+  (acc : Bool) : mkFold5 b1 b2 b3 b4 b5 f acc = (acc ∧ ∀ x : Nat, ∀ hx : x < b1, ∀ y : Nat, ∀ hy : y < b2 x hx,
+    ∀ z : Nat, ∀ hz : z < b3 x hx y hy, ∀ a : Nat, ∀ ha : a < b4 x hx y hy z hz, ∀ b : Nat,
+    ∀ hb : b < b5 x hx y hy z hz a ha, f x hx y hy z hz a ha b hb) := by
+  simp only [mkFold5, eq_iff_iff]
+  induction b1 generalizing acc
+  . simp
+  . next b1 ih1 =>
+    simp only [Fin.foldr_succ_last, Fin.coe_castSucc, Fin.val_last]
+    tlet acc' := mkFold4 (b2 b1 (by omega)) (b3 b1 (by omega)) (b4 b1 (by omega)) (b5 b1 (by omega)) (f b1 (by omega)) acc
+    let b5' := fun (x : Nat) (hx : x < b1) (y : Nat) (hy : y < b2 x (by omega)) (z : Nat)
+      (hz : z < b3 x (by omega) y (by omega)) (a : Nat) (ha : a < b4 x (by omega) y (by omega) z (by omega)) =>
+      b5 x (by omega) y hy z hz a ha
+    let b4' := fun (x : Nat) (hx : x < b1) (y : Nat) (hy : y < b2 x (by omega)) (z : Nat)
+      (hz : z < b3 x (by omega) y (by omega)) => b4 x (by omega) y hy z hz
+    let b3' := fun (x : Nat) (hx : x < b1) (y : Nat) (hy : y < b2 x (by omega)) => b3 x (by omega) y hy
+    let b2' := fun (x : Nat) (hx : x < b1) => b2 x (by omega)
+    let f' := fun (x : Nat) (hx : x < b1) (y : Nat) (hy : y < b2' x hx) => f x (by omega) y hy
+    rw [ih1 b2' b3' b4' b5' f' acc',
+      ofMkFold4EqTrueAux (b2 b1 (by omega)) (b3 b1 (by omega)) (b4 b1 (by omega)) (b5 b1 (by omega)) (f b1 (by omega)) acc]
+    constructor
+    . rintro ⟨⟨h1, h2⟩, h3⟩
+      simp only [h1, true_and]
+      intro x hx y hy
+      rcases Nat.lt_or_eq_of_le $ Nat.le_of_lt_succ hx with x_lt_b1 | x_eq_b1
+      . exact h3 x x_lt_b1 y hy
+      . simp only [x_eq_b1]
+        simp only [x_eq_b1] at hy
+        exact h2 y hy
+    . rintro ⟨h1, h2⟩
+      constructor
+      . simp only [h1, true_and]
+        intro y hy
+        exact h2 b1 (by omega) y hy
+      . intro x hx y hy
+        exact h2 x _ y hy
+
+theorem ofMkFold5EqTrue (b1 : Nat) (b2 : (x : Nat) → (hx : x < b1) → Nat)
+  (b3 : (x : Nat) → (hx : x < b1) → (y : Nat) → (hy : y < b2 x hx) → Nat)
+  (b4 : (x : Nat) → (hx : x < b1) → (y : Nat) → (hy : y < b2 x hx) → (z : Nat) → (hz : z < b3 x hx y hy) → Nat)
+  (b5 : (x : Nat) → (hx : x < b1) → (y : Nat) → (hy : y < b2 x hx) → (z : Nat) → (hz : z < b3 x hx y hy) →
+    (a : Nat) → (ha : a < b4 x hx y hy z hz) → Nat)
+  (f : (x : Nat) → (hx : x < b1) → (y : Nat) → (hy : y < b2 x hx) → (z : Nat) → (hz : z < b3 x hx y hy) →
+    (a : Nat) → (ha : a < b4 x hx y hy z hz) → (b : Nat) → (hb : b < b5 x hx y hy z hz a ha) → Bool) :
+  mkFold5 b1 b2 b3 b4 b5 f true → ∀ x : Nat, ∀ hx : x < b1, ∀ y : Nat, ∀ hy : y < b2 x hx, ∀ z : Nat,
+    ∀ hz : z < b3 x hx y hy, ∀ a : Nat, ∀ ha : a < b4 x hx y hy z hz, ∀ b : Nat,
+    ∀ hb : b < b5 x hx y hy z hz a ha, f x hx y hy z hz a ha b hb := by
+  simp only [ofMkFold5EqTrueAux, true_and, imp_self]
+
 /-- A terminal tactic that attempts to prove goals of the form `∀ x y z ..., f x y z ...` via brute force.
     Currently, `brute` only supports goals consisting of a string of universally quantified upper-bounded Nats
     (e.g. `∀ a < x₁, ∀ b < x₂ ...`) followed by a decidable function `f : Nat → ... → Nat → Bool`
 
-    Currently, we only support goals exactly of the form `∀ x < d, f x` or `∀ x < d1, ∀ y < d2, f x y` -/
+    Currently, we only support goals with at most four bounded Nats. -/
 syntax (name := brute) "brute" : tactic
 
 /-- If `b1 : Nat` and `b2 : b1 < d` then returns `some d`. Otherwise returns `none` -/
@@ -231,6 +351,53 @@ def evalBrute : Tactic
       let rflPrf ← mkEqRefl (toExpr true)
       let levelParams := levels.map .param
       let pf := mkApp5 (mkConst ``ofMkFold3EqTrue) xBound yBound zBound f <|
+        mkApp3 (mkConst ``Lean.ofReduceBool) (mkConst auxDeclName levelParams) (toExpr true) rflPrf
+      mkLambdaFVars boundFVars $ ← mkAppOptM ``of_decide_eq_true #[none, none, ← mkAppM' pf boundFVars]
+    | #[(x, hx, xBound), (y, hy, yBound), (z, hz, zBound), (a, ha, aBound)] =>
+      let boundFVars := #[.fvar x, .fvar hx, .fvar y, .fvar hy, .fvar z, .fvar hz, .fvar a, .fvar ha]
+      let unboundFVars := xs.filter (fun fvar => !boundFVars.contains fvar)
+      trace[brute.debug] "boundFVars: {boundFVars}, unboundFVars: {unboundFVars}"
+      let yBound ← mkLambdaFVars #[.fvar x, .fvar hx] yBound
+      let zBound ← mkLambdaFVars #[.fvar x, .fvar hx, .fvar y, .fvar hy] zBound
+      let aBound ← mkLambdaFVars #[.fvar x, .fvar hx, .fvar y, .fvar hy, .fvar z, .fvar hz] aBound
+      let f ← mkLambdaFVars boundFVars (← mkDecide (← mkForallFVars unboundFVars g))
+      trace[brute.debug] "f: {f}"
+      let res ← mkAppM ``mkFold4 #[xBound, yBound, zBound, aBound, f, mkConst ``true]
+      trace[brute.debug] "res: {res}"
+
+      let levels := (collectLevelParams {} res).params.toList
+      let auxDeclName ← Term.mkAuxName `_brute
+      let decl := Declaration.defnDecl $
+        mkDefinitionValEx auxDeclName levels (mkConst ``Bool) res .abbrev .safe [auxDeclName]
+      addAndCompile decl
+
+      let rflPrf ← mkEqRefl (toExpr true)
+      let levelParams := levels.map .param
+      let pf := mkApp6 (mkConst ``ofMkFold4EqTrue) xBound yBound zBound aBound f <|
+        mkApp3 (mkConst ``Lean.ofReduceBool) (mkConst auxDeclName levelParams) (toExpr true) rflPrf
+      mkLambdaFVars boundFVars $ ← mkAppOptM ``of_decide_eq_true #[none, none, ← mkAppM' pf boundFVars]
+    | #[(x, hx, xBound), (y, hy, yBound), (z, hz, zBound), (a, ha, aBound), (b, hb, bBound)] =>
+      let boundFVars := #[.fvar x, .fvar hx, .fvar y, .fvar hy, .fvar z, .fvar hz, .fvar a, .fvar ha, .fvar b, .fvar hb]
+      let unboundFVars := xs.filter (fun fvar => !boundFVars.contains fvar)
+      trace[brute.debug] "boundFVars: {boundFVars}, unboundFVars: {unboundFVars}"
+      let yBound ← mkLambdaFVars #[.fvar x, .fvar hx] yBound
+      let zBound ← mkLambdaFVars #[.fvar x, .fvar hx, .fvar y, .fvar hy] zBound
+      let aBound ← mkLambdaFVars #[.fvar x, .fvar hx, .fvar y, .fvar hy, .fvar z, .fvar hz] aBound
+      let bBound ← mkLambdaFVars #[.fvar x, .fvar hx, .fvar y, .fvar hy, .fvar z, .fvar hz, .fvar a, .fvar ha] bBound
+      let f ← mkLambdaFVars boundFVars (← mkDecide (← mkForallFVars unboundFVars g))
+      trace[brute.debug] "f: {f}"
+      let res ← mkAppM ``mkFold5 #[xBound, yBound, zBound, aBound, bBound, f, mkConst ``true]
+      trace[brute.debug] "res: {res}"
+
+      let levels := (collectLevelParams {} res).params.toList
+      let auxDeclName ← Term.mkAuxName `_brute
+      let decl := Declaration.defnDecl $
+        mkDefinitionValEx auxDeclName levels (mkConst ``Bool) res .abbrev .safe [auxDeclName]
+      addAndCompile decl
+
+      let rflPrf ← mkEqRefl (toExpr true)
+      let levelParams := levels.map .param
+      let pf := mkApp7 (mkConst ``ofMkFold5EqTrue) xBound yBound zBound aBound bBound f <|
         mkApp3 (mkConst ``Lean.ofReduceBool) (mkConst auxDeclName levelParams) (toExpr true) rflPrf
       mkLambdaFVars boundFVars $ ← mkAppOptM ``of_decide_eq_true #[none, none, ← mkAppM' pf boundFVars]
     | _ => throwError "Not yet implemented"
