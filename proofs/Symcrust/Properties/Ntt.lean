@@ -291,16 +291,7 @@ def poly_element_ntt_layer_c.inner_loop_loop_spec
   to_poly peSrc' = SpecAux.nttLayerInner (to_poly peSrc) k.val len.val start.val j.val ∧
   wfArray peSrc' := by
   unfold inner_loop_loop
-  progress*
-  -- TODO: this should be automatic
-  . unfold SpecAux.nttLayerInner
-    have : j.val < len.val := by scalar_tac
-    fsimp only [this]; clear this
-    fsimp [*]
-  . unfold SpecAux.nttLayerInner
-    have : ¬ j.val < len.val := by scalar_tac
-    fsimp only [this]; clear this
-    fsimp [*]
+  progress* <;> unfold SpecAux.nttLayerInner <;> simp_ifs <;> simp [*]
 termination_by len.val - j.val
 decreasing_by scalar_decr_tac
 
@@ -831,13 +822,8 @@ section
     (h : wfAcc f g B0 B1 i acc0 acc) (hi : 128 ≤ i) :
     wfAcc f g B0 B1 128 acc0 acc := by
     fsimp [wfAcc] at *
-    -- TODO: this should be automated
-    obtain ⟨ h0, h1, h2, h3 ⟩ := h
-    split_conjs <;> intro j hj
-    . apply h0; omega
-    . intros; omega -- contradiction
-    . apply h2; omega
-    . intros; omega -- contradiction
+    simp_lists [h]
+    omega
 
   @[local progress]
   theorem wfAcc_index {f g : Array U16 256#usize} {B0 B1 : Nat} {i0 : Nat}
