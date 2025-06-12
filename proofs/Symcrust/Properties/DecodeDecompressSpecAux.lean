@@ -17,9 +17,11 @@ set_option maxHeartbeats 1000000
 All or almost all of these could be proven more elegantly, but it is often quicker to just brute force them
 **TODO** Move these to its own helper file
 -/
+
 lemma testBit_of_sum_mod_md :
-  ∀ d < 12, ∀ j : Nat, ∀ hj : j < d, ∀ f : Fin d → Bool,
-  (∑ (x : Fin d), (f x).toNat * (2 : ZMod (m d)) ^ (x : ℕ)).val.testBit j = f ⟨j, hj⟩ := by
+  ∀ d < 13, ∀ j : Nat, ∀ hj : j < d, ∀ f : Fin d → Bool,
+  (∑ (x : Fin d), (f x).toNat * (2 : ZMod (m d)) ^ (x : ℕ)).val.testBit j = f ⟨j, hj⟩ ∨
+  ∑ (x : Fin d), Bool.toNat (f x) * 2 ^ x.val ≥ m d := by
   brute
 
 lemma testBit_of_sum :
@@ -58,6 +60,11 @@ lemma sum_bits_lt {d : ℕ} (hd : d < 13) (f : Fin d → Bool) :
   revert d
   brute
 
+theorem sum_bits_lt_mod_md {d : ℕ} (hd : d < 13) (f : Fin d → Bool) :
+  (∑ a : Fin d, (f a).toNat * (2 : ZMod (m d)) ^ a.val).val < 2 ^ d := by
+  revert d
+  brute
+
 lemma sum_shift_lt (x y xBits d : ℕ) (hx : x < 2 ^ xBits) (hy : y < 2 ^ (d - xBits)) (hd : d < 13)
   (hXBits : xBits < d) : x + y <<< xBits < 2^d := by
   revert y
@@ -93,6 +100,12 @@ lemma sum_le_sum2 {d num_bits : ℕ} (hd1 : d < 13) (hd2 : num_bits < d) (f : Fi
   revert num_bits
   revert d
   brute
+
+lemma md_le_two_pow_d {d : ℕ} (hd : d < 13) : m d ≤ 2 ^ d := by
+  unfold m
+  split
+  . exact Nat.le_refl (2 ^ d)
+  . simp only [Q, (by omega : d = 12), Nat.reducePow, Nat.reduceLeDiff]
 
 /-!
 # Target byteDecode
@@ -165,7 +178,7 @@ def Target.byteDecode.recBody.spec {m d i : ℕ} (b : Vector Bool (8 * (32 * d))
 def Target.byteDecode.decodeCoefficient.inv_0 {m d : ℕ} (b : Vector Bool (8 * (32 * d))) :
   decodeCoefficient.inv b (Polynomial.zero m) 0 := by simp [inv]
 
-def Target.byteDecode.spec1 {m d : ℕ} (B : Vector Byte (32 * d)) :
+def Target.byteDecode.spec_aux {m d : ℕ} (B : Vector Byte (32 * d)) :
   ∀ i < 256, (byteDecode m d B)[i]! = ((∑ (j : Fin d), (Bool.toNat (bytesToBits B)[i * d + j]!) * 2^j.val) : ZMod m) := by
   unfold byteDecode
   intro i i_lt_256
@@ -175,45 +188,60 @@ def Target.byteDecode.spec1 {m d : ℕ} (B : Vector Byte (32 * d)) :
   rw [decodeCoefficient.inv] at h
   simp [h.1 i i_lt_256]
 
-def Target.byteDecode.spec2 {d : ℕ} (B : Vector Byte (32 * d)) (hd : d < 12):
-  ∀ i < 256, ∀ j < d, (byteDecode (m d) d B)[i]!.val.testBit j = B[(d * i + j) / 8]!.testBit ((d * i + j) % 8) := by
-  intro i i_lt_256 j j_lt_d
-  rw [@spec1 (m d) d B i i_lt_256]
-  have : B[(d * i + j) / 8]!.testBit ((d * i + j) % 8) = (bytesToBits B)[d * i + j]! := by
-    have := bytesToBits.spec B
-    rw [bytesToBits.post] at this
-    rw [← this]
-    . have : 8 * ((d * i + j) / 8) + (d * i + j) % 8 = d * i + j := by omega
-      rw [this]
-    . have : ((d * i + j) / 8) * 8 < 256 * d → (d * i + j) / 8 < 32 * d := by omega
-      apply this
-      have : (d * i + j) / 8 * 8 ≤ d * i + j := by omega
-      apply Nat.lt_of_le_of_lt this
-      have : j < d * 256 - d * i → d * i + j < 256 * d := by omega
-      apply this
-      rw [← Nat.mul_sub_left_distrib]
-      have : d * 1 ≤ d * (256 - i) := by simp_scalar
-      omega
-    . simp_scalar
-  rw [this]
-  have h := Target.bytesToBits.spec B
-  simp only [bytesToBits.post] at h
-  have h' : ∀ j < d, (bytesToBits B)[i * d + j]! = B[(i * d + j) / 8]!.testBit ((i * d + j) % 8) := by
-    intro j j_lt_d
-    have : i * d + j < 256 * d := by
-      have : j < 256 * d - i * d → i * d + j < 256 * d := by omega
-      apply this
-      rw [← Nat.mul_sub_right_distrib]
-      have : 1 ≤ 256 - i := by omega
-      exact Nat.lt_of_lt_of_le (by omega : j < 1 * d) (Nat.mul_le_mul_right d this)
-    have : (i * d + j) / 8 < 32 * d := by omega
-    have h' := h ((i * d + j) / 8) this ((i * d + j) % 8) (by omega)
-    have : 8 * ((i * d + j) / 8) + (i * d + j) % 8 = i * d + j := by scalar_tac
-    rw [this] at h'
-    exact h'
-  simp only [Fin.is_lt, h']
-  rw [mul_comm d i, h' j j_lt_d]
-  exact testBit_of_sum_mod_md d hd j j_lt_d _
+def Target.byteDecode.spec {d : ℕ} (B : Vector Byte (32 * d)) (hd : d < 13)
+  (hB : ∀ i < 256, ∑ (a : Fin d),
+    Bool.toNat (B[(d * i + a) / 8]!.testBit ((d * i + a) % 8)) * 2 ^ a.val < m d) :
+  ∀ i < 256,
+    (∀ j < d, (byteDecode (m d) d B)[i]!.val.testBit j = B[(d * i + j) / 8]!.testBit ((d * i + j) % 8)) ∧
+    (∀ j : Nat, d ≤ j → (byteDecode (m d) d B)[i]!.val.testBit j = false) := by
+  intro i i_lt_256
+  rw [@spec_aux (m d) d B i i_lt_256]
+  constructor
+  . intro j j_lt_d
+    have : B[(d * i + j) / 8]!.testBit ((d * i + j) % 8) = (bytesToBits B)[d * i + j]! := by
+      have := bytesToBits.spec B
+      rw [bytesToBits.post] at this
+      rw [← this]
+      . have : 8 * ((d * i + j) / 8) + (d * i + j) % 8 = d * i + j := by omega
+        rw [this]
+      . have : ((d * i + j) / 8) * 8 < 256 * d → (d * i + j) / 8 < 32 * d := by omega
+        apply this
+        have : (d * i + j) / 8 * 8 ≤ d * i + j := by omega
+        apply Nat.lt_of_le_of_lt this
+        have : j < d * 256 - d * i → d * i + j < 256 * d := by omega
+        apply this
+        rw [← Nat.mul_sub_left_distrib]
+        have : d * 1 ≤ d * (256 - i) := by simp_scalar
+        omega
+      . simp_scalar
+    rw [this]
+    have h1 := Target.bytesToBits.spec B
+    simp only [bytesToBits.post] at h1
+    have h2 : ∀ j < d, (bytesToBits B)[i * d + j]! = B[(i * d + j) / 8]!.testBit ((i * d + j) % 8) := by
+      intro j j_lt_d
+      have : i * d + j < 256 * d := by
+        have : j < 256 * d - i * d → i * d + j < 256 * d := by omega
+        apply this
+        rw [← Nat.mul_sub_right_distrib]
+        have : 1 ≤ 256 - i := by omega
+        exact Nat.lt_of_lt_of_le (by omega : j < 1 * d) (Nat.mul_le_mul_right d this)
+      have : (i * d + j) / 8 < 32 * d := by omega
+      have h2 := h1 ((i * d + j) / 8) this ((i * d + j) % 8) (by omega)
+      have : 8 * ((i * d + j) / 8) + (i * d + j) % 8 = i * d + j := by scalar_tac
+      rw [this] at h2
+      exact h2
+    simp only [Fin.is_lt, h2]
+    rw [mul_comm d i, h2 j j_lt_d, mul_comm i d]
+    specialize hB i i_lt_256
+    let f := fun (x : Fin d) => (B[(d * i + ↑x) / 8]!.testBit ((d * i + ↑x) % 8))
+    have h3 :=
+      testBit_of_sum_mod_md d hd j j_lt_d $ fun (x : Fin d) => (B[(d * i + ↑x) / 8]!.testBit ((d * i + ↑x) % 8))
+    rcases h3 with h3 | h3
+    . rw [h3]
+    . omega
+  . intro j d_le_j
+    apply Nat.testBit_eq_false_of_lt
+    apply Nat.lt_of_lt_of_le (sum_bits_lt_mod_md hd _) (by scalar_tac +nonLin : 2 ^ d ≤ 2 ^ j)
 
 /-!
 # Streamed byteDecode
@@ -653,7 +681,7 @@ def Stream.decode.body.spec_late_load {d n : ℕ} (b : List Byte) (hb1 : b.lengt
       exact h4 j (by simp_lists_scalar) hj2
 
 def Stream.decode.body.spec {d n : ℕ} (b : List Byte) (hb1 : b.length = 32 * d) (hd : d < 13)
-  (s : DecodeState d n) (i : ℕ) (hi : i < 256 := by omega) (hdn : d < 8 * n := by omega)
+  (s : DecodeState d n) (i : ℕ) (hi : i < 256) (hdn : d < 8 * n)
   (hb2 : ∀ i < 256, ∑ (a : Fin d), (Bool.toNat (b[(d * i + a) / 8]!.testBit ((d * i + a) % 8))) * 2^a.val < m d)
   (hinv : inv b s i) : let s1 := body b hb1 s i; inv b s1 (i + 1) := by
   dcases h_num_bits_in_acc : s.num_bits_in_acc = 0
@@ -661,3 +689,65 @@ def Stream.decode.body.spec {d n : ℕ} (b : List Byte) (hb1 : b.length = 32 * d
   . rcases Nat.lt_or_ge s.num_bits_in_acc d with hd2 | hd2
     . exact spec_late_load b hb1 s i hi hdn hb2 hinv hd hd2 h_num_bits_in_acc
     . exact spec_no_load b hb1 s i hd hi hdn hb2 hinv hd2 h_num_bits_in_acc
+
+theorem Stream.decode.recBody.spec {d n : ℕ} (b : List Byte) (hb1 : b.length = 32 * d) (hd : d < 13)
+  (s : DecodeState d n) (i : ℕ) (hi : i ≤ 256) (hdn : d < 8 * n)
+  (hb2 : ∀ i < 256, ∑ (a : Fin d), (Bool.toNat (b[(d * i + a) / 8]!.testBit ((d * i + a) % 8))) * 2^a.val < m d)
+  (hinv : inv b s i) : let s1 := recBody b hb1 s i; inv b s1 256 := by
+  if hi : i = 256 then
+    simp only [hi]
+    unfold recBody
+    simp only [tsub_self, List.range'_zero, List.foldl_nil]
+    simp_all
+  else
+    unfold recBody
+    have : 256 - i = (256 - (i+1)) + 1 := by omega
+    rw [this, List.range'_succ]
+    simp only [Nat.reduceSubDiff, List.foldl_cons]
+    have hinv1 := body.spec b hb1 hd s i (by omega) hdn hb2 hinv
+    have hinv2 := spec b hb1 hd (body b hb1 s i) (i + 1) (by omega) hdn hb2 hinv1
+    unfold recBody at hinv2
+    simp only [Nat.reduceSubDiff] at hinv2
+    exact hinv2
+
+theorem Stream.decode.spec_aux {d n : ℕ} (B : Vector Byte (32 * d)) (hd : d < 13) (hdn : d < 8 * n)
+  (hB : ∀ i < 256, ∑ (a : Fin d), (Bool.toNat (B[(d * i + a) / 8]!.testBit ((d * i + a) % 8))) * 2^a.val < m d) :
+  ∀ i < 256,
+    (∀ j < d, (decode d n B.toList B.toList_length)[i]!.val.testBit j =
+      B[(d * i + j) / 8]!.testBit ((d * i + j) % 8)) ∧
+    (∀ j : Nat, d ≤ j → (decode d n B.toList B.toList_length)[i]!.val.testBit j = false) := by
+  intro i hi
+  simp only [← Array.getElem!_toList, ← Vector.getElem!_toArray] at hB
+  let s : DecodeState d n := { F := Vector.replicate 256 0, num_bytes_read := 0, acc := 0, num_bits_in_acc := 0 }
+  have hinv0 : inv B.toList s 0 := by
+    unfold inv
+    split_conjs
+    . simp only [length_inv, zero_le, mul_zero, add_zero, Nat.zero_mod, and_self, s]
+    . simp_lists
+    . simp_lists
+    . simp only [mem_std_range_step_one, and_imp, s]
+      intro j hj1 hj2
+      simp only [BitVec.ofNat_eq_ofNat, BitVec.getElem!_zero, s]
+  have hinv := recBody.spec B.toList B.toList_length hd s 0 (by omega) hdn hB hinv0
+  obtain ⟨h0, h1, h2, h3⟩ := hinv
+  unfold decode
+  constructor
+  . intro j hj
+    rw [h1 i hi j hj, Array.getElem!_toList, Vector.getElem!_toArray]
+  . intro j hj
+    apply Nat.testBit_eq_false_of_lt
+    apply Nat.lt_of_lt_of_le _ (by scalar_tac +nonLin : 2 ^ d ≤ 2 ^ j)
+    apply Nat.lt_of_lt_of_le (by simp [ZMod.val_lt]) (md_le_two_pow_d hd)
+
+theorem Stream.decode.spec {d n : ℕ} (B : Vector Byte (32 * d)) (hd : d < 13) (hdn : d < 8 * n)
+  (hB : ∀ i < 256, ∑ (a : Fin d), (Bool.toNat (B[(d * i + a) / 8]!.testBit ((d * i + a) % 8))) * 2^a.val < m d) :
+  decode d n B.toList B.toList_length = (Spec.byteDecode B) := by
+  rw [← Target.byteDecode.eq_spec]
+  rw [Vector.eq_iff_forall_eq_getElem!]
+  intro i hi
+  apply ZMod.val_injective
+  apply Nat.eq_of_testBit_eq
+  intro j
+  dcases hj : j < d
+  . rw [(Target.byteDecode.spec B hd hB i hi).1 j hj, (spec_aux B hd hdn hB i hi).1 j hj]
+  . rw [(Target.byteDecode.spec B hd hB i hi).2 j (by omega), (spec_aux B hd hdn hB i hi).2 j (by omega)]
