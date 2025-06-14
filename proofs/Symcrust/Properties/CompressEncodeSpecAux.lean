@@ -1491,10 +1491,4 @@ theorem compress_eq (x : ℕ) (h : x < 3329) (d : ℕ) (hd : d < 12) :
 
 #print axioms compress_eq
 
-/-!
-# Decompress
--/
-
-def decompressOpt (d : ℕ) (y : ℕ) : ℤ := if d < 12 then ⌈ ((Q : ℚ) / (2^d : ℚ)) * y ⌋ else y
-
 end Symcrust.SpecAux

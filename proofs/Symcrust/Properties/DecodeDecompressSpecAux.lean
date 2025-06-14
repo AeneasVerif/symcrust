@@ -751,3 +751,63 @@ theorem Stream.decode.spec {d n : ℕ} (B : Vector Byte (32 * d)) (hd : d < 13) 
   dcases hj : j < d
   . rw [(Target.byteDecode.spec B hd hB i hi).1 j hj, (spec_aux B hd hdn hB i hi).1 j hj]
   . rw [(Target.byteDecode.spec B hd hB i hi).2 j (by omega), (spec_aux B hd hdn hB i hi).2 j (by omega)]
+
+/-!
+# Decompress
+-/
+
+def decompressOpt (d : ℕ) (y : ℕ) : Spec.Zq :=
+  if d < 12 then ⌈ ((Q : ℚ) / ((2 : ℚ)^d)) * y ⌋ else y
+
+def decompress (d : ℕ) (y : ℕ) : ℕ :=
+  if d < 12 then
+    let coefficient := y * Q
+    let coefficient := coefficient >>> (d - 1)
+    let coefficient := coefficient + 1
+    coefficient >>> 1
+  else
+    y
+
+theorem decompress_eq (d : ℕ) (hd : d < 12) (y : ℕ) (h : y < 2^d) :
+  decompress d y = ⌈ ((Q : ℚ) / (2^d : ℚ)) * y ⌋ % Q := by
+  revert y
+  revert d
+  brute
+
+/-!
+# Decode and decompress
+-/
+
+/-- `d`: the number of bits used to represent an element/coefficient
+    `n`: the number of bytes in the accumulator
+-/
+structure Stream.DecodeDecompressState (d n : ℕ) where
+  F : Vector ℕ 256
+  num_bytes_read : ℕ
+  acc : BitVec (8 * n)
+  num_bits_in_acc : ℕ
+
+-- **TODO** See if it's feasible to just change `F` in `Stream.DecodeState` rather than make a nearly identical
+-- `Stream.DecodeDecompressState` (but I should push the current code base first before attempting that since I'll
+-- want to be able to easily revert if it turns out to be a bad idea)
+
+def Stream.decode_decompressOpt.body {d n : ℕ} (b : List Byte) (hb : b.length = 32 * d)
+  (s : Stream.DecodeDecompressState d n) (coefficient_idx : ℕ) : Stream.DecodeDecompressState d n :=
+  let s1 : Stream.DecodeState d n := {
+    F := s.F.map (fun (x : ℕ) => (↑x : ZMod (m d))),
+    num_bytes_read := s.num_bytes_read,
+    acc := s.acc,
+    num_bits_in_acc := s.num_bits_in_acc
+  }
+  let s2 := decode.body b hb s1 coefficient_idx
+  let F := s2.F.map ZMod.val
+  {
+    F := F.set! coefficient_idx (decompressOpt d F[coefficient_idx]!).val,
+    num_bytes_read := s2.num_bytes_read,
+    acc := s2.acc,
+    num_bits_in_acc := s2.num_bits_in_acc
+  }
+
+def Stream.decode_decompressOpt.recBody {d n : ℕ} (b : List Byte) (hb : b.length = 32 * d)
+  (s : Stream.DecodeDecompressState d n) (i : ℕ) : Stream.DecodeDecompressState d n :=
+  List.foldl (fun s i => decode_decompressOpt.body b hb s i) s (List.range' i (256 - i))
