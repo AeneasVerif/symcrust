@@ -75,19 +75,14 @@ lemma sum_shift_lt (x y xBits d : ℕ) (hx : x < 2 ^ xBits) (hy : y < 2 ^ (d - x
 
 lemma lt_num_bits {n num_bits : ℕ} {x : BitVec (8 * n)} (h : ∀ j ∈ [num_bits: 8 * n], x[j]! = false) :
   x.toNat < 2 ^ num_bits := by
+  apply Nat.lt_pow_two_of_testBit
+  intro i hi
+  rw [← BitVec.getElem!_eq_testBit_toNat]
   simp only [mem_std_range_step_one, and_imp] at h
-  induction num_bits
-  . simp only [zero_le, forall_const, pow_zero, Nat.lt_one_iff]
-    apply Nat.zero_of_testBit_eq_false
-    intro i
-    specialize h i (by omega)
-    rw [← BitVec.getElem!_eq_testBit_toNat]
-    by_cases hi : i < 8 * n
-    . exact h hi
-    . rw [← BitVec.getElem!_eq_false]
-      omega
-  . next num_bits ih =>
-    sorry -- **TODO** Not really sure how to proceed
+  dcases hi2 : i < 8 * n
+  . exact h i hi hi2
+  . rw [BitVec.getElem!_eq_false]
+    omega
 
 lemma sum_le_sum1 {d num_bits : ℕ} (hd1 : d < 13) (hd2 : num_bits < d) (f : Fin d → Bool) :
   ∑ a : Fin num_bits, (f ⟨a, by omega⟩).toNat * 2 ^ a.val ≤ ∑ a : Fin d, (f a).toNat * 2 ^ a.val := by

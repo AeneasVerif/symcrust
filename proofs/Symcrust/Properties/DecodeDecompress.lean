@@ -95,7 +95,7 @@ def poly_element_decode_and_decompress.spec (b : Slice U8) (d : U32) (f : Array 
   ∃ res, poly_element_decode_and_decompress b d f = ok res ∧
   res.1 = common.Error.NoError ∧
   let b' := ⟨(b.val.map U8.bv).toArray, by rw [List.size_toArray, List.length_map, ← Slice.length, hb2]⟩
-  to_poly res.2 = (Spec.byteDecode b').map (SpecAux.decompressOpt d) := by
+  to_poly res.2 = (Spec.byteDecode b' : Spec.Polynomial).map (fun x => SpecAux.decompressOpt d x.val) := by
   unfold poly_element_decode_and_decompress
   progress*
   sorry
