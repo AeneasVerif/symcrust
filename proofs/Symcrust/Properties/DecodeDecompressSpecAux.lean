@@ -248,7 +248,7 @@ Below, we prove that the streamed version of `byteDecode` is correct.
     `n`: the number of bytes in the accumulator
 -/
 structure Stream.DecodeState (d n : ℕ) where
-  F : Vector (ZMod (m d)) 256
+  F : Vector ℕ 256
   num_bytes_read : ℕ
   acc : BitVec (8 * n)
   num_bits_in_acc : ℕ
@@ -306,7 +306,7 @@ def Stream.decode.recBody {d n : ℕ} (b : List Byte) (hb : b.length = 32 * d) (
   DecodeState d n :=
   List.foldl (fun s i => body b hb s i) s (List.range' i (256 - i))
 
-def Stream.decode (d n : ℕ) (b : List Byte) (hb : b.length = 32 * d) : Vector (ZMod (m d)) 256 :=
+def Stream.decode (d n : ℕ) (b : List Byte) (hb : b.length = 32 * d) : Vector ℕ 256 :=
   let s : DecodeState d n := {
     F := Vector.replicate 256 0,
     num_bytes_read := 0,
@@ -324,12 +324,14 @@ def Stream.decode.inv {d n : ℕ} (b : List Byte) (s : DecodeState d n) (i : ℕ
   -- The lengths are correct
   length_inv d n s.num_bytes_read s.num_bits_in_acc i ∧
   -- All coefficients up to i have been properly set in F
-  (∀ j < i, ∀ k < d, s.F[j]!.val.testBit k = b[(d * j + k) / 8]!.testBit ((d * j + k) % 8)) ∧
+  (∀ j < i, ∀ k < d, s.F[j]!.testBit k = b[(d * j + k) / 8]!.testBit ((d * j + k) % 8)) ∧
   -- All bits are properly set in the accummulator
   (∀ j < s.num_bits_in_acc, s.acc[j]! =
     b[(8 * s.num_bytes_read - s.num_bits_in_acc + j) / 8]!.testBit
       ((8 * s.num_bytes_read - s.num_bits_in_acc + j) % 8)) ∧
-  ∀ j ∈ [s.num_bits_in_acc:8*n], s.acc[j]! = false
+  (∀ j ∈ [s.num_bits_in_acc:8*n], s.acc[j]! = false) ∧
+  -- All coefficients in F are less than `m d`
+  (∀ j < i, s.F[j]! < m d)
 
 def Stream.decode.body.length_spec {d n : ℕ} (b : List Byte) (hb : b.length = 32 * d)
   (s : DecodeState d n) (i : ℕ) (hi : i < 256 := by omega) (hdn : d < 8 * n := by omega)
@@ -398,7 +400,7 @@ def Stream.decode.pop_bits_from_acc.spec {n : ℕ} (d : ℕ) (acc : BitVec (8 * 
   (h2 : ∀ j ∈ [num_bits_in_acc:8*n], acc[j]! = false)
   (h3 : ∑ (a : Fin num_bits_to_decode), (Bool.toNat acc[a.val]!) * 2^a.val < m d) :
   let res := pop_bits_from_acc acc num_bits_to_decode num_bits_in_acc;
-  (res.1.toNat : ZMod (m d)).val = res.1.toNat ∧
+  (res.1.toNat < m d) ∧
   (∀ j < num_bits_to_decode, res.1[j]! = acc[j]!) ∧
   (∀ j ∈ [num_bits_to_decode: 8 * n], res.1[j]! = false) ∧
   (∀ j < num_bits_in_acc - num_bits_to_decode, res.2.1[j]! = acc[j + num_bits_to_decode]!) ∧
@@ -430,10 +432,8 @@ def Stream.decode.pop_bits_from_acc.spec {n : ℕ} (d : ℕ) (acc : BitVec (8 * 
         apply Nat.testBit_eq_false_of_lt
         exact Nat.lt_of_lt_of_le (sum_bits_lt (by omega) _) (by scalar_tac +nonLin)
   split_conjs
-  . have : res.1.toNat < m d := by
-      rw [this]
-      exact h3
-    rw [Nat.mod_eq_of_lt this]
+  . rw [this]
+    exact h3
   . exact heq
   . exact heq_false
   . simp [res, pop_bits_from_acc, add_comm]
@@ -455,7 +455,7 @@ def Stream.decode.body.spec_no_load {d n : ℕ} (b : List Byte) (hb : b.length =
   (hinv : inv b s i) (hd2 : d ≤ s.num_bits_in_acc) (h_num_bits_in_acc : s.num_bits_in_acc ≠ 0) :
   let s1 := body b hb s i; inv b s1 (i + 1) := by
   unfold inv at hinv
-  obtain ⟨hinv1, hinv2, hinv3, hinv4⟩ := hinv
+  obtain ⟨hinv1, hinv2, hinv3, hinv4, hinv5⟩ := hinv
   unfold inv
   constructor -- Automation note: I'm surprised that `split_conjs` doesn't do anything here
   . apply length_spec <;> simp_all
@@ -472,7 +472,7 @@ def Stream.decode.body.spec_no_load {d n : ℕ} (b : List Byte) (hb : b.length =
       dcases hj : i = j
       . rw [hj, Vector.getElem!_set!]
         . have : 8 * s.num_bytes_read - s.num_bits_in_acc = d * i := by omega
-          rw [h0, ← BitVec.getElem!_eq_testBit_toNat, h1 k k_lt_d, hinv3 k (by omega), this, hj]
+          rw [← BitVec.getElem!_eq_testBit_toNat, h1 k k_lt_d, hinv3 k (by omega), this, hj]
         . omega
       . rw [Vector.getElem!_set!_ne hj, hinv2 j (by omega) k k_lt_d]
     . intro j hj
@@ -485,6 +485,12 @@ def Stream.decode.body.spec_no_load {d n : ℕ} (b : List Byte) (hb : b.length =
     . intro j hj1 hj2
       simp only [mem_std_range_step_one, and_imp] at h4
       exact h4 j hj1 hj2
+    . intro j hj
+      dcases hij : i = j
+      . simp_lists [hij]
+        exact h0
+      . simp only [ne_eq, hij, not_false_eq_true, Vector.getElem!_set!_ne]
+        exact hinv5 j (by omega)
 
 /-- Yields `Stream.decode.body.spec` in the case that the accumulator needs to be loaded immediately -/
 def Stream.decode.body.spec_early_load {d n : ℕ} (b : List Byte) (hb : b.length = 32 * d)
@@ -493,7 +499,7 @@ def Stream.decode.body.spec_early_load {d n : ℕ} (b : List Byte) (hb : b.lengt
   (hinv : inv b s i) (h_num_bits_in_acc : s.num_bits_in_acc = 0) :
   let s1 := body b hb s i; inv b s1 (i + 1) := by
   unfold inv at hinv
-  obtain ⟨hinv1, hinv2, hinv3, hinv4⟩ := hinv
+  obtain ⟨hinv1, hinv2, hinv3, hinv4, hinv5⟩ := hinv
   simp only [mem_std_range_step_one, and_imp] at hinv4
   unfold inv
   constructor -- Automation note: `split_conjs` likewise fails here
@@ -512,9 +518,8 @@ def Stream.decode.body.spec_early_load {d n : ℕ} (b : List Byte) (hb : b.lengt
     . intro j j_le_i k k_lt_d
       dcases hj : i = j
       . rw [hj, Vector.getElem!_set!]
-        . simp only [lt_inf_iff, ZMod.val_natCast, and_imp] at h0
-          simp only [lt_inf_iff, and_imp] at h1
-          simp only [ZMod.val_natCast, h0, ← BitVec.getElem!_eq_testBit_toNat, h1 k k_lt_d (by omega)]
+        . simp only [lt_inf_iff, and_imp] at h1
+          simp only [ZMod.val_natCast, ← BitVec.getElem!_eq_testBit_toNat, h1 k k_lt_d (by omega)]
           rw [load_acc.spec b hb s k (by omega), Byte.testBit, ← BitVec.getElem!_eq_testBit_toNat]
           scalar_tac
         . omega
@@ -528,12 +533,18 @@ def Stream.decode.body.spec_early_load {d n : ℕ} (b : List Byte) (hb : b.lengt
       rw [h5] at hj1
       simp only [mem_std_range_step_one, tsub_le_iff_right, and_imp] at h4
       exact h4 j (by omega) hj2
+    . intro j hj
+      dcases hij : i = j
+      . simp_lists [hij]
+        exact h0
+      . simp only [ne_eq, hij, not_false_eq_true, Vector.getElem!_set!_ne]
+        exact hinv5 j (by omega)
 
 theorem Stream.decode.body.spec_late_load_aux {d n : ℕ} (b : List Byte) (hb1 : b.length = 32 * d)
   (s : DecodeState d n) (i : ℕ) (hi : i < 256 := by omega) (hdn : d < 8 * n := by omega)
   (hb2 : ∀ i < 256, ∑ (a : Fin d), (Bool.toNat (b[(d * i + a) / 8]!.testBit ((d * i + a) % 8))) * 2^a.val < m d)
   (hd1 : d < 13) (hd2 : s.num_bits_in_acc < d) (hinv1 : length_inv d n s.num_bytes_read s.num_bits_in_acc i)
-  (hinv2 : ∀ j < i, ∀ k < d, s.F[j]!.val.testBit k = b[(d * j + k) / 8]!.testBit ((d * j + k) % 8))
+  (hinv2 : ∀ j < i, ∀ k < d, s.F[j]!.testBit k = b[(d * j + k) / 8]!.testBit ((d * j + k) % 8))
   (hinv3 :
     ∀ j < s.num_bits_in_acc,
       s.acc[j]! =
@@ -546,7 +557,7 @@ theorem Stream.decode.body.spec_late_load_aux {d n : ℕ} (b : List Byte) (hb1 :
                 ↑((pop_bits_from_acc s.acc s.num_bits_in_acc s.num_bits_in_acc).1.toNat |||
                     (pop_bits_from_acc (load_acc b hb1 s) (d - s.num_bits_in_acc) (8 * n)).1.toNat <<<
                         s.num_bits_in_acc %
-                      2 ^ (8 * n)))[j]!.val.testBit
+                      2 ^ (8 * n)))[j]!.testBit
         k =
       b[(d * j + k) / 8]!.testBit ((d * j + k) % 8) := by
   obtain ⟨h0, h1, h2, h3, h4, h5⟩ := pop_bits_from_acc.spec d
@@ -588,38 +599,7 @@ theorem Stream.decode.body.spec_late_load_aux {d n : ℕ} (b : List Byte) (hb1 :
       apply this
       have : 2 ^ (d - s.num_bits_in_acc) < 2 ^ (8 * n - s.num_bits_in_acc) := by scalar_tac +nonLin
       exact Nat.lt_trans hy this
-    have heq2 : (x.toNat + y.toNat <<< s.num_bits_in_acc) % m d = x.toNat + y.toNat <<< s.num_bits_in_acc := by
-      apply Nat.mod_eq_of_lt
-      have : x.toNat + y.toNat <<< s.num_bits_in_acc =
-        ∑ (a : Fin d),
-          (Bool.toNat (b[(8 * s.num_bytes_read - s.num_bits_in_acc + a) / 8]!.testBit
-            ((8 * s.num_bytes_read  - s.num_bits_in_acc + a) % 8))) * 2^a.val := by
-        apply Nat.eq_of_testBit_eq
-        intro a
-        by_cases ha : a < d
-        . let f := fun (a : Fin d) =>
-            b[(8 * s.num_bytes_read - s.num_bits_in_acc + ↑a) / 8]!.testBit
-              ((8 * s.num_bytes_read  - s.num_bits_in_acc + ↑a) % 8)
-          rw [testBit_of_add a ha, testBit_of_sum d hd1 a ha f]
-          split
-          . next ha2 =>
-            rw [← BitVec.getElem!_eq_testBit_toNat, h1' a ha2, hinv3 a ha2]
-          . next ha2 =>
-            have : 8 * s.num_bytes_read + (a - s.num_bits_in_acc) = 8 * s.num_bytes_read + a - s.num_bits_in_acc := by
-              omega
-            have : 8 * s.num_bytes_read + (a - s.num_bits_in_acc) = 8 * s.num_bytes_read - s.num_bits_in_acc + a := by
-              rw [this]
-              apply Nat.sub_add_comm
-              rw [hinv1.2.1]
-              omega
-            rw [← BitVec.getElem!_eq_testBit_toNat, h1 (a - s.num_bits_in_acc) (by omega),
-              load_acc.spec b hb1 s (a - s.num_bits_in_acc) (by omega), this]
-        . rw [Nat.testBit_eq_false_of_lt, Nat.testBit_eq_false_of_lt]
-          . exact Nat.lt_of_lt_of_le (sum_bits_lt hd1 _) (by scalar_tac +nonLin)
-          . exact Nat.lt_of_lt_of_le (sum_shift_lt x.toNat y.toNat s.num_bits_in_acc d hx hy hd1 hd2) (by scalar_tac +nonLin)
-      rw [this, hinv1.2.1, add_tsub_cancel_right]
-      exact hb2 i hi
-    rw [heq1, bitwise_or_eq_and x.toNat y.toNat d s.num_bits_in_acc hd1 hd2 hx hy, heq2, testBit_of_add k k_lt_d]
+    rw [heq1, bitwise_or_eq_and x.toNat y.toNat d s.num_bits_in_acc hd1 hd2 hx hy, testBit_of_add k k_lt_d]
     split
     . next hk =>
       have : d * j + s.num_bits_in_acc - s.num_bits_in_acc + k = d * j + k := by omega
@@ -642,7 +622,7 @@ def Stream.decode.body.spec_late_load {d n : ℕ} (b : List Byte) (hb1 : b.lengt
   (hinv : inv b s i) (hd1 : d < 13) (hd2 : s.num_bits_in_acc < d) (h_num_bits_in_acc : s.num_bits_in_acc ≠ 0) :
   let s1 := body b hb1 s i; inv b s1 (i + 1) := by
   unfold inv at hinv
-  obtain ⟨hinv1, hinv2, hinv3, hinv4⟩ := hinv
+  obtain ⟨hinv1, hinv2, hinv3, hinv4, hinv5⟩ := hinv
   unfold inv
   constructor -- Automation note: `split_conjs` likewise fails here
   . apply length_spec <;> simp_all
@@ -674,6 +654,75 @@ def Stream.decode.body.spec_late_load {d n : ℕ} (b : List Byte) (hb1 : b.lengt
         pop_bits_from_acc.spec d (load_acc b hb1 s) (d - s.num_bits_in_acc) (8 * n) hd1 (by simp) (by simp) sum_load_acc_lt_md
       simp only [mem_std_range_step_one, tsub_le_iff_right, and_imp] at h4
       exact h4 j (by simp_lists_scalar) hj2
+    . intro j hj
+      dcases hij : i = j
+      . simp_lists [hij]
+        obtain ⟨h0, h1, h2, h3, h4, h5⟩ := pop_bits_from_acc.spec d
+          (load_acc b hb1 s) (d - s.num_bits_in_acc) (8 * n) hd1 (by simp) (by simp) sum_load_acc_lt_md
+        have : ∑ a : Fin s.num_bits_in_acc, s.acc[a.val]!.toNat * 2 ^ a.val < m d := by
+          conv => arg 1; arg 2; intro a; arg 1; arg 1; rw [hinv3 a.val (by omega)]
+          unfold length_inv at hinv1
+          rw [(by omega : 8 * s.num_bytes_read - s.num_bits_in_acc = d * i)]
+          have := sum_le_sum1 hd1 hd2 $ fun (a : Fin d) => b[(d * i + a.val) / 8]!.testBit ((d * i + a.val) % 8)
+          exact Nat.lt_of_le_of_lt this $ hb2 i hi
+        obtain ⟨h0', h1', h2', h3', h4', h5'⟩ :=
+          pop_bits_from_acc.spec d s.acc s.num_bits_in_acc s.num_bits_in_acc hd1 (by omega) hinv4 this
+        tlet x := (pop_bits_from_acc s.acc s.num_bits_in_acc s.num_bits_in_acc).1
+        tlet y := (pop_bits_from_acc (load_acc b hb1 s) (d - s.num_bits_in_acc) (8 * n)).1
+        have hx : x.toNat < 2^s.num_bits_in_acc := lt_num_bits h2'
+        have hy : y.toNat < 2^(d - s.num_bits_in_acc) := lt_num_bits h2
+        have testBit_of_add : ∀ a < d, (x.toNat + y.toNat <<< s.num_bits_in_acc).testBit a =
+          if a < s.num_bits_in_acc then x.toNat.testBit a else y.toNat.testBit (a - s.num_bits_in_acc) := by
+          intro a ha
+          split
+          . next ha =>
+            exact testBit_of_add1 x.toNat y.toNat d s.num_bits_in_acc a hd1 hd2 ha hx hy
+          . next ha =>
+            apply testBit_of_add2 x.toNat y.toNat d s.num_bits_in_acc a hd1 (by omega) (by omega) hx hy
+        have heq1 : y.toNat <<< s.num_bits_in_acc % 2 ^ (8 * n) = y.toNat <<< s.num_bits_in_acc := by
+          apply Nat.mod_eq_of_lt
+          have : y.toNat < 2 ^ (8 * n - s.num_bits_in_acc) → y.toNat <<< s.num_bits_in_acc < 2 ^ (8 * n) := by
+            rw [Nat.shiftLeft_eq y.toNat s.num_bits_in_acc]
+            have : 2 ^ (8 * n) = 2 ^ (8 * n - s.num_bits_in_acc) * 2 ^ s.num_bits_in_acc := by
+              rw [← Nat.pow_add, Nat.sub_add_cancel]
+              omega
+            rw [this, Nat.mul_lt_mul_right]
+            . exact id
+            . omega
+          apply this
+          have : 2 ^ (d - s.num_bits_in_acc) < 2 ^ (8 * n - s.num_bits_in_acc) := by scalar_tac +nonLin
+          exact Nat.lt_trans hy this
+        have : x.toNat + y.toNat <<< s.num_bits_in_acc =
+          ∑ (a : Fin d),
+            (Bool.toNat (b[(8 * s.num_bytes_read - s.num_bits_in_acc + a) / 8]!.testBit
+              ((8 * s.num_bytes_read  - s.num_bits_in_acc + a) % 8))) * 2^a.val := by
+          apply Nat.eq_of_testBit_eq
+          intro a
+          by_cases ha : a < d
+          . let f := fun (a : Fin d) =>
+              b[(8 * s.num_bytes_read - s.num_bits_in_acc + ↑a) / 8]!.testBit
+                ((8 * s.num_bytes_read  - s.num_bits_in_acc + ↑a) % 8)
+            rw [testBit_of_add a ha, testBit_of_sum d hd1 a ha f]
+            split
+            . next ha2 =>
+              rw [← BitVec.getElem!_eq_testBit_toNat, h1' a ha2, hinv3 a ha2]
+            . next ha2 =>
+              have : 8 * s.num_bytes_read + (a - s.num_bits_in_acc) = 8 * s.num_bytes_read + a - s.num_bits_in_acc := by
+                omega
+              have : 8 * s.num_bytes_read + (a - s.num_bits_in_acc) = 8 * s.num_bytes_read - s.num_bits_in_acc + a := by
+                rw [this]
+                apply Nat.sub_add_comm
+                rw [hinv1.2.1]
+                omega
+              rw [← BitVec.getElem!_eq_testBit_toNat, h1 (a - s.num_bits_in_acc) (by omega),
+                load_acc.spec b hb1 s (a - s.num_bits_in_acc) (by omega), this]
+          . rw [Nat.testBit_eq_false_of_lt, Nat.testBit_eq_false_of_lt]
+            . exact Nat.lt_of_lt_of_le (sum_bits_lt hd1 _) (by scalar_tac +nonLin)
+            . exact Nat.lt_of_lt_of_le (sum_shift_lt x.toNat y.toNat s.num_bits_in_acc d hx hy hd1 hd2) (by scalar_tac +nonLin)
+        rw [heq1, bitwise_or_eq_and x.toNat y.toNat d s.num_bits_in_acc hd1 hd2 hx hy, this, hinv1.2.1, add_tsub_cancel_right]
+        exact hb2 i hi
+      . simp only [ne_eq, hij, not_false_eq_true, Vector.getElem!_set!_ne]
+        exact hinv5 j (by omega)
 
 def Stream.decode.body.spec {d n : ℕ} (b : List Byte) (hb1 : b.length = 32 * d) (hd : d < 13)
   (s : DecodeState d n) (i : ℕ) (hi : i < 256) (hdn : d < 8 * n)
@@ -708,9 +757,9 @@ theorem Stream.decode.recBody.spec {d n : ℕ} (b : List Byte) (hb1 : b.length =
 theorem Stream.decode.spec_aux {d n : ℕ} (B : Vector Byte (32 * d)) (hd : d < 13) (hdn : d < 8 * n)
   (hB : ∀ i < 256, ∑ (a : Fin d), (Bool.toNat (B[(d * i + a) / 8]!.testBit ((d * i + a) % 8))) * 2^a.val < m d) :
   ∀ i < 256,
-    (∀ j < d, (decode d n B.toList B.toList_length)[i]!.val.testBit j =
+    (∀ j < d, (decode d n B.toList B.toList_length)[i]!.testBit j =
       B[(d * i + j) / 8]!.testBit ((d * i + j) % 8)) ∧
-    (∀ j : Nat, d ≤ j → (decode d n B.toList B.toList_length)[i]!.val.testBit j = false) := by
+    (∀ j : Nat, d ≤ j → (decode d n B.toList B.toList_length)[i]!.testBit j = false) := by
   intro i hi
   simp only [← Array.getElem!_toList, ← Vector.getElem!_toArray] at hB
   let s : DecodeState d n := { F := Vector.replicate 256 0, num_bytes_read := 0, acc := 0, num_bits_in_acc := 0 }
@@ -723,8 +772,9 @@ theorem Stream.decode.spec_aux {d n : ℕ} (B : Vector Byte (32 * d)) (hd : d < 
     . simp only [mem_std_range_step_one, and_imp, s]
       intro j hj1 hj2
       simp only [BitVec.ofNat_eq_ofNat, BitVec.getElem!_zero, s]
+    . simp only [not_lt_zero', IsEmpty.forall_iff, implies_true, s]
   have hinv := recBody.spec B.toList B.toList_length hd s 0 (by omega) hdn hB hinv0
-  obtain ⟨h0, h1, h2, h3⟩ := hinv
+  obtain ⟨h0, h1, h2, h3, h4⟩ := hinv
   unfold decode
   constructor
   . intro j hj
@@ -732,15 +782,15 @@ theorem Stream.decode.spec_aux {d n : ℕ} (B : Vector Byte (32 * d)) (hd : d < 
   . intro j hj
     apply Nat.testBit_eq_false_of_lt
     apply Nat.lt_of_lt_of_le _ (by scalar_tac +nonLin : 2 ^ d ≤ 2 ^ j)
-    apply Nat.lt_of_lt_of_le (by simp [ZMod.val_lt]) (md_le_two_pow_d hd)
+    exact Nat.lt_of_lt_of_le (h4 i hi) (md_le_two_pow_d hd)
 
 theorem Stream.decode.spec {d n : ℕ} (B : Vector Byte (32 * d)) (hd : d < 13) (hdn : d < 8 * n)
   (hB : ∀ i < 256, ∑ (a : Fin d), (Bool.toNat (B[(d * i + a) / 8]!.testBit ((d * i + a) % 8))) * 2^a.val < m d) :
-  decode d n B.toList B.toList_length = (Spec.byteDecode B) := by
+  decode d n B.toList B.toList_length = (Spec.byteDecode B : Spec.Polynomial (m d)).map (fun x => x.val) := by
   rw [← Target.byteDecode.eq_spec]
   rw [Vector.eq_iff_forall_eq_getElem!]
   intro i hi
-  apply ZMod.val_injective
+  rw [Vector.getElem!_map_eq _ _ _ hi]
   apply Nat.eq_of_testBit_eq
   intro j
   dcases hj : j < d
@@ -773,36 +823,11 @@ theorem decompress_eq (d : ℕ) (hd : d < 12) (y : ℕ) (h : y < 2^d) :
 # Decode and decompress
 -/
 
-/-- `d`: the number of bits used to represent an element/coefficient
-    `n`: the number of bytes in the accumulator
--/
-structure Stream.DecodeDecompressState (d n : ℕ) where
-  F : Vector ℕ 256
-  num_bytes_read : ℕ
-  acc : BitVec (8 * n)
-  num_bits_in_acc : ℕ
-
--- **TODO** See if it's feasible to just change `F` in `Stream.DecodeState` rather than make a nearly identical
--- `Stream.DecodeDecompressState` (but I should push the current code base first before attempting that since I'll
--- want to be able to easily revert if it turns out to be a bad idea)
-
 def Stream.decode_decompressOpt.body {d n : ℕ} (b : List Byte) (hb : b.length = 32 * d)
-  (s : Stream.DecodeDecompressState d n) (coefficient_idx : ℕ) : Stream.DecodeDecompressState d n :=
-  let s1 : Stream.DecodeState d n := {
-    F := s.F.map (fun (x : ℕ) => (↑x : ZMod (m d))),
-    num_bytes_read := s.num_bytes_read,
-    acc := s.acc,
-    num_bits_in_acc := s.num_bits_in_acc
-  }
-  let s2 := decode.body b hb s1 coefficient_idx
-  let F := s2.F.map ZMod.val
-  {
-    F := F.set! coefficient_idx (decompressOpt d F[coefficient_idx]!).val,
-    num_bytes_read := s2.num_bytes_read,
-    acc := s2.acc,
-    num_bits_in_acc := s2.num_bits_in_acc
-  }
+  (s : Stream.DecodeState d n) (coefficient_idx : ℕ) : Stream.DecodeState d n :=
+  let s' := decode.body b hb s coefficient_idx
+  {s' with F := s'.F.set! coefficient_idx (decompressOpt d s'.F[coefficient_idx]!).val}
 
 def Stream.decode_decompressOpt.recBody {d n : ℕ} (b : List Byte) (hb : b.length = 32 * d)
-  (s : Stream.DecodeDecompressState d n) (i : ℕ) : Stream.DecodeDecompressState d n :=
+  (s : Stream.DecodeState d n) (i : ℕ) : Stream.DecodeState d n :=
   List.foldl (fun s i => decode_decompressOpt.body b hb s i) s (List.range' i (256 - i))
