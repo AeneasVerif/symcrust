@@ -832,8 +832,7 @@ def Stream.decode_decompressOpt.recBody {d n : ℕ} (b : List Byte) (hb : b.leng
   (s : Stream.DecodeState d n) (i : ℕ) : Stream.DecodeState d n :=
   List.foldl (fun s i => decode_decompressOpt.body b hb s i) s (List.range' i (256 - i))
 
-def Stream.decode_decompressOpt
-  (d n : ℕ) (b : List Byte) (hb : b.length = 32 * d) : Vector ℕ 256 :=
+def Stream.decode_decompressOpt (d n : ℕ) (b : List Byte) (hb : b.length = 32 * d) : Vector ℕ 256 :=
   let s : DecodeState d n := {
     F := Vector.replicate 256 0,
     num_bytes_read := 0,
@@ -841,3 +840,16 @@ def Stream.decode_decompressOpt
     num_bits_in_acc := 0
   }
   (decode_decompressOpt.recBody b hb s 0).F
+
+def Stream.decode_decompressOpt_eq (d n : ℕ) (B : Vector Byte (32 * d)) (hd : d < 13) (hdn : d < 8 * n)
+  (hB : ∀ i < 256, ∑ a : Fin d, (B[(d * i + ↑a) / 8]!.testBit ((d * i + ↑a) % 8)).toNat * 2 ^ a.val < m d) :
+  decode_decompressOpt d n B.toList B.toList_length =
+    (Spec.byteDecode B).map (fun (x : ZMod (m d)) => (decompressOpt d x.val).val) := by
+  have : (Spec.byteDecode B).map (fun (x : ZMod (m d)) => (decompressOpt d x.val).val) =
+    ((Spec.byteDecode B).map (fun (x : ZMod (m d)) => x.val)).map (fun x => (decompressOpt d x).val) := by
+    simp only [Vector.map_map, Vector.map_inj_left, Function.comp_apply, implies_true]
+  rw [this, ← Stream.decode.spec B hd hdn hB]
+  simp only [decode_decompressOpt, decode_decompressOpt.recBody, BitVec.ofNat_eq_ofNat, tsub_zero,
+    decode, decode.recBody]
+  simp only [Vector.map, Vector.eq_mk, ← Array.toList_inj, Array.toList_map]
+  sorry -- Mildly stuck here
