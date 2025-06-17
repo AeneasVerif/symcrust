@@ -831,3 +831,13 @@ def Stream.decode_decompressOpt.body {d n : ℕ} (b : List Byte) (hb : b.length 
 def Stream.decode_decompressOpt.recBody {d n : ℕ} (b : List Byte) (hb : b.length = 32 * d)
   (s : Stream.DecodeState d n) (i : ℕ) : Stream.DecodeState d n :=
   List.foldl (fun s i => decode_decompressOpt.body b hb s i) s (List.range' i (256 - i))
+
+def Stream.decode_decompressOpt
+  (d n : ℕ) (b : List Byte) (hb : b.length = 32 * d) : Vector ℕ 256 :=
+  let s : DecodeState d n := {
+    F := Vector.replicate 256 0,
+    num_bytes_read := 0,
+    acc := 0,
+    num_bits_in_acc := 0
+  }
+  (decode_decompressOpt.recBody b hb s 0).F

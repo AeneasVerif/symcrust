@@ -36,6 +36,16 @@ theorem to_poly_getElem!_eq (a : Std.Array U16 256#usize) (i : Nat) :
   fsimp [to_poly]
   dcases h: i < 256 <;> simp_all [Vector.getElem!_ofFn, default]
 
+def poly_to_vector (p : Spec.Polynomial) : Vector ℕ 256 := p.map (fun x => x.val)
+
+@[simp]
+theorem getElem!_poly_to_vector (p : Spec.Polynomial) (i : ℕ) : (poly_to_vector p)[i]! = p[i]!.val := by
+  fsimp [poly_to_vector]
+  dcases hi : i < 256
+  . rw [Vector.getElem!_map_eq _ p i hi]
+  . rw [Vector.getElem!_map_eq_default _ p i (by omega), Vector.getElem!_default p i (by omega)]
+    simp only [Nat.default_eq_zero, ZMod.inhabited, ReduceZMod.reduceZMod, ZMod.val_zero]
+
 -- TODO: move all
 
 def wfArray {n} (a : Array U16 n) : Prop :=

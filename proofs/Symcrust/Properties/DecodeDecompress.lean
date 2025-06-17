@@ -17,85 +17,84 @@ attribute [local progress] UScalar.cast_inBounds_spec U32.sub_bv_spec
 
 set_option maxHeartbeats 2000000
 
-/-
-/- [symcrust::ntt::poly_element_decode_and_decompress]: loop 0:
-   Source: 'src/ntt.rs', lines 41:8-753:5 -/
-def ntt.poly_element_decode_and_decompress_loop
-  (pb_src : Slice U8) (n_bits_per_coefficient : U32)
-  (pe_dst : Array U16 256#usize) (cb_src_read : Usize) (accumulator : U32)
-  (n_bits_in_accumulator : U32) (i : Usize) :
-  Result (common.Error × (Array U16 256#usize))
-  :=
-  if i < key.MLWE_POLYNOMIAL_COEFFICIENTS
-  then
-    do
-    let (cb_src_read1, accumulator1, n_bits_in_accumulator1, coefficient) ←
-      ntt.decode_coefficient pb_src n_bits_per_coefficient cb_src_read
-        accumulator n_bits_in_accumulator 0#u32
-    let (_, _, pe_dst1) ←
-      ntt.decompress_coefficient i n_bits_per_coefficient coefficient pe_dst
-    let i1 ← i + 1#usize
-    ntt.poly_element_decode_and_decompress_loop pb_src n_bits_per_coefficient
-      pe_dst1 cb_src_read1 accumulator1 n_bits_in_accumulator1 i1
-  else
-    do
-    massert (n_bits_in_accumulator = 0#u32)
-    let i1 ←
-      (↑(UScalar.cast .U32 key.MLWE_POLYNOMIAL_COEFFICIENTS) : Result U32)
-    let i2 ← i1 / 8#u32
-    let i3 ← n_bits_per_coefficient * i2
-    let i4 ← (↑(UScalar.cast .Usize i3) : Result Usize)
-    massert (cb_src_read = i4)
-    ok (common.Error.NoError, pe_dst)
-partial_fixpoint
--/
+@[progress]
+def decode_coefficient.progress_spec (b : Slice U8) (d : U32) (f : Array U16 256#usize)
+  (num_bytes_read : Usize) (acc : U32) (n_bits_in_accumulator : U32) (i : Usize)
+  (hb2 : b.length = 32 * d.val) (hi : i.val < 256) :
+  ∃ num_bytes_read' acc' n_bits_in_accumulator' coefficient,
+    decode_coefficient b d num_bytes_read acc n_bits_in_accumulator (UScalar.ofNat 0) =
+      ok (num_bytes_read', acc', n_bits_in_accumulator', coefficient) ∧
+  let s0 : SpecAux.Stream.DecodeState d 4 := {
+    F := poly_to_vector (to_poly f),
+    num_bytes_read := num_bytes_read.val,
+    acc := acc.val,
+    num_bits_in_acc := n_bits_in_accumulator.val
+  }
+  let s1 := SpecAux.Stream.decode_decompressOpt.recBody b.val (by simp [hb2]) s0 i.val
+  coefficient.val = s1.F[i.val]! ∧
+  num_bytes_read' = s1.num_bytes_read ∧
+  acc' = s1.acc ∧
+  n_bits_in_accumulator' = s1.num_bits_in_acc := by
+  sorry
+
+@[progress]
+def decompress_coefficient.progress_spec (i : Usize) (d : U32) (coefficient : U32)
+  (f : Array U16 256#usize) (hi : i.val < 256) :
+  ∃ err coefficient' f', decompress_coefficient i d coefficient f = ok (err, coefficient', f') ∧
+  err = common.Error.NoError ∧
+  coefficient' = SpecAux.decompressOpt d coefficient ∧
+  f' = f.set i (UScalar.ofNat coefficient'.val sorry) -- **TODO** Is there a way to avoid putting in a long proof here?
+  := by
+  sorry
 
 @[progress]
 def poly_element_decode_and_decompress_loop.progress_spec (b : Slice U8) (d : U32)
-  (f : Array U16 256#usize) (num_bytes_read : Usize) (acc : U32) (n_bits_in_accumulator : U32) (i : Usize) :
+  (f : Array U16 256#usize) (num_bytes_read : Usize) (acc : U32) (n_bits_in_accumulator : U32) (i : Usize)
+  (hb2 : b.length = 32 * d.val) (hi : i.val ≤ 256) :
   ∃ res, poly_element_decode_and_decompress_loop b d f num_bytes_read acc n_bits_in_accumulator i = ok res ∧
-  res.1 = common.Error.NoError ∧
-  to_poly res.2 = sorry
-  -- **TODO** Make `Stream.decode_decompress` which calls `Stream.decode_decompress_recBody` so that I can
-  -- coherently form this condition
-
-  := by
-  sorry
-
-/-
-open SpecAux in
-@[progress]
-def poly_element_compress_and_encode_loop.progress_spec
-  (f : Array U16 256#usize) (d : U32)
-  (b : Slice U8) (bi : Usize) (acc : U32)
-  (acci : U32) (i : Usize)
-  (hwf : wfArray f)
-  (hi : i.val ≤ 256)
-  (hinv : Stream.encode.length_inv d.val 4 (to_bytes b) bi.val acci.val i.val)
-  (hd : 0 < d.val ∧ d.val ≤ 12)
-  :
-  ∃ b1, poly_element_compress_and_encode_loop f d b bi acc acci i = ok b1 ∧
-  let s0 : Stream.EncodeState 4 := {
-    b := to_bytes b
-    bi := bi.val
-    acc := acc.bv
-    acci := acci.val
+  let s0 : SpecAux.Stream.DecodeState d 4 := {
+    F := poly_to_vector (to_poly f),
+    num_bytes_read := num_bytes_read.val,
+    acc := acc.val,
+    num_bits_in_acc := n_bits_in_accumulator.val
   }
-  let s1 := Stream.compressOpt_encode.recBody d.val (to_poly f) s0 i.val
-  b1.length = b.length ∧
-  s1.b = to_bytes b1 ∧
-  s1.bi = b.length ∧
-  s1.acci = 0
-  := by
--/
+  let s1 := SpecAux.Stream.decode_decompressOpt.recBody b.val (by simp [hb2]) s0 i.val
+  res.1 = common.Error.NoError ∧
+  poly_to_vector (to_poly res.2) = s1.F := by
+  unfold poly_element_decode_and_decompress_loop
+  simp only
+  split
+  . let* ⟨ num_bytes_read', acc', n_bits_in_accumulator', coefficient, h0, h1, h2, h3 ⟩ ←
+      decode_coefficient.progress_spec b d f num_bytes_read acc n_bits_in_accumulator i hb2 (by simp_scalar)
+    let* ⟨ err, coefficient', f', herr, hcoefficient', hf' ⟩ ← decompress_coefficient.progress_spec
+    let* ⟨ i_succ, hi_succ ⟩ ← Usize.add_spec
+    let* ⟨ res, hres1, hres2 ⟩ ← progress_spec
+    simp only [hres1, hres2, true_and]
+    sorry
+  . sorry
+termination_by 256 - i.val
+decreasing_by scalar_decr_tac
 
 @[progress]
 def poly_element_decode_and_decompress.spec (b : Slice U8) (d : U32) (f : Array U16 256#usize)
-  (hd : 0 < d.val ∧ d.val ≤ 12) (hb2 : b.length = 32 * d.val) :
-  ∃ res, poly_element_decode_and_decompress b d f = ok res ∧
-  res.1 = common.Error.NoError ∧
-  let b' := ⟨(b.val.map U8.bv).toArray, by rw [List.size_toArray, List.length_map, ← Slice.length, hb2]⟩
-  to_poly res.2 = (Spec.byteDecode b' : Spec.Polynomial).map (fun x => SpecAux.decompressOpt d x.val) := by
+  (hd : 0 < d.val ∧ d.val ≤ 12) (hb1 : sorry) (hb2 : b.length = 32 * d.val)
+  (hf : ∀ i < 256, f[i]!.val = 0) :
+  ∃ err f', poly_element_decode_and_decompress b d f = ok (err, f') ∧
+  err = common.Error.NoError ∧
+  poly_to_vector (to_poly f') = SpecAux.Stream.decode_decompressOpt d 4 b.val (by simp [hb2]) := by
   unfold poly_element_decode_and_decompress
-  progress*
-  sorry
+  progress with massert_spec
+  progress with massert_spec
+  progress with poly_element_decode_and_decompress_loop.progress_spec as ⟨res, h1, h2⟩
+  apply Exists.intro res.1
+  apply Exists.intro res.2
+  simp only [← h1, h2, true_and]
+  simp only [SpecAux.Stream.decode_decompressOpt]
+  have heq : poly_to_vector (to_poly f) = Vector.replicate 256 0 := by
+    ext
+    next i hi =>
+    simp_lists
+    simp only [id_eq, Array.getElem!_Nat_eq] at hf
+    simp [hf i hi]
+  rw [heq]
+  rfl
