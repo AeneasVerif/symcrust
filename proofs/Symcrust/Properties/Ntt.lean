@@ -662,7 +662,7 @@ theorem poly_element_intt_and_mul_r_spec (peSrc : Std.Array U16 256#usize)
 -- TODO: move
 -- TODO: an annoying point is that we simplify before saturating, so it's not always easy
 -- to properly write the scalar_tac lemmas so that they get applied properly.
--- Maybe we should saturate twice.
+-- Maybe we should saturate twice?
 -- TODO: if we don't put the type annotation, the type inference fails but it doesn't
 -- get detected by `scalar_tac`, leading to failures afterwards
 @[local scalar_tac x.val &&& (65535 : ℕ)]
@@ -674,18 +674,8 @@ private theorem and_RMASK (x : U32) : x.val &&& 65535 ≤ 65535 := by
     nat_and_65535_eq_mod, BitVec.ofNat_eq_ofNat, BitVec.toNat_ofNat, ge_iff_le] at *
   assumption
 
--- TODO: we need to make this more convenient, and improve reasoning about non linear arithmetic
-private theorem U16_Zq_mul_in_bounds (a b : U16) :
-  a.val ≥ 3329 ∨ b.val ≥ 3329 ∨ a.val * b.val ≤ 3328 * 3328 := by
-  simp only [Classical.or_iff_not_imp_left]
-  intros
-  scalar_tac +nonLin
-
 section
   -- TODO: failure cases of scalar_tac +nonLin
-
-  -- TODO: make this more convenient
-  attribute [local scalar_tac a.val * b.val] U16_Zq_mul_in_bounds
 
   /- TODO: we should implement tactics to automatically refold parts of the code back into
      functions. -/
@@ -918,11 +908,10 @@ section
     := by
     unfold poly_element_mul_and_accumulate_loop
     fsimp only [fold_mul_acc_mont_reduce, fold_update_acc]
-    fsimp -- TODO: why is this call to `simp` so slow? (1.1s, and 3.1s if the maxDischargeDepth := 2)
+    fsimp
     progress* by (fsimp [*]; ring_nf)
-    . -- TODO: why does sassumption fail?
-      assumption
-    . fsimp
+    . assumption
+    . simp
       apply wfAcc_128 hwf3 (by scalar_tac)
   termination_by 128 - i.val
   decreasing_by scalar_decr_tac
@@ -956,10 +945,6 @@ theorem poly_element_mul_and_accumulate_spec
 
 
 section
-
-  -- TODO: make this more convenient
-  attribute [local scalar_tac a.val * b.val] U16_Zq_mul_in_bounds
-
   /-- Auxiliary helper: the reduced multiplication performed by reduce and add.
 
       This computes:
@@ -1104,7 +1089,7 @@ section
     := by
     unfold montgomery_reduce_and_add_poly_element_accumulator_to_poly_element_loop
     fsimp only [fold_reduce_add_mont_reduce, fold_reduce_add_normalize]
-    fsimp -- TODO: why is this call to `simp` so slow? (1.1s, and 3.1s if the maxDischargeDepth := 2)
+    fsimp
 
     split
     . let* ⟨ a, a_post ⟩ ← Array.index_usize_spec

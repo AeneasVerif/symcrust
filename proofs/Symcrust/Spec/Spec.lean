@@ -13,51 +13,23 @@ namespace Symcrust.Spec
 open Aeneas.Notations.SRRange  -- allows the `[0:256:2*len]` notations to desugar to an `SRRange` instead of a `Std.Range`
 open Aeneas.Notations.DivRange -- activates the `[start : >stop : /divisor]` notation
 open Aeneas.Notations.MulRange -- activates the `[start : <stop : *mul]` notation
-open Aeneas.Notations.Range    -- activates the `aeneas_range_tactic`, so that we can overload it below
 
 namespace Notations
 
-  open Parser Lean.Parser Lean.Parser.Term
-  open Lean Elab Term Meta Tactic
-
-  /- TODO: improve `scalar_tac` so that we don't need to do this.
-     It seems that sometimes `simp at *` and `simp_all` don't work in the presence of
-     dependent types.
-   -/
-  def simpAsms : TacticM Unit :=
-    withMainContext do
-    let lctx ← getLCtx
-    let decls ← lctx.getDecls
-    let props ← decls.filterM (fun d => do pure (← inferType d.type).isProp)
-    let props := (props.map fun d => d.fvarId).toArray
-    Aeneas.Utils.simpAt false {} { declsToUnfold := #[``Membership.mem] } (.targets props false)
-
-  elab "simp_asms" : tactic => simpAsms
-
-  -- Overload the tactic to discharge the range proof obligations
-  scoped macro_rules
-  | `(tactic| aeneas_range_tactic) =>
-    `(tactic|
-      -- Simplify the assumptions so that we can saturate with Aesop
-      (try simp_asms); saturate;
-      scalar_tac)
-
   -- Overloading the `get_elem_tactic` so that notation `l[i]` works
   scoped macro_rules
-  | `(tactic| get_elem_tactic) => `(tactic| aeneas_range_tactic)
+  | `(tactic| get_elem_tactic) => `(tactic| scalar_tac)
 
-
-  @[aesop safe forward]
+  @[scalar_tac]
   theorem div_range_in_bounds {len start : ℕ} (h0 : 1 < len ∧ len ≤ 128 ∧ ∃ k, len = 128 / 2 ^ k)
     (h1 : start < 256 ∧ start % (2 * len) = 0) : start + 2 * len ≤ 256 :=
     sorry
 
-  @[aesop safe forward]
+  @[scalar_tac]
   theorem mul_range_add_in_bounds {len start : ℕ}
     (h0 : 2 ≤ len ∧ len < 256 ∧ ∃ k, len = 2 * 2 ^ k)
     (h1 : start < 256 ∧ start % (2 * len) = 0) : start + 2 * len ≤ 256 :=
     sorry
-
 
 end Notations
 
