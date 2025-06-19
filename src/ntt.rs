@@ -630,11 +630,26 @@ poly_element_compress_and_encode(
     //assert!(cb_dst_written == (n_bits_per_coefficient*(MLWE_POLYNOMIAL_COEFFICIENTS as u32 / 8)) as usize);
 }
 
+/*
 // FIXME:
 #[inline(always)]
 #[charon::opaque]
 fn slice_to_sub_array<const N : usize>(s: &[u8], i: usize) -> [u8; N] {
     s[i..i+N].try_into().unwrap()
+}
+*/
+
+/*  slice_to_sub_array2 and slice_to_sub_array4 are used to (temporarily) replace slice_to_sub_array
+    because these functions don't need to be made opaque. */
+
+#[inline(always)]
+fn slice_to_sub_array2(s: &[u8], i: usize) -> [u8; 2] {
+    [s[i], s[i+1]]
+}
+
+#[inline(always)]
+fn slice_to_sub_array4(s: &[u8], i: usize) -> [u8; 4] {
+    [s[i], s[i+1], s[i+2], s[i+3]]
 }
 
 #[inline(always)]
@@ -650,7 +665,7 @@ fn decode_coefficient(
     {
         // FIXME
         // *accumulator = u32::from_le_bytes(&pb_src[*cb_src_read..*cb_src_read+4]).try_into().unwrap());
-        *accumulator = u32::from_le_bytes(slice_to_sub_array::<4>(pb_src, *cb_src_read));
+        *accumulator = u32::from_le_bytes(slice_to_sub_array4(pb_src, *cb_src_read));
         *cb_src_read += 4;
         *n_bits_in_accumulator = 32;
     }
@@ -672,7 +687,7 @@ fn decode_coefficient(
         debug_assert!(*n_bits_in_accumulator == 0); // This line is only reached if the accumulator's bits were exhausted
         // FIXME
         // *accumulator = u32::from_le_bytes(&pb_src[*cb_src_read..*cb_src_read+4]).try_into().unwrap());
-        *accumulator = u32::from_le_bytes(slice_to_sub_array::<4>(pb_src, *cb_src_read));
+        *accumulator = u32::from_le_bytes(slice_to_sub_array4(pb_src, *cb_src_read));
         *cb_src_read += 4;
         *n_bits_in_accumulator = 32;
 
@@ -777,9 +792,9 @@ fn poly_element_sample_ntt_from_shake128(
             curr_buf_index = 0;
         }
 
-        let sample0 = u16::from_le_bytes(slice_to_sub_array::<2>(&shake_output_buf, curr_buf_index)) & 0xfff;
+        let sample0 = u16::from_le_bytes(slice_to_sub_array2(&shake_output_buf, curr_buf_index)) & 0xfff;
         // TODO: Aeneas crashes if we comment the code below this line
-        let sample1 = u16::from_le_bytes(slice_to_sub_array::<2>(&shake_output_buf, curr_buf_index+1)) >> 4;
+        let sample1 = u16::from_le_bytes(slice_to_sub_array2(&shake_output_buf, curr_buf_index+1)) >> 4;
         curr_buf_index += 3;
 
         pe_dst[i] = sample0;
@@ -809,7 +824,7 @@ fn poly_element_sample_cbd_from_bytes(
             // unconditionally load 4 bytes into sample_bits, but only treat the load
             // as being 3 bytes (24-bits -> 4 coefficients) for eta==3 to align to
             // byte boundaries. Source buffer must be 1 byte larger than shake output
-            let mut sample_bits = u32::from_le_bytes(slice_to_sub_array::<4>(pb_src, src_i));
+            let mut sample_bits = u32::from_le_bytes(slice_to_sub_array4(pb_src, src_i));
             src_i += 3;
 
             // sum bit samples - each consecutive slice of eta bits is summed together
@@ -840,7 +855,7 @@ fn poly_element_sample_cbd_from_bytes(
         c_for!(let mut i = 0; i < MLWE_POLYNOMIAL_COEFFICIENTS; i += 8;
         {
             // unconditionally load 4 bytes (32-bits -> 8 coefficients) into sample_bits
-            let mut sample_bits = u32::from_le_bytes(slice_to_sub_array::<4>(pb_src, src_i));
+            let mut sample_bits = u32::from_le_bytes(slice_to_sub_array4(pb_src, src_i));
             src_i += 4;
 
             // sum bit samples - each consecutive slice of eta bits is summed together

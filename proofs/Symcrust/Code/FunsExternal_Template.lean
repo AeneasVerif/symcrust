@@ -46,8 +46,3 @@ axiom hash.shake128_extract
 axiom key.PartialEqsymcrustkeyParamssymcrustkeyParams.ne
   : key.Params → key.Params → Result Bool
 
-/- [symcrust::ntt::slice_to_sub_array]:
-   Source: 'src/ntt.rs', lines 636:0-638:1 -/
-axiom ntt.slice_to_sub_array
-  (N : Usize) : Slice U8 → Usize → Result (Array U8 N)
-

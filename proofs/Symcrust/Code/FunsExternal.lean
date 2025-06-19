@@ -8,9 +8,6 @@ set_option linter.unusedVariables false
 
 namespace Symcrust
 
-/- [symcrust::ntt::slice_to_sub_array] -/
-def ntt.slice_to_sub_array (N : Usize) (s : Slice U8) (i : Usize) : Result (Array U8 N) := sorry
-
 /- [symcrust::common::SymCryptRandom] -/
 def common.SymCryptRandom : MutRawPtr U8 → Usize → Result Unit := sorry
 
