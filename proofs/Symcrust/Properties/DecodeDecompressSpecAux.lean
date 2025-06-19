@@ -841,6 +841,14 @@ def Stream.decode_decompressOpt (d n : ℕ) (b : List Byte) (hb : b.length = 32 
   }
   (decode_decompressOpt.recBody b hb s 0).F
 
+def Stream.decode_decompress_eq_aux (d n : ℕ) (B : Vector Byte (32 * d)) (s : Stream.DecodeState d n)
+  (hd : d < 13) (hdn : d < 8 * n)
+  (hB : ∀ i < 256, ∑ a : Fin d, (B[(d * i + ↑a) / 8]!.testBit ((d * i + ↑a) % 8)).toNat * 2 ^ a.val < m d)
+  (i j : ℕ) (hj : j < 256 - i) :
+  (decode_decompressOpt.recBody B.toList B.toList_length s i).F[j]! =
+    (decompressOpt d (decode.recBody B.toList B.toList_length s i).F[j]!).val := by
+  sorry
+
 def Stream.decode_decompressOpt_eq (d n : ℕ) (B : Vector Byte (32 * d)) (hd : d < 13) (hdn : d < 8 * n)
   (hB : ∀ i < 256, ∑ a : Fin d, (B[(d * i + ↑a) / 8]!.testBit ((d * i + ↑a) % 8)).toNat * 2 ^ a.val < m d) :
   decode_decompressOpt d n B.toList B.toList_length =
@@ -852,4 +860,17 @@ def Stream.decode_decompressOpt_eq (d n : ℕ) (B : Vector Byte (32 * d)) (hd : 
   simp only [decode_decompressOpt, decode_decompressOpt.recBody, BitVec.ofNat_eq_ofNat, tsub_zero,
     decode, decode.recBody]
   simp only [Vector.map, Vector.eq_mk, ← Array.toList_inj, Array.toList_map]
-  sorry -- Mildly stuck here
+  rw [List.eq_iff_forall_eq_getElem!]
+  constructor
+  . simp
+  . intro i hi
+    simp only [Array.length_toList, Vector.size_toArray] at hi
+    rw [← decode_decompressOpt.recBody, ← decode.recBody]
+    simp only [Array.getElem!_toList, Vector.getElem!_toArray]
+    let s0 : Stream.DecodeState d n :=
+      { F := Vector.replicate 256 0, num_bytes_read := 0, acc := 0#(8 * n), num_bits_in_acc := 0 }
+    rw [decode_decompress_eq_aux d n B s0 hd hdn hB 0 i hi]
+    rw [List.getElem!_map_eq]
+    . simp only [Array.getElem!_toList, Vector.getElem!_toArray]
+      rfl
+    . simp [hi]

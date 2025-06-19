@@ -26,7 +26,8 @@ def decode_coefficient.progress_spec (b : Slice U8) (d : U32) (f : Array U16 256
       ((8 * num_bytes_read.val - n_bits_in_accumulator.val + j) % 8)))
   (hacc2 : ∀ j ∈ [n_bits_in_accumulator.val:32], acc.val.testBit j = false)
   (hinv : SpecAux.Stream.decode.length_inv d 4 num_bytes_read n_bits_in_accumulator i)
-  -- **TODO** `hb1` is needed to make `hacc` useful
+  (hb1 : ∀ i < 256,
+    ∑ (a : Fin d), (Bool.toNat (b[(d.val * i + a) / 8]!.val.testBit ((d * i + a) % 8))) * 2^a.val < Spec.m d)
   (hb2 : b.length = 32 * d.val) (hi : i.val < 256) (hd : 0 < d.val ∧ d.val ≤ 12) :
   ∃ num_bytes_read' acc' n_bits_in_accumulator' coefficient,
     decode_coefficient b d num_bytes_read acc n_bits_in_accumulator (UScalar.ofNat 0) =
@@ -70,7 +71,9 @@ def decode_coefficient.progress_spec (b : Slice U8) (d : U32) (f : Array U16 256
       let* ⟨n_bits_in_accumulator1, hn_bits_in_accumulator1⟩ ← U32.sub_bv_spec
       let* ⟨coefficient1, hcoefficient1⟩ ← UScalar.or_spec
       split
-      . sorry -- Late load
+      . next hd =>
+        progress with massert_spec
+        sorry -- Late load
       . next hd =>
         replace hd : d = n_bits_to_decode := by scalar_tac
         simp only [UScalar.neq_to_neq_val, UScalar.ofNat_val_eq] at hn_bits_in_accumulator
@@ -87,7 +90,7 @@ def decode_coefficient.progress_spec (b : Slice U8) (d : U32) (f : Array U16 256
           tlet x := d.val
           have : ∀ x < 13, 1 <<< x < U32.size := by brute
           exact this x (by scalar_tac)
-        split_conjs -- Will take this away, just focusing on the first subgoal for ease of readability
+        split_conjs
         . simp only [SpecAux.Stream.decode.pop_bits_from_acc, hbits_to_decode, hi1, hi', hcoefficient1,
             Nat.reduceMul, UScalar.val_or, UScalar.ofNat_val_eq, Nat.zero_or, UScalar.val_and,
             BitVec.toNat_and, UScalar.bv_toNat]
@@ -126,8 +129,29 @@ def decode_coefficient.progress_spec (b : Slice U8) (d : U32) (f : Array U16 256
             apply Nat.lt_of_lt_of_le _ (by scalar_tac +nonLin : 2^32 ≤ 2 ^ (n_bits_to_decode.val + j))
             scalar_tac
         . simp [hcoefficient1, hbits_to_decode, hi1, hi', hmodu32]
-          -- This requires the complicated `hb1`
-          sorry
+          unfold SpecAux.Stream.decode.length_inv at hinv
+          rw [hinv.2.1] at hacc1
+          have : acc.val &&& 1 <<< n_bits_to_decode.val - 1 =
+            ∑ a : Fin d, (b[(d.val * i.val + a.val) / 8]!.val.testBit
+              ((d.val * i.val + ↑a) % 8)).toNat * 2 ^ a.val := by
+            apply Nat.eq_of_testBit_eq
+            intro j
+            dcases hj : j < d
+            . simp only [add_tsub_cancel_right] at hacc1
+              rw [SpecAux.testBit_of_sum d.val (by omega) j hj, ← hacc1 j (by scalar_tac)]
+              simp only [Nat.testBit_and, Bool.and_iff_left_iff_imp]
+              intro h
+              tlet x := n_bits_to_decode.val
+              have : ∀ x < 13, ∀ j < x, (1 <<< x - 1).testBit j = true := by brute
+              exact this x (by scalar_tac) j (by scalar_tac)
+            . rw [Nat.testBit_eq_false_of_lt, Nat.testBit_eq_false_of_lt]
+              . apply Nat.lt_of_lt_of_le _ (by scalar_tac +nonLin : 2 ^ d.val ≤ 2 ^ j)
+                simp only [Slice.getElem!_Nat_eq, @SpecAux.sum_bits_lt d.val (by omega)]
+              . apply Nat.and_lt_two_pow
+                apply Nat.lt_of_lt_of_le _ (by scalar_tac +nonLin : 2 ^ d.val ≤ 2 ^ j)
+                exact Nat.lt_of_lt_of_le (by omega) (by scalar_tac : 1 <<< n_bits_to_decode.val ≤ 2 ^ d.val)
+          rw [this, ← hd]
+          exact hb1 i.val hi
 
 @[progress]
 def decompress_coefficient.progress_spec (i : Usize) (d : U32) (coefficient : U32)
@@ -197,6 +221,8 @@ def poly_element_decode_and_decompress_loop.progress_spec (b : Slice U8) (d : U3
     b[(8 * num_bytes_read.val - n_bits_in_accumulator.val + j) / 8]!.val.testBit
       ((8 * num_bytes_read.val - n_bits_in_accumulator.val + j) % 8)))
   (hacc2 : ∀ j ∈ [n_bits_in_accumulator.val:32], acc.val.testBit j = false)
+  (hb1 : ∀ i < 256,
+    ∑ (a : Fin d), (Bool.toNat (b[(d.val * i + a) / 8]!.val.testBit ((d * i + a) % 8))) * 2^a.val < Spec.m d)
   (hb2 : b.length = 32 * d.val) (hi : i.val ≤ 256) (hd : 0 < d.val ∧ d.val ≤ 12)
   (hinv : SpecAux.Stream.decode.length_inv d 4 num_bytes_read n_bits_in_accumulator i) :
   ∃ res, poly_element_decode_and_decompress_loop b d f num_bytes_read acc n_bits_in_accumulator i = ok res ∧
@@ -214,8 +240,9 @@ def poly_element_decode_and_decompress_loop.progress_spec (b : Slice U8) (d : U3
   split
   . let* ⟨num_bytes_read', acc', n_bits_in_accumulator', coefficient, h1, h2, h3⟩ ←
       decode_coefficient.progress_spec b d f num_bytes_read acc n_bits_in_accumulator i hacc1 hacc2
-        hinv hb2 (by simp_scalar)
-    let* ⟨err, coefficient1, coefficient2, f', herr, hcoefficient', hf'⟩ ← decompress_coefficient.progress_spec
+        hinv hb1 hb2 (by simp_scalar)
+    let* ⟨err, coefficient1, coefficient2, f', herr, hcoefficient', hf'⟩ ←
+      decompress_coefficient.progress_spec
     let* ⟨i_succ, hi_succ⟩ ← Usize.add_spec
     let* ⟨res, hres1, hres2⟩ ← progress_spec
     simp only [hres1, hres2, true_and]
@@ -261,7 +288,10 @@ decreasing_by scalar_decr_tac
 
 @[progress]
 def poly_element_decode_and_decompress.spec (b : Slice U8) (d : U32) (f : Array U16 256#usize)
-  (hd : 0 < d.val ∧ d.val ≤ 12) (hb2 : b.length = 32 * d.val)
+  (hd : 0 < d.val ∧ d.val ≤ 12)
+  (hb1 : ∀ i < 256,
+    ∑ (a : Fin d), (Bool.toNat (b[(d.val * i + a) / 8]!.val.testBit ((d * i + a) % 8))) * 2^a.val < Spec.m d)
+  (hb2 : b.length = 32 * d.val)
   (hf : ∀ i < 256, f[i]!.val = 0) :
   ∃ err f', poly_element_decode_and_decompress b d f = ok (err, f') ∧
   err = common.Error.NoError ∧
