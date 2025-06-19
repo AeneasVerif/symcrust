@@ -2029,11 +2029,10 @@ def ntt.decompress_coefficient
     let coefficient2 ← coefficient1 >>> i1
     let coefficient3 ← coefficient2 + 1#u32
     let coefficient4 ← coefficient3 >>> 1#i32
-    let coefficient5 ← ntt.mod_reduce coefficient4
-    massert (coefficient5 < ntt.Q)
-    let i2 ← (↑(UScalar.cast .U16 coefficient5) : Result U16)
+    massert (coefficient4 < ntt.Q)
+    let i2 ← (↑(UScalar.cast .U16 coefficient4) : Result U16)
     let pe_dst1 ← Array.update pe_dst i i2
-    ok (common.Error.NoError, coefficient5, pe_dst1)
+    ok (common.Error.NoError, coefficient4, pe_dst1)
   else
     if coefficient > ntt.Q
     then ok (common.Error.InvalidBlob, coefficient, pe_dst)
