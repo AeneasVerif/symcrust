@@ -390,11 +390,6 @@ def Stream.decode.load_acc.spec {d n : ℕ} (b : List Byte) (hb : b.length = 32 
   simp only [load_acc, List.slice, BitVec.setWidth'_eq, Nat.mul_add_mod_self_left]
   simp_lists_scalar
 
-/- **TODO** Need an assumption that the next `num_bits_to_decode` bits of `acc`
-   yield a number that is `≤ m d`. When `d < 12`, this is equivalent to saying
-   `2 ^ num_bits_to_decode ≤ m d`, but when `d = num_bits_to_decode = 12`, the
-   assumption is more complicated. This assumption is to facilitate the proof of
-   `h0 : ∀ j < num_bits_to_decode, (res.1.toNat : ZMod (m d)).val.testBit j = res.1[j]!` -/
 def Stream.decode.pop_bits_from_acc.spec {n : ℕ} (d : ℕ) (acc : BitVec (8 * n))
   (num_bits_to_decode num_bits_in_acc : ℕ) (hd : d < 13) (h1 : num_bits_to_decode ≤ d)
   (h2 : ∀ j ∈ [num_bits_in_acc:8*n], acc[j]! = false)
@@ -844,10 +839,29 @@ def Stream.decode_decompressOpt (d n : ℕ) (b : List Byte) (hb : b.length = 32 
 def Stream.decode_decompress_eq_aux (d n : ℕ) (B : Vector Byte (32 * d)) (s : Stream.DecodeState d n)
   (hd : d < 13) (hdn : d < 8 * n)
   (hB : ∀ i < 256, ∑ a : Fin d, (B[(d * i + ↑a) / 8]!.testBit ((d * i + ↑a) % 8)).toNat * 2 ^ a.val < m d)
-  (i j : ℕ) (hj : j < 256 - i) :
+  (i j : ℕ) (hi : i ≤ 256) (hj : j < 256 - i) :
   (decode_decompressOpt.recBody B.toList B.toList_length s i).F[j]! =
     (decompressOpt d (decode.recBody B.toList B.toList_length s i).F[j]!).val := by
-  sorry
+  unfold decode_decompressOpt.recBody decode.recBody
+  dcases hi : i = 256
+  . simp_all
+  . replace hi : i < 256 := by omega
+    have : (List.range' i (256 - i)) = i :: (List.range' (i + 1) (256 - (i + 1))) := sorry
+    simp only [this, List.foldl_cons]
+    rw [← decode_decompressOpt.recBody, ← decode.recBody]
+    tlet s1 := decode_decompressOpt.body B.toList B.toList_length s i
+    tlet s2 := decode.body B.toList B.toList_length s i
+    -- **TODO** Need to rewrite eq_aux lemma to allow s1 and s2 to be distinct states (that are still the same
+    -- in the ways that matter)
+    sorry
+    /-
+    dcases hj : j = 256 - (i + 1)
+    . sorry
+    . rw [decode_decompress_eq_aux d n B (decode_decompressOpt.body B.toList (Vector.toList_length B) s i) hd hdn
+        hB (i + 1) j (by omega) (by omega)]
+      congr 2
+      sorry
+    -/
 
 def Stream.decode_decompressOpt_eq (d n : ℕ) (B : Vector Byte (32 * d)) (hd : d < 13) (hdn : d < 8 * n)
   (hB : ∀ i < 256, ∑ a : Fin d, (B[(d * i + ↑a) / 8]!.testBit ((d * i + ↑a) % 8)).toNat * 2 ^ a.val < m d) :
@@ -869,7 +883,7 @@ def Stream.decode_decompressOpt_eq (d n : ℕ) (B : Vector Byte (32 * d)) (hd : 
     simp only [Array.getElem!_toList, Vector.getElem!_toArray]
     let s0 : Stream.DecodeState d n :=
       { F := Vector.replicate 256 0, num_bytes_read := 0, acc := 0#(8 * n), num_bits_in_acc := 0 }
-    rw [decode_decompress_eq_aux d n B s0 hd hdn hB 0 i hi]
+    rw [decode_decompress_eq_aux d n B s0 hd hdn hB 0 i (by omega) hi]
     rw [List.getElem!_map_eq]
     . simp only [Array.getElem!_toList, Vector.getElem!_toArray]
       rfl

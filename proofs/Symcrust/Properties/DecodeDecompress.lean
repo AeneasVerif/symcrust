@@ -19,6 +19,185 @@ attribute [local progress] UScalar.cast_inBounds_spec U32.sub_bv_spec
 set_option maxHeartbeats 2000000
 
 @[progress]
+theorem slice_to_sub_array4_spec (b : Slice U8) (startIdx : Usize)
+  (h : startIdx.val + 3 < b.length) :
+  ∃ x, slice_to_sub_array4 b startIdx = ok x ∧
+  ∀ i < 4, x[i]! = b[startIdx.val + i]! := by
+  unfold slice_to_sub_array4
+  let* ⟨e0, he0⟩ ← Slice.index_usize_spec
+  let* ⟨i1, hi1⟩ ← Usize.add_spec
+  let* ⟨e1, he1⟩ ← Slice.index_usize_spec
+  let* ⟨i2, hi2⟩ ← Usize.add_spec
+  let* ⟨e2, he2⟩ ← Slice.index_usize_spec
+  let* ⟨i3, hi3⟩ ← Usize.add_spec
+  let* ⟨e3, he3⟩ ← Slice.index_usize_spec
+  intro i hi
+  replace hi : i = 0 ∨ i = 1 ∨ i = 2 ∨ i = 3 := by omega
+  rcases hi with hi | hi | hi | hi <;> simp_all [Array.make]
+
+theorem decode_coefficient.early_load_progress_spec (b : Slice U8) (d : U32) (f : Std.Array U16 256#usize)
+  (num_bytes_read : Usize) (acc n_bits_in_accumulator : U32) (i : Usize)
+  (hacc1 : (∀ j < n_bits_in_accumulator.val, acc.val.testBit j =
+    b[(8 * num_bytes_read.val - n_bits_in_accumulator.val + j) / 8]!.val.testBit
+      ((8 * num_bytes_read.val - n_bits_in_accumulator.val + j) % 8)))
+  (hacc2 : ∀ j ∈ [n_bits_in_accumulator.val:32], acc.val.testBit j = false)
+  (hinv : SpecAux.Stream.decode.length_inv (↑d) 4 ↑num_bytes_read ↑n_bits_in_accumulator ↑i)
+  (hb1 : ∀ i < 256,
+    ∑ (a : Fin d), (Bool.toNat (b[(d.val * i + a) / 8]!.val.testBit ((d * i + a) % 8))) * 2^a.val < Spec.m d)
+  (hb2 : b.length = 32 * d.val) (hi : i.val < 256) (hd : 0 < d.val ∧ d.val ≤ 12)
+  (hn_bits_in_accumulator : n_bits_in_accumulator = 0#u32) :
+  ∃ num_bytes_read' acc' n_bits_in_accumulator' coefficient,
+    (do
+          let a ← slice_to_sub_array4 b num_bytes_read
+          let accumulator1 ← ↑(core.num.U32.from_le_bytes a)
+          let cb_src_read1 ← num_bytes_read + 4#usize
+          let n_bits_to_decode ← min d 32#u32
+          massert (n_bits_to_decode ≤ 32#u32)
+          let i ← 1#u32 <<< n_bits_to_decode
+          let i1 ← i - 1#u32
+          let bits_to_decode ← ↑(accumulator1 &&& i1)
+          let accumulator2 ← accumulator1 >>> n_bits_to_decode
+          let n_bits_in_accumulator1 ← 32#u32 - n_bits_to_decode
+          let coefficient1 : UScalar UScalarTy.U32
+            ← ↑(UScalar.ofNat 0 (by decide : 0 ≤ UScalar.cMax UScalarTy.U32) ||| bits_to_decode)
+          if d > n_bits_to_decode then do
+              massert (n_bits_in_accumulator1 = 0#u32)
+              let a1 ← slice_to_sub_array4 b cb_src_read1
+              let accumulator3 ← ↑(core.num.U32.from_le_bytes a1)
+              let cb_src_read2 ← cb_src_read1 + 4#usize
+              let n_bits_to_decode1 ← d - n_bits_to_decode
+              massert (n_bits_to_decode1 ≤ 32#u32)
+              let i2 ← 1#u32 <<< n_bits_to_decode1
+              let i3 ← i2 - 1#u32
+              let bits_to_decode1 : UScalar UScalarTy.U32 ← ↑(accumulator3 &&& i3)
+              let accumulator4 ← accumulator3 >>> n_bits_to_decode1
+              let n_bits_in_accumulator2 ← 32#u32 - n_bits_to_decode1
+              let i4 ← bits_to_decode1 <<< n_bits_to_decode
+              let coefficient2 ← ↑(coefficient1 ||| i4)
+              ok (cb_src_read2, accumulator4, n_bits_in_accumulator2, coefficient2)
+            else ok (cb_src_read1, accumulator2, n_bits_in_accumulator1, coefficient1)) =
+        ok (num_bytes_read', acc', n_bits_in_accumulator', coefficient) ∧
+    let s0 : SpecAux.Stream.DecodeState d 4 := {
+      F := poly_to_vector (to_poly f),
+      num_bytes_read := num_bytes_read.val,
+      acc := acc.val,
+      num_bits_in_acc := n_bits_in_accumulator.val
+    }
+    let s1 :=
+      {
+        F := (poly_to_vector (to_poly f)).set i.val coefficient,
+        num_bytes_read := num_bytes_read',
+        acc := acc',
+        num_bits_in_acc := n_bits_in_accumulator'
+      }
+    SpecAux.Stream.decode.body b.val (by simp [hb2]) s0 i.val = s1 ∧
+    SpecAux.Stream.decode.length_inv d 4 num_bytes_read' n_bits_in_accumulator' (i + 1) ∧
+    (∀ j < n_bits_in_accumulator'.val, acc'.val.testBit j =
+      b[(8 * num_bytes_read'.val - n_bits_in_accumulator'.val + j) / 8]!.val.testBit
+        ((8 * num_bytes_read'.val - n_bits_in_accumulator'.val + j) % 8)) ∧
+    (∀ j ∈ [n_bits_in_accumulator'.val:32], acc'.val.testBit j = false) ∧
+    coefficient < Spec.m d := by
+  let* ⟨accumulator0, haccumulator0⟩ ← slice_to_sub_array4_spec
+  . simp only [SpecAux.Stream.decode.length_inv, hn_bits_in_accumulator, UScalar.ofNat_val_eq,
+      add_zero, Nat.reduceMul, Nat.mod_eq_iff, OfNat.ofNat_ne_zero, mul_eq_zero, false_and,
+      Nat.ofNat_pos, true_and, false_or] at hinv
+    rcases hinv with ⟨hinv1, hinv2, ⟨k, hk⟩⟩
+    rw [(by omega : num_bytes_read.val = 4 * k), hb2]
+    have : 4 * k < 32 * d.val := by
+      rw [← Nat.mul_lt_mul_left (by omega : 0 < 8), ← mul_assoc, ← mul_assoc]
+      simp only [Nat.reduceMul, ← hk, mul_comm 256, Nat.mul_lt_mul_left (by omega : 0 < d.val)]
+      exact hi
+    omega
+  . sorry
+
+theorem decode_coefficient.late_load_progress_spec (b : Slice U8) (d : U32) (f : Std.Array U16 256#usize)
+  (num_bytes_read : Usize) (acc n_bits_in_accumulator : U32) (i : Usize)
+  (hacc1 : (∀ j < n_bits_in_accumulator.val, acc.val.testBit j =
+    b[(8 * num_bytes_read.val - n_bits_in_accumulator.val + j) / 8]!.val.testBit
+      ((8 * num_bytes_read.val - n_bits_in_accumulator.val + j) % 8)))
+  (hacc2 : ∀ j ∈ [n_bits_in_accumulator.val:32], acc.val.testBit j = false)
+  (hinv : SpecAux.Stream.decode.length_inv (↑d) 4 ↑num_bytes_read ↑n_bits_in_accumulator ↑i)
+  (hb1 : ∀ i < 256,
+    ∑ (a : Fin d), (Bool.toNat (b[(d.val * i + a) / 8]!.val.testBit ((d * i + a) % 8))) * 2^a.val < Spec.m d)
+  (hb2 : b.length = 32 * d.val) (hi : i.val < 256) (hd : 0 < d.val ∧ d.val ≤ 12)
+  (hn_bits_in_accumulator : ¬n_bits_in_accumulator = 0#u32) (n_bits_to_decode : U32)
+  (__1 : [> let n_bits_to_decode ← min d n_bits_in_accumulator <])
+  (hn_bits_to_decode : n_bits_to_decode.val = Min.min d.val n_bits_in_accumulator.val) (i' : U32)
+  (__2 : [> let i' ← 1#u32 <<< n_bits_to_decode <]) (__3 : i'.bv = U32.bv 1#u32 <<< n_bits_to_decode.val)
+  (hi' : ↑i' = 1 <<< ↑n_bits_to_decode % U32.size) (i1 : U32) (__4 : [> let i1 ← i' - 1#u32 <])
+  (__5 : i1.bv = i'.bv - U32.bv 1#u32) (hi1 : ↑i1 = i'.val - 1) (__6 : 1 ≤ i'.val) (bits_to_decode : U32)
+  (__7 : [> let bits_to_decode ← ↑(acc &&& i1) <]) (hbits_to_decode : bits_to_decode.val = (acc &&& i1).val)
+  (__8 : bits_to_decode.bv = acc.bv &&& i1.bv) (accumulator1 : U32)
+  (__9 : [> let accumulator1 ← acc >>> n_bits_to_decode <])
+  (haccumulator1 : ↑accumulator1 = acc.val >>> ↑n_bits_to_decode)
+  (__10 : accumulator1.bv = acc.bv >>> n_bits_to_decode.val) (n_bits_in_accumulator1 : U32)
+  (__11 : [> let n_bits_in_accumulator1 ← n_bits_in_accumulator - n_bits_to_decode <])
+  (hn_bits_in_accumulator1 : ↑n_bits_in_accumulator1 = n_bits_in_accumulator.val - ↑n_bits_to_decode)
+  (__12 : ↑n_bits_to_decode ≤ ↑n_bits_in_accumulator)
+  (__13 : n_bits_in_accumulator1.bv = n_bits_in_accumulator.bv - n_bits_to_decode.bv) (coefficient1 : U32)
+  (_ : [> let coefficient1 ←
+    ↑(@HOr.hOr U32 U32 U32 instHOrUScalar (UScalar.ofNat 0 (by decide)) bits_to_decode) <])
+  (hcoefficient1 : ↑coefficient1 = @UScalar.val UScalarTy.U32
+    (@HOr.hOr U32 U32 U32 instHOrUScalar (UScalar.ofNat 0 (by decide)) bits_to_decode))
+  (__14 : coefficient1.bv =
+    @HOr.hOr (BitVec UScalarTy.U32.numBits) (BitVec UScalarTy.U32.numBits) (BitVec UScalarTy.U32.numBits)
+      instHOrOfOrOp (UScalar.ofNat 0 (by decide)).bv bits_to_decode.bv)
+  (h : d > n_bits_to_decode) :
+  ∃ num_bytes_read' acc' n_bits_in_accumulator' coefficient,
+    (do
+          massert (n_bits_in_accumulator1 = 0#u32)
+          let a ← slice_to_sub_array4 b num_bytes_read
+          let accumulator2 ← ↑(core.num.U32.from_le_bytes a)
+          let cb_src_read1 ← num_bytes_read + 4#usize
+          let n_bits_to_decode1 ← d - n_bits_to_decode
+          massert (n_bits_to_decode1 ≤ 32#u32)
+          let i2 ← 1#u32 <<< n_bits_to_decode1
+          let i3 ← i2 - 1#u32
+          let bits_to_decode1 ← @toResult U32 (accumulator2 &&& i3)
+          let accumulator3 ← accumulator2 >>> n_bits_to_decode1
+          let n_bits_in_accumulator2 ← 32#u32 - n_bits_to_decode1
+          let i4 ← bits_to_decode1 <<< n_bits_to_decode
+          let coefficient2 : U32 ← ↑(coefficient1 ||| i4)
+          ok (cb_src_read1, accumulator3, n_bits_in_accumulator2, coefficient2)) =
+        ok (num_bytes_read', acc', n_bits_in_accumulator', coefficient) ∧
+    @SpecAux.Stream.decode.body d.val 4
+      (do
+        let a ← b.val
+        [↑↑a]
+      ) (by simp [hb2])
+      { F := poly_to_vector (to_poly f), num_bytes_read := ↑num_bytes_read, acc := ↑↑acc,
+          num_bits_in_acc := ↑n_bits_in_accumulator }
+        ↑i =
+      { F := (poly_to_vector (to_poly f)).set (↑i) (↑coefficient) hi, num_bytes_read := ↑num_bytes_read',
+        acc := ↑↑acc', num_bits_in_acc := ↑n_bits_in_accumulator' } ∧
+    SpecAux.Stream.decode.length_inv (↑d) 4 (↑num_bytes_read') (↑n_bits_in_accumulator') (↑i + 1) ∧
+      (∀ j < ↑n_bits_in_accumulator',
+          acc'.val.testBit j =
+            (b[(8 * ↑num_bytes_read' - ↑n_bits_in_accumulator' + j) / 8]!).val.testBit
+              ((8 * ↑num_bytes_read' - ↑n_bits_in_accumulator' + j) % 8)) ∧
+        (∀ (j : ℕ), n_bits_in_accumulator'.val ≤ j ∧ j < 32 → acc'.val.testBit j = false) ∧
+        ↑coefficient < Spec.m ↑d := by
+  progress with massert_spec
+  let* ⟨accumulator1, haccumulator1⟩ ← slice_to_sub_array4_spec
+  . simp only [SpecAux.Stream.decode.length_inv, Nat.reduceMul, Nat.mod_eq_iff, OfNat.ofNat_ne_zero,
+      Nat.add_eq_zero, mul_eq_zero, false_and, Nat.ofNat_pos, add_zero, true_and, false_or] at hinv
+    rcases hinv with ⟨hinv1, hinv2, ⟨k, hk⟩⟩
+    rw [(by omega : num_bytes_read.val = 4 * k), hb2]
+    have : 4 * k < 32 * d.val := by
+      rw [← Nat.mul_lt_mul_left (by omega : 0 < 8), ← mul_assoc, ← mul_assoc]
+      simp only [Nat.reduceMul, ← hk, mul_comm 256, Nat.mul_lt_mul_left (by omega : 0 < d.val)]
+      have : d.val * i + n_bits_in_accumulator ≤ d.val * 255 + n_bits_in_accumulator := by
+        rw [Nat.add_le_add_iff_right]
+        apply Nat.mul_le_mul_left
+        omega
+      apply Nat.lt_of_le_of_lt this
+      have : n_bits_in_accumulator.val < d.val := by simp_all
+      omega
+    omega
+  . let* ⟨accumulator2, haccumulator2⟩ ← core.num.U32.from_le_bytes.progress_spec
+    sorry
+
+@[progress]
 def decode_coefficient.progress_spec (b : Slice U8) (d : U32) (f : Array U16 256#usize)
   (num_bytes_read : Usize) (acc : U32) (n_bits_in_accumulator : U32) (i : Usize)
   (hacc1 : (∀ j < n_bits_in_accumulator.val, acc.val.testBit j =
@@ -54,8 +233,8 @@ def decode_coefficient.progress_spec (b : Slice U8) (d : U32) (f : Array U16 256
   coefficient < Spec.m d := by
   unfold decode_coefficient
   split
-  . next hn_bits_in_accumulator =>
-    sorry -- Early load
+  . exact decode_coefficient.early_load_progress_spec b d f num_bytes_read acc n_bits_in_accumulator i
+      hacc1 hacc2 hinv hb1 hb2 hi hd (by assumption)
   . next hn_bits_in_accumulator =>
     let* ⟨n_bits_to_decode, hn_bits_to_decode⟩ ← min_spec
     progress with massert_spec
@@ -71,9 +250,14 @@ def decode_coefficient.progress_spec (b : Slice U8) (d : U32) (f : Array U16 256
       let* ⟨n_bits_in_accumulator1, hn_bits_in_accumulator1⟩ ← U32.sub_bv_spec
       let* ⟨coefficient1, hcoefficient1⟩ ← UScalar.or_spec
       split
-      . next hd =>
-        progress with massert_spec
-        sorry -- Late load
+      . simp only [mem_std_range_step_one]
+        exact decode_coefficient.late_load_progress_spec b d f num_bytes_read acc n_bits_in_accumulator i
+          hacc1 hacc2 hinv hb1 hb2 hi hd (by assumption) n_bits_to_decode (by assumption) (by assumption)
+          i' (by assumption) (by assumption) (by assumption) i1 (by assumption) (by assumption) (by assumption)
+          (by assumption) bits_to_decode (by assumption) (by assumption) (by assumption) accumulator1
+          (by assumption) (by assumption) (by assumption) n_bits_in_accumulator1 (by assumption)
+          (by assumption) (by assumption) (by assumption) coefficient1 (by assumption) (by assumption)
+          (by assumption) (by assumption)
       . next hd =>
         replace hd : d = n_bits_to_decode := by scalar_tac
         simp only [UScalar.neq_to_neq_val, UScalar.ofNat_val_eq] at hn_bits_in_accumulator
@@ -273,14 +457,21 @@ def poly_element_decode_and_decompress_loop.progress_spec (b : Slice U8) (d : U3
   . replace hi : i.val = 256 := by scalar_tac
     progress with massert_spec
     . unfold SpecAux.Stream.decode.length_inv at hinv
-      sorry -- **TODO** Discuss the necessity of proving this debug_assert statement
+      sorry -- **TODO** Decide whether this debug_assert statement is worth proving
     . let* ⟨i1, hi1⟩ ← UScalar.cast_inBounds_spec
       let* ⟨i2, hi2⟩ ← U32.div_spec
       let* ⟨i3, hi3⟩ ← U32.mul_spec
       let* ⟨i4, hi4⟩ ← UScalar.cast_inBounds_spec
       progress with massert_spec
-      . simp_all
-        sorry -- **TODO** Discuss the necessity of proving this debug_assert statement
+      . apply UScalar.eq_imp num_bytes_read
+        unfold SpecAux.Stream.decode.length_inv at hinv
+        simp_all only [add_tsub_cancel_right, Slice.getElem!_Nat_eq, mem_std_range_step_one,
+          and_imp, Slice.length, le_refl, true_and, UScalar.lt_equiv,
+          key.MLWE_POLYNOMIAL_COEFFICIENTS_eq, lt_self_iff_false, not_false_eq_true]
+        apply Nat.eq_of_mul_eq_mul_left (by omega : 0 < 8)
+        rw [mul_comm d.val, ← mul_assoc, hinv.1]
+        simp only [Nat.reduceDiv, Nat.reduceMul, mul_comm, Nat.add_eq_left]
+        sorry -- **TODO** Decide whether this debug_assert statement is worth proving
       . unfold SpecAux.Stream.decode_decompressOpt.recBody
         simp [hi]
 termination_by 256 - i.val
