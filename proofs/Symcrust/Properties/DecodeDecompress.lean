@@ -97,7 +97,7 @@ theorem decode_coefficient.early_load_progress_spec (b : Slice U8) (d : U32) (f 
         ((8 * num_bytes_read'.val - n_bits_in_accumulator'.val + j) % 8)) ∧
     (∀ j ∈ [n_bits_in_accumulator'.val:32], acc'.val.testBit j = false) ∧
     coefficient < Spec.m d := by
-  let* ⟨accumulator0, haccumulator0⟩ ← slice_to_sub_array4_spec
+  let* ⟨accumulator1, haccumulator1⟩ ← slice_to_sub_array4_spec
   . simp only [SpecAux.Stream.decode.length_inv, hn_bits_in_accumulator, UScalar.ofNat_val_eq,
       add_zero, Nat.reduceMul, Nat.mod_eq_iff, OfNat.ofNat_ne_zero, mul_eq_zero, false_and,
       Nat.ofNat_pos, true_and, false_or] at hinv
@@ -108,7 +108,41 @@ theorem decode_coefficient.early_load_progress_spec (b : Slice U8) (d : U32) (f 
       simp only [Nat.reduceMul, ← hk, mul_comm 256, Nat.mul_lt_mul_left (by omega : 0 < d.val)]
       exact hi
     omega
-  . sorry
+  . let* ⟨accumulator2, haccumulator2⟩ ← core.num.U32.from_le_bytes.progress_spec
+    have : 8 * num_bytes_read.val ≤ 12 * 256 := by
+      simp only [hinv.2.1, hn_bits_in_accumulator, UScalar.ofNat_val_eq, add_zero]
+      apply Nat.mul_le_mul <;> omega
+    let* ⟨cb_src_read1, hsb_src_read1⟩ ← Usize.add_spec
+    let* ⟨n_bits_to_decode, hn_bits_to_decode⟩ ← min_spec
+    progress with massert_spec
+    let* ⟨mask0, hmask0⟩ ← U32.ShiftLeft_spec
+    have : ↑1#u32 ≤ mask0.val := by
+      rw [hmask0, Nat.mod_eq_of_lt]
+      . sorry
+      . sorry
+    let* ⟨mask1, hmask1⟩ ← U32.sub_bv_spec
+    let* ⟨bits_to_decode, hbits_to_decode⟩ ← UScalar.and_spec
+    let* ⟨accumulator3, haccumulator3⟩ ← U32.ShiftRight_spec
+    let* ⟨n_bits_in_accumulator1, hn_bits_in_accumulator1⟩ ← U32.sub_bv_spec
+    let* ⟨coefficient1, hcoefficient1⟩ ← UScalar.or_spec
+    have h1 : (d > n_bits_to_decode) = False := by
+      simp only [gt_iff_lt, UScalar.lt_equiv, hn_bits_to_decode, inf_lt_left, not_le, eq_iff_iff,
+        iff_false, not_lt]
+      omega
+    have h2 : Min.min d.val 32 = d.val := by scalar_tac
+    have h3 :
+      ∀ hCast : 8 * (List.map U8.bv ↑accumulator1).length = 32, accumulator2.val =
+      (BitVec.cast hCast (BitVec.fromLEBytes (List.map U8.bv ↑accumulator1)) : BitVec 32).toNat := by
+      simp [UScalar.val, haccumulator2]
+    simp [*, SpecAux.Stream.decode.body, SpecAux.Stream.decode.pop_bits_from_acc,
+      SpecAux.Stream.decode.load_acc]
+    split_conjs
+    . sorry
+    . sorry
+    . sorry
+    . sorry
+    . sorry
+    . sorry
 
 theorem decode_coefficient.late_load_progress_spec (b : Slice U8) (d : U32) (f : Std.Array U16 256#usize)
   (num_bytes_read : Usize) (acc n_bits_in_accumulator : U32) (i : Usize)

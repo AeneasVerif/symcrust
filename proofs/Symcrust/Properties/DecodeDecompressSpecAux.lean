@@ -836,6 +836,39 @@ def Stream.decode_decompressOpt (d n : ℕ) (b : List Byte) (hb : b.length = 32 
   }
   (decode_decompressOpt.recBody b hb s 0).F
 
+def Stream.decode_decompress_eq_aux_test (d n : ℕ) (B : Vector Byte (32 * d)) (s1 s2 : Stream.DecodeState d n)
+  (hd : d < 13) (hdn : d < 8 * n)
+  (hB : ∀ i < 256, ∑ a : Fin d, (B[(d * i + ↑a) / 8]!.testBit ((d * i + ↑a) % 8)).toNat * 2 ^ a.val < m d)
+  (i j : ℕ) (hi : i ≤ 256) (hj1 : i ≤ j) (hj2 : j < 256)
+  (hs : (decode.body B.toList B.toList_length s1 j).F[j]! = (decode.body B.toList B.toList_length s2 j).F[j]!) :
+  (decode_decompressOpt.recBody B.toList B.toList_length s1 i).F[j]! =
+    (decompressOpt d (decode.recBody B.toList B.toList_length s2 i).F[j]!).val := by
+  unfold decode_decompressOpt.recBody decode.recBody
+  dcases hi : i = 256
+  . omega
+  . replace hi : i < 256 := by omega
+    have : (List.range' i (256 - i)) = i :: (List.range' (i + 1) (256 - (i + 1))) := sorry
+    simp only [this, List.foldl_cons]
+    rw [← decode_decompressOpt.recBody, ← decode.recBody]
+    tlet s1' := decode_decompressOpt.body B.toList B.toList_length s1 i
+    tlet s2' := decode.body B.toList B.toList_length s2 i
+    dcases hij : i = j
+    . -- **TODO** To prove h1 and h2, use the fact that the set of indices being set during the `recBody`
+      -- is all above `j` (since `j = i < [i+1:256]`)
+      have h1 : (decode_decompressOpt.recBody B.toList B.toList_length s1' (i + 1)).F[j]! = s1'.F[j]! := by
+        sorry
+      have h2 : (decompressOpt d (decode.recBody B.toList B.toList_length s2' (i + 1)).F[j]!).val =
+        (decompressOpt d s2'.F[j]!).val := by
+        sorry
+      rw [h1, h2]
+      unfold s1' s2' decode_decompressOpt.body
+      simp only [hij]
+      rw [Vector.getElem!_set! (by omega), hs]
+    . apply decode_decompress_eq_aux_test d n B s1' s2' hd hdn hB (i + 1) j (by omega) (by omega) hj2
+      unfold s1' s2'
+      -- **TODO** Not sure whether my current `hs` is quite correct
+      sorry
+
 def Stream.decode_decompress_eq_aux (d n : ℕ) (B : Vector Byte (32 * d)) (s : Stream.DecodeState d n)
   (hd : d < 13) (hdn : d < 8 * n)
   (hB : ∀ i < 256, ∑ a : Fin d, (B[(d * i + ↑a) / 8]!.testBit ((d * i + ↑a) % 8)).toNat * 2 ^ a.val < m d)
