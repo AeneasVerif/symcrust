@@ -68,9 +68,16 @@ c/symcrust.c: symcrust.llbc
 	$(EURYDICE_HOME)/eurydice $< --output $(dir $@) -fcomments
 
 # Replaying the proofs
+.PHONY: build-proofs
+build-proofs:
+	cd proofs && lake build
+
+# Replaying the proofs and measuring the time.
+# Note that we rebuild the proofs before measuring to make sure the dependencies
+# are rebuilt (TODO: there is probably a better way).
 .PHONY: timed-lean
-timed-lean:
-	cd proofs && find Symcrust -type f -iname "*.lean" -exec printf "\n{}\n" \; -exec lake env time lean {} \; >& timing.out
+timed-lean: build-proofs
+	cd proofs && find Symcrust -type f -iname "*.lean" -exec printf "\n{}\n" \; -exec lake env time lean {} \;
 
 
 # Misc
