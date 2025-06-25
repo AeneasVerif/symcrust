@@ -95,10 +95,10 @@ theorem min_spec (x y : U32) :
   ∃ z, min x y = ok z ∧ -- TODO: simp lemmas for `... = toResult ...`
   z.val = Min.min x.val y.val := by
   unfold min
-  split <;> progress* <;> scalar_tac
+  split <;> progress*
 
 open SpecAux in
-def encode_coefficient.progress_spec_aux
+theorem encode_coefficient.progress_spec_aux
   (x : U32) (d : U32) (dst : Slice U8)
   (bi : Usize) (acc : U32) (acci : U32)
   (hx : x.val < Spec.m d.val)
@@ -138,7 +138,7 @@ def encode_coefficient.progress_spec_aux
 
 open SpecAux in
 @[progress]
-def encode_coefficient.progress_spec
+theorem encode_coefficient.progress_spec
   (x : U32) (d : U32) (dst : Slice U8)
   (bi : Usize) (acc : U32) (acci : U32)
   (hx : x.val < Spec.m d.val)
@@ -202,7 +202,7 @@ attribute [local progress] wfArray_update wfArray_index
 
 open SpecAux in
 @[progress]
-def poly_element_compress_and_encode_loop.progress_spec
+theorem poly_element_compress_and_encode_loop.progress_spec
   (f : Array U16 256#usize) (d : U32)
   (b : Slice U8) (bi : Usize) (acc : U32)
   (acci : U32) (i : Usize)
@@ -258,7 +258,7 @@ decreasing_by scalar_decr_tac
 
 open SpecAux in
 @[progress]
-def poly_element_compress_and_encode.spec (f : Array U16 256#usize) (d : U32) (b : Slice U8)
+theorem poly_element_compress_and_encode.spec (f : Array U16 256#usize) (d : U32) (b : Slice U8)
   (hd : 0 < d.val ∧ d.val ≤ 12)
   (hf : wfArray f)
   (hb1 : ∀ i < b.length, b[i]! = 0#u8)
@@ -276,9 +276,7 @@ def poly_element_compress_and_encode.spec (f : Array U16 256#usize) (d : U32) (b
         BitVec.natCast_eq_ofNat, Bvify.UScalar.BitVec_ofNat_setWidth, UScalarTy.U8_numBits_eq,
         Bvify.U8.UScalar_bv, BitVec.setWidth_eq, true_and]
       intros i hi
-      simp only [Slice.length, Slice.getElem!_Nat_eq] at hb1
-      simp_lists [hb1]
-      simp only [U8.ofNat_bv, UScalarTy.U8_numBits_eq]
+      simp_lists_scalar [hb1]
     simp_all [Stream.compressOpt_encode]
 
 end Symcrust.ntt
