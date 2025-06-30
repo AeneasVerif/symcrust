@@ -866,6 +866,7 @@ def Stream.decode_decompress_eq_aux_test (d n : ℕ) (B : Vector Byte (32 * d)) 
       rw [Vector.getElem!_set! (by omega), hs]
     . apply decode_decompress_eq_aux_test d n B s1' s2' hd hdn hB (i + 1) j (by omega) (by omega) hj2
       unfold s1' s2'
+      congr
       -- **TODO** Not sure whether my current `hs` is quite correct
       sorry
 
