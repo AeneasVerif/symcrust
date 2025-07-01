@@ -763,7 +763,8 @@ theorem Stream.decode.spec_aux {d n : ℕ} (B : Vector Byte (32 * d)) (hd : d < 
     split_conjs
     . simp only [length_inv, zero_le, mul_zero, add_zero, Nat.zero_mod, and_self, s]
     . simp_lists
-    . simp_lists
+    . intro j hj
+      simp_lists
     . simp only [mem_std_range_step_one, and_imp, s]
       intro j hj1 hj2
       simp only [BitVec.ofNat_eq_ofNat, BitVec.getElem!_zero, s]
@@ -864,7 +865,8 @@ def Stream.decode_decompress_eq_aux_test (d n : ℕ) (B : Vector Byte (32 * d)) 
       unfold s1' s2' decode_decompressOpt.body
       simp only [hij]
       rw [Vector.getElem!_set! (by omega), hs]
-    . apply decode_decompress_eq_aux_test d n B s1' s2' hd hdn hB (i + 1) j (by omega) (by omega) hj2
+    . -- **TODO** I think applying `decode_decompress_eq_aux_test` might be wrong here
+      apply decode_decompress_eq_aux_test d n B s1' s2' hd hdn hB (i + 1) j (by omega) (by omega) hj2
       unfold s1' s2'
       congr
       -- **TODO** Not sure whether my current `hs` is quite correct

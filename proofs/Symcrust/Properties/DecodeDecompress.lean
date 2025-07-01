@@ -342,8 +342,8 @@ theorem decode_coefficient.late_load_progress_spec (b : Slice U8) (d : U32) (f :
         (∀ (j : ℕ), n_bits_in_accumulator'.val ≤ j ∧ j < 32 → acc'.val.testBit j = false) ∧
         ↑coefficient < Spec.m ↑d := by
   progress with massert_spec
-  let* ⟨accumulator1, haccumulator1⟩ ← slice_to_sub_array4_spec
-  . simp only [SpecAux.Stream.decode.length_inv, Nat.reduceMul, Nat.mod_eq_iff, OfNat.ofNat_ne_zero,
+  have hnum_bytes_read : ↑num_bytes_read + 3 < b.length := by
+    simp only [SpecAux.Stream.decode.length_inv, Nat.reduceMul, Nat.mod_eq_iff, OfNat.ofNat_ne_zero,
       Nat.add_eq_zero, mul_eq_zero, false_and, Nat.ofNat_pos, add_zero, true_and, false_or] at hinv
     rcases hinv with ⟨hinv1, hinv2, ⟨k, hk⟩⟩
     rw [(by omega : num_bytes_read.val = 4 * k), hb2]
@@ -358,8 +358,153 @@ theorem decode_coefficient.late_load_progress_spec (b : Slice U8) (d : U32) (f :
       have : n_bits_in_accumulator.val < d.val := by simp_all
       omega
     omega
-  . let* ⟨accumulator2, haccumulator2⟩ ← core.num.U32.from_le_bytes.progress_spec
-    sorry
+  let* ⟨accumulator1, haccumulator1⟩ ← slice_to_sub_array4_spec
+  let* ⟨accumulator2, haccumulator2⟩ ← core.num.U32.from_le_bytes.progress_spec
+  let* ⟨cb_src_read1, hcb_src_read1⟩ ← Usize.add_spec
+  let* ⟨n_bits_to_decode1, hn_bits_to_decode1⟩ ← U32.sub_bv_spec
+  progress with massert_spec
+  let* ⟨i2, hi2⟩ ← U32.ShiftLeft_spec
+  have : 1 <<< ↑n_bits_to_decode1 % U32.size = 1 <<< n_bits_to_decode1.val := by
+    rw [hn_bits_to_decode1, Nat.mod_eq_of_lt]
+    have : 1 <<< (d.val - n_bits_to_decode.val) ≤ 1 <<< d.val := by
+      simp only [Nat.one_shiftLeft]
+      scalar_tac +nonLin
+    apply Nat.lt_of_le_of_lt this
+    have : ∀ x < 13, 1 <<< x < U32.size := by brute
+    exact this d.val (by omega)
+  let* ⟨i3, hi3⟩ ← U32.sub_bv_spec
+  . simp only [UScalar.ofNat_val_eq, hi2, this, ge_iff_le]
+    apply Nat.le_shiftLeft
+  . let* ⟨bits_to_decode1, hbits_to_decode1⟩ ← UScalar.and_spec
+    let* ⟨accumulator3, haccumulator3⟩ ← U32.ShiftRight_spec
+    let* ⟨n_bits_in_accumulator2, hn_bits_in_accumulator2⟩ ← U32.sub_bv_spec
+    let* ⟨i4, hi4⟩ ← U32.ShiftLeft_spec
+    let* ⟨coefficient2, hcoefficient2⟩ ← UScalar.or_spec
+    simp only [UScalar.neq_to_neq_val, UScalar.ofNat_val_eq] at hn_bits_in_accumulator
+    simp only [id_eq, Array.getElem!_Nat_eq, Slice.getElem!_Nat_eq] at haccumulator1
+    have hn_bits_in_accumulator' : ↑n_bits_in_accumulator < d.val := by
+      have : d.val > n_bits_to_decode.val := by scalar_tac
+      rw [hn_bits_to_decode] at this
+      scalar_tac
+    have hmod_u32 : 1 <<< ↑n_bits_in_accumulator % U32.size = 1 <<< n_bits_in_accumulator.val := by
+      rw [Nat.mod_eq_of_lt]
+      have : ∀ x < 13, ∀ y < x, 1 <<< y < U32.size := by brute
+      exact this d.val (by omega) n_bits_in_accumulator hn_bits_in_accumulator'
+    have h1 : Min.min d.val n_bits_in_accumulator.val = n_bits_in_accumulator.val := by scalar_tac
+    have h2 : 2 ^ n_bits_in_accumulator.val % 4294967296 = 2 ^ n_bits_in_accumulator.val := by
+      rw [Nat.mod_eq_of_lt]
+      rw [(by decide : 4294967296 = 2 ^ 32)]
+      scalar_tac +nonLin
+    have h3 :
+      ∀ hCast : 8 * (List.map U8.bv ↑accumulator1).length = 32, accumulator2.val =
+      (BitVec.cast hCast (BitVec.fromLEBytes (List.map U8.bv ↑accumulator1)) : BitVec 32).toNat := by
+      simp [UScalar.val, haccumulator2]
+    have h4 :
+      List.slice (↑num_bytes_read) (↑num_bytes_read + 4)
+        (List.flatMap (fun (a : U8) => [BitVec.ofNat 8 ↑a]) b.val) =
+        List.map U8.bv ↑accumulator1 := by
+      rw [List.eq_iff_forall_eq_getElem!]
+      simp only [Bvify.UScalar.BitVec_ofNat_setWidth, UScalarTy.U8_numBits_eq, Bvify.U8.UScalar_bv,
+        BitVec.setWidth_eq, List.slice_length, List.length_flatMap, List.length_cons,
+        List.length_nil, zero_add, List.map_const', List.sum_replicate, smul_eq_mul, mul_one,
+        add_tsub_cancel_left, id_eq, List.length_map, List.Vector.length_val, UScalar.ofNat_val_eq,
+        inf_eq_right, lt_inf_iff, and_imp]
+      constructor
+      . scalar_tac
+      . intro i _ hi
+        rw [List.getElem!_map_eq]
+        . rw [haccumulator1 i hi]
+          rw [List.getElem!_slice]
+          . rw [List.flatMap_eq_map, List.getElem!_map_eq]
+            scalar_tac
+          . simp only [List.length_flatMap, List.length_cons, List.length_nil, zero_add,
+              List.map_const', List.sum_replicate, smul_eq_mul, mul_one, add_lt_add_iff_left]
+            scalar_tac
+        . scalar_tac
+    have h5 : 2 ^ (d.val - n_bits_in_accumulator.val) % 4294967296 =
+      2 ^ (d.val - n_bits_in_accumulator.val) := by
+      rw [Nat.mod_eq_of_lt]
+      rw [(by decide : 4294967296 = 2 ^ 32)]
+      scalar_tac +nonLin
+    simp only [SpecAux.Stream.decode.body, beq_iff_eq, ↓reduceIte, gt_iff_lt, Nat.reduceMul,
+      SpecAux.Stream.decode.pop_bits_from_acc, BitVec.natCast_eq_ofNat,
+      Bvify.UScalar.BitVec_ofNat_setWidth, UScalarTy.U32_numBits_eq, Bvify.U32.UScalar_bv,
+      BitVec.setWidth_eq, BitVec.ofNat_eq_ofNat, BitVec.shiftLeft_sub_one_eq_mod, tsub_self,
+      SpecAux.Stream.decode.load_acc, List.bind_eq_flatMap, BitVec.setWidth'_eq, BitVec.toNat_or,
+      BitVec.toNat_umod, UScalar.bv_toNat, BitVec.toNat_pow, BitVec.toNat_ofNat, Nat.reducePow,
+      Nat.reduceMod, BitVec.toNat_shiftLeft, BitVec.toNat_setWidth, Vector.set_eq_set!,
+      SpecAux.Stream.DecodeState.mk.injEq, Slice.getElem!_Nat_eq, and_imp, and_assoc,
+      exists_and_left, exists_eq_left', UScalar.val_or, UScalar.ofNat_val_eq, UScalar.val_and,
+      Nat.zero_or, tsub_le_iff_right, true_and, id_eq, Nat.testBit_shiftRight, Nat.add_left_inj, *]
+    split_conjs
+    . ext j hj
+      simp only [Vector.Inhabited_getElem_eq_getElem!]
+      dcases hij : i.val = j
+      . rw [← hij, Vector.getElem!_set! (by omega), Vector.getElem!_set! (by omega)]
+        congr 1
+        . simp only [Nat.one_shiftLeft, Nat.and_two_pow_sub_one_eq_mod]
+        . congr 1
+          . have : 1 <<< (d.val - n_bits_in_accumulator.val) % U32.size =
+              1 <<< (d.val - n_bits_in_accumulator.val) := by
+              rw [Nat.mod_eq_of_lt]
+              have : ∀ x < 13, ∀ y < x, 1 <<< (x - y) < U32.size := by brute
+              exact this d.val (by omega) n_bits_in_accumulator.val hn_bits_in_accumulator'
+            rw [this, Nat.one_shiftLeft]
+            congr
+            simp only [id_eq, List.length_map, List.Vector.length_val, UScalar.ofNat_val_eq,
+              Nat.reduceMul, h3, BitVec.toNat_cast, Nat.and_two_pow_sub_one_eq_mod]
+            congr
+            have :
+              (BitVec.fromLEBytes
+                (List.slice (↑num_bytes_read) (↑num_bytes_read + 4)
+                  (List.flatMap (fun (a : U8) => [BitVec.ofNat 8 ↑a]) b.val))).toNat % 4294967296 =
+              (BitVec.fromLEBytes
+                (List.slice (↑num_bytes_read) (↑num_bytes_read + 4)
+                  (List.flatMap (fun (a : U8) => [BitVec.ofNat 8 ↑a]) b.val))).toNat := by
+              simp only [List.pure_def, List.bind_eq_flatMap, Nat.mod_succ_eq_iff_lt,
+                Nat.succ_eq_add_one, Nat.reduceAdd]
+              rw [(by decide : 4294967296 = 2 ^ 32)]
+              apply BitVec.toNat_lt_twoPow_of_le
+              simp only [List.slice_length, List.length_flatMap, List.length_cons, List.length_nil,
+                zero_add, List.map_const', List.sum_replicate, smul_eq_mul, mul_one,
+                add_tsub_cancel_left]
+              omega
+            rw [this]
+            apply Nat.eq_of_testBit_eq
+            intro k
+            dcases hk : k < 32
+            . rw [← BitVec.getElem!_eq_testBit_toNat, ← BitVec.getElem!_eq_testBit_toNat,
+                BitVec.fromLEBytes_getElem!, BitVec.fromLEBytes_getElem!, List.getElem!_map_eq]
+              . congr
+                rw [haccumulator1 (k / 8) (by scalar_tac), List.flatMap_eq_map, List.getElem!_slice,
+                  List.getElem!_map_eq]
+                . simp
+                . scalar_tac
+                . simp only [Bvify.UScalar.BitVec_ofNat_setWidth, UScalarTy.U8_numBits_eq,
+                    Bvify.U8.UScalar_bv, BitVec.setWidth_eq, List.length_map, add_lt_add_iff_left]
+                  scalar_tac
+              . scalar_tac
+            . rw [Nat.testBit_eq_false_of_lt, Nat.testBit_eq_false_of_lt]
+              . apply BitVec.toNat_lt_twoPow_of_le
+                simp only [List.length_map, List.Vector.length_val, UScalar.ofNat_val_eq,
+                  Nat.reduceMul]
+                omega
+              . apply BitVec.toNat_lt_twoPow_of_le
+                simp only [Bvify.UScalar.BitVec_ofNat_setWidth, UScalarTy.U8_numBits_eq,
+                  Bvify.U8.UScalar_bv, BitVec.setWidth_eq, List.slice_length, List.length_flatMap,
+                  List.length_cons, List.length_nil, zero_add, List.map_const', List.sum_replicate,
+                  smul_eq_mul, mul_one, add_tsub_cancel_left]
+                omega
+          . simp only [U32.size, U32.numBits, UScalarTy.U32_numBits_eq, Nat.reducePow]
+      . rw [Vector.getElem!_set!_ne (by omega), Vector.getElem!_set!_ne (by omega)]
+    . simp only [BitVec.cast, BitVec.setWidth, BitVec.setWidth']
+      split
+      . congr -- Difficult subgoals closed with `h4`
+      . scalar_tac -- Derives a contradiction from the most recently introduced hypothesis
+    . sorry
+    . sorry
+    . sorry
+    . sorry
 
 @[progress]
 def decode_coefficient.progress_spec (b : Slice U8) (d : U32) (f : Array U16 256#usize)
@@ -624,6 +769,9 @@ def poly_element_decode_and_decompress_loop.progress_spec (b : Slice U8) (d : U3
       sorry -- **TODO** Decide whether this debug_assert statement is worth proving
     . let* ⟨i1, hi1⟩ ← UScalar.cast_inBounds_spec
       let* ⟨i2, hi2⟩ ← U32.div_spec
+      -- **NOTE** The below code previously worked, but now results in kernel errors after updating Aeneas
+      sorry
+      /-
       let* ⟨i3, hi3⟩ ← U32.mul_spec
       let* ⟨i4, hi4⟩ ← UScalar.cast_inBounds_spec
       progress with massert_spec
@@ -638,6 +786,7 @@ def poly_element_decode_and_decompress_loop.progress_spec (b : Slice U8) (d : U3
         sorry -- **TODO** Decide whether this debug_assert statement is worth proving
       . unfold SpecAux.Stream.decode_decompressOpt.recBody
         simp [hi]
+      -/
 termination_by 256 - i.val
 decreasing_by scalar_decr_tac
 
