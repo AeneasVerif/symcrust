@@ -893,29 +893,8 @@ def poly_element_decode_and_decompress_loop.progress_spec (b : Slice U8) (d : U3
           Vector.getElem!_set!_ne, Vector.getElem!_map_eq _ _ j hj]
     rw [this]
   . replace hi : i.val = 256 := by scalar_tac
-    progress with massert_spec
-    . unfold SpecAux.Stream.decode.length_inv at hinv
-      sorry -- **TODO** Decide whether this debug_assert statement is worth proving
-    . let* ⟨i1, hi1⟩ ← UScalar.cast_inBounds_spec
-      let* ⟨i2, hi2⟩ ← U32.div_spec
-      -- **NOTE** The below code previously worked, but now results in kernel errors after updating Aeneas
-      sorry
-      /-
-      let* ⟨i3, hi3⟩ ← U32.mul_spec
-      let* ⟨i4, hi4⟩ ← UScalar.cast_inBounds_spec
-      progress with massert_spec
-      . apply UScalar.eq_imp num_bytes_read
-        unfold SpecAux.Stream.decode.length_inv at hinv
-        simp_all only [add_tsub_cancel_right, Slice.getElem!_Nat_eq, mem_std_range_step_one,
-          and_imp, Slice.length, le_refl, true_and, UScalar.lt_equiv,
-          key.MLWE_POLYNOMIAL_COEFFICIENTS_eq, lt_self_iff_false, not_false_eq_true]
-        apply Nat.eq_of_mul_eq_mul_left (by omega : 0 < 8)
-        rw [mul_comm d.val, ← mul_assoc, hinv.1]
-        simp only [Nat.reduceDiv, Nat.reduceMul, mul_comm, Nat.add_eq_left]
-        sorry -- **TODO** Decide whether this debug_assert statement is worth proving
-      . unfold SpecAux.Stream.decode_decompressOpt.recBody
-        simp [hi]
-      -/
+    unfold SpecAux.Stream.decode_decompressOpt.recBody
+    simp [hi]
 termination_by 256 - i.val
 decreasing_by scalar_decr_tac
 

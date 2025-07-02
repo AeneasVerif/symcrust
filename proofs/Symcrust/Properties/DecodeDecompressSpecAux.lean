@@ -837,67 +837,151 @@ def Stream.decode_decompressOpt (d n : ℕ) (b : List Byte) (hb : b.length = 32 
   }
   (decode_decompressOpt.recBody b hb s 0).F
 
-def Stream.decode_decompress_eq_aux_test (d n : ℕ) (B : Vector Byte (32 * d)) (s1 s2 : Stream.DecodeState d n)
+lemma Stream.decode_decompressOpt.recBody.inv (d n : ℕ) (B : Vector Byte (32 * d)) (s1 s2 : Stream.DecodeState d n)
+  (i j : ℕ) (hi : i ≤ 256) (hj : j < i) (h : s1.F[j]! = s2.F[j]!) :
+  (decode_decompressOpt.recBody B.toList B.toList_length s1 i).F[j]! = s2.F[j]! := by
+  unfold recBody body
+  dcases hi : i = 256
+  . simp [hi, h]
+  . replace hi : i < 256 := by omega
+    have : (List.range' i (256 - i)) = i :: (List.range' (i + 1) (256 - (i + 1))) := by
+      rw [List.range'_eq_cons_iff]
+      simp only [tsub_pos_iff_lt, Nat.reduceSubDiff, List.range'_inj, Nat.add_left_inj, or_true,
+        and_true, true_and]
+      omega
+    rw [this, List.foldl_cons]
+    have : (recBody B.toList B.toList_length (body B.toList B.toList_length s1 i) (i + 1)).F[j]! = s2.F[j]! := by
+      apply inv d n B _ _ _ _ (by omega) (by omega)
+      unfold body decode.body
+      simp only [beq_iff_eq, gt_iff_lt, inf_lt_left, not_le, BitVec.toNat_or,
+        BitVec.toNat_shiftLeft]
+      split
+      . rw [Vector.getElem!_set!_ne, Vector.getElem!_set!_ne] <;> omega
+      . split
+        . rw [Vector.getElem!_set!_ne, Vector.getElem!_set!_ne] <;> omega
+        . rw [Vector.getElem!_set!_ne, Vector.getElem!_set!_ne] <;> omega
+    rw [← this]
+    rfl
+
+lemma Stream.decode.recBody.inv (d n : ℕ) (B : Vector Byte (32 * d)) (s1 s2 : Stream.DecodeState d n)
+  (i j : ℕ) (hi : i ≤ 256) (hj : j < i) (h : s1.F[j]! = s2.F[j]!) :
+  (decode.recBody B.toList B.toList_length s1 i).F[j]! = s2.F[j]! := by
+  unfold recBody
+  dcases hi : i = 256
+  . simp [hi, h]
+  . replace hi : i < 256 := by omega
+    have : (List.range' i (256 - i)) = i :: (List.range' (i + 1) (256 - (i + 1))) := by
+      rw [List.range'_eq_cons_iff]
+      simp only [tsub_pos_iff_lt, Nat.reduceSubDiff, List.range'_inj, Nat.add_left_inj, or_true,
+        and_true, true_and]
+      omega
+    rw [this, List.foldl_cons, ← recBody]
+    apply inv d n B _ _ _ _ (by omega) (by omega)
+    unfold body
+    split
+    . rw [Vector.getElem!_set!_ne] <;> omega
+    . simp only [gt_iff_lt, inf_lt_left, not_le, BitVec.toNat_or, BitVec.toNat_shiftLeft]
+      split
+      . rw [Vector.getElem!_set!_ne] <;> omega
+      . rw [Vector.getElem!_set!_ne] <;> omega
+
+def Stream.decode_decompress_eq_aux (d n : ℕ) (B : Vector Byte (32 * d)) (s1 s2 : Stream.DecodeState d n)
   (hd : d < 13) (hdn : d < 8 * n)
   (hB : ∀ i < 256, ∑ a : Fin d, (B[(d * i + ↑a) / 8]!.testBit ((d * i + ↑a) % 8)).toNat * 2 ^ a.val < m d)
-  (i j : ℕ) (hi : i ≤ 256) (hj1 : i ≤ j) (hj2 : j < 256)
-  (hs : (decode.body B.toList B.toList_length s1 j).F[j]! = (decode.body B.toList B.toList_length s2 j).F[j]!) :
+  (i j : ℕ) (hi : i ≤ j) (hj : j < 256)
+  (h1 : s1.num_bytes_read = s2.num_bytes_read)
+  (h2 : s1.acc = s2.acc)
+  (h3 : s1.num_bits_in_acc = s2.num_bits_in_acc)
+  (h4 : ∀ k ≥ i, s1.F[k]! = s2.F[k]!) :
   (decode_decompressOpt.recBody B.toList B.toList_length s1 i).F[j]! =
     (decompressOpt d (decode.recBody B.toList B.toList_length s2 i).F[j]!).val := by
   unfold decode_decompressOpt.recBody decode.recBody
-  dcases hi : i = 256
-  . omega
-  . replace hi : i < 256 := by omega
-    have : (List.range' i (256 - i)) = i :: (List.range' (i + 1) (256 - (i + 1))) := sorry
-    simp only [this, List.foldl_cons]
-    rw [← decode_decompressOpt.recBody, ← decode.recBody]
-    tlet s1' := decode_decompressOpt.body B.toList B.toList_length s1 i
+  have : (List.range' i (256 - i)) = i :: (List.range' (i + 1) (256 - (i + 1))) := by
+    rw [List.range'_eq_cons_iff]
+    simp only [tsub_pos_iff_lt, Nat.reduceSubDiff, List.range'_inj, Nat.add_left_inj, or_true,
+      and_true, true_and]
+    omega
+  simp only [this, List.foldl_cons]
+  rw [← decode_decompressOpt.recBody, ← decode.recBody]
+  dcases hij : i = j
+  . tlet s1' := decode_decompressOpt.body B.toList B.toList_length s1 i
     tlet s2' := decode.body B.toList B.toList_length s2 i
-    dcases hij : i = j
-    . -- **TODO** To prove h1 and h2, use the fact that the set of indices being set during the `recBody`
-      -- is all above `j` (since `j = i < [i+1:256]`)
-      have h1 : (decode_decompressOpt.recBody B.toList B.toList_length s1' (i + 1)).F[j]! = s1'.F[j]! := by
-        sorry
-      have h2 : (decompressOpt d (decode.recBody B.toList B.toList_length s2' (i + 1)).F[j]!).val =
-        (decompressOpt d s2'.F[j]!).val := by
-        sorry
-      rw [h1, h2]
-      unfold s1' s2' decode_decompressOpt.body
-      simp only [hij]
-      rw [Vector.getElem!_set! (by omega), hs]
-    . -- **TODO** I think applying `decode_decompress_eq_aux_test` might be wrong here
-      apply decode_decompress_eq_aux_test d n B s1' s2' hd hdn hB (i + 1) j (by omega) (by omega) hj2
-      unfold s1' s2'
-      congr
-      -- **TODO** Not sure whether my current `hs` is quite correct
-      sorry
-
-def Stream.decode_decompress_eq_aux (d n : ℕ) (B : Vector Byte (32 * d)) (s : Stream.DecodeState d n)
-  (hd : d < 13) (hdn : d < 8 * n)
-  (hB : ∀ i < 256, ∑ a : Fin d, (B[(d * i + ↑a) / 8]!.testBit ((d * i + ↑a) % 8)).toNat * 2 ^ a.val < m d)
-  (i j : ℕ) (hi : i ≤ 256) (hj : j < 256 - i) :
-  (decode_decompressOpt.recBody B.toList B.toList_length s i).F[j]! =
-    (decompressOpt d (decode.recBody B.toList B.toList_length s i).F[j]!).val := by
-  unfold decode_decompressOpt.recBody decode.recBody
-  dcases hi : i = 256
-  . simp_all
-  . replace hi : i < 256 := by omega
-    have : (List.range' i (256 - i)) = i :: (List.range' (i + 1) (256 - (i + 1))) := sorry
-    simp only [this, List.foldl_cons]
-    rw [← decode_decompressOpt.recBody, ← decode.recBody]
-    tlet s1 := decode_decompressOpt.body B.toList B.toList_length s i
-    tlet s2 := decode.body B.toList B.toList_length s i
-    -- **TODO** Need to rewrite eq_aux lemma to allow s1 and s2 to be distinct states (that are still the same
-    -- in the ways that matter)
-    sorry
-    /-
-    dcases hj : j = 256 - (i + 1)
-    . sorry
-    . rw [decode_decompress_eq_aux d n B (decode_decompressOpt.body B.toList (Vector.toList_length B) s i) hd hdn
-        hB (i + 1) j (by omega) (by omega)]
-      congr 2
-      sorry
-    -/
+    have h5 : (decompressOpt d (decode.recBody B.toList B.toList_length s2' (i + 1)).F[j]!).val =
+      (decompressOpt d s2'.F[j]!).val := by congr 2; apply Stream.decode.recBody.inv <;> omega
+    rw [Stream.decode_decompressOpt.recBody.inv d n B s1' s1' (i + 1) j (by omega) (by omega) rfl, h5]
+    unfold s1' s2' decode_decompressOpt.body
+    simp only [hij]
+    rw [Vector.getElem!_set! (by omega)]
+    unfold decode.body decode.load_acc decode.pop_bits_from_acc
+    simp only [h3, beq_iff_eq, h1, gt_iff_lt, inf_lt_left, not_le, h2, BitVec.toNat_or,
+      BitVec.toNat_shiftLeft]
+    split
+    . simp only
+      rw [Vector.getElem!_set!, Vector.getElem!_set!]
+      . -- This is an annoying goal because neither `rw [h1]` nor `simp [h1]` immediately work
+        congr 5
+        . congr
+        . simp [h1]
+        . rw [h1]
+      . simp only [hj, and_self]
+      . simp only [hj, and_self]
+    . split
+      . simp only [BitVec.ofNat_eq_ofNat, BitVec.shiftLeft_sub_one_eq_mod, BitVec.toNat_umod,
+          BitVec.toNat_pow, BitVec.toNat_ofNat, BitVec.setWidth'_eq, BitVec.toNat_setWidth]
+        rw [h1, Vector.getElem!_set!, Vector.getElem!_set!] <;> omega
+      . simp_lists
+  . rw [decode_decompress_eq_aux _ _ _ _ _ hd hdn hB (i + 1) j (by omega) hj]
+    . simp only [decode_decompressOpt.body, decode.body, h3, beq_iff_eq, h1, gt_iff_lt, inf_lt_left,
+        not_le, h2, BitVec.toNat_or, BitVec.toNat_shiftLeft, decode.load_acc]
+      split
+      . simp
+      . split
+        . simp
+        . simp
+    . simp only [decode_decompressOpt.body, decode.body, h3, beq_iff_eq, decode.pop_bits_from_acc,
+        decode.load_acc, BitVec.setWidth'_eq, BitVec.ofNat_eq_ofNat, BitVec.shiftLeft_sub_one_eq_mod,
+        BitVec.toNat_umod, BitVec.toNat_setWidth, BitVec.toNat_pow, BitVec.toNat_ofNat, h1, gt_iff_lt,
+        inf_lt_left, not_le, h2, BitVec.toNat_or, BitVec.toNat_shiftLeft]
+      split
+      . rw [h1]
+      . split
+        . rw [h1]
+        . simp
+    . simp only [decode_decompressOpt.body, decode.body, h3, beq_iff_eq, decode.pop_bits_from_acc,
+        decode.load_acc, BitVec.setWidth'_eq, BitVec.ofNat_eq_ofNat, BitVec.shiftLeft_sub_one_eq_mod,
+        BitVec.toNat_umod, BitVec.toNat_setWidth, BitVec.toNat_pow, BitVec.toNat_ofNat, h1, gt_iff_lt,
+        inf_lt_left, not_le, h2, BitVec.toNat_or, BitVec.toNat_shiftLeft]
+      split
+      . simp
+      . split
+        . simp
+        . simp
+    . intro k hk
+      simp only [decode_decompressOpt.body, decode.body, h3, beq_iff_eq, decode.pop_bits_from_acc,
+        decode.load_acc, BitVec.setWidth'_eq, BitVec.ofNat_eq_ofNat, BitVec.shiftLeft_sub_one_eq_mod,
+        BitVec.toNat_umod, BitVec.toNat_setWidth, BitVec.toNat_pow, BitVec.toNat_ofNat, h1, gt_iff_lt,
+        inf_lt_left, not_le, h2, BitVec.toNat_or, BitVec.toNat_shiftLeft]
+      split
+      . simp only
+        rw [Vector.getElem!_set!_ne, Vector.getElem!_set!_ne, Vector.getElem!_set!_ne]
+        . exact h4 k (by omega)
+        . omega
+        . omega
+        . omega
+      . split
+        . simp only
+          rw [Vector.getElem!_set!_ne, Vector.getElem!_set!_ne, Vector.getElem!_set!_ne]
+          . exact h4 k (by omega)
+          . omega
+          . omega
+          . omega
+        . simp only
+          rw [Vector.getElem!_set!_ne, Vector.getElem!_set!_ne, Vector.getElem!_set!_ne]
+          . exact h4 k (by omega)
+          . omega
+          . omega
+          . omega
+termination_by 256 - i
 
 def Stream.decode_decompressOpt_eq (d n : ℕ) (B : Vector Byte (32 * d)) (hd : d < 13) (hdn : d < 8 * n)
   (hB : ∀ i < 256, ∑ a : Fin d, (B[(d * i + ↑a) / 8]!.testBit ((d * i + ↑a) % 8)).toNat * 2 ^ a.val < m d) :
@@ -919,7 +1003,7 @@ def Stream.decode_decompressOpt_eq (d n : ℕ) (B : Vector Byte (32 * d)) (hd : 
     simp only [Array.getElem!_toList, Vector.getElem!_toArray]
     let s0 : Stream.DecodeState d n :=
       { F := Vector.replicate 256 0, num_bytes_read := 0, acc := 0#(8 * n), num_bits_in_acc := 0 }
-    rw [decode_decompress_eq_aux d n B s0 hd hdn hB 0 i (by omega) hi]
+    rw [decode_decompress_eq_aux d n B s0 s0 hd hdn hB 0 i (by omega) hi rfl rfl rfl (by simp)]
     rw [List.getElem!_map_eq]
     . simp only [Array.getElem!_toList, Vector.getElem!_toArray]
       rfl

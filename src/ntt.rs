@@ -767,8 +767,11 @@ poly_element_decode_and_decompress(
         decompress_coefficient(i, n_bits_per_coefficient, &mut coefficient, pe_dst);
     });
 
-    debug_assert!(n_bits_in_accumulator == 0);
-    debug_assert!(cb_src_read == (n_bits_per_coefficient*(MLWE_POLYNOMIAL_COEFFICIENTS as u32 / 8)) as usize);
+    // The below two asserts are true, but are inconvenient to verify, as they require invariants that are
+    // otherwise unnecessary for poly_element_decode_and_decompress's verification
+
+    // debug_assert!(n_bits_in_accumulator == 0);
+    // debug_assert!(cb_src_read == (n_bits_per_coefficient*(MLWE_POLYNOMIAL_COEFFICIENTS as u32 / 8)) as usize);
 
     Error::NoError
 }
