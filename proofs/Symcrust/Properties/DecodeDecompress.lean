@@ -875,23 +875,15 @@ def poly_element_decode_and_decompress_loop.progress_spec (b : Slice U8) (d : U3
     simp [this] at *
     simp_scalar
     simp_all
-    -- Automation note: It would be nice if automation could produce this subgoal
-    /- Attempting to perform `congr` results in maximum recursion depth being reached.
-       I'm not sure whether that is an indication that it is simply too hard to find this rewrite,
-       or whether there is room for improvement -/
-    have :
-      ((poly_to_vector (to_poly f)).set! ↑i ↑coefficient).set! i.val
-        (ZMod.val (SpecAux.decompressOpt ↑d ↑coefficient)) =
-      poly_to_vector (Vector.set! (to_poly f) (↑i) (SpecAux.decompressOpt ↑d ↑coefficient)) := by
-      simp only [poly_to_vector, Spec.Q, to_poly, Fin.getElem!_fin, Array.getElem!_Nat_eq, id_eq]
-      ext
-      next j hj =>
-      dcases hij : i = j
-      . simp only [hij, Vector.Inhabited_getElem_eq_getElem!, Vector.getElem!_map_eq _ _ j hj]
-        rw [Vector.getElem!_set! (by omega), Vector.getElem!_set! (by omega)]
-      . simp only [Vector.Inhabited_getElem_eq_getElem!, ne_eq, hij, not_false_eq_true,
-          Vector.getElem!_set!_ne, Vector.getElem!_map_eq _ _ j hj]
-    rw [this]
+    fcongr
+    simp only [poly_to_vector, Spec.Q, to_poly, Fin.getElem!_fin, Array.getElem!_Nat_eq, id_eq]
+    ext
+    next j hj =>
+    dcases hij : i = j
+    . simp only [hij, Vector.Inhabited_getElem_eq_getElem!, Vector.getElem!_map_eq _ _ j hj]
+      rw [Vector.getElem!_set! (by omega), Vector.getElem!_set! (by omega)]
+    . simp only [Vector.Inhabited_getElem_eq_getElem!, ne_eq, hij, not_false_eq_true,
+        Vector.getElem!_set!_ne, Vector.getElem!_map_eq _ _ j hj]
   . replace hi : i.val = 256 := by scalar_tac
     unfold SpecAux.Stream.decode_decompressOpt.recBody
     simp [hi]

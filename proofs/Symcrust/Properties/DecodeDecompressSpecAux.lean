@@ -206,7 +206,7 @@ def Target.byteDecode.spec {d : ℕ} (B : Vector Byte (32 * d)) (hd : d < 13)
         have : j < d * 256 - d * i → d * i + j < 256 * d := by omega
         apply this
         rw [← Nat.mul_sub_left_distrib]
-        have : d * 1 ≤ d * (256 - i) := by simp_scalar
+        have : d * 1 ≤ d * (256 - i) := by apply Nat.mul_le_mul <;> omega
         omega
       . simp_scalar
     rw [this]
