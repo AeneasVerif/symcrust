@@ -2,7 +2,6 @@ import Symcrust.Code
 import Symcrust.Properties.BarrettReduction
 import Symcrust.Properties.MontReduction
 import Symcrust.Properties.NttSpecAux
-import Symcrust.Properties.NormMod
 import Symcrust.Properties.Basic
 
 open Aeneas
