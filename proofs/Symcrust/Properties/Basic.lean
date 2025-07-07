@@ -24,11 +24,7 @@ theorem to_poly_set (a : Array U16 256#usize) (i : Usize) (x : U16) :
   rw [Vector.eq_iff_forall_eq_getElem!]
   intro j hj
   simp_lists
-  by_cases hj': j = i <;> simp only [Fin.getElem!_fin, Array.getElem!_Nat_eq, Array.set_val_eq,
-    Nat.not_eq, ne_eq, not_false_eq_true, lt_or_lt_iff_ne, true_or, or_true, List.getElem!_set_ne,
-    id_eq, hj']
-  simp_lists
-  simp_lists -- TODO: why do we need two calls?
+  by_cases hj': j = i <;> simp_lists
 
 @[simp]
 theorem to_poly_getElem!_eq (a : Std.Array U16 256#usize) (i : Nat) :
@@ -112,8 +108,7 @@ theorem getElem!_to_bytes (b : Slice U8) (i : ℕ) :
     UScalarTy.U8_numBits_eq, Bvify.U8.UScalar_bv, BitVec.setWidth_eq]
   by_cases hi: i < b.length
   . simp_lists
-  . simp_lists -- TODO: simp_lists accepts function definitions like `default`
-    simp only [default, BitVec.zero_eq, U8.ofNat_bv, UScalarTy.U8_numBits_eq]
+  . simp_lists_scalar
 
 @[simp, simp_lists_simps]
 theorem to_bytes_update {b : Slice U8} (i : Usize) (x : U8) :

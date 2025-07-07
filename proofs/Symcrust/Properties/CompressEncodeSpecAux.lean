@@ -54,9 +54,9 @@ def Target.bitsToBytes {l : Nat} (b : Vector Bool (8 * l)) : Vector Byte l :=
 theorem Target.bitsToBytes.eq_spec {l : Nat} (b : Vector Bool (8 * l)) :
   bitsToBytes b = Spec.bitsToBytes b := by
   unfold bitsToBytes Spec.bitsToBytes recBody body
-  simp only [BitVec.ofNat_eq_ofNat, tsub_zero, Id.run, Id.pure_eq,
-    Vector.Inhabited_getElem_eq_getElem!, Vector.set_eq_set!, Id.bind_eq, forIn'_eq_forIn,
-    forIn_eq_forIn_range', size, add_tsub_cancel_right, Nat.div_one, List.forIn_yield_eq_foldl]
+  simp only [BitVec.ofNat_eq_ofNat, tsub_zero, Vector.Inhabited_getElem_eq_getElem!,
+    Vector.set_eq_set!, bind_pure_comp, map_pure, forIn'_eq_forIn, forIn_eq_forIn_range', size,
+    add_tsub_cancel_right, Nat.div_one, List.forIn_pure_yield_eq_foldl, bind_pure, Id.run_pure]
 
 theorem Target.bitsToBytes.recBody.step_eq
   {l:Nat} (b : Vector Bool (8 * l)) (B : Vector Byte l) (i : ℕ)
@@ -139,7 +139,6 @@ def Target.bitsToBytes.body.spec
         by_cases hk' : k < 8
         . simp_lists [h2]
         . simp only [not_lt] at hk'
-          have : BitVec.toNat B[i]! < 2^8 := by omega
           have : BitVec.toNat B[i]! < 2 ^ k := by simp_scalar
           simp_scalar
       have : ((2^j + B[i]!.toNat) >>> j).testBit (j' - j) = (2^j + B[i]!.toNat).testBit j' := by
@@ -299,10 +298,10 @@ def Target.bytesToBits {l : Nat} (B : Vector Byte l) : Vector Bool (8 * l) :=
 theorem Target.bytesToBits.eq_spec {l : Nat} (B : Vector Byte l) :
   Target.bytesToBits B = Spec.bytesToBits B := by
   unfold bytesToBits Spec.bytesToBits bytesToBits.recBody byteToBits byteToBits.body
-  simp only [BitVec.ofNat_eq_ofNat, ne_eq, decide_not, tsub_zero, Id.run, Id.pure_eq,
-    Vector.Inhabited_getElem_eq_getElem!, Vector.set_eq_set!, Id.bind_eq, forIn'_eq_forIn,
-    forIn_eq_forIn_range', size, Nat.reduceAdd, Nat.add_one_sub_one, Nat.div_one,
-    List.forIn_yield_eq_foldl, add_tsub_cancel_right]
+  simp only [BitVec.ofNat_eq_ofNat, ne_eq, decide_not, tsub_zero,
+    Vector.Inhabited_getElem_eq_getElem!, Vector.set_eq_set!, bind_pure_comp, map_pure,
+    forIn'_eq_forIn, forIn_eq_forIn_range', size, Nat.reduceAdd, Nat.add_one_sub_one, Nat.div_one,
+    List.forIn_pure_yield_eq_foldl, add_tsub_cancel_right, Id.run_pure]
 
 def Target.bytesToBits.inv
   {l} (C0 : Vector Byte l) (b0 : Vector Bool (8 * l))
@@ -338,7 +337,7 @@ theorem Target.byteToBits.body.spec
     by_cases hj'': j' = j
     . simp only [hi, h4, hj'']
       simp_lists
-      simp only [Nat.testBit_to_div_mod, Simp.decide_eq_not_decide, Nat.mod_two_not_eq_one,
+      simp only [Nat.testBit_eq_decide_div_mod_eq, Simp.decide_eq_not_decide, Nat.mod_two_not_eq_one,
         eq_iff_iff]
       natify; simp
       have : 2^j % 256 = 2^j := by
@@ -490,10 +489,11 @@ def Target.byteEncode.eq_spec (d : ℕ) (F : Polynomial (m d)) :
   byteEncode d F = Spec.byteEncode d F := by
   unfold byteEncode byteEncode.encode byteEncode.encode.recBody byteEncode.encodeElem byteEncode.encodeElem.recBody
     byteEncode.encodeElem.body Spec.byteEncode
-  simp only [tsub_zero, bitsToBytes.eq_spec, Id.run, Vector.Inhabited_getElem_eq_getElem!,
-    Id.pure_eq, Vector.set_eq_set!, Id.bind_eq, forIn'_eq_forIn, forIn_eq_forIn_range', size,
-    add_tsub_cancel_right, Nat.div_one, List.forIn_yield_eq_foldl, Nat.reduceAdd,
-    Nat.add_one_sub_one]
+  simp only [tsub_zero, bitsToBytes.eq_spec, Vector.Inhabited_getElem_eq_getElem!,
+    Vector.set_eq_set!, bind_pure_comp, map_pure, forIn'_eq_forIn, forIn_eq_forIn_range', size,
+    add_tsub_cancel_right, Nat.div_one, List.forIn_pure_yield_eq_foldl, Nat.reduceAdd,
+    Nat.add_one_sub_one, List.forIn_yield_eq_foldlM, idRun_foldl, Id.run_map]
+  simp only [Id.run, Functor.map]
 
 irreducible_def Target.byteEncode.encodeElem.body.inv
   (d : ℕ) (F : Polynomial (m d)) (acc : MProd ℕ (Vector Bool (256 * d))) (i : ℕ) (j : ℕ) :=
@@ -1179,7 +1179,7 @@ theorem Stream.encode.body.spec_with_flush
       simp only [hi, hj, Nat.add_left_inj, and_self]
     simp only [hij]
     simp only [BitVec.getElem!_eq_testBit_toNat, BitVec.toNat_ofNat, Nat.testBit_mod_two_pow,
-      Nat.testBit_shiftRight, Bool.and_iff_right_iff_imp, decide_eq_true_eq]
+      Nat.testBit_shiftRight, Bool.and_eq_right_iff_imp, decide_eq_true_eq]
     omega
 
   . simp only [mem_std_range_step_one, and_imp, x]
@@ -1456,7 +1456,7 @@ theorem compress_eq (x : ℕ) (h : x < 3329) (d : ℕ) (hd : d < 12) :
   -- Finish the proof by simplifying everything
   simp only [BitVec.ofNat_eq_ofNat, BitVec.natCast_eq_ofNat, Nat.cast_ofNat, BitVec.reduceMul,
     BitVec.toNat_umod, BitVec.toNat_udiv, BitVec.toNat_add, BitVec.toNat_mul, BitVec.toNat_ofNat,
-    Nat.reducePow, Nat.mul_mod_mod, Nat.reduceMod, Nat.mod_add_mod, Int.ofNat_emod, Int.natCast_div,
+    Nat.reducePow, Nat.mul_mod_mod, Nat.reduceMod, Nat.mod_add_mod, Int.natCast_emod, Int.natCast_div,
     Nat.cast_add, Nat.cast_mul, Nat.cast_pow, Int.reduceMul]
 
   have : (2 ^ d : Int) % 18446744073709551616 = 2^d := by
@@ -1468,7 +1468,7 @@ theorem compress_eq (x : ℕ) (h : x < 3329) (d : ℕ) (hd : d < 12) :
   rw [this]; clear this
 
   congr
-  simp only [← BitVec.ofNat_pow, BitVec.toNat_ofNat, Nat.reducePow, Int.ofNat_emod, Nat.cast_pow,
+  simp only [← BitVec.ofNat_pow, BitVec.toNat_ofNat, Nat.reducePow, Int.natCast_emod, Nat.cast_pow,
     Nat.cast_ofNat]
   have : (2^(d+1) : Int) ≤ 2^12 := by
     have := @Nat.pow_le_pow_right 2 (by simp) (d + 1) 12 (by omega)

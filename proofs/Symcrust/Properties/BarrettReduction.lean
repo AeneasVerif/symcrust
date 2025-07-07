@@ -112,7 +112,7 @@ private theorem barrett_reduce_lemma (x: Int) (m: Nat) (h_m: 0 < m) :
 
       have hu := @Int.ediv_emod_unique (x + m) m (x % m) ((x * 2 + m) / (m * 2)) (by simp [h_m])
       have hu := hu.mpr
-      simp only [Int.add_emod_self, and_true, and_imp] at hu
+      simp only [Int.add_emod_right, and_true, and_imp] at hu
       apply Eq.symm
       apply hu
 

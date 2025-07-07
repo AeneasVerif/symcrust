@@ -761,7 +761,7 @@ def decode_coefficient.progress_spec (b : Slice U8) (d : U32) (f : Array U16 256
             dcases hj : j < d
             . simp only [add_tsub_cancel_right] at hacc1
               rw [SpecAux.testBit_of_sum d.val (by omega) j hj, ← hacc1 j (by scalar_tac)]
-              simp only [Nat.testBit_and, Bool.and_iff_left_iff_imp]
+              simp only [Nat.testBit_and, Bool.and_eq_left_iff_imp]
               intro h
               tlet x := n_bits_to_decode.val
               have : ∀ x < 13, ∀ j < x, (1 <<< x - 1).testBit j = true := by brute

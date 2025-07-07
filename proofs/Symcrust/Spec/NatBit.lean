@@ -128,7 +128,7 @@ theorem Nat.ofBitsList_bits (n : Nat) :
   intros j
   simp [ofBitsList, Nat.testBit_ofBits]
   intro h
-  have := Nat.testBit_implies_ge h
+  have := Nat.ge_two_pow_of_testBit h
   have := Nat.lt_two_pow_length_bits n
   have hj : 2^j < 2^n.bits.length := by omega
   have := @Nat.pow_lt_pow_iff_right 2 j n.bits.length (by simp)

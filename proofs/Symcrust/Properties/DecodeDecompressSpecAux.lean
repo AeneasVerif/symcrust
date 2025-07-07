@@ -123,9 +123,10 @@ def Target.byteDecode (m d : ℕ) (B : Vector Byte (32 * d)) : Polynomial m :=
 def Target.byteDecode.eq_spec {m d : ℕ} (B : Vector Byte (32 * d)) :
   byteDecode m d B = Spec.byteDecode B := by
   unfold byteDecode recBody byteDecode.decodeCoefficient Spec.byteDecode
-  simp only [bytesToBits.eq_spec, Id.pure_eq, Vector.Inhabited_getElem_eq_getElem!,
-    Vector.set_eq_set!, Id.bind_eq, forIn'_eq_forIn, forIn_eq_forIn_range', size, tsub_zero,
-    Nat.reduceAdd, Nat.add_one_sub_one, Nat.div_one, List.forIn_yield_eq_foldl]
+  simp only [bytesToBits.eq_spec, tsub_zero, Vector.Inhabited_getElem_eq_getElem!,
+    Vector.set_eq_set!, bind_pure_comp, map_pure, forIn'_eq_forIn, forIn_eq_forIn_range', size,
+    Nat.reduceAdd, Nat.add_one_sub_one, Nat.div_one, List.forIn_pure_yield_eq_foldl, bind_pure,
+    Id.run_map]
   congr
 
 irreducible_def Target.byteDecode.decodeCoefficient.inv {m d : ℕ} (b : Vector Bool (8 * (32 * d)))
@@ -774,7 +775,7 @@ theorem Stream.decode.spec_aux {d n : ℕ} (B : Vector Byte (32 * d)) (hd : d < 
   unfold decode
   constructor
   . intro j hj
-    rw [h1 i hi j hj, Array.getElem!_toList, Vector.getElem!_toArray]
+    rw [h1 i hi j hj, Array.getElem!_toList, List.getElem!_toArray, Vector.getElem!_toList]
   . intro j hj
     apply Nat.testBit_eq_false_of_lt
     apply Nat.lt_of_lt_of_le _ (by scalar_tac +nonLin : 2 ^ d ≤ 2 ^ j)
