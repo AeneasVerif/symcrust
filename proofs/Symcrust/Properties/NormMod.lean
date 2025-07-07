@@ -4,7 +4,7 @@ import Mathlib.Tactic.Ring
 namespace NormMod
 
 theorem Int.neg_add_emod_self_left {a b c : ℤ} : (-a + b) % c = ((c - a) + b) % c := by
-  conv => lhs; rw [← Int.add_emod_self_left]
+  conv => lhs; rw [← Int.add_emod_left]
   ring_nf
 
 theorem Int.sub_eq_add_minus : ∀ (a b : Int), a - b = a + (-b) := by omega
