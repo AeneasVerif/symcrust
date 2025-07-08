@@ -157,8 +157,7 @@ theorem H.val (η : Η) : η.val ≤ 3 := by
   have := η.property
   scalar_tac
 
-noncomputable -- TODO: remove the noncomputable
-def samplePolyCBD {η:Η} (B : Vector Byte (64 * η)): Polynomial := Id.run do
+def samplePolyCBD {η:Η} (B : Vector Byte (64 * η)) : Polynomial := Id.run do
   let b := bytesToBits B
   let mut f := Polynomial.zero
   for hi: i in [0:256] do
