@@ -35,6 +35,8 @@ partial_fixpoint
 noncomputable def Target.sampleNTT (B : {l : List Byte // l.length = 34 }) : Option Polynomial :=
   sampleNTT.loop (XOF.absorb XOF.init B) Polynomial.zero 0 (by omega)
 
+#check Option.some_inj
+
 theorem Target.sampleNTT.eq_spec (B : {l : List Byte // l.length = 34 }) :
   ∀ r1 r2, sampleNTT B = some r1 → Spec.sampleNTT B = some r2 → r1 = r2 := by
   intro r1 r2
@@ -82,6 +84,48 @@ theorem Target.sampleNTT.eq_spec (B : {l : List Byte // l.length = 34 }) :
   rcases h2 with ⟨r3, h3, h2⟩
   revert h3
   rw [← h2]
+  unfold sampleNTT at h1
+  conv => rhs; rw [← Option.some_inj, ← h1]
+  clear h1
+  have ih := OLoop.forIn.loop.partial_correctness inner_loop
+    (fun x r => ∀ hx : x.2.2 < 256, loop x.2.1 x.1 x.2.2 hx = r.1)
+  conv at ih => rhs; rhs; rhs; rw [forall_comm]
+  apply ih
+  clear ih
+  intro loop1 hloop1 b r ih hb
+  simp only [ReduceZMod.reduceZMod, dite_eq_ite, Option.pure_def, Option.bind_eq_bind,
+    Option.bind_eq_some_iff, inner_loop] at ih
+  rcases ih with ⟨inner_loop_res, h3, h4⟩
+  split at h3
+  . next hb =>
+    split at h3
+    . sorry
+    . next h5 =>
+      split at h3
+      . next h6 =>
+        simp only [ReduceZMod.reduceZMod, Option.some.injEq, inner_loop] at h3
+        simp only [← h3, inner_loop] at h4
+        specialize hloop1 ⟨Vector.set! b.fst b.snd.snd
+          (↑((XOF.squeeze b.snd.fst 3).2[1]!.val / 16) + 16 * ↑(XOF.squeeze b.snd.fst 3).2[2]!.val),
+          (XOF.squeeze b.snd.fst 3).1, b.snd.snd + 1⟩ r h4
+        simp only [ReduceZMod.reduceZMod, inner_loop] at hloop1
+        -- Not sure that it's possible to prove `hloop1`'s `hx`. And upon further consideration,
+        -- I don't know if `Target.sampleNTT.loop` should take `hj` as an argument (as opposed to
+        -- checking whether `j < 256` at the beginning and immediately returning `a` if it isn't)
+        sorry
+      . next h6 =>
+        simp only [Option.some.injEq, inner_loop] at h3
+        simp only [← h3, inner_loop] at h4
+        rw [← hloop1 ⟨b.fst, (XOF.squeeze b.snd.fst 3).1, b.snd.snd⟩ r h4 (by omega)]
+        simp only [inner_loop]
+        conv => lhs; unfold loop
+        simp only [Vector.Inhabited_getElem_eq_getElem!, Nat.cast_add, Nat.cast_mul, Nat.cast_ofNat,
+          ReduceZMod.reduceZMod, Vector.set_eq_set!, dite_eq_ite, inner_loop]
+        rw [ite_cond_eq_false _ _ (by simp [h5]), ite_cond_eq_false _ _ (by simp [h6])]
+  . sorry
+
+  /-
+
   have ih := OLoop.forIn.loop.partial_correctness inner_loop
     (fun x r => /- x.1 = Polynomial.zero → x.2.1 = XOF.absorb XOF.init ↑B → x.2.2 = 0 → -/ r1 = r.1)
   -- conv at ih => rhs; rhs; rhs; rw [forall_comm]; rhs; rw [forall_comm]; rhs; rw [forall_comm]
@@ -169,6 +213,7 @@ theorem Target.sampleNTT.eq_spec (B : {l : List Byte // l.length = 34 }) :
       -/
   . next b2 =>
     exact hloop1 b2 r h4
+  -/
   -/
 
 #check forall_comm
