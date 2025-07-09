@@ -1,7 +1,11 @@
 files:
   - name: symcrust_common
+    internal:
+      patterns:
+        - [ symcrust, common, "*" ]
+      monomorphizations_exact:
+        - [ core, fmt, "_core__fmt__Formatter__a___write_str" ]
     private:
-      - [ symcrust, common, "*" ]
       - [ core, "*" ]
       - [ alloc, "*" ]
       - [ Eurydice, "*" ]
