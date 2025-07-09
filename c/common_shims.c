@@ -25,3 +25,9 @@ bool symcrust_common__core__cmp__PartialEq_symcrust__common__Error__for_symcrust
     symcrust_common_Error *e1, symcrust_common_Error *e2) {
   return *e1 != *e2;
 }
+
+core_result_Result_10
+core_fmt__core__fmt__Formatter__a___write_str(core_fmt_Formatter *x0, Eurydice_str x1) {
+  fprintf(stderr, "TODO: formatter\n");
+  exit(255);
+}
