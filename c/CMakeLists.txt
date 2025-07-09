@@ -16,9 +16,14 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_COLOR_DIAGNOSTICS "ON")
 
 # Change path from /src if needed, or add more directories
-file(GLOB_RECURSE sources
-        "${CMAKE_SOURCE_DIR}/*.c"
-        )
+file(GLOB sources
+  ${PROJECT_SOURCE_DIR}/common_shims.c
+  ${PROJECT_SOURCE_DIR}/hash_shims.c
+  ${PROJECT_SOURCE_DIR}/mlkem_shims.c
+  ${PROJECT_SOURCE_DIR}/symcrust_common.c
+  ${PROJECT_SOURCE_DIR}/symcrust_mlkem.c
+  ${PROJECT_SOURCE_DIR}/test.c
+)
 # Add precompiler definitions like that:
 # add_definitions(-DKRML_UNROLL_MAX=0)
 
