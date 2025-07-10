@@ -32,7 +32,6 @@ endif(NOT DEFINED ENV{SYMCRYPT_LIB_PATH})
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_COLOR_DIAGNOSTICS "ON")
 
-# Change path from /src if needed, or add more directories
 file(GLOB sources
   ${PROJECT_SOURCE_DIR}/common_shims.c
   ${PROJECT_SOURCE_DIR}/hash_shims.c
