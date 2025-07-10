@@ -1,5 +1,22 @@
 project(test)
 
+if(NOT MSVC)
+    add_compile_options(
+        -Wall
+        -Wextra
+        -Wno-unknown-pragmas
+        $<$<CONFIG:DEBUG>:-g>
+        $<$<CONFIG:DEBUG>:-Og>
+        $<$<CONFIG:RELEASE>:-g>
+        $<$<CONFIG:RELEASE>:-O3>
+    )
+
+    add_compile_options(-fsanitize=address)
+    add_compile_options(-fsanitize=undefined)
+    add_link_options(-fsanitize=address)
+    add_link_options(-fsanitize=undefined)
+endif(NOT MSVC)
+
 if (NOT DEFINED ENV{KRML_HOME})
   message( FATAL_ERROR "Please define KRML_HOME" )
 endif(NOT DEFINED ENV{KRML_HOME})
