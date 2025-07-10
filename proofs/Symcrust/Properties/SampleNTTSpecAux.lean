@@ -34,6 +34,10 @@ partial_fixpoint
 noncomputable def Target.sampleNTT (B : {l : List Byte // l.length = 34 }) : Option Polynomial :=
   sampleNTT.loop (XOF.absorb XOF.init B) Polynomial.zero 0
 
+/- Note: This theorem states that if both the Spec and the Target implementations terminate, their
+   final outputs coincide. I may instead want a theorem that states if the Target implementation
+   terminates, then the Spec implementation terminates with an output that coincides with the Target
+   implementation's output -/
 theorem Target.sampleNTT.eq_spec (B : {l : List Byte // l.length = 34 }) :
   ∀ r1 r2, sampleNTT B = some r1 → Spec.sampleNTT B = some r2 → r1 = r2 := by
   intro r1 r2
