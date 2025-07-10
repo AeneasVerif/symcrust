@@ -27,7 +27,7 @@ pub enum Format {
     // Size is 800, 1184, or 1568 bytes for ML-KEM 512, 768, and 1024 respectively.
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Copy, Clone)]
 pub enum Params {
     // Rust: unclear if needed
     // PARAMS_NULL          = 0,
@@ -226,7 +226,7 @@ fn key_allocate1(params: Params) -> Result<Box<Key1>, Error> {
 // It also forces us to be a little more verbose because Rust does not allow allocating such a type
 // when the length of the variable part is not a compile-time constant.
 
-pub struct PreKey2<U: ?Sized> {
+pub struct PreKey2Header {
     pub(crate) algorithm_info: u32,
     pub(crate) params: InternalParams,
     pub(crate) has_private_seed: bool,
@@ -237,13 +237,19 @@ pub struct PreKey2<U: ?Sized> {
     pub(crate) encoded_t: [u8; KEY_MAX_SIZEOF_ENCODED_T],
     pub(crate) encaps_key_hash: [u8; 32],
 
-    // VARIABLE-LENGTH FIELDS
     n_rows: usize, // note that this can be deduced from fAlgorithmInfo
+}
 
-    // Instantiated with U = [PolyElement], contains:
-    // Atranspose, of length n_rows * n_rows
-    // t, of length n_rows
-    // s, of length n_rows
+
+pub struct PreKey2<U: ?Sized> {
+    // All non-DST fields -- this allows for a more efficient initialization where we can allocate
+    // the PreKey2Header once.
+    pub(crate) header: PreKey2Header,
+
+    // Variable-length field, instantiated with U = [PolyElement], contains:
+    // - Atranspose, of length n_rows * n_rows
+    // - t, of length n_rows
+    // - s, of length n_rows
     data: U,
 }
 
@@ -254,7 +260,7 @@ type Matrix2 = [PolyElement];
 
 impl Key2 {
     fn matrix_len(&self) -> usize {
-        self.n_rows * self.n_rows
+        self.header.n_rows * self.header.n_rows
     }
     pub fn atranspose(&self) -> &[PolyElement] {
         let m_len = self.matrix_len();
@@ -262,11 +268,11 @@ impl Key2 {
     }
     pub fn t(&self) -> &[PolyElement] {
         let m_len = self.matrix_len();
-        &self.data[m_len..m_len + self.n_rows]
+        &self.data[m_len..m_len + self.header.n_rows]
     }
     pub fn s(&self) -> &[PolyElement] {
         let m_len = self.matrix_len();
-        &self.data[m_len + self.n_rows..m_len + 2 * self.n_rows]
+        &self.data[m_len + self.header.n_rows..m_len + 2 * self.header.n_rows]
     }
     pub fn atranspose_mut(&mut self) -> &mut [PolyElement] {
         let m_len = self.matrix_len();
@@ -274,11 +280,11 @@ impl Key2 {
     }
     pub fn t_mut(&mut self) -> &mut [PolyElement] {
         let m_len = self.matrix_len();
-        &mut self.data[m_len..m_len + self.n_rows]
+        &mut self.data[m_len..m_len + self.header.n_rows]
     }
     pub fn s_mut(&mut self) -> &mut [PolyElement] {
         let m_len = self.matrix_len();
-        &mut self.data[m_len + self.n_rows..m_len + 2 * self.n_rows]
+        &mut self.data[m_len + self.header.n_rows..m_len + 2 * self.header.n_rows]
     }
 
     // FIXME: slightly unpleasant, owing to the nature of the encoding; but perhaps this is
@@ -287,80 +293,55 @@ impl Key2 {
     pub fn ats_mut(&mut self) -> (&mut [PolyElement], &mut [PolyElement], &mut [PolyElement]) {
         let m_len = self.matrix_len();
         let (a, ts) = self.data.split_at_mut(m_len);
-        let (t, s) = ts.split_at_mut(self.n_rows);
+        let (t, s) = ts.split_at_mut(self.header.n_rows);
         (a, t, s)
     }
 
     pub fn t_encoded_t_mut(&mut self) -> (&mut [PolyElement], &mut [u8; KEY_MAX_SIZEOF_ENCODED_T]) {
         let m_len = self.matrix_len();
         (
-            &mut self.data[m_len..m_len + self.n_rows],
-            &mut self.encoded_t,
+            &mut self.data[m_len..m_len + self.header.n_rows],
+            &mut self.header.encoded_t,
         )
     }
 }
 
-// This works, at the expense of a big copy-paste because Rust does not allow creating DSTs when
-// the length of the data is not known at compile-time.
+// This works, with some (now minor) code duplication in the branches of the match.
 fn key_allocate2(params: Params) -> Result<Box<Key2>, Error> {
+    let internal_params: InternalParams = get_internal_params_from_params(params);
+    let n_rows = internal_params.n_rows as usize;
+    let header: PreKey2Header = PreKey2Header {
+        algorithm_info: 0u32,
+        params: internal_params,
+        has_private_seed: false,
+        has_private_key: false,
+        private_seed: [0; 32],
+        private_random: [0; 32],
+        public_seed: [0; 32],
+        encoded_t: [0u8; KEY_MAX_SIZEOF_ENCODED_T],
+        encaps_key_hash: [0u8; 32],
+        n_rows,
+    };
+
     match params {
         Params::MlKem512 => {
-            const PARAMS: InternalParams =
-                get_internal_params_from_params(Params::MlKem512);
-            const N_ROWS: usize = PARAMS.n_rows as usize;
-            // !!! Make sure to build using &PreKey2, not &Key2, otherwise, the errors are really
-            // hard to parse.
+            const N_ROWS: usize = get_internal_params_from_params(Params::MlKem512).n_rows as usize;
             Result::Ok(Box::new(PreKey2 {
-                algorithm_info: 0u32,
-                params: PARAMS,
-                has_private_seed: false,
-                has_private_key: false,
-                private_seed: [0; 32],
-                private_random: [0; 32],
-                public_seed: [0; 32],
-                encoded_t: [0u8; KEY_MAX_SIZEOF_ENCODED_T],
-                encaps_key_hash: [0u8; 32],
-                n_rows: N_ROWS,
+                header,
                 data: [POLYELEMENT_ZERO; N_ROWS * N_ROWS + 2 * N_ROWS],
             }))
         }
         Params::MlKem768 => {
-            const PARAMS: InternalParams =
-                get_internal_params_from_params(Params::MlKem768);
-            const N_ROWS: usize = PARAMS.n_rows as usize;
-            // !!! Make sure to build using &PreKey2, not &Key2, otherwise, the errors are really
-            // hard to parse.
+            const N_ROWS: usize = get_internal_params_from_params(Params::MlKem768).n_rows as usize;
             Result::Ok(Box::new(PreKey2 {
-                algorithm_info: 0u32,
-                params: PARAMS,
-                has_private_seed: false,
-                has_private_key: false,
-                private_seed: [0; 32],
-                private_random: [0; 32],
-                public_seed: [0; 32],
-                encoded_t: [0u8; KEY_MAX_SIZEOF_ENCODED_T],
-                encaps_key_hash: [0u8; 32],
-                n_rows: N_ROWS,
+                header,
                 data: [POLYELEMENT_ZERO; N_ROWS * N_ROWS + 2 * N_ROWS],
             }))
         }
         Params::MlKem1024 => {
-            const PARAMS: InternalParams =
-                get_internal_params_from_params(Params::MlKem1024);
-            const N_ROWS: usize = PARAMS.n_rows as usize;
-            // !!! Make sure to build using &PreKey2, not &Key2, otherwise, the errors are really
-            // hard to parse.
+            const N_ROWS: usize = get_internal_params_from_params(Params::MlKem1024).n_rows as usize;
             Result::Ok(Box::new(PreKey2 {
-                algorithm_info: 0u32,
-                params: PARAMS,
-                has_private_seed: false,
-                has_private_key: false,
-                private_seed: [0; 32],
-                private_random: [0; 32],
-                public_seed: [0; 32],
-                encoded_t: [0u8; KEY_MAX_SIZEOF_ENCODED_T],
-                encaps_key_hash: [0u8; 32],
-                n_rows: N_ROWS,
+                header,
                 data: [POLYELEMENT_ZERO; N_ROWS * N_ROWS + 2 * N_ROWS],
             }))
         }
@@ -394,27 +375,27 @@ impl Key3 {
     // FIXME OFFSET COMPUTATIONS INCORRECT HERE SEE KEY2, ABOVE
     pub fn atranspose(&self) -> &[PolyElement] {
         unsafe {
-            std::slice::from_raw_parts((&raw const self.data).cast::<PolyElement>(), 2 * self.n_rows)
+            std::slice::from_raw_parts((&raw const self.data).cast::<PolyElement>(), 2 * self.header.n_rows)
         }
     }
     pub fn t(&self) -> &[PolyElement] {
         // Align on an 8-byte boundary, naturally.
-        let t_start = (2 * self.n_rows + 7) / 8;
+        let t_start = (2 * self.header.n_rows + 7) / 8;
         unsafe {
             std::slice::from_raw_parts(
                 (&raw const self.data[t_start..]).cast::<PolyElement>(),
-                self.n_rows,
+                self.header.n_rows,
             )
         }
     }
     pub fn s(&self) -> &[PolyElement] {
         // Align on an 8-byte boundary, naturally.
-        let t_start = (2 * self.n_rows + 7) / 8;
-        let s_start = t_start + (self.n_rows + 7) / 8;
+        let t_start = (2 * self.header.n_rows + 7) / 8;
+        let s_start = t_start + (self.header.n_rows + 7) / 8;
         unsafe {
             std::slice::from_raw_parts(
                 (&raw const self.data[s_start..]).cast::<PolyElement>(),
-                self.n_rows,
+                self.header.n_rows,
             )
         }
     }
@@ -422,28 +403,28 @@ impl Key3 {
         unsafe {
             std::slice::from_raw_parts_mut(
                 (&raw mut self.data).cast::<PolyElement>(),
-                2 * self.n_rows,
+                2 * self.header.n_rows,
             )
         }
     }
     pub fn t_mut(&mut self) -> &mut [PolyElement] {
         // Align on an 8-byte boundary, naturally.
-        let t_start = (2 * self.n_rows + 7) / 8;
+        let t_start = (2 * self.header.n_rows + 7) / 8;
         unsafe {
             std::slice::from_raw_parts_mut(
                 (&raw mut self.data[t_start..]).cast::<PolyElement>(),
-                self.n_rows,
+                self.header.n_rows,
             )
         }
     }
     pub fn s_mut(&mut self) -> &mut [PolyElement] {
         // Align on an 8-byte boundary, naturally.
-        let t_start = (2 * self.n_rows + 7) / 8;
-        let s_start = t_start + (self.n_rows + 7) / 8;
+        let t_start = (2 * self.header.n_rows + 7) / 8;
+        let s_start = t_start + (self.header.n_rows + 7) / 8;
         unsafe {
             std::slice::from_raw_parts_mut(
                 (&raw mut self.data[s_start..]).cast::<PolyElement>(),
-                self.n_rows,
+                self.header.n_rows,
             )
         }
     }

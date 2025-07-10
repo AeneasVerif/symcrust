@@ -85,10 +85,10 @@ fn key_expand_public_matrix_from_public_seed(
 
     let p_shake_state_base = &mut p_comp_temps.hash_state0;
     let p_shake_state_work = &mut p_comp_temps.hash_state1;
-    let n_rows = pk_mlkem_key.params.n_rows;
+    let n_rows = pk_mlkem_key.header.params.n_rows;
 
     crate::hash::shake128_init(p_shake_state_base);
-    crate::hash::shake128_append(p_shake_state_base, &pk_mlkem_key.public_seed);
+    crate::hash::shake128_append(p_shake_state_base, &pk_mlkem_key.header.public_seed);
 
     c_for!(let mut i = 0u8; i<n_rows; i += 1; {
         coordinates[1] = i;
@@ -110,11 +110,11 @@ fn key_compute_encapsulation_key_hash(
     p_comp_temps: &mut InternalComputationTemporaries,
 ) {
     let p_state = &mut p_comp_temps.hash_state0;
-    let cb_encoded_vector = sizeof_encoded_uncompressed_vector(pk_mlkem_key.params.n_rows as usize);
+    let cb_encoded_vector = sizeof_encoded_uncompressed_vector(pk_mlkem_key.header.params.n_rows as usize);
     crate::hash::sha3_256_init(p_state);
-    crate::hash::sha3_256_append(p_state, &pk_mlkem_key.encoded_t[0..cb_encoded_vector]);
-    crate::hash::sha3_256_append(p_state, &pk_mlkem_key.public_seed);
-    crate::hash::sha3_256_result(p_state, &mut pk_mlkem_key.encaps_key_hash);
+    crate::hash::sha3_256_append(p_state, &pk_mlkem_key.header.encoded_t[0..cb_encoded_vector]);
+    crate::hash::sha3_256_append(p_state, &pk_mlkem_key.header.public_seed);
+    crate::hash::sha3_256_result(p_state, &mut pk_mlkem_key.header.encaps_key_hash);
 }
 
 fn key_expand_from_private_seed(
@@ -126,14 +126,14 @@ fn key_expand_from_private_seed(
     // PVECTOR pv_tmp;
     // PPOLYELEMENT_ACCUMULATOR pa_tmp;
     // UINT32 i;
-    let n_rows = pk_mlkem_key.params.n_rows;
-    let n_eta1 = pk_mlkem_key.params.n_eta1;
+    let n_rows = pk_mlkem_key.header.params.n_rows;
+    let n_eta1 = pk_mlkem_key.header.params.n_eta1;
     let cb_encoded_vector = sizeof_encoded_uncompressed_vector(n_rows as usize);
     // const SIZE_T cb_encoded_vector = sizeof_encoded_uncompressed_vector(n_rows);
     // const UINT32 cbPolyElement = pk_mlkem_key->params.cbPolyElement;
     // const UINT32 cb_vector = pk_mlkem_key->params.cb_vector;
 
-    debug_assert!(pk_mlkem_key.has_private_seed);
+    debug_assert!(pk_mlkem_key.header.has_private_seed);
     debug_assert!((n_eta1 == 2) || (n_eta1 == 3));
 
     // Note(Rust): there's a whole lot of NULL-checking going on in C, which presumably does not
@@ -142,16 +142,17 @@ fn key_expand_from_private_seed(
 
     // (rho || sigma) = G(d || k)
     // use cbd_sample_buffer to concatenate the private seed and encoding of n_rows
-    cbd_sample_buffer[0..pk_mlkem_key.private_seed.len()].copy_from_slice(&pk_mlkem_key.private_seed);
-    cbd_sample_buffer[pk_mlkem_key.private_seed.len() /* == 32 */] = n_rows;
+    cbd_sample_buffer[0..pk_mlkem_key.header.private_seed.len()].copy_from_slice(&pk_mlkem_key.header.private_seed);
+    cbd_sample_buffer[pk_mlkem_key.header.private_seed.len() /* == 32 */] = n_rows;
     crate::hash::sha3_512(
-        &cbd_sample_buffer[0..pk_mlkem_key.private_seed.len() + 1],
+        &cbd_sample_buffer[0..pk_mlkem_key.header.private_seed.len() + 1],
         &mut private_seed_hash,
     );
 
     // copy public seed
-    let pk_len = pk_mlkem_key.public_seed.len();
+    let pk_len = pk_mlkem_key.header.public_seed.len();
     pk_mlkem_key
+        .header
         .public_seed
         .copy_from_slice(&private_seed_hash[0..pk_len]);
 
@@ -162,7 +163,7 @@ fn key_expand_from_private_seed(
     crate::hash::shake256_init(&mut p_comp_temps.hash_state0);
     crate::hash::shake256_append(
         &mut p_comp_temps.hash_state0,
-        &private_seed_hash[pk_mlkem_key.public_seed.len()..pk_mlkem_key.public_seed.len() + 32],
+        &private_seed_hash[pk_mlkem_key.header.public_seed.len()..pk_mlkem_key.header.public_seed.len() + 32],
     );
 
     // Expand s in place
@@ -261,7 +262,7 @@ pub fn key_set_value(
     // ERROR sc_error = NO_ERROR;
     let mut pb_curr: usize = 0;
     // PINTERNAL_COMPUTATION_TEMPORARIES p_comp_temps = NULL;
-    let n_rows = pk_mlkem_key.params.n_rows;
+    let n_rows = pk_mlkem_key.header.params.n_rows;
     let cb_encoded_vector = sizeof_encoded_uncompressed_vector(n_rows as usize);
 
     // Ensure only allowed flags are specified
@@ -312,14 +313,15 @@ pub fn key_set_value(
                 return Error::WrongKeySize;
             }
 
-            pk_mlkem_key.has_private_seed = true;
-            let l = pk_mlkem_key.private_seed.len();
-            pk_mlkem_key.private_seed.copy_from_slice(&pb_src[0..l]);
+            pk_mlkem_key.header.has_private_seed = true;
+            let l = pk_mlkem_key.header.private_seed.len();
+            pk_mlkem_key.header.private_seed.copy_from_slice(&pb_src[0..l]);
             pb_curr += l;
 
-            pk_mlkem_key.has_private_key = true;
-            let l = pk_mlkem_key.private_random.len();
+            pk_mlkem_key.header.has_private_key = true;
+            let l = pk_mlkem_key.header.private_random.len();
             pk_mlkem_key
+                .header
                 .private_random
                 .copy_from_slice(&pb_src[pb_curr..pb_curr + l]);
             pb_curr += l;
@@ -344,7 +346,7 @@ pub fn key_set_value(
             pb_curr += cb_encoded_vector;
 
             // copy t and decode t
-            pk_mlkem_key.encoded_t[0..cb_encoded_vector]
+            pk_mlkem_key.header.encoded_t[0..cb_encoded_vector]
                 .copy_from_slice(&pb_src[pb_curr..pb_curr + cb_encoded_vector]);
             pb_curr += cb_encoded_vector;
             let (t, encoded_t) = pk_mlkem_key.t_encoded_t_mut();
@@ -355,32 +357,35 @@ pub fn key_set_value(
             }
 
             // copy public seed and expand public matrix
-            let l = pk_mlkem_key.public_seed.len();
+            let l = pk_mlkem_key.header.public_seed.len();
             pk_mlkem_key
+                .header
                 .public_seed
                 .copy_from_slice(&pb_src[pb_curr..pb_curr + l]);
-            pb_curr += pk_mlkem_key.public_seed.len();
+            pb_curr += pk_mlkem_key.header.public_seed.len();
             key_expand_public_matrix_from_public_seed(pk_mlkem_key, &mut p_comp_temps);
 
             // transpose A
             matrix_transpose(pk_mlkem_key.atranspose_mut(), n_rows);
 
             // copy hash of encapsulation key
-            let l = pk_mlkem_key.encaps_key_hash.len();
+            let l = pk_mlkem_key.header.encaps_key_hash.len();
             pk_mlkem_key
+                .header
                 .encaps_key_hash
                 .copy_from_slice(&pb_src[pb_curr..pb_curr + l]);
-            pb_curr += pk_mlkem_key.encaps_key_hash.len();
+            pb_curr += pk_mlkem_key.header.encaps_key_hash.len();
 
             // copy private random
-            let l = pk_mlkem_key.private_random.len();
+            let l = pk_mlkem_key.header.private_random.len();
             pk_mlkem_key
+                .header
                 .private_random
                 .copy_from_slice(&pb_src[pb_curr..pb_curr + l]);
-            pb_curr += pk_mlkem_key.private_random.len();
+            pb_curr += pk_mlkem_key.header.private_random.len();
 
-            pk_mlkem_key.has_private_seed = false;
-            pk_mlkem_key.has_private_key = true;
+            pk_mlkem_key.header.has_private_seed = false;
+            pk_mlkem_key.header.has_private_key = true;
         }
 
         crate::key::Format::EncapsulationKey => {
@@ -389,7 +394,7 @@ pub fn key_set_value(
             }
 
             // copy t and decode t
-            pk_mlkem_key.encoded_t[0..cb_encoded_vector]
+            pk_mlkem_key.header.encoded_t[0..cb_encoded_vector]
                 .copy_from_slice(&pb_src[pb_curr..pb_curr + cb_encoded_vector]);
             pb_curr += cb_encoded_vector;
             let (t, encoded_t) = pk_mlkem_key.t_encoded_t_mut();
@@ -400,11 +405,12 @@ pub fn key_set_value(
             }
 
             // copy public seed and expand public matrix
-            let l = pk_mlkem_key.public_seed.len();
+            let l = pk_mlkem_key.header.public_seed.len();
             pk_mlkem_key
+                .header
                 .public_seed
                 .copy_from_slice(&pb_src[pb_curr..pb_curr + l]);
-            pb_curr += pk_mlkem_key.public_seed.len();
+            pb_curr += pk_mlkem_key.header.public_seed.len();
             key_expand_public_matrix_from_public_seed(pk_mlkem_key, &mut p_comp_temps);
 
             // transpose A
@@ -413,8 +419,8 @@ pub fn key_set_value(
             // precompute hash of encapsulation key blob
             key_compute_encapsulation_key_hash(pk_mlkem_key, &mut p_comp_temps);
 
-            pk_mlkem_key.has_private_seed = false;
-            pk_mlkem_key.has_private_key = false;
+            pk_mlkem_key.header.has_private_seed = false;
+            pk_mlkem_key.header.has_private_key = false;
         }
     };
     // Note (Rust): exhaustiveness
@@ -446,7 +452,7 @@ pub fn key_get_value(
 ) -> Error {
     // ERROR sc_error = NO_ERROR;
     let mut pb_curr: usize = 0;
-    let n_rows = pk_mlkem_key.params.n_rows;
+    let n_rows = pk_mlkem_key.header.params.n_rows;
     let cb_encoded_vector = sizeof_encoded_uncompressed_vector(n_rows as usize);
 
     //     if( mlKemkeyFormat == crate::key::Format_NULL )
@@ -461,17 +467,17 @@ pub fn key_get_value(
                 return Error::WrongKeySize;
             }
 
-            if !pk_mlkem_key.has_private_seed {
+            if !pk_mlkem_key.header.has_private_seed {
                 return Error::IncompatibleFormat;
             }
 
-            pb_dst[pb_curr..pb_curr + pk_mlkem_key.private_seed.len()]
-                .copy_from_slice(&pk_mlkem_key.private_seed);
-            pb_curr += pk_mlkem_key.private_seed.len();
+            pb_dst[pb_curr..pb_curr + pk_mlkem_key.header.private_seed.len()]
+                .copy_from_slice(&pk_mlkem_key.header.private_seed);
+            pb_curr += pk_mlkem_key.header.private_seed.len();
 
-            pb_dst[pb_curr..pb_curr + pk_mlkem_key.private_random.len()]
-                .copy_from_slice(&pk_mlkem_key.private_random);
-            pb_curr += pk_mlkem_key.private_random.len();
+            pb_dst[pb_curr..pb_curr + pk_mlkem_key.header.private_random.len()]
+                .copy_from_slice(&pk_mlkem_key.header.private_random);
+            pb_curr += pk_mlkem_key.header.private_random.len();
         }
 
         crate::key::Format::DecapsulationKey => {
@@ -479,7 +485,7 @@ pub fn key_get_value(
                 return Error::InvalidArgument;
             }
 
-            if !pk_mlkem_key.has_private_key {
+            if !pk_mlkem_key.header.has_private_key {
                 return Error::InvalidArgument;
             }
 
@@ -493,20 +499,20 @@ pub fn key_get_value(
             pb_curr += cb_encoded_vector;
 
             pb_dst[pb_curr..pb_curr + cb_encoded_vector]
-                .copy_from_slice(&pk_mlkem_key.encoded_t[0..cb_encoded_vector]);
+                .copy_from_slice(&pk_mlkem_key.header.encoded_t[0..cb_encoded_vector]);
             pb_curr += cb_encoded_vector;
 
-            pb_dst[pb_curr..pb_curr + pk_mlkem_key.public_seed.len()]
-                .copy_from_slice(&pk_mlkem_key.public_seed);
-            pb_curr += pk_mlkem_key.public_seed.len();
+            pb_dst[pb_curr..pb_curr + pk_mlkem_key.header.public_seed.len()]
+                .copy_from_slice(&pk_mlkem_key.header.public_seed);
+            pb_curr += pk_mlkem_key.header.public_seed.len();
 
-            pb_dst[pb_curr..pb_curr + pk_mlkem_key.encaps_key_hash.len()]
-                .copy_from_slice(&pk_mlkem_key.encaps_key_hash);
-            pb_curr += pk_mlkem_key.encaps_key_hash.len();
+            pb_dst[pb_curr..pb_curr + pk_mlkem_key.header.encaps_key_hash.len()]
+                .copy_from_slice(&pk_mlkem_key.header.encaps_key_hash);
+            pb_curr += pk_mlkem_key.header.encaps_key_hash.len();
 
-            pb_dst[pb_curr..pb_curr + pk_mlkem_key.private_random.len()]
-                .copy_from_slice(&pk_mlkem_key.private_random);
-            pb_curr += pk_mlkem_key.private_random.len();
+            pb_dst[pb_curr..pb_curr + pk_mlkem_key.header.private_random.len()]
+                .copy_from_slice(&pk_mlkem_key.header.private_random);
+            pb_curr += pk_mlkem_key.header.private_random.len();
         }
 
         crate::key::Format::EncapsulationKey => {
@@ -515,12 +521,12 @@ pub fn key_get_value(
             }
 
             pb_dst[pb_curr..pb_curr + cb_encoded_vector]
-                .copy_from_slice(&pk_mlkem_key.encoded_t[0..cb_encoded_vector]);
+                .copy_from_slice(&pk_mlkem_key.header.encoded_t[0..cb_encoded_vector]);
             pb_curr += cb_encoded_vector;
 
-            pb_dst[pb_curr..pb_curr + pk_mlkem_key.public_seed.len()]
-                .copy_from_slice(&pk_mlkem_key.public_seed);
-            pb_curr += pk_mlkem_key.public_seed.len();
+            pb_dst[pb_curr..pb_curr + pk_mlkem_key.header.public_seed.len()]
+                .copy_from_slice(&pk_mlkem_key.header.public_seed);
+            pb_curr += pk_mlkem_key.header.public_seed.len();
         } // else
           // {
           //     sc_error = NOT_IMPLEMENTED;
@@ -599,11 +605,11 @@ fn encapsulate_internal(
     // PSHAKE256_STATE pShakeWorkState = &p_comp_temps->hash_state1.shake256State;
     // SIZE_T cb_u, cb_v;
     // UINT32 i;
-    let n_rows = pk_mlkem_key.params.n_rows;
-    let n_bits_of_u = pk_mlkem_key.params.n_bits_of_u;
-    let n_bits_of_v = pk_mlkem_key.params.n_bits_of_v;
-    let n_eta1 = pk_mlkem_key.params.n_eta1;
-    let n_eta2 = pk_mlkem_key.params.n_eta2;
+    let n_rows = pk_mlkem_key.header.params.n_rows;
+    let n_bits_of_u = pk_mlkem_key.header.params.n_bits_of_u;
+    let n_bits_of_v = pk_mlkem_key.header.params.n_bits_of_v;
+    let n_eta1 = pk_mlkem_key.header.params.n_eta1;
+    let n_eta2 = pk_mlkem_key.header.params.n_eta2;
     // let cbPolyElement = pk_mlkem_key->params.cbPolyElement;
     // let cb_vector = pk_mlkem_key->params.cb_vector;
 
@@ -625,7 +631,7 @@ fn encapsulate_internal(
     // cbd_sample_buffer = (K || rOuter) = SHA3-512(pb_random || encapsKeyHash)
     crate::hash::sha3_512_init(&mut p_comp_temps.hash_state0);
     crate::hash::sha3_512_append(&mut p_comp_temps.hash_state0, pb_random);
-    crate::hash::sha3_512_append(&mut p_comp_temps.hash_state0, &pk_mlkem_key.encaps_key_hash);
+    crate::hash::sha3_512_append(&mut p_comp_temps.hash_state0, &pk_mlkem_key.header.encaps_key_hash);
     // Note (Rust): should we have a type that is less strict for the output of sha3_512_result?
     // Note (Rust): no debug_assert!(SIZEOF_AGREED_SECRET < SHA3_512_RESULT_SIZE)?
     crate::hash::sha3_512_result(
@@ -854,9 +860,9 @@ pub fn decapsulate(
     //     PPOLYELEMENT pe_tmp0, pe_tmp1;
     //     PPOLYELEMENT_ACCUMULATOR pa_tmp;
     //     PSHAKE256_STATE p_shake_state;
-    let n_rows = pk_mlkem_key.params.n_rows;
-    let n_bits_of_u = pk_mlkem_key.params.n_bits_of_u;
-    let n_bits_of_v = pk_mlkem_key.params.n_bits_of_v;
+    let n_rows = pk_mlkem_key.header.params.n_rows;
+    let n_bits_of_u = pk_mlkem_key.header.params.n_bits_of_u;
+    let n_bits_of_v = pk_mlkem_key.header.params.n_bits_of_v;
     // let cbPolyElement = pk_mlkem_key.params.cbPolyElement;
     // let cb_vector = pk_mlkem_key.params.cb_vector;
 
@@ -867,7 +873,7 @@ pub fn decapsulate(
 
     if (cb_agreed_secret != SIZEOF_AGREED_SECRET)
         || (cb_ciphertext != cb_u + cb_v)
-        || !pk_mlkem_key.has_private_key
+        || !pk_mlkem_key.header.has_private_key
     {
         return Error::InvalidArgument;
     }
@@ -926,7 +932,7 @@ pub fn decapsulate(
     // pbImplicitRejectionSecret = K_bar = SHAKE256( z || c )
     let p_shake_state = &mut p_comp_temps.hash_state0;
     crate::hash::shake256_init(p_shake_state);
-    crate::hash::shake256_append(p_shake_state, &pk_mlkem_key.private_random);
+    crate::hash::shake256_append(p_shake_state, &pk_mlkem_key.header.private_random);
     crate::hash::shake256_append(p_shake_state, pb_read_ciphertext);
     crate::hash::shake256_extract(p_shake_state, &mut pb_implicit_rejection_secret, false);
 
