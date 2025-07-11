@@ -1106,15 +1106,11 @@ matrix_vector_mont_mul_and_add(
   /* original Rust expression is not an lvalue in C */
   size_t lvalue = Eurydice_slice_len(pv_src2, uint16_t [256U]);
   _size_t__x2 uu____0 = { .fst = &lvalue, .snd = &n_rows0 };
-  size_t *left_val0 = uu____0.fst;
-  size_t *right_val0 = uu____0.snd;
-  EURYDICE_ASSERT(left_val0[0U] == right_val0[0U], "panic!");
+  EURYDICE_ASSERT(uu____0.fst[0U] == uu____0.snd[0U], "panic!");
   /* original Rust expression is not an lvalue in C */
   size_t lvalue0 = Eurydice_slice_len(pv_dst, uint16_t [256U]);
   _size_t__x2 uu____1 = { .fst = &lvalue0, .snd = &n_rows0 };
-  size_t *left_val = uu____1.fst;
-  size_t *right_val = uu____1.snd;
-  EURYDICE_ASSERT(left_val[0U] == right_val[0U], "panic!");
+  EURYDICE_ASSERT(uu____1.fst[0U] == uu____1.snd[0U], "panic!");
   symcrust_common_wipe_slice_df(Eurydice_array_to_slice((size_t)256U,
       /* Zero pa_tmp */ pa_tmp ,
       uint32_t));
@@ -1286,13 +1282,12 @@ symcrust_mlkem_encapsulate_internal(
             uint8_t *,
             core_array_TryFromSliceError,
             core_result_Result_a0)));
-      Eurydice_slice
-      uu____1 =
-        Eurydice_slice_subslice3(/* Write K to pb_agreed_secret */ pb_agreed_secret ,
+      Eurydice_slice_copy(Eurydice_slice_subslice3(/* Write K to pb_agreed_secret */
+            pb_agreed_secret
+          ,
           (size_t)0U,
           SYMCRUST_MLKEM_SIZEOF_AGREED_SECRET,
-          uint8_t *);
-      Eurydice_slice_copy(uu____1,
+          uint8_t *),
         Eurydice_array_to_subslice3(cbd_sample_buffer,
           (size_t)0U,
           SYMCRUST_MLKEM_SIZEOF_AGREED_SECRET,
@@ -1301,8 +1296,7 @@ symcrust_mlkem_encapsulate_internal(
       symcrust_hash_shake256_init(/* Initialize p_shake_stateBase with rOuter */
           &p_comp_temps->hash_state0
         );
-      symcrust_hash_HashState *uu____2 = &p_comp_temps->hash_state0;
-      symcrust_hash_shake256_append(uu____2,
+      symcrust_hash_shake256_append(&p_comp_temps->hash_state0,
         Eurydice_array_to_subslice3(cbd_sample_buffer,
           cb_agreed_secret,
           cb_agreed_secret + (size_t)32U,
@@ -1311,11 +1305,9 @@ symcrust_mlkem_encapsulate_internal(
       {
         cbd_sample_buffer[0U] = i;
         symcrust_hash_shake256_state_copy(&p_comp_temps->hash_state0, &p_comp_temps->hash_state1);
-        symcrust_hash_HashState *uu____3 = &p_comp_temps->hash_state1;
-        symcrust_hash_shake256_append(uu____3,
+        symcrust_hash_shake256_append(&p_comp_temps->hash_state1,
           Eurydice_array_to_subslice3(cbd_sample_buffer, (size_t)0U, (size_t)1U, uint8_t *));
-        symcrust_hash_HashState *uu____4 = &p_comp_temps->hash_state1;
-        symcrust_hash_shake256_extract(uu____4,
+        symcrust_hash_shake256_extract(&p_comp_temps->hash_state1,
           Eurydice_array_to_subslice3(cbd_sample_buffer,
             (size_t)0U,
             (size_t)64U * (size_t)n_eta1,
@@ -1343,11 +1335,9 @@ symcrust_mlkem_encapsulate_internal(
       {
         cbd_sample_buffer[0U] = (uint32_t)n_rows + (uint32_t)i;
         symcrust_hash_shake256_state_copy(&p_comp_temps->hash_state0, &p_comp_temps->hash_state1);
-        symcrust_hash_HashState *uu____5 = &p_comp_temps->hash_state1;
-        symcrust_hash_shake256_append(uu____5,
+        symcrust_hash_shake256_append(&p_comp_temps->hash_state1,
           Eurydice_array_to_subslice3(cbd_sample_buffer, (size_t)0U, (size_t)1U, uint8_t *));
-        symcrust_hash_HashState *uu____6 = &p_comp_temps->hash_state1;
-        symcrust_hash_shake256_extract(uu____6,
+        symcrust_hash_shake256_extract(&p_comp_temps->hash_state1,
           Eurydice_array_to_subslice3(cbd_sample_buffer,
             (size_t)0U,
             (size_t)64U * (size_t)n_eta2,
@@ -1383,11 +1373,9 @@ symcrust_mlkem_encapsulate_internal(
       poly_element_intt_and_mul_r(/* pe_tmp0 = INTT(t o r) */ pe_tmp0 );
       cbd_sample_buffer[0U] = 2U * (uint32_t)/* Expand e2 polynomial in pe_tmp1 */ n_rows ;
       symcrust_hash_shake256_state_copy(&p_comp_temps->hash_state0, &p_comp_temps->hash_state1);
-      symcrust_hash_HashState *uu____7 = &p_comp_temps->hash_state1;
-      symcrust_hash_shake256_append(uu____7,
+      symcrust_hash_shake256_append(&p_comp_temps->hash_state1,
         Eurydice_array_to_subslice3(cbd_sample_buffer, (size_t)0U, (size_t)1U, uint8_t *));
-      symcrust_hash_HashState *uu____8 = &p_comp_temps->hash_state1;
-      symcrust_hash_shake256_extract(uu____8,
+      symcrust_hash_shake256_extract(&p_comp_temps->hash_state1,
         Eurydice_array_to_subslice3(cbd_sample_buffer,
           (size_t)0U,
           (size_t)64U * (size_t)n_eta2,
@@ -1618,13 +1606,10 @@ symcrust_mlkem_decapsulate(
                 ,
                 (size_t)1U)
               & SYMCRUST_MLKEM_SIZEOF_AGREED_SECRET;
-            Eurydice_slice
-            uu____2 =
-              Eurydice_array_to_subslice3(pb_decapsulated_secret,
+            Eurydice_slice_copy(Eurydice_array_to_subslice3(pb_decapsulated_secret,
                 (size_t)0U,
                 cb_copy,
-                uint8_t *);
-            Eurydice_slice_copy(uu____2,
+                uint8_t *),
               Eurydice_array_to_subslice3(pb_implicit_rejection_secret,
                 (size_t)0U,
                 cb_copy,
@@ -1774,8 +1759,7 @@ symcrust_mlkem_key_compute_encapsulation_key_hash(
   cb_encoded_vector =
     symcrust_mlkem_sizeof_encoded_uncompressed_vector((size_t)pk_mlkem_key.ptr->header.params.n_rows);
   symcrust_hash_sha3_256_init(p_state);
-  symcrust_hash_HashState *uu____0 = p_state;
-  symcrust_hash_sha3_256_append(uu____0,
+  symcrust_hash_sha3_256_append(p_state,
     Eurydice_array_to_subslice3(pk_mlkem_key.ptr->header.encoded_t,
       (size_t)0U,
       cb_encoded_vector,
@@ -1967,16 +1951,13 @@ symcrust_mlkem_key_expand_from_private_seed(
     EURYDICE_ASSERT(n_eta1 == 3U, "panic!");
   }
   uint8_t *uu____0 = cbd_sample_buffer;
-  Eurydice_slice
+  size_t
   uu____1 =
-    Eurydice_array_to_subslice3(uu____0,
-      (size_t)0U,
-      Eurydice_slice_len(Eurydice_array_to_slice((size_t)32U,
-          pk_mlkem_key.ptr->header.private_seed,
-          uint8_t),
+    Eurydice_slice_len(Eurydice_array_to_slice((size_t)32U,
+        pk_mlkem_key.ptr->header.private_seed,
         uint8_t),
-      uint8_t *);
-  Eurydice_slice_copy(uu____1,
+      uint8_t);
+  Eurydice_slice_copy(Eurydice_array_to_subslice3(uu____0, (size_t)0U, uu____1, uint8_t *),
     Eurydice_array_to_slice((size_t)32U, pk_mlkem_key.ptr->header.private_seed, uint8_t),
     uint8_t);
   uint8_t uu____2 = n_rows;
@@ -2001,24 +1982,24 @@ symcrust_mlkem_key_expand_from_private_seed(
         pk_mlkem_key.ptr->header.public_seed,
         uint8_t),
       uint8_t);
-  Eurydice_slice
-  uu____4 = Eurydice_array_to_slice((size_t)32U, pk_mlkem_key.ptr->header.public_seed, uint8_t);
-  Eurydice_slice_copy(uu____4,
+  Eurydice_slice_copy(Eurydice_array_to_slice((size_t)32U,
+      pk_mlkem_key.ptr->header.public_seed,
+      uint8_t),
     Eurydice_array_to_subslice3(private_seed_hash, (size_t)0U, pk_len, uint8_t *),
     uint8_t);
   symcrust_mlkem_key_expand_public_matrix_from_public_seed(pk_mlkem_key, p_comp_temps);
   symcrust_hash_shake256_init(&p_comp_temps->hash_state0);
-  symcrust_hash_HashState *uu____5 = &p_comp_temps->hash_state0;
-  uint8_t *uu____6 = private_seed_hash;
+  symcrust_hash_HashState *uu____4 = &p_comp_temps->hash_state0;
+  uint8_t *uu____5 = private_seed_hash;
   size_t
-  uu____7 =
+  uu____6 =
     Eurydice_slice_len(Eurydice_array_to_slice((size_t)32U,
         pk_mlkem_key.ptr->header.public_seed,
         uint8_t),
       uint8_t);
-  symcrust_hash_shake256_append(uu____5,
-    Eurydice_array_to_subslice3(uu____6,
-      uu____7,
+  symcrust_hash_shake256_append(uu____4,
+    Eurydice_array_to_subslice3(uu____5,
+      uu____6,
       Eurydice_slice_len(Eurydice_array_to_slice((size_t)32U,
           pk_mlkem_key.ptr->header.public_seed,
           uint8_t),
@@ -2029,20 +2010,18 @@ symcrust_mlkem_key_expand_from_private_seed(
   {
     cbd_sample_buffer[0U] = i;
     symcrust_hash_shake256_state_copy(&p_comp_temps->hash_state0, &p_comp_temps->hash_state1);
-    symcrust_hash_HashState *uu____8 = &p_comp_temps->hash_state1;
-    symcrust_hash_shake256_append(uu____8,
+    symcrust_hash_shake256_append(&p_comp_temps->hash_state1,
       Eurydice_array_to_subslice3(cbd_sample_buffer, (size_t)0U, (size_t)1U, uint8_t *));
-    symcrust_hash_HashState *uu____9 = &p_comp_temps->hash_state1;
-    symcrust_hash_shake256_extract(uu____9,
+    symcrust_hash_shake256_extract(&p_comp_temps->hash_state1,
       Eurydice_array_to_subslice3(cbd_sample_buffer,
         (size_t)0U,
         (size_t)64U * (size_t)n_eta1,
         uint8_t *),
       false);
-    Eurydice_slice uu____10 = Eurydice_array_to_slice((size_t)193U, cbd_sample_buffer, uint8_t);
-    uint32_t uu____11 = (uint32_t)n_eta1;
-    poly_element_sample_cbd_from_bytes(uu____10,
-      uu____11,
+    Eurydice_slice uu____7 = Eurydice_array_to_slice((size_t)193U, cbd_sample_buffer, uint8_t);
+    uint32_t uu____8 = (uint32_t)n_eta1;
+    poly_element_sample_cbd_from_bytes(uu____7,
+      uu____8,
       Eurydice_slice_index(symcrust_key_s_mut_fd(pk_mlkem_key),
         (size_t)i,
         uint16_t [256U],
@@ -2052,20 +2031,18 @@ symcrust_mlkem_key_expand_from_private_seed(
   {
     cbd_sample_buffer[0U] = (uint32_t)n_rows + (uint32_t)i;
     symcrust_hash_shake256_state_copy(&p_comp_temps->hash_state0, &p_comp_temps->hash_state1);
-    symcrust_hash_HashState *uu____12 = &p_comp_temps->hash_state1;
-    symcrust_hash_shake256_append(uu____12,
+    symcrust_hash_shake256_append(&p_comp_temps->hash_state1,
       Eurydice_array_to_subslice3(cbd_sample_buffer, (size_t)0U, (size_t)1U, uint8_t *));
-    symcrust_hash_HashState *uu____13 = &p_comp_temps->hash_state1;
-    symcrust_hash_shake256_extract(uu____13,
+    symcrust_hash_shake256_extract(&p_comp_temps->hash_state1,
       Eurydice_array_to_subslice3(cbd_sample_buffer,
         (size_t)0U,
         (size_t)64U * (size_t)n_eta1,
         uint8_t *),
       false);
-    Eurydice_slice uu____14 = Eurydice_array_to_slice((size_t)193U, cbd_sample_buffer, uint8_t);
-    uint32_t uu____15 = (uint32_t)n_eta1;
-    poly_element_sample_cbd_from_bytes(uu____14,
-      uu____15,
+    Eurydice_slice uu____9 = Eurydice_array_to_slice((size_t)193U, cbd_sample_buffer, uint8_t);
+    uint32_t uu____10 = (uint32_t)n_eta1;
+    poly_element_sample_cbd_from_bytes(uu____9,
+      uu____10,
       Eurydice_slice_index(symcrust_key_t_mut_fd(pk_mlkem_key),
         (size_t)i,
         uint16_t [256U],
@@ -2080,12 +2057,11 @@ symcrust_mlkem_key_expand_from_private_seed(
       (size_t)n_rows,
       uint16_t (*)[256U]);
   vector_mul_r(symcrust_key_s_mut_fd(pk_mlkem_key), pv_tmp);
-  Eurydice_slice_uint16_t_256size_t__x3 uu____16 = symcrust_key_ats_mut_fd(pk_mlkem_key);
-  Eurydice_slice a = uu____16.fst;
-  Eurydice_slice t0 = uu____16.snd;
+  Eurydice_slice_uint16_t_256size_t__x3 uu____11 = symcrust_key_ats_mut_fd(pk_mlkem_key);
+  Eurydice_slice a = uu____11.fst;
+  Eurydice_slice t0 = uu____11.snd;
   uint32_t *pa_tmp = p_comp_temps->ab_poly_element_accumulator_buffer;
-  Eurydice_slice uu____17 = a;
-  matrix_vector_mont_mul_and_add(uu____17,
+  matrix_vector_mont_mul_and_add(a,
     Eurydice_array_to_subslice3(p_comp_temps->ab_vector_buffer0,
       (size_t)0U,
       (size_t)n_rows,
@@ -2094,11 +2070,10 @@ symcrust_mlkem_key_expand_from_private_seed(
     pa_tmp,
     n_rows);
   matrix_transpose(symcrust_key_atranspose_mut_fd(pk_mlkem_key), n_rows);
-  tuple_48 uu____18 = symcrust_key_t_encoded_t_mut_fd(pk_mlkem_key);
-  Eurydice_slice t = uu____18.fst;
-  uint8_t *encoded_t = uu____18.snd;
-  Eurydice_slice uu____19 = t;
-  vector_compress_and_encode(uu____19,
+  tuple_48 uu____12 = symcrust_key_t_encoded_t_mut_fd(pk_mlkem_key);
+  Eurydice_slice t = uu____12.fst;
+  uint8_t *encoded_t = uu____12.snd;
+  vector_compress_and_encode(t,
     12U,
     Eurydice_array_to_subslice3(encoded_t, (size_t)0U, cb_encoded_vector, uint8_t *));
   symcrust_mlkem_key_compute_encapsulation_key_hash(pk_mlkem_key, p_comp_temps);
@@ -2283,19 +2258,16 @@ symcrust_mlkem_key_set_value(
             else
             {
               pb_curr = pb_curr + cb_encoded_vector;
-              Eurydice_slice
-              uu____8 =
-                Eurydice_array_to_subslice3(pk_mlkem_key.ptr->header.encoded_t,
+              Eurydice_slice_copy(Eurydice_array_to_subslice3(pk_mlkem_key.ptr->header.encoded_t,
                   (size_t)0U,
                   cb_encoded_vector,
-                  uint8_t *);
-              Eurydice_slice_copy(uu____8,
+                  uint8_t *),
                 Eurydice_slice_subslice3(pb_src, pb_curr, pb_curr + cb_encoded_vector, uint8_t *),
                 uint8_t);
               pb_curr = pb_curr + cb_encoded_vector;
-              tuple_48 uu____9 = symcrust_key_t_encoded_t_mut_fd(pk_mlkem_key);
-              Eurydice_slice t = uu____9.fst;
-              uint8_t *encoded_t = uu____9.snd;
+              tuple_48 uu____8 = symcrust_key_t_encoded_t_mut_fd(pk_mlkem_key);
+              Eurydice_slice t = uu____8.fst;
+              uint8_t *encoded_t = uu____8.snd;
               symcrust_common_Error
               sc_error0 =
                 vector_decode_and_decompress(Eurydice_array_to_subslice3(encoded_t,
@@ -2385,26 +2357,23 @@ symcrust_mlkem_key_set_value(
         }
         else
         {
-          size_t uu____10 = Eurydice_slice_len(pb_src, uint8_t);
-          if (uu____10 != symcrust_mlkem_sizeof_format_encapsulation_key((size_t)n_rows))
+          size_t uu____9 = Eurydice_slice_len(pb_src, uint8_t);
+          if (uu____9 != symcrust_mlkem_sizeof_format_encapsulation_key((size_t)n_rows))
           {
             uu____0 = symcrust_common_Error_WrongKeySize;
           }
           else
           {
-            Eurydice_slice
-            uu____11 =
-              Eurydice_array_to_subslice3(pk_mlkem_key.ptr->header.encoded_t,
+            Eurydice_slice_copy(Eurydice_array_to_subslice3(pk_mlkem_key.ptr->header.encoded_t,
                 (size_t)0U,
                 cb_encoded_vector,
-                uint8_t *);
-            Eurydice_slice_copy(uu____11,
+                uint8_t *),
               Eurydice_slice_subslice3(pb_src, pb_curr, pb_curr + cb_encoded_vector, uint8_t *),
               uint8_t);
             pb_curr = pb_curr + cb_encoded_vector;
-            tuple_48 uu____12 = symcrust_key_t_encoded_t_mut_fd(pk_mlkem_key);
-            Eurydice_slice t = uu____12.fst;
-            uint8_t *encoded_t = uu____12.snd;
+            tuple_48 uu____10 = symcrust_key_t_encoded_t_mut_fd(pk_mlkem_key);
+            Eurydice_slice t = uu____10.fst;
+            uint8_t *encoded_t = uu____10.snd;
             symcrust_common_Error
             sc_error =
               vector_decode_and_decompress(Eurydice_array_to_subslice3(encoded_t,
@@ -2502,11 +2471,11 @@ symcrust_mlkem_key_set_value(
       {
         symcrust_ntt_InternalComputationTemporaries *p_comp_temps0 = p_comp_temps.f0;
         symcrust_ntt_InternalComputationTemporaries *p_comp_temps1 = p_comp_temps0;
-        bool uu____13;
-        bool uu____14;
-        size_t uu____15;
-        size_t uu____16;
-        Eurydice_slice uu____17;
+        bool uu____11;
+        bool uu____12;
+        size_t uu____13;
+        size_t uu____14;
+        Eurydice_slice uu____15;
         if (format == symcrust_key_Format_PrivateSeed)
         {
           if (!(Eurydice_slice_len(pb_src, uint8_t) != SYMCRUST_MLKEM_SIZEOF_FORMAT_PRIVATE_SEED))
@@ -2538,14 +2507,14 @@ symcrust_mlkem_key_set_value(
               uint8_t);
             pb_curr = pb_curr + l0;
             symcrust_mlkem_key_expand_from_private_seed(pk_mlkem_key, p_comp_temps1);
-            uu____13 = true;
-            if (uu____13)
+            uu____11 = true;
+            if (uu____11)
             {
-              uu____15 = pb_curr;
-              uu____17 = pb_src;
-              uu____16 = Eurydice_slice_len(uu____17, uint8_t);
-              uu____14 = uu____15 == uu____16;
-              EURYDICE_ASSERT(uu____14, "panic!");
+              uu____13 = pb_curr;
+              uu____15 = pb_src;
+              uu____14 = Eurydice_slice_len(uu____15, uint8_t);
+              uu____12 = uu____13 == uu____14;
+              EURYDICE_ASSERT(uu____12, "panic!");
             }
             return symcrust_common_Error_NoError;
           }
@@ -2553,22 +2522,22 @@ symcrust_mlkem_key_set_value(
         }
         else if (format == symcrust_key_Format_DecapsulationKey)
         {
-          size_t uu____18 = Eurydice_slice_len(pb_src, uint8_t);
-          if (uu____18 != symcrust_mlkem_sizeof_format_decapsulation_key((size_t)n_rows))
+          size_t uu____16 = Eurydice_slice_len(pb_src, uint8_t);
+          if (uu____16 != symcrust_mlkem_sizeof_format_decapsulation_key((size_t)n_rows))
           {
             uu____0 = symcrust_common_Error_WrongKeySize;
           }
           else
           {
             Eurydice_slice
-            uu____19 =
+            uu____17 =
               Eurydice_slice_subslice3(pb_src,
                 pb_curr,
                 pb_curr + cb_encoded_vector,
                 uint8_t *);
             symcrust_common_Error
             sc_error =
-              vector_decode_and_decompress(uu____19,
+              vector_decode_and_decompress(uu____17,
                 12U,
                 symcrust_key_s_mut_fd(pk_mlkem_key));
             /* original Rust expression is not an lvalue in C */
@@ -2584,19 +2553,16 @@ symcrust_mlkem_key_set_value(
             else
             {
               pb_curr = pb_curr + cb_encoded_vector;
-              Eurydice_slice
-              uu____20 =
-                Eurydice_array_to_subslice3(pk_mlkem_key.ptr->header.encoded_t,
+              Eurydice_slice_copy(Eurydice_array_to_subslice3(pk_mlkem_key.ptr->header.encoded_t,
                   (size_t)0U,
                   cb_encoded_vector,
-                  uint8_t *);
-              Eurydice_slice_copy(uu____20,
+                  uint8_t *),
                 Eurydice_slice_subslice3(pb_src, pb_curr, pb_curr + cb_encoded_vector, uint8_t *),
                 uint8_t);
               pb_curr = pb_curr + cb_encoded_vector;
-              tuple_48 uu____21 = symcrust_key_t_encoded_t_mut_fd(pk_mlkem_key);
-              Eurydice_slice t = uu____21.fst;
-              uint8_t *encoded_t = uu____21.snd;
+              tuple_48 uu____18 = symcrust_key_t_encoded_t_mut_fd(pk_mlkem_key);
+              Eurydice_slice t = uu____18.fst;
+              uint8_t *encoded_t = uu____18.snd;
               symcrust_common_Error
               sc_error0 =
                 vector_decode_and_decompress(Eurydice_array_to_subslice3(encoded_t,
@@ -2669,14 +2635,14 @@ symcrust_mlkem_key_set_value(
                       uint8_t);
                 pk_mlkem_key.ptr->header.has_private_seed = false;
                 pk_mlkem_key.ptr->header.has_private_key = true;
-                uu____13 = true;
-                if (uu____13)
+                uu____11 = true;
+                if (uu____11)
                 {
-                  uu____15 = pb_curr;
-                  uu____17 = pb_src;
-                  uu____16 = Eurydice_slice_len(uu____17, uint8_t);
-                  uu____14 = uu____15 == uu____16;
-                  EURYDICE_ASSERT(uu____14, "panic!");
+                  uu____13 = pb_curr;
+                  uu____15 = pb_src;
+                  uu____14 = Eurydice_slice_len(uu____15, uint8_t);
+                  uu____12 = uu____13 == uu____14;
+                  EURYDICE_ASSERT(uu____12, "panic!");
                 }
                 return symcrust_common_Error_NoError;
               }
@@ -2686,26 +2652,23 @@ symcrust_mlkem_key_set_value(
         }
         else
         {
-          size_t uu____22 = Eurydice_slice_len(pb_src, uint8_t);
-          if (uu____22 != symcrust_mlkem_sizeof_format_encapsulation_key((size_t)n_rows))
+          size_t uu____19 = Eurydice_slice_len(pb_src, uint8_t);
+          if (uu____19 != symcrust_mlkem_sizeof_format_encapsulation_key((size_t)n_rows))
           {
             uu____0 = symcrust_common_Error_WrongKeySize;
           }
           else
           {
-            Eurydice_slice
-            uu____23 =
-              Eurydice_array_to_subslice3(pk_mlkem_key.ptr->header.encoded_t,
+            Eurydice_slice_copy(Eurydice_array_to_subslice3(pk_mlkem_key.ptr->header.encoded_t,
                 (size_t)0U,
                 cb_encoded_vector,
-                uint8_t *);
-            Eurydice_slice_copy(uu____23,
+                uint8_t *),
               Eurydice_slice_subslice3(pb_src, pb_curr, pb_curr + cb_encoded_vector, uint8_t *),
               uint8_t);
             pb_curr = pb_curr + cb_encoded_vector;
-            tuple_48 uu____24 = symcrust_key_t_encoded_t_mut_fd(pk_mlkem_key);
-            Eurydice_slice t = uu____24.fst;
-            uint8_t *encoded_t = uu____24.snd;
+            tuple_48 uu____20 = symcrust_key_t_encoded_t_mut_fd(pk_mlkem_key);
+            Eurydice_slice t = uu____20.fst;
+            uint8_t *encoded_t = uu____20.snd;
             symcrust_common_Error
             sc_error =
               vector_decode_and_decompress(Eurydice_array_to_subslice3(encoded_t,
@@ -2744,14 +2707,14 @@ symcrust_mlkem_key_set_value(
               symcrust_mlkem_key_compute_encapsulation_key_hash(pk_mlkem_key, p_comp_temps1);
               pk_mlkem_key.ptr->header.has_private_seed = false;
               pk_mlkem_key.ptr->header.has_private_key = false;
-              uu____13 = true;
-              if (uu____13)
+              uu____11 = true;
+              if (uu____11)
               {
-                uu____15 = pb_curr;
-                uu____17 = pb_src;
-                uu____16 = Eurydice_slice_len(uu____17, uint8_t);
-                uu____14 = uu____15 == uu____16;
-                EURYDICE_ASSERT(uu____14, "panic!");
+                uu____13 = pb_curr;
+                uu____15 = pb_src;
+                uu____14 = Eurydice_slice_len(uu____15, uint8_t);
+                uu____12 = uu____13 == uu____14;
+                EURYDICE_ASSERT(uu____12, "panic!");
               }
               return symcrust_common_Error_NoError;
             }
@@ -2913,27 +2876,28 @@ symcrust_mlkem_key_get_value(
         12U,
         Eurydice_slice_subslice3(pb_dst, (size_t)0U, cb_encoded_vector, uint8_t *));
       pb_curr = pb_curr + cb_encoded_vector;
-      Eurydice_slice
-      uu____16 = Eurydice_slice_subslice3(pb_dst, pb_curr, pb_curr + cb_encoded_vector, uint8_t *);
-      Eurydice_slice_copy(uu____16,
+      Eurydice_slice_copy(Eurydice_slice_subslice3(pb_dst,
+          pb_curr,
+          pb_curr + cb_encoded_vector,
+          uint8_t *),
         Eurydice_array_to_subslice3(pk_mlkem_key.ptr->header.encoded_t,
           (size_t)0U,
           cb_encoded_vector,
           uint8_t *),
         uint8_t);
       pb_curr = pb_curr + cb_encoded_vector;
-      Eurydice_slice uu____17 = pb_dst;
+      Eurydice_slice uu____16 = pb_dst;
+      size_t uu____17 = pb_curr;
       size_t uu____18 = pb_curr;
-      size_t uu____19 = pb_curr;
       size_t
-      uu____20 =
+      uu____19 =
         Eurydice_slice_len(Eurydice_array_to_slice((size_t)32U,
             pk_mlkem_key.ptr->header.public_seed,
             uint8_t),
           uint8_t);
-      Eurydice_slice_copy(Eurydice_slice_subslice3(uu____17,
-          uu____18,
-          uu____19 + uu____20,
+      Eurydice_slice_copy(Eurydice_slice_subslice3(uu____16,
+          uu____17,
+          uu____18 + uu____19,
           uint8_t *),
         Eurydice_array_to_slice((size_t)32U, pk_mlkem_key.ptr->header.public_seed, uint8_t),
         uint8_t);
@@ -2943,18 +2907,18 @@ symcrust_mlkem_key_get_value(
               pk_mlkem_key.ptr->header.public_seed,
               uint8_t),
             uint8_t);
-      Eurydice_slice uu____21 = pb_dst;
+      Eurydice_slice uu____20 = pb_dst;
+      size_t uu____21 = pb_curr;
       size_t uu____22 = pb_curr;
-      size_t uu____23 = pb_curr;
       size_t
-      uu____24 =
+      uu____23 =
         Eurydice_slice_len(Eurydice_array_to_slice((size_t)32U,
             pk_mlkem_key.ptr->header.encaps_key_hash,
             uint8_t),
           uint8_t);
-      Eurydice_slice_copy(Eurydice_slice_subslice3(uu____21,
-          uu____22,
-          uu____23 + uu____24,
+      Eurydice_slice_copy(Eurydice_slice_subslice3(uu____20,
+          uu____21,
+          uu____22 + uu____23,
           uint8_t *),
         Eurydice_array_to_slice((size_t)32U, pk_mlkem_key.ptr->header.encaps_key_hash, uint8_t),
         uint8_t);
@@ -2964,18 +2928,18 @@ symcrust_mlkem_key_get_value(
               pk_mlkem_key.ptr->header.encaps_key_hash,
               uint8_t),
             uint8_t);
-      Eurydice_slice uu____25 = pb_dst;
+      Eurydice_slice uu____24 = pb_dst;
+      size_t uu____25 = pb_curr;
       size_t uu____26 = pb_curr;
-      size_t uu____27 = pb_curr;
       size_t
-      uu____28 =
+      uu____27 =
         Eurydice_slice_len(Eurydice_array_to_slice((size_t)32U,
             pk_mlkem_key.ptr->header.private_random,
             uint8_t),
           uint8_t);
-      Eurydice_slice_copy(Eurydice_slice_subslice3(uu____25,
-          uu____26,
-          uu____27 + uu____28,
+      Eurydice_slice_copy(Eurydice_slice_subslice3(uu____24,
+          uu____25,
+          uu____26 + uu____27,
           uint8_t *),
         Eurydice_array_to_slice((size_t)32U, pk_mlkem_key.ptr->header.private_random, uint8_t),
         uint8_t);
@@ -3003,30 +2967,31 @@ symcrust_mlkem_key_get_value(
   }
   else
   {
-    size_t uu____29 = Eurydice_slice_len(pb_dst, uint8_t);
-    if (!(uu____29 != symcrust_mlkem_sizeof_format_encapsulation_key((size_t)n_rows)))
+    size_t uu____28 = Eurydice_slice_len(pb_dst, uint8_t);
+    if (!(uu____28 != symcrust_mlkem_sizeof_format_encapsulation_key((size_t)n_rows)))
     {
-      Eurydice_slice
-      uu____30 = Eurydice_slice_subslice3(pb_dst, pb_curr, pb_curr + cb_encoded_vector, uint8_t *);
-      Eurydice_slice_copy(uu____30,
+      Eurydice_slice_copy(Eurydice_slice_subslice3(pb_dst,
+          pb_curr,
+          pb_curr + cb_encoded_vector,
+          uint8_t *),
         Eurydice_array_to_subslice3(pk_mlkem_key.ptr->header.encoded_t,
           (size_t)0U,
           cb_encoded_vector,
           uint8_t *),
         uint8_t);
       pb_curr = pb_curr + cb_encoded_vector;
-      Eurydice_slice uu____31 = pb_dst;
-      size_t uu____32 = pb_curr;
-      size_t uu____33 = pb_curr;
+      Eurydice_slice uu____29 = pb_dst;
+      size_t uu____30 = pb_curr;
+      size_t uu____31 = pb_curr;
       size_t
-      uu____34 =
+      uu____32 =
         Eurydice_slice_len(Eurydice_array_to_slice((size_t)32U,
             pk_mlkem_key.ptr->header.public_seed,
             uint8_t),
           uint8_t);
-      Eurydice_slice_copy(Eurydice_slice_subslice3(uu____31,
-          uu____32,
-          uu____33 + uu____34,
+      Eurydice_slice_copy(Eurydice_slice_subslice3(uu____29,
+          uu____30,
+          uu____31 + uu____32,
           uint8_t *),
         Eurydice_array_to_slice((size_t)32U, pk_mlkem_key.ptr->header.public_seed, uint8_t),
         uint8_t);
