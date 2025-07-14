@@ -78,8 +78,6 @@ theorem Result.Loop.forIn.loop.partial_correctness {β : Type u} (f : Unit → �
     . simp
   apply Result.Loop.forIn.loop.fixpoint_induct f motive' motive'_admissible h
 
--- Experimenting with a slightly different expression of the partial_correctness theorem since it
--- might be easier to `apply`
 theorem Result.Loop.forIn.loop.partial_correctness2 {β : Type u} (f : Unit → β → Result (ForInStep β))
   (motive : β → β → Error → Prop) :
   (∀ (loop : β → Result β),
@@ -101,8 +99,6 @@ theorem Result.Loop.forIn.loop.partial_correctness2 {β : Type u} (f : Unit → 
   (Loop.forIn.loop f b = ok r ∨ Loop.forIn.loop f b = fail e) → motive b r e := by
   sorry
 
--- **TODO** Is this the correct way to write this theorem? It feels silly to write `∃ r, p ∧ p`
--- but if I just write `∃ r, p`, I don't have easy access to the equaitonal fact when I call `progress`
 @[progress]
 theorem Result.Loop.forIn.progress_spec {β : Type u} (l : Loop) (init : β)
   (f : Unit → β → Result (ForInStep β)) (hdiv : Result.Loop.forIn l init f ≠ div)
