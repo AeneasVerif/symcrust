@@ -42,11 +42,11 @@ theorem Target.sampleNTT.eq_spec (B : {l : List Byte // l.length = 34 }) :
   ∀ r1 r2, sampleNTT B = some r1 → Spec.sampleNTT B = some r2 → r1 = r2 := by
   intro r1 r2
   unfold Spec.sampleNTT
-  rw [forIn, instForInOptionOLoopUnit]
+  rw [forIn, CustomLoops.instForInOptionLoopUnit_symcrust]
   simp only [Vector.Inhabited_getElem_eq_getElem!, Option.pure_def, Nat.cast_add, Nat.cast_mul,
     Nat.cast_ofNat, ReduceZMod.reduceZMod, Vector.set_eq_set!, Option.bind_eq_bind,
     Option.bind_some]
-  rw [OLoop.forIn]
+  rw [CustomLoops.Option.Loop.forIn]
   tlet inner_loop : Unit → MProd Polynomial (MProd SHAKE128.Context ℕ) →
     Option (ForInStep (MProd Polynomial (MProd SHAKE128.Context ℕ))) :=
     (fun x (r : MProd Polynomial (MProd SHAKE128.Context ℕ)) =>
@@ -88,7 +88,7 @@ theorem Target.sampleNTT.eq_spec (B : {l : List Byte // l.length = 34 }) :
   unfold sampleNTT at h1
   conv => rhs; rw [← Option.some_inj, ← h1]
   clear h1
-  apply OLoop.forIn.loop.partial_correctness inner_loop (fun x r => loop x.2.1 x.1 x.2.2 = r.1)
+  apply CustomLoops.Option.Loop.forIn.loop.partial_correctness inner_loop (fun x r => loop x.2.1 x.1 x.2.2 = r.1)
   intro loop1 hloop1 b r ih
   simp only [ReduceZMod.reduceZMod, dite_eq_ite, Option.pure_def, Option.bind_eq_bind,
     Option.bind_eq_some_iff, inner_loop] at ih

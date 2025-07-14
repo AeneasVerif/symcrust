@@ -287,7 +287,8 @@ def popAllBoundBinders (goalBinders : Array FVarId) (acc : Array (FVarId × FVar
 @[tactic brute]
 def evalBrute : Tactic
 | `(tactic| brute) => withMainContext do
-  let pf ← forallTelescope (← getMainTarget) $ fun xs g => do
+  let pf ← forallTelescope (← getMainTarget).consumeMData (cleanupAnnotations := true) $ fun xs g => do
+    trace[brute.debug] "xs: {xs}, g: {g}"
     let boundBinders ← popAllBoundBinders (xs.map Expr.fvarId!) #[]
     match boundBinders with
     | #[(x, hx, xBound)] =>
@@ -400,7 +401,8 @@ def evalBrute : Tactic
       let pf := mkApp7 (mkConst ``ofMkFold5EqTrue) xBound yBound zBound aBound bBound f <|
         mkApp3 (mkConst ``Lean.ofReduceBool) (mkConst auxDeclName levelParams) (toExpr true) rflPrf
       mkLambdaFVars boundFVars $ ← mkAppOptM ``of_decide_eq_true #[none, none, ← mkAppM' pf boundFVars]
-    | _ => throwError "Not yet implemented"
+    | _ =>
+    throwError "Not yet implemented (boundBinders: {boundBinders.map (fun (x, hx, bound) => (Expr.fvar x, Expr.fvar hx, bound))})"
   trace[brute.debug] "pf: {pf}"
   trace[brute.debug] "pf type: {← inferType pf}"
   let g ← getMainGoal

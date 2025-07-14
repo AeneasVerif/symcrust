@@ -3,6 +3,7 @@ import Mathlib.Data.ZMod.Defs
 import Aeneas
 import Symcrust.Spec.NatBit
 import Symcrust.Spec.Round
+import Symcrust.Properties.While
 
 /-!
 The spec of ML-KEM, based on: https://csrc.nist.gov/pubs/fips/203/final
@@ -129,38 +130,7 @@ noncomputable def XOF.squeeze (ctx : SHAKE128.Context) (z : Nat) : SHAKE128.Cont
   let (ctx, out) := SHAKE128.squeeze ctx (8 * z)
   (ctx, Vector.cast (by simp) out)
 
-inductive OLoop where
-  | mk
-
-def OLoop.forIn.loop {β : Type u} (f : Unit → β → Option (ForInStep β)) (b : β) : Option β := do
-  match ← f () b with
-    | ForInStep.done b  => pure b
-    | ForInStep.yield b => loop f b
-partial_fixpoint
-
-@[inline]
-partial def OLoop.forIn {β : Type u} (_ : OLoop) (init : β)
-  (f : Unit → β → Option (ForInStep β)) : Option β :=
-  forIn.loop f init
-
-instance : ForIn Option OLoop Unit where
-  forIn := OLoop.forIn
-
-syntax "orepeat " doSeq : doElem
-
-macro_rules
-  | `(doElem| orepeat $seq) => `(doElem| for _ in OLoop.mk do $seq)
-
-syntax "owhile " ident " : " termBeforeDo " do " doSeq : doElem
-
-macro_rules
-  | `(doElem| owhile $h : $cond do $seq) => `(doElem| orepeat if $h : $cond then $seq else break)
-
-syntax "owhile " termBeforeDo " do " doSeq : doElem
-
-macro_rules
-  | `(doElem| owhile $cond do $seq) => `(doElem| orepeat if $cond then $seq else break)
-
+open CustomLoops in
 /-- # Algorithm 7 -/
 noncomputable -- TODO: remove the noncomputable
 def sampleNTT (B : {l : List Byte // l.length = 34 }) : Option Polynomial := do
@@ -168,7 +138,7 @@ def sampleNTT (B : {l : List Byte // l.length = 34 }) : Option Polynomial := do
   ctx := XOF.absorb ctx B
   let mut a := Polynomial.zero
   let mut j : Nat := 0
-  owhile hj : j < 256 do
+  while hj : j < 256 do
     let (ctx', C) := XOF.squeeze ctx 3
     ctx := ctx'
     let d1 : Nat := C[0].val + 256 * (C[1].val % 16)
@@ -180,27 +150,6 @@ def sampleNTT (B : {l : List Byte // l.length = 34 }) : Option Polynomial := do
       a := a.set j d2
       j := j + 1
   pure a
-
-/- Old spec
-noncomputable -- TODO: remove the noncomputable
-def sampleNTT (B : {l : List Byte // l.length = 34 }) : Polynomial := Id.run do
-  let mut ctx := XOF.init
-  ctx := XOF.absorb ctx B
-  let mut a := Polynomial.zero
-  let mut j : Nat := 0
-  while hj: j < 256 do
-    let (ctx', C) := XOF.squeeze ctx 3
-    ctx := ctx'
-    let d1 : Nat := C[0].val + 256 * (C[1].val % 16)
-    let d2 := C[1].val/16 + 16 * C[2].val
-    if d1 < Q then
-      a := a.set j d1
-      j := j + 1
-    if h: d2 < Q ∧ j < 256 then
-      a := a.set j d2
-      j := j + 1
-  pure a
--/
 
 /-- # Algorithm 8 -/
 abbrev Η := {η : ℕ // η ∈ ({2, 3}: Set ℕ)}
