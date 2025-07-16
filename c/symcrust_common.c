@@ -14,13 +14,12 @@ void symcrust_common_init(void)
 
 symcrust_common_Error symcrust_common_random(Eurydice_slice dst)
 {
-  uint8_t
-  *uu____0 =
-    core_slice___Slice_T___as_mut_ptr(/* #[cfg(not(feature = "dynamic"))] unsafe { SymCryptCallbackRandom(dst.as_mut_ptr(), dst.len()) } #[cfg(feature = "dynamic")] */
-        dst
-      ,
-      uint8_t,
-      uint8_t *);
+  /* #[cfg(not(feature = "dynamic"))]
+    unsafe {
+        SymCryptCallbackRandom(dst.as_mut_ptr(), dst.len())
+    }
+    #[cfg(feature = "dynamic")] */
+  uint8_t *uu____0 = core_slice___Slice_T___as_mut_ptr(dst, uint8_t, uint8_t *);
   symcrust_common_SymCryptRandom(uu____0, Eurydice_slice_len(dst, uint8_t));
   return symcrust_common_Error_NoError;
 }

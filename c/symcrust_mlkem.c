@@ -376,13 +376,22 @@ poly_element_decode_and_decompress(
       if (n_bits_in_accumulator == 0U)
       {
         uint8_t uu____0[4U];
-        symcrust_ntt_slice_to_sub_array((size_t)4U,
-          /* first gather and decode bits from pb_src FIXME *accumulator = u32::from_le_bytes(&pb_src[*cb_src_read..*cb_src_read+4]).try_into().unwrap()); FIXME *accumulator = u32::from_le_bytes(&pb_src[*cb_src_read..*cb_src_read+4]).try_into().unwrap()); */
-            pb_src
-          ,
-          cb_src_read,
-          uu____0,
-          void *);
+        /* first gather and decode bits from pb_src
+          FIXME
+          *accumulator = u32::from_le_bytes(&pb_src[*cb_src_read..*cb_src_read+4]).try_into().unwrap());
+          FIXME
+          *accumulator = u32::from_le_bytes(&pb_src[*cb_src_read..*cb_src_read+4]).try_into().unwrap()); */
+        /* first gather and decode bits from pb_src
+          FIXME
+          *accumulator = u32::from_le_bytes(&pb_src[*cb_src_read..*cb_src_read+4]).try_into().unwrap());
+          FIXME
+          *accumulator = u32::from_le_bytes(&pb_src[*cb_src_read..*cb_src_read+4]).try_into().unwrap()); */
+          symcrust_ntt_slice_to_sub_array((size_t)4U,
+            pb_src,
+            cb_src_read,
+            uu____0,
+            void *)
+        ;
         accumulator = core_num__u32__from_le_bytes(uu____0);
         cb_src_read = cb_src_read + (size_t)4U;
         n_bits_in_accumulator = 32U;
@@ -420,24 +429,19 @@ poly_element_decode_and_decompress(
       }
     }
     EURYDICE_ASSERT(n_bits_in_coefficient == n_bits_per_coefficient, "panic!");
-    if
-    (
-      /* decompress the coefficient when n_bits_per_coefficient < 12 we decompress per Decompress_d in draft FIPS 203 otherwise we perform input validation per 203 6.2 Input validation 2 (Modulus check) */
-        n_bits_per_coefficient
-
-      < 12U
-    )
+    /* decompress the coefficient
+      when n_bits_per_coefficient < 12 we decompress per Decompress_d in draft FIPS 203
+      otherwise we perform input validation per 203 6.2 Input validation 2 (Modulus check) */
+    if (n_bits_per_coefficient < 12U)
     {
-      coefficient =
-        coefficient *
-          /* Multiply by Q / 2^(n_bits_per_coefficient-1) by multiplying by constant and shifting right */
-            Q
-          ;
+      /* Multiply by Q / 2^(n_bits_per_coefficient-1) by multiplying by constant and shifting right */
+      coefficient = coefficient * Q;
       coefficient = coefficient >> (uint32_t)(n_bits_per_coefficient - 1U);
       coefficient++;
       /* final divide by two to get multiplication by Q / 2^n_bits_per_coefficient */
       coefficient = coefficient >> 1U;
-      coefficient = mod_reduce(/* modular reduction by conditional subtraction */ coefficient );
+      /* modular reduction by conditional subtraction */
+      coefficient = mod_reduce(coefficient);
       EURYDICE_ASSERT(coefficient < Q, "panic!");
     }
     else if (coefficient > Q)
@@ -578,39 +582,42 @@ static void poly_element_ntt_layer_c(uint16_t *pe_src, size_t k, size_t len)
   for (size_t start = (size_t)0U; start < (size_t)256U; start = start + (size_t)2U * len)
   {
     uint32_t twiddle_factor = (uint32_t)ZETA_BIT_REV_TIMES_R[k];
-    uint32_t
-    twiddle_factor_mont =
-      (uint32_t)/* twiddleFactor = (Zeta^BitRev(k) * R) mod Q */
-        ZETA_BIT_REV_TIMES_R_TIMES_NEG_Q_INV_MOD_R
-      [k];
+    /* twiddleFactor = (Zeta^BitRev(k) * R) mod Q */
+    uint32_t twiddle_factor_mont = (uint32_t)ZETA_BIT_REV_TIMES_R_TIMES_NEG_Q_INV_MOD_R[k];
     k++;
     for (size_t j = (size_t)0U; j < len; j++)
     {
-      uint32_t
-      c0 =
-        (uint32_t)/* c1TimesTwiddle = ((c1 * (Zeta^BitRev(k) * R)) / R) % Q = ((f(start + j + len) * (Zeta^BitRev(k) * R)) / R) mod Q = (f(start + j + len) * Zeta^BitRev(k)) mod Q c1 = (f(start + j) - f(start + j + len) * Zeta^BitRev(k)) mod Q c0 = (f(start + j) + f(start + j + len) * Zeta^BitRev(k)) mod Q */
-          pe_src
-        [start + j];
+      /* c1TimesTwiddle = ((c1 * (Zeta^BitRev(k) * R)) / R) % Q
+                       = ((f(start + j + len) * (Zeta^BitRev(k) * R)) / R) mod Q
+                       = (f(start + j + len) * Zeta^BitRev(k)) mod Q
+        c1 = (f(start + j) - f(start + j + len) * Zeta^BitRev(k)) mod Q
+        c0 = (f(start + j) + f(start + j + len) * Zeta^BitRev(k)) mod Q */
+      uint32_t c0 = (uint32_t)pe_src[start + j];
       EURYDICE_ASSERT(c0 < Q, "panic!");
-      uint32_t
-      c1 =
-        (uint32_t)/* c1TimesTwiddle = ((c1 * (Zeta^BitRev(k) * R)) / R) % Q = ((f(start + j + len) * (Zeta^BitRev(k) * R)) / R) mod Q = (f(start + j + len) * Zeta^BitRev(k)) mod Q c1 = (f(start + j) - f(start + j + len) * Zeta^BitRev(k)) mod Q c0 = (f(start + j) + f(start + j + len) * Zeta^BitRev(k)) mod Q */
-          pe_src
-        [start + j + len];
+      /* c1TimesTwiddle = ((c1 * (Zeta^BitRev(k) * R)) / R) % Q
+                       = ((f(start + j + len) * (Zeta^BitRev(k) * R)) / R) mod Q
+                       = (f(start + j + len) * Zeta^BitRev(k)) mod Q
+        c1 = (f(start + j) - f(start + j + len) * Zeta^BitRev(k)) mod Q
+        c0 = (f(start + j) + f(start + j + len) * Zeta^BitRev(k)) mod Q
+        c1 = (f(start + j) - f(start + j + len) * Zeta^BitRev(k)) mod Q
+        c1TimesTwiddle = ((c1 * (Zeta^BitRev(k) * R)) / R) % Q
+                       = ((f(start + j + len) * (Zeta^BitRev(k) * R)) / R) mod Q
+                       = (f(start + j + len) * Zeta^BitRev(k)) mod Q
+        c1 = (f(start + j) - f(start + j + len) * Zeta^BitRev(k)) mod Q
+        c0 = (f(start + j) + f(start + j + len) * Zeta^BitRev(k)) mod Q
+        c0 = (f(start + j) + f(start + j + len) * Zeta^BitRev(k)) mod Q
+        c1TimesTwiddle = ((c1 * (Zeta^BitRev(k) * R)) / R) % Q
+                       = ((f(start + j + len) * (Zeta^BitRev(k) * R)) / R) mod Q
+                       = (f(start + j + len) * Zeta^BitRev(k)) mod Q
+        c1 = (f(start + j) - f(start + j + len) * Zeta^BitRev(k)) mod Q
+        c0 = (f(start + j) + f(start + j + len) * Zeta^BitRev(k)) mod Q */
+      uint32_t c1 = (uint32_t)pe_src[start + j + len];
       EURYDICE_ASSERT(c1 < Q, "panic!");
       uint32_t c1_times_twiddle = mont_mul(c1, twiddle_factor, twiddle_factor_mont);
       c1 = mod_sub(c0, c1_times_twiddle);
-      c0 =
-        mod_add(/* c1 = (f(start + j) - f(start + j + len) * Zeta^BitRev(k)) mod Q */ c0 ,
-          c1_times_twiddle);
-      /* c1TimesTwiddle = ((c1 * (Zeta^BitRev(k) * R)) / R) % Q = ((f(start + j + len) * (Zeta^BitRev(k) * R)) / R) mod Q = (f(start + j + len) * Zeta^BitRev(k)) mod Q c1 = (f(start + j) - f(start + j + len) * Zeta^BitRev(k)) mod Q c0 = (f(start + j) + f(start + j + len) * Zeta^BitRev(k)) mod Q */
-        pe_src
-      [start + j]
-      = (uint16_t)/* c0 = (f(start + j) + f(start + j + len) * Zeta^BitRev(k)) mod Q */ c0 ;
-      /* c1TimesTwiddle = ((c1 * (Zeta^BitRev(k) * R)) / R) % Q = ((f(start + j + len) * (Zeta^BitRev(k) * R)) / R) mod Q = (f(start + j + len) * Zeta^BitRev(k)) mod Q c1 = (f(start + j) - f(start + j + len) * Zeta^BitRev(k)) mod Q c0 = (f(start + j) + f(start + j + len) * Zeta^BitRev(k)) mod Q */
-        pe_src
-      [start + j + len]
-      = (uint16_t)c1;
+      c0 = mod_add(c0, c1_times_twiddle);
+      pe_src[start + j] = (uint16_t)c0;
+      pe_src[start + j + len] = (uint16_t)c1;
     }
   }
 }
@@ -664,51 +671,49 @@ poly_element_mul_and_accumulate(uint16_t *pe_src1, uint16_t *pe_src2, uint32_t *
   for (size_t i = (size_t)0U; i < SYMCRUST_KEY_MLWE_POLYNOMIAL_COEFFICIENTS / (size_t)2U; i++)
   {
     uint32_t a0 = (uint32_t)pe_src1[(size_t)2U * i];
-    uint32_t a1 = (uint32_t)pe_src1[(size_t)2U * /* debug_assert!( a0 < Q ); */ i  + (size_t)1U];
-    uint32_t b0 = (uint32_t)pe_src2[(size_t)2U * /* debug_assert!( a1 < Q ); */ i ];
-    uint32_t b1 = (uint32_t)pe_src2[(size_t)2U * /* debug_assert!( b0 < Q ); */ i  + (size_t)1U];
-    uint32_t c0 = pa_dst[(size_t)2U * /* debug_assert!( b1 < Q ); */ i ];
-    uint32_t
-    c1 =
-      pa_dst[(size_t)2U * /* debug_assert!( c0 <= 3*((3328*3328) + (3494*3312)) ); */ i  +
-        (size_t)1U];
-    uint32_t
-    a0b0 =
-      /* debug_assert!( c1 <= 3*((3328*3328) + (3494*3312)) ); multiplication results in range [0, 3328*3328] */
-        a0
-
-      * b0;
+    /* debug_assert!( a0 < Q ); */
+    uint32_t a1 = (uint32_t)pe_src1[(size_t)2U * i + (size_t)1U];
+    /* debug_assert!( a1 < Q ); */
+    uint32_t b0 = (uint32_t)pe_src2[(size_t)2U * i];
+    /* debug_assert!( b0 < Q ); */
+    uint32_t b1 = (uint32_t)pe_src2[(size_t)2U * i + (size_t)1U];
+    /* debug_assert!( b1 < Q ); */
+    uint32_t c0 = pa_dst[(size_t)2U * i];
+    /* debug_assert!( c0 <= 3*((3328*3328) + (3494*3312)) ); */
+    uint32_t c1 = pa_dst[(size_t)2U * i + (size_t)1U];
+    /* debug_assert!( c1 <= 3*((3328*3328) + (3494*3312)) );
+      multiplication results in range [0, 3328*3328] */
+    uint32_t a0b0 = a0 * b0;
     uint32_t a1b1 = a1 * b1;
     uint32_t a0b1 = a0 * b1;
     uint32_t a1b0 = a1 * b0;
-    uint32_t
-    inv =
-      core_num__u32__wrapping_mul(/* we need a1*b1*zetaTwoTimesBitRevPlus1TimesR[i] eagerly reduce a1*b1 with montgomery reduction a1b1 = red(a1*b1) -> range [0,3494] (3494 is maximum result of first step of montgomery reduction of x*y for x,y in [0,3328]) we do not need to do final reduction yet */
-          a1b1
-        ,
-        NEG_Q_INV_MOD_R)
-      & RMASK;
-    uint32_t
-    a1b10 = (/* inv = (a1*b1 * (-Q^(-1) mod R)) % R */ a1b1  + inv * Q) >> (uint32_t)RLOG2;
-    uint32_t
-    a1b1zetapow =
-      /* a1b1 = (a1*b1 + a1*b1 * (-Q^(-1) mod R) * Q) / R = (a1*b1 * R^-1) mod Q debug_assert!( a1b1 <= 3494 ); now multiply a1b1 by power of zeta */
-        a1b10
-
-      * (uint32_t)ZETA_TO_TIMES_BIT_REV_PLUS_1_TIMES_R[i];
-    a0b0 =
-      a0b0 +
-        /* a1b1zetapow = (a1*b1 * R^-1) * (Zeta^(2*BitRev(i) + 1) * R) mod Q = a1*b1 * Zeta^(2*BitRev(i) + 1) mod Q sum pairs of products */
-          a1b1zetapow
-        ;
-    a0b1 = a0b1 + /* debug_assert!( a0b0 <= (3328*3328) + (3494*3312) ); */ a1b0 ;
-    c0 =
-      c0 +
-        /* debug_assert!( a0b1 <= 2*3328*3328 ); We sum at most 4 pairs of products into an accumulator in ML-KEM debug_assert!( MATRIX_MAX_NROWS <= 4 ); */
-          a0b0
-        ;
-    c1 = c1 + /* debug_assert!( c0 < (4*3328*3328) + (4*3494*3312) ); */ a0b1 ;
-    pa_dst[(size_t)2U * i] = /* debug_assert!( c1 < (5*3328*3328) + (3*3494*3312) ); */ c0 ;
+    /* we need a1*b1*zetaTwoTimesBitRevPlus1TimesR[i]
+      eagerly reduce a1*b1 with montgomery reduction
+      a1b1 = red(a1*b1) -> range [0,3494]
+        (3494 is maximum result of first step of montgomery reduction of x*y for x,y in [0,3328])
+      we do not need to do final reduction yet */
+    uint32_t inv = core_num__u32__wrapping_mul(a1b1, NEG_Q_INV_MOD_R) & RMASK;
+    /* inv = (a1*b1 * (-Q^(-1) mod R)) % R */
+    uint32_t a1b10 = (a1b1 + inv * Q) >> (uint32_t)RLOG2;
+    /* a1b1 = (a1*b1 + a1*b1 * (-Q^(-1) mod R) * Q) / R
+           = (a1*b1 * R^-1) mod Q
+      debug_assert!( a1b1 <= 3494 );
+      now multiply a1b1 by power of zeta */
+    uint32_t a1b1zetapow = a1b10 * (uint32_t)ZETA_TO_TIMES_BIT_REV_PLUS_1_TIMES_R[i];
+    /* a1b1zetapow = (a1*b1 * R^-1) * (Zeta^(2*BitRev(i) + 1) * R) mod Q
+                  = a1*b1 * Zeta^(2*BitRev(i) + 1) mod Q
+      sum pairs of products */
+    a0b0 = a0b0 + a1b1zetapow;
+    /* debug_assert!( a0b0 <= (3328*3328) + (3494*3312) ); */
+    a0b1 = a0b1 + a1b0;
+    /* debug_assert!( a0b1 <= 2*3328*3328 );
+      We sum at most 4 pairs of products into an accumulator in ML-KEM
+      debug_assert!( MATRIX_MAX_NROWS <= 4 ); */
+    c0 = c0 + a0b0;
+    /* debug_assert!( c0 < (4*3328*3328) + (4*3494*3312) ); */
+    c1 = c1 + a0b1;
+    /* debug_assert!( c1 < (5*3328*3328) + (3*3494*3312) ); */
+    pa_dst[(size_t)2U * i] = c0;
     pa_dst[(size_t)2U * i + (size_t)1U] = c1;
   }
 }
@@ -722,31 +727,25 @@ montgomery_reduce_and_add_poly_element_accumulator_to_poly_element(
   for (size_t i = (size_t)0U; i < SYMCRUST_KEY_MLWE_POLYNOMIAL_COEFFICIENTS; i++)
   {
     uint32_t a = pa_src[i];
-    pa_src[/* debug_assert!( a <= 4*((3328*3328) + (3494*3312)) ); */ i ] = 0U;
+    /* debug_assert!( a <= 4*((3328*3328) + (3494*3312)) ); */
+    pa_src[i] = 0U;
+    /* debug_assert!( c < Q );
+      montgomery reduce sum of products
+      debug_assert!( a <= 4711 );
+      add destination
+      debug_assert!( c <= 8039 );
+      subtraction and conditional additions for constant time range reduction
+      debug_assert!( (c >= ((-2*(Q as i32)) as u32)) || (c < 1381) );
+      debug_assert!( (c >= ((-(Q as i32) as u32))) || (c < Q) );
+      debug_assert!( c < Q ); */
     uint32_t c = (uint32_t)pe_dst[i];
-    uint32_t
-    inv =
-      core_num__u32__wrapping_mul(/* debug_assert!( c < Q ); montgomery reduce sum of products */ a ,
-        NEG_Q_INV_MOD_R)
-      & RMASK;
+    uint32_t inv = core_num__u32__wrapping_mul(a, NEG_Q_INV_MOD_R) & RMASK;
     a = (a + inv * Q) >> (uint32_t)RLOG2;
-    c = c + /* debug_assert!( a <= 4711 ); add destination */ a ;
-    c =
-      core_num__u32__wrapping_sub(/* debug_assert!( c <= 8039 ); subtraction and conditional additions for constant time range reduction */
-          c
-        ,
-        2U * Q);
-    c =
-      core_num__u32__wrapping_add(/* debug_assert!( (c >= ((-2*(Q as i32)) as u32)) || (c < 1381) ); */
-          c
-        ,
-        Q & c >> 16U);
-    c =
-      core_num__u32__wrapping_add(/* debug_assert!( (c >= ((-(Q as i32) as u32))) || (c < Q) ); */
-          c
-        ,
-        Q & c >> 16U);
-    pe_dst[i] = (uint16_t)/* debug_assert!( c < Q ); */ c ;
+    c = c + a;
+    c = core_num__u32__wrapping_sub(c, 2U * Q);
+    c = core_num__u32__wrapping_add(c, Q & c >> 16U);
+    c = core_num__u32__wrapping_add(c, Q & c >> 16U);
+    pe_dst[i] = (uint16_t)c;
   }
 }
 
@@ -786,9 +785,10 @@ vector_mont_dot_product(
   EURYDICE_ASSERT(n_rows > (size_t)0U, "panic!");
   EURYDICE_ASSERT(n_rows <= MATRIX_MAX_NROWS, "panic!");
   EURYDICE_ASSERT(Eurydice_slice_len(pv_src2, uint16_t [256U]) == n_rows, "panic!");
-  symcrust_common_wipe_slice_df(Eurydice_array_to_slice((size_t)256U,
-      /* Zero pa_tmp and pe_dst */ pa_tmp ,
-      uint32_t));
+  /* Zero pa_tmp and pe_dst */
+  /* Zero pa_tmp and pe_dst */
+    symcrust_common_wipe_slice_df(Eurydice_array_to_slice((size_t)256U, pa_tmp, uint32_t))
+  ;
   symcrust_common_wipe_slice_de(Eurydice_array_to_slice((size_t)256U, pe_dst, uint16_t));
   for (size_t i = (size_t)0U; i < n_rows; i++)
   {
@@ -799,10 +799,11 @@ vector_mont_dot_product(
       Eurydice_slice_index(pv_src2, i, uint16_t [256U], uint16_t (*)[256U]),
       pa_tmp);
   }
-  montgomery_reduce_and_add_poly_element_accumulator_to_poly_element(/* write accumulator to dest and zero accumulator */
-      pa_tmp
-    ,
-    pe_dst);
+  /* write accumulator to dest and zero accumulator */
+  /* write accumulator to dest and zero accumulator */
+    montgomery_reduce_and_add_poly_element_accumulator_to_poly_element(pa_tmp,
+      pe_dst)
+  ;
 }
 
 static void poly_element_intt_layer_c(uint16_t *pe_src, size_t k, size_t len)
@@ -810,11 +811,8 @@ static void poly_element_intt_layer_c(uint16_t *pe_src, size_t k, size_t len)
   for (size_t start = (size_t)0U; start < (size_t)256U; start = start + (size_t)2U * len)
   {
     uint32_t twiddle_factor = (uint32_t)ZETA_BIT_REV_TIMES_R[k];
-    uint32_t
-    twiddle_factor_mont =
-      (uint32_t)/* twiddleFactor = (Zeta^BitRev(k) * R) mod Q */
-        ZETA_BIT_REV_TIMES_R_TIMES_NEG_Q_INV_MOD_R
-      [k];
+    /* twiddleFactor = (Zeta^BitRev(k) * R) mod Q */
+    uint32_t twiddle_factor_mont = (uint32_t)ZETA_BIT_REV_TIMES_R_TIMES_NEG_Q_INV_MOD_R[k];
     k--;
     for (size_t j = (size_t)0U; j < len; j++)
     {
@@ -876,33 +874,20 @@ static void poly_element_sub(uint16_t *pe_src1, uint16_t *pe_src2, uint16_t *pe_
 static KRML_MUSTINLINE uint32_t
 compress_coefficient(uint32_t n_bits_per_coefficient, uint32_t coefficient)
 {
-  if
-  (
-    /* When n_bits_per_coefficient < 12 we compress per Compress_d in draft FIPS 203 */
-      n_bits_per_coefficient
-
-    < 12U
-  )
+  /* When n_bits_per_coefficient < 12 we compress per Compress_d in draft FIPS 203 */
+  if (n_bits_per_coefficient < 12U)
   {
-    uint64_t
-    multiplication =
-      (uint64_t)/* Multiply by 2^(n_bits_per_coefficient+1) / Q by multiplying by constant and shifting right */
-        coefficient
-
-      * (uint64_t)COMPRESS_MULCONSTANT;
+    /* Multiply by 2^(n_bits_per_coefficient+1) / Q by multiplying by constant and shifting right */
+    uint64_t multiplication = (uint64_t)coefficient * (uint64_t)COMPRESS_MULCONSTANT;
     coefficient =
       (uint32_t)(multiplication >>
         (uint32_t)(COMPRESS_SHIFTCONSTANT - (n_bits_per_coefficient + 1U)));
     coefficient++;
     /* final divide by two to get multiplication by 2^n_bits_per_coefficient / Q */
     coefficient = coefficient >> 1U;
-    coefficient =
-      coefficient &
-        ((1U <<
-          (uint32_t)/* assert!(coefficient <= (1<<n_bits_per_coefficient)); modular reduction by masking */
-            n_bits_per_coefficient
-          )
-        - 1U);
+    /* assert!(coefficient <= (1<<n_bits_per_coefficient));
+      modular reduction by masking */
+    coefficient = coefficient & ((1U << (uint32_t)n_bits_per_coefficient) - 1U);
   }
   return coefficient;
 }
@@ -917,17 +902,16 @@ encode_coefficient(
   uint32_t *n_bits_in_accumulator
 )
 {
-  uint32_t
-  n_bits_to_encode =
-    min(/* Note that the number of bits to encode is <= 12 while the accumulator has 32 bits, which means that if the accumulator is full, we only need to flush it once before encoding the remaining bits. */
-        n_bits_in_coefficient
-      ,
-      32U - n_bits_in_accumulator[0U]);
+  /* Note that the number of bits to encode is <= 12 while the accumulator has 32 bits,
+    which means that if the accumulator is full, we only need to flush it once before
+    encoding the remaining bits. */
+  uint32_t n_bits_to_encode = min(n_bits_in_coefficient, 32U - n_bits_in_accumulator[0U]);
   uint32_t bits_to_encode = coefficient & ((1U << (uint32_t)n_bits_to_encode) - 1U);
   n_bits_in_coefficient = n_bits_in_coefficient - n_bits_to_encode;
   accumulator[0U] = accumulator[0U] | bits_to_encode << (uint32_t)n_bits_in_accumulator[0U];
   n_bits_in_accumulator[0U] = n_bits_in_accumulator[0U] + n_bits_to_encode;
-  if (/* Flush the accumulator, if necessary */ n_bits_in_accumulator[0U]  == 32U)
+  /* Flush the accumulator, if necessary */
+  if (n_bits_in_accumulator[0U] == 32U)
   {
     Eurydice_slice
     uu____0 =
@@ -939,8 +923,8 @@ encode_coefficient(
     core_num__u32__to_le_bytes(accumulator[0U], ret);
     Eurydice_slice_copy(uu____0, Eurydice_array_to_slice((size_t)4U, ret, uint8_t), uint8_t);
     cb_dst_written[0U] = cb_dst_written[0U] + (size_t)4U;
-    accumulator[0U] =
-      /* Encode the remaining bits, if there are */ coefficient  >> (uint32_t)n_bits_to_encode;
+    /* Encode the remaining bits, if there are */
+    accumulator[0U] = coefficient >> (uint32_t)n_bits_to_encode;
     n_bits_in_accumulator[0U] = n_bits_in_coefficient;
   }
 }
@@ -961,11 +945,10 @@ poly_element_compress_and_encode(
   {
     uint32_t coefficient = (uint32_t)pe_src[i];
     EURYDICE_ASSERT(coefficient < Q, "panic!");
-    uint32_t
-    coefficient0 =
-      compress_coefficient(/* First compress the coefficient. */ n_bits_per_coefficient ,
-        coefficient);
-    encode_coefficient(/* Encode the coefficient. */ coefficient0 ,
+    /* First compress the coefficient.
+      Encode the coefficient. */
+    uint32_t coefficient0 = compress_coefficient(n_bits_per_coefficient, coefficient);
+    encode_coefficient(coefficient0,
       n_bits_per_coefficient,
       pb_dst,
       &cb_dst_written,
@@ -990,27 +973,25 @@ poly_element_sample_cbd_from_bytes(Eurydice_slice pb_src, uint32_t eta, uint16_t
     for (size_t i = (size_t)0U; i < SYMCRUST_KEY_MLWE_POLYNOMIAL_COEFFICIENTS; i = i + (size_t)8U)
     {
       uint8_t ret[4U];
-      symcrust_ntt_slice_to_sub_array((size_t)4U,
-        /* unconditionally load 4 bytes (32-bits -> 8 coefficients) into sample_bits */ pb_src ,
-        src_i,
-        ret,
-        void *);
+      /* unconditionally load 4 bytes (32-bits -> 8 coefficients) into sample_bits */
+      /* unconditionally load 4 bytes (32-bits -> 8 coefficients) into sample_bits */
+        symcrust_ntt_slice_to_sub_array((size_t)4U,
+          pb_src,
+          src_i,
+          ret,
+          void *)
+      ;
       uint32_t sample_bits = core_num__u32__from_le_bytes(ret);
       src_i = src_i + (size_t)4U;
-      sample_bits =
-        (/* sum bit samples - each consecutive slice of eta bits is summed together */ sample_bits
-        & 1431655765U)
-        + (sample_bits >> 1U & 1431655765U);
+      sample_bits = (sample_bits & 1431655765U) + (sample_bits >> 1U & 1431655765U);
       KRML_MAYBE_FOR8(j,
         (size_t)0U,
         (size_t)8U,
         (size_t)1U,
-        uint32_t
-        coefficient =
-          /* each coefficient is formed by taking the difference of two consecutive slices of eta bits the first eta bits are positive, the second eta bits are negative */
-            sample_bits
-
-          & 15U;
+        /* sum bit samples - each consecutive slice of eta bits is summed together
+          each coefficient is formed by taking the difference of two consecutive slices of eta bits
+          the first eta bits are positive, the second eta bits are negative */
+        uint32_t coefficient = sample_bits & 15U;
         sample_bits = sample_bits >> 4U;
         coefficient = core_num__u32__wrapping_sub(coefficient & 3U, coefficient >> 2U);
         if (!(coefficient >= (uint32_t)(int32_t)-2))
@@ -1019,10 +1000,9 @@ poly_element_sample_cbd_from_bytes(Eurydice_slice pb_src, uint32_t eta, uint16_t
         }
         coefficient = core_num__u32__wrapping_add(coefficient, Q & coefficient >> 16U);
         EURYDICE_ASSERT(coefficient < Q, "panic!");
-        /* each coefficient is formed by taking the difference of two consecutive slices of eta bits the first eta bits are positive, the second eta bits are negative */
-          pe_dst
-        [i + j]
-        = (uint16_t)coefficient;);
+        /* each coefficient is formed by taking the difference of two consecutive slices of eta bits
+          the first eta bits are positive, the second eta bits are negative */
+        pe_dst[i + j] = (uint16_t)coefficient;);
     }
     return;
   }
@@ -1038,12 +1018,9 @@ poly_element_sample_cbd_from_bytes(Eurydice_slice pb_src, uint32_t eta, uint16_t
       (size_t)0U,
       (size_t)4U,
       (size_t)1U,
-      uint32_t
-      coefficient =
-        /* each coefficient is formed by taking the difference of two consecutive slices of eta bits the first eta bits are positive, the second eta bits are negative */
-          sample_bits
-
-        & 63U;
+      /* each coefficient is formed by taking the difference of two consecutive slices of eta bits
+        the first eta bits are positive, the second eta bits are negative */
+      uint32_t coefficient = sample_bits & 63U;
       sample_bits = sample_bits >> 6U;
       coefficient = core_num__u32__wrapping_sub(coefficient & 3U, coefficient >> 3U);
       if (!(coefficient >= (uint32_t)(int32_t)-3))
@@ -1103,32 +1080,36 @@ matrix_vector_mont_mul_and_add(
   size_t n_rows0 = (size_t)n_rows;
   EURYDICE_ASSERT(n_rows0 > (size_t)0U, "panic!");
   EURYDICE_ASSERT(n_rows0 <= MATRIX_MAX_NROWS, "panic!");
-  /* original Rust expression is not an lvalue in C */
   size_t lvalue = Eurydice_slice_len(pv_src2, uint16_t [256U]);
   _size_t__x2 uu____0 = { .fst = &lvalue, .snd = &n_rows0 };
   EURYDICE_ASSERT(uu____0.fst[0U] == uu____0.snd[0U], "panic!");
-  /* original Rust expression is not an lvalue in C */
   size_t lvalue0 = Eurydice_slice_len(pv_dst, uint16_t [256U]);
   _size_t__x2 uu____1 = { .fst = &lvalue0, .snd = &n_rows0 };
   EURYDICE_ASSERT(uu____1.fst[0U] == uu____1.snd[0U], "panic!");
-  symcrust_common_wipe_slice_df(Eurydice_array_to_slice((size_t)256U,
-      /* Zero pa_tmp */ pa_tmp ,
-      uint32_t));
+  symcrust_common_wipe_slice_df(Eurydice_array_to_slice((size_t)256U, pa_tmp, uint32_t));
   for (size_t i = (size_t)0U; i < n_rows0; i++)
   {
     for (size_t j = (size_t)0U; j < n_rows0; j++)
     {
-      poly_element_mul_and_accumulate_aux(pm_src1,
-        n_rows0,
-        i,
-        j,
-        Eurydice_slice_index(pv_src2, j, uint16_t [256U], uint16_t (*)[256U]),
-        pa_tmp);
+      /* original Rust expression is not an lvalue in C
+        original Rust expression is not an lvalue in C
+        Zero pa_tmp */
+      /* original Rust expression is not an lvalue in C
+        original Rust expression is not an lvalue in C
+        Zero pa_tmp */
+        poly_element_mul_and_accumulate_aux(pm_src1,
+          n_rows0,
+          i,
+          j,
+          Eurydice_slice_index(pv_src2, j, uint16_t [256U], uint16_t (*)[256U]),
+          pa_tmp)
+      ;
     }
-    montgomery_reduce_and_add_poly_element_accumulator_to_poly_element(/* write accumulator to dest and zero accumulator */
-        pa_tmp
-      ,
-      Eurydice_slice_index(pv_dst, i, uint16_t [256U], uint16_t (*)[256U]));
+    /* write accumulator to dest and zero accumulator */
+    /* write accumulator to dest and zero accumulator */
+      montgomery_reduce_and_add_poly_element_accumulator_to_poly_element(pa_tmp,
+        Eurydice_slice_index(pv_dst, i, uint16_t [256U], uint16_t (*)[256U]))
+    ;
   }
 }
 
@@ -1173,13 +1154,11 @@ vector_compress_and_encode(
     "panic!");
   for (size_t i = (size_t)0U; i < n_rows; i++)
   {
+    /* Note (Rust): had to change this to do range computation as opposed to in-place pointer
+      increment */
     size_t
     pb_dst_index =
-      /* Note (Rust): had to change this to do range computation as opposed to in-place pointer increment */
-        i
-
-      * (size_t)n_bits_per_coefficient
-      * (SYMCRUST_KEY_MLWE_POLYNOMIAL_COEFFICIENTS / (size_t)8U);
+      i * (size_t)n_bits_per_coefficient * (SYMCRUST_KEY_MLWE_POLYNOMIAL_COEFFICIENTS / (size_t)8U);
     poly_element_compress_and_encode(Eurydice_slice_index(pv_src,
         i,
         uint16_t [256U],
@@ -1222,25 +1201,29 @@ symcrust_mlkem_encapsulate_internal(
   size_t cb_agreed_secret = Eurydice_slice_len(pb_agreed_secret, uint8_t);
   size_t cb_ciphertext = Eurydice_slice_len(pb_ciphertext, uint8_t);
   uint8_t cbd_sample_buffer[193U] = { 0U };
-  /* ERROR sc_error = NO_ERROR; PVECTOR pvr_inner; PVECTOR pv_tmp; PPOLYELEMENT pe_tmp0, pe_tmp1; PPOLYELEMENT_ACCUMULATOR pa_tmp; PSHA3_512_STATE pHashState = &p_comp_temps->hash_state0.sha3_512State; PSHAKE256_STATE pShakeBaseState = &p_comp_temps->hash_state0.shake256State; PSHAKE256_STATE pShakeWorkState = &p_comp_temps->hash_state1.shake256State; SIZE_T cb_u, cb_v; UINT32 i; */
+  /* ERROR sc_error = NO_ERROR;
+    PVECTOR pvr_inner;
+    PVECTOR pv_tmp;
+    PPOLYELEMENT pe_tmp0, pe_tmp1;
+    PPOLYELEMENT_ACCUMULATOR pa_tmp;
+    PSHA3_512_STATE pHashState = &p_comp_temps->hash_state0.sha3_512State;
+    PSHAKE256_STATE pShakeBaseState = &p_comp_temps->hash_state0.shake256State;
+    PSHAKE256_STATE pShakeWorkState = &p_comp_temps->hash_state1.shake256State;
+    SIZE_T cb_u, cb_v;
+    UINT32 i; */
   uint8_t n_rows = pk_mlkem_key.ptr->header.params.n_rows;
   uint8_t n_bits_of_u = pk_mlkem_key.ptr->header.params.n_bits_of_u;
   uint8_t n_bits_of_v = pk_mlkem_key.ptr->header.params.n_bits_of_v;
   uint8_t n_eta1 = pk_mlkem_key.ptr->header.params.n_eta1;
   uint8_t n_eta2 = pk_mlkem_key.ptr->header.params.n_eta2;
+  /* let cbPolyElement = pk_mlkem_key->params.cbPolyElement;
+    let cb_vector = pk_mlkem_key->params.cb_vector;
+    u vector encoded with n_bits_of_u * MLWE_POLYNOMIAL_COEFFICIENTS bits per polynomial */
   size_t
   cb_u =
-    (size_t)/* let cbPolyElement = pk_mlkem_key->params.cbPolyElement; let cb_vector = pk_mlkem_key->params.cb_vector; u vector encoded with n_bits_of_u * MLWE_POLYNOMIAL_COEFFICIENTS bits per polynomial */
-      n_rows
-
-    * (size_t)n_bits_of_u
-    * (SYMCRUST_KEY_MLWE_POLYNOMIAL_COEFFICIENTS / (size_t)8U);
-  size_t
-  cb_v =
-    (size_t)/* v polynomial encoded with n_bits_of_v * MLWE_POLYNOMIAL_COEFFICIENTS bits */
-      n_bits_of_v
-
-    * (SYMCRUST_KEY_MLWE_POLYNOMIAL_COEFFICIENTS / (size_t)8U);
+    (size_t)n_rows * (size_t)n_bits_of_u * (SYMCRUST_KEY_MLWE_POLYNOMIAL_COEFFICIENTS / (size_t)8U);
+  /* v polynomial encoded with n_bits_of_v * MLWE_POLYNOMIAL_COEFFICIENTS bits */
+  size_t cb_v = (size_t)n_bits_of_v * (SYMCRUST_KEY_MLWE_POLYNOMIAL_COEFFICIENTS / (size_t)8U);
   if (!(cb_agreed_secret != SYMCRUST_MLKEM_SIZEOF_AGREED_SECRET))
   {
     if (!(cb_ciphertext != cb_u + cb_v))
@@ -1260,18 +1243,28 @@ symcrust_mlkem_encapsulate_internal(
       uint16_t *pe_tmp0 = p_comp_temps->ab_poly_element_buffer0;
       uint16_t *pe_tmp1 = p_comp_temps->ab_poly_element_buffer1;
       uint32_t *pa_tmp = p_comp_temps->ab_poly_element_accumulator_buffer;
-      symcrust_hash_sha3_512_init(/* cbd_sample_buffer = (K || rOuter) = SHA3-512(pb_random || encapsKeyHash) */
-          &p_comp_temps->hash_state0
-        );
+      /* cbd_sample_buffer = (K || rOuter) = SHA3-512(pb_random || encapsKeyHash) */
+      /* cbd_sample_buffer = (K || rOuter) = SHA3-512(pb_random || encapsKeyHash) */
+        symcrust_hash_sha3_512_init(&p_comp_temps->hash_state0)
+      ;
       symcrust_hash_sha3_512_append(&p_comp_temps->hash_state0,
         Eurydice_array_to_slice((size_t)32U, pb_random, uint8_t));
       symcrust_hash_sha3_512_append(&p_comp_temps->hash_state0,
         Eurydice_array_to_slice((size_t)32U, pk_mlkem_key.ptr->header.encaps_key_hash, uint8_t));
-      symcrust_hash_HashState
-      *uu____0 =
-        /* Note (Rust): should we have a type that is less strict for the output of sha3_512_result? Note (Rust): no debug_assert!(SIZEOF_AGREED_SECRET < SHA3_512_RESULT_SIZE)? */
-          &p_comp_temps->hash_state0
-        ;
+      /* pv_tmp = u = INTT(Atranspose o rInner) + e1
+        Compress and encode u into prefix of ciphertext
+        pe_tmp0 = (t o r) ./ R
+        pe_tmp0 = INTT(t o r)
+        Expand e2 polynomial in pe_tmp1
+        peTmp = INTT(t o r) + e2
+        Note (Rust): in-place operation, was:
+        PolyElementAdd( pe_tmp0, pe_tmp1, pe_tmp0 );
+        FIXME (measure performance issues, adjust)
+        pe_tmp1 = mu
+        pe_tmp0 = v = INTT(t o r) + e2 + mu
+        FIXME (same as above)
+        Compress and encode v into remainder of ciphertext */
+      symcrust_hash_HashState *uu____0 = &p_comp_temps->hash_state0;
       symcrust_hash_sha3_512_result(uu____0,
         unwrap_41_55(Eurydice_slice_to_ref_array((size_t)64U,
             Eurydice_array_to_subslice3(cbd_sample_buffer,
@@ -1282,9 +1275,7 @@ symcrust_mlkem_encapsulate_internal(
             uint8_t *,
             core_array_TryFromSliceError,
             core_result_Result_a0)));
-      Eurydice_slice_copy(Eurydice_slice_subslice3(/* Write K to pb_agreed_secret */
-            pb_agreed_secret
-          ,
+      Eurydice_slice_copy(Eurydice_slice_subslice3(pb_agreed_secret,
           (size_t)0U,
           SYMCRUST_MLKEM_SIZEOF_AGREED_SECRET,
           uint8_t *),
@@ -1293,9 +1284,7 @@ symcrust_mlkem_encapsulate_internal(
           SYMCRUST_MLKEM_SIZEOF_AGREED_SECRET,
           uint8_t *),
         uint8_t);
-      symcrust_hash_shake256_init(/* Initialize p_shake_stateBase with rOuter */
-          &p_comp_temps->hash_state0
-        );
+      symcrust_hash_shake256_init(&p_comp_temps->hash_state0);
       symcrust_hash_shake256_append(&p_comp_temps->hash_state0,
         Eurydice_array_to_subslice3(cbd_sample_buffer,
           cb_agreed_secret,
@@ -1303,6 +1292,10 @@ symcrust_mlkem_encapsulate_internal(
           uint8_t *));
       for (uint8_t i = 0U; i < n_rows; i = (uint32_t)i + 1U)
       {
+        /* Note (Rust): should we have a type that is less strict for the output of sha3_512_result?
+          Note (Rust): no debug_assert!(SIZEOF_AGREED_SECRET < SHA3_512_RESULT_SIZE)?
+          Write K to pb_agreed_secret
+          Initialize p_shake_stateBase with rOuter */
         cbd_sample_buffer[0U] = i;
         symcrust_hash_shake256_state_copy(&p_comp_temps->hash_state0, &p_comp_temps->hash_state1);
         symcrust_hash_shake256_append(&p_comp_temps->hash_state1,
@@ -1319,20 +1312,23 @@ symcrust_mlkem_encapsulate_internal(
           (uint32_t)n_eta1,
           Eurydice_slice_index(pvr_inner, (size_t)i, uint16_t [256U], uint16_t (*)[256U]));
       }
-      vector_ntt(/* Perform NTT on rInner */ pvr_inner );
-      vector_set_zero(/* Set pv_tmp to 0 TODO: write a helper function -- any way to do this better? */
-          pv_tmp
-        );
-      matrix_vector_mont_mul_and_add(symcrust_key_atranspose_mut_fd(/* pv_tmp.copy_from_slice(&vec![POLYELEMENT_ZERO; n_rows as usize].into_boxed_slice()); VectorSetZero( pv_tmp ); pv_tmp = (Atranspose o rInner) ./ R */
-            pk_mlkem_key
-          ),
+      vector_ntt(pvr_inner);
+      vector_set_zero(pv_tmp);
+      matrix_vector_mont_mul_and_add(symcrust_key_atranspose_mut_fd(pk_mlkem_key),
         pvr_inner,
         pv_tmp,
         pa_tmp,
         n_rows);
-      vector_intt_and_mul_r(/* pv_tmp = INTT(Atranspose o rInner) */ pv_tmp );
+      vector_intt_and_mul_r(pv_tmp);
       for (uint8_t i = 0U; i < n_rows; i = (uint32_t)i + 1U)
       {
+        /* Perform NTT on rInner
+          Set pv_tmp to 0
+          TODO: write a helper function -- any way to do this better?
+          pv_tmp.copy_from_slice(&vec![POLYELEMENT_ZERO; n_rows as usize].into_boxed_slice());
+          VectorSetZero( pv_tmp );
+          pv_tmp = (Atranspose o rInner) ./ R
+          pv_tmp = INTT(Atranspose o rInner) */
         cbd_sample_buffer[0U] = (uint32_t)n_rows + (uint32_t)i;
         symcrust_hash_shake256_state_copy(&p_comp_temps->hash_state0, &p_comp_temps->hash_state1);
         symcrust_hash_shake256_append(&p_comp_temps->hash_state1,
@@ -1348,30 +1344,23 @@ symcrust_mlkem_encapsulate_internal(
             uint8_t),
           (uint32_t)n_eta2,
           pe_tmp0);
+        /* Note (Rust): in-place operation here, was:
+          PolyElementAdd( INTERNAL_MLKEM_VECTOR_ELEMENT(i, pv_tmp), pe_tmp0, INTERNAL_MLKEM_VECTOR_ELEMENT(i, pv_tmp) );
+          Added a copy -- TODO: measure performance impact of the copy */
         uint16_t copy[256U];
         memcpy(copy,
-          Eurydice_slice_index(pv_tmp,
-            (size_t)/* Note (Rust): in-place operation here, was: PolyElementAdd( INTERNAL_MLKEM_VECTOR_ELEMENT(i, pv_tmp), pe_tmp0, INTERNAL_MLKEM_VECTOR_ELEMENT(i, pv_tmp) ); Added a copy -- TODO: measure performance impact of the copy */
-              i
-            ,
-            uint16_t [256U],
-            uint16_t (*)[256U]),
+          Eurydice_slice_index(pv_tmp, (size_t)i, uint16_t [256U], uint16_t (*)[256U]),
           (size_t)256U * sizeof (uint16_t));
         poly_element_add(copy,
           pe_tmp0,
           Eurydice_slice_index(pv_tmp, (size_t)i, uint16_t [256U], uint16_t (*)[256U]));
       }
-      vector_compress_and_encode(/* pv_tmp = u = INTT(Atranspose o rInner) + e1 Compress and encode u into prefix of ciphertext */
-          pv_tmp
-        ,
+      vector_compress_and_encode(pv_tmp,
         (uint32_t)n_bits_of_u,
         Eurydice_slice_subslice3(pb_ciphertext, (size_t)0U, cb_u, uint8_t *));
-      vector_mont_dot_product(symcrust_key_t_mut_fd(/* pe_tmp0 = (t o r) ./ R */ pk_mlkem_key ),
-        pvr_inner,
-        pe_tmp0,
-        pa_tmp);
-      poly_element_intt_and_mul_r(/* pe_tmp0 = INTT(t o r) */ pe_tmp0 );
-      cbd_sample_buffer[0U] = 2U * (uint32_t)/* Expand e2 polynomial in pe_tmp1 */ n_rows ;
+      vector_mont_dot_product(symcrust_key_t_mut_fd(pk_mlkem_key), pvr_inner, pe_tmp0, pa_tmp);
+      poly_element_intt_and_mul_r(pe_tmp0);
+      cbd_sample_buffer[0U] = 2U * (uint32_t)n_rows;
       symcrust_hash_shake256_state_copy(&p_comp_temps->hash_state0, &p_comp_temps->hash_state1);
       symcrust_hash_shake256_append(&p_comp_temps->hash_state1,
         Eurydice_array_to_subslice3(cbd_sample_buffer, (size_t)0U, (size_t)1U, uint8_t *));
@@ -1387,23 +1376,19 @@ symcrust_mlkem_encapsulate_internal(
         (uint32_t)n_eta2,
         pe_tmp1);
       uint16_t copy[256U];
-      /* peTmp = INTT(t o r) + e2 Note (Rust): in-place operation, was: PolyElementAdd( pe_tmp0, pe_tmp1, pe_tmp0 ); FIXME (measure performance issues, adjust) */
       memcpy(copy, pe_tmp0, (size_t)256U * sizeof (uint16_t));
       poly_element_add(copy, pe_tmp1, pe_tmp0);
       LowStar_Ignore_ignore(poly_element_decode_and_decompress(Eurydice_array_to_slice((size_t)32U,
-            /* pe_tmp1 = mu */ pb_random ,
+            pb_random,
             uint8_t),
           1U,
           pe_tmp1),
         symcrust_common_Error,
         void *);
       uint16_t copy0[256U];
-      /* pe_tmp0 = v = INTT(t o r) + e2 + mu */
       memcpy(copy0, pe_tmp0, (size_t)256U * sizeof (uint16_t));
-      poly_element_add(/* FIXME (same as above) */ copy0 , pe_tmp1, pe_tmp0);
-      poly_element_compress_and_encode(/* Compress and encode v into remainder of ciphertext */
-          pe_tmp0
-        ,
+      poly_element_add(copy0, pe_tmp1, pe_tmp0);
+      poly_element_compress_and_encode(pe_tmp0,
         (uint32_t)n_bits_of_v,
         Eurydice_slice_subslice_from(pb_ciphertext, cb_u, uint8_t, size_t, Eurydice_derefed_slice));
       return symcrust_common_Error_NoError;
@@ -1519,12 +1504,15 @@ symcrust_mlkem_decapsulate(
     uint8_t pb_decrypted_random[32U] = { 0U };
     uint8_t pb_decapsulated_secret[32U] = { 0U };
     uint8_t pb_implicit_rejection_secret[32U] = { 0U };
-    Result_49
-    pb_comp_ciphers =
-      try_with_capacity_5d_90((size_t)2U *
-          /* PBYTE pbReadCiphertext, pbReencapsulatedCiphertext; BOOLEAN successfulReencrypt; Note (Rust): we originally perform a single call to malloc() and use the first few bytes for the temporary computations, then for the two temporary ciphertexts. Rust does not allow to do this, so we perform two allocations. Note (Rust): rather than use the (simple) solution below, which does not allow catching memory allocation failures, we instead use the experimental try_with_capacity API: let pb_comp_ciphers = vec![0u8; 2*cb_ciphertext].into_boxed_slice(); */
-            cb_ciphertext
-          );
+    /* PBYTE pbReadCiphertext, pbReencapsulatedCiphertext;
+      BOOLEAN successfulReencrypt;
+      Note (Rust): we originally perform a single call to malloc() and use the first few bytes for
+      the temporary computations, then for the two temporary ciphertexts. Rust does not allow to
+      do this, so we perform two allocations.
+      Note (Rust): rather than use the (simple) solution below, which does not allow catching
+      memory allocation failures, we instead use the experimental try_with_capacity API:
+      let pb_comp_ciphers = vec![0u8; 2*cb_ciphertext].into_boxed_slice(); */
+    Result_49 pb_comp_ciphers = try_with_capacity_5d_90((size_t)2U * cb_ciphertext);
     if (pb_comp_ciphers.tag == core_result_Ok)
     {
       Eurydice_vec pb_comp_ciphers0 = pb_comp_ciphers.val.case_Ok;
@@ -1549,34 +1537,67 @@ symcrust_mlkem_decapsulate(
           Eurydice_slice_uint8_t_x2);
       Eurydice_slice pb_read_ciphertext = uu____1.fst;
       Eurydice_slice pb_reencapsulated_ciphertext = uu____1.snd;
-      /* ERROR sc_error = NO_ERROR; SIZE_T cb_u, cb_v, cbCopy; PVECTOR pvu; PPOLYELEMENT pe_tmp0, pe_tmp1; PPOLYELEMENT_ACCUMULATOR pa_tmp; PSHAKE256_STATE p_shake_state; */
       uint8_t n_rows = pk_mlkem_key.ptr->header.params.n_rows;
       uint8_t n_bits_of_u = pk_mlkem_key.ptr->header.params.n_bits_of_u;
       uint8_t n_bits_of_v = pk_mlkem_key.ptr->header.params.n_bits_of_v;
       size_t
       cb_u =
-        (size_t)/* let cbPolyElement = pk_mlkem_key.params.cbPolyElement; let cb_vector = pk_mlkem_key.params.cb_vector; u vector encoded with n_bits_of_u * MLWE_POLYNOMIAL_COEFFICIENTS bits per polynomial */
-          n_rows
-
-        * (size_t)n_bits_of_u
-        * (SYMCRUST_KEY_MLWE_POLYNOMIAL_COEFFICIENTS / (size_t)8U);
-      size_t
-      cb_v =
-        (size_t)/* v polynomial encoded with n_bits_of_v * MLWE_POLYNOMIAL_COEFFICIENTS bits */
-          n_bits_of_v
-
-        * (SYMCRUST_KEY_MLWE_POLYNOMIAL_COEFFICIENTS / (size_t)8U);
+        (size_t)n_rows * (size_t)n_bits_of_u *
+          (SYMCRUST_KEY_MLWE_POLYNOMIAL_COEFFICIENTS / (size_t)8U);
+      size_t cb_v = (size_t)n_bits_of_v * (SYMCRUST_KEY_MLWE_POLYNOMIAL_COEFFICIENTS / (size_t)8U);
       if (!(cb_agreed_secret != SYMCRUST_MLKEM_SIZEOF_AGREED_SECRET))
       {
         if (!(cb_ciphertext != cb_u + cb_v))
         {
           if (pk_mlkem_key.ptr->header.has_private_key)
           {
-            Eurydice_slice_copy(/* Read the input ciphertext once to local pbReadCiphertext to ensure our view of ciphertext consistent */
-                pb_read_ciphertext
-              ,
-              pb_ciphertext,
-              uint8_t);
+            /*     ERROR sc_error = NO_ERROR;
+                  SIZE_T cb_u, cb_v, cbCopy;
+                  PVECTOR pvu;
+                  PPOLYELEMENT pe_tmp0, pe_tmp1;
+                  PPOLYELEMENT_ACCUMULATOR pa_tmp;
+                  PSHAKE256_STATE p_shake_state;
+              let cbPolyElement = pk_mlkem_key.params.cbPolyElement;
+              let cb_vector = pk_mlkem_key.params.cb_vector;
+              u vector encoded with n_bits_of_u * MLWE_POLYNOMIAL_COEFFICIENTS bits per polynomial
+              v polynomial encoded with n_bits_of_v * MLWE_POLYNOMIAL_COEFFICIENTS bits
+              Read the input ciphertext once to local pbReadCiphertext to ensure our view of ciphertext consistent */
+            /*     ERROR sc_error = NO_ERROR;
+                  SIZE_T cb_u, cb_v, cbCopy;
+                  PVECTOR pvu;
+                  PPOLYELEMENT pe_tmp0, pe_tmp1;
+                  PPOLYELEMENT_ACCUMULATOR pa_tmp;
+                  PSHAKE256_STATE p_shake_state;
+              let cbPolyElement = pk_mlkem_key.params.cbPolyElement;
+              let cb_vector = pk_mlkem_key.params.cb_vector;
+              u vector encoded with n_bits_of_u * MLWE_POLYNOMIAL_COEFFICIENTS bits per polynomial
+              v polynomial encoded with n_bits_of_v * MLWE_POLYNOMIAL_COEFFICIENTS bits
+              Read the input ciphertext once to local pbReadCiphertext to ensure our view of ciphertext consistent */
+              Eurydice_slice_copy(pb_read_ciphertext,
+                pb_ciphertext,
+                uint8_t)
+            ;
+            /* Decode and decompress u
+              original Rust expression is not an lvalue in C
+              Perform NTT on u
+              pe_tmp0 = (s o NTT(u)) ./ R
+              pe_tmp0 = INTT(s o NTT(u))
+              Decode and decompress v
+              original Rust expression is not an lvalue in C
+              pe_tmp0 = w = v - INTT(s o NTT(u))
+              FIXME
+              pbDecryptedRandom = m' = Encoding of w
+              Compute:
+               pbDecapsulatedSecret = K' = Decapsulated secret (without implicit rejection)
+               pbReencapsulatedCiphertext = c' = Ciphertext from re-encapsulating decrypted random value
+              original Rust expression is not an lvalue in C
+              Compute the secret we will return if using implicit rejection
+              pbImplicitRejectionSecret = K_bar = SHAKE256( z || c )
+              Constant time test if re-encryption successful
+              If not successful, perform side-channel-safe copy of Implicit Rejection secret over Decapsulated secret
+              FIXME, was:
+              SymCryptScsCopy( pbImplicitRejectionSecret, cbCopy, pbDecapsulatedSecret, SIZEOF_AGREED_SECRET );
+              Write agreed secret (with implicit rejection) to pb_agreed_secret */
             Eurydice_slice
             pvu =
               Eurydice_array_to_subslice3(p_comp_temps1->ab_vector_buffer0,
@@ -1588,59 +1609,43 @@ symcrust_mlkem_decapsulate(
             uint32_t *pa_tmp = p_comp_temps1->ab_poly_element_accumulator_buffer;
             symcrust_common_Error
             sc_error =
-              vector_decode_and_decompress(Eurydice_slice_subslice3(/* Decode and decompress u */
-                    pb_read_ciphertext
-                  ,
+              vector_decode_and_decompress(Eurydice_slice_subslice3(pb_read_ciphertext,
                   (size_t)0U,
                   cb_u,
                   uint8_t *),
                 (uint32_t)n_bits_of_u,
                 pvu);
-            /* original Rust expression is not an lvalue in C */
             symcrust_common_Error lvalue0 = symcrust_common_Error_NoError;
             EURYDICE_ASSERT(symcrust_common_eq_41(&sc_error, &lvalue0), "panic!");
-            vector_ntt(/* Perform NTT on u */ pvu );
-            vector_mont_dot_product(symcrust_key_s_mut_fd(/* pe_tmp0 = (s o NTT(u)) ./ R */
-                  pk_mlkem_key
-                ),
-              pvu,
-              pe_tmp0,
-              pa_tmp);
-            poly_element_intt_and_mul_r(/* pe_tmp0 = INTT(s o NTT(u)) */ pe_tmp0 );
+            vector_ntt(pvu);
+            vector_mont_dot_product(symcrust_key_s_mut_fd(pk_mlkem_key), pvu, pe_tmp0, pa_tmp);
+            poly_element_intt_and_mul_r(pe_tmp0);
             symcrust_common_Error
             sc_error0 =
-              poly_element_decode_and_decompress(Eurydice_slice_subslice_from(/* Decode and decompress v */
-                    pb_read_ciphertext
-                  ,
+              poly_element_decode_and_decompress(Eurydice_slice_subslice_from(pb_read_ciphertext,
                   cb_u,
                   uint8_t,
                   size_t,
                   Eurydice_derefed_slice),
                 (uint32_t)n_bits_of_v,
                 pe_tmp1);
-            /* original Rust expression is not an lvalue in C */
             symcrust_common_Error lvalue1 = symcrust_common_Error_NoError;
             EURYDICE_ASSERT(symcrust_common_eq_41(&sc_error0, &lvalue1), "panic!");
             uint16_t copy[256U];
-            /* pe_tmp0 = w = v - INTT(s o NTT(u)) FIXME */
             memcpy(copy, pe_tmp0, (size_t)256U * sizeof (uint16_t));
             poly_element_sub(pe_tmp1, copy, pe_tmp0);
-            poly_element_compress_and_encode(/* pbDecryptedRandom = m' = Encoding of w */ pe_tmp0 ,
+            poly_element_compress_and_encode(pe_tmp0,
               1U,
               Eurydice_array_to_slice((size_t)32U, pb_decrypted_random, uint8_t));
             symcrust_common_Error
             sc_error1 =
-              symcrust_mlkem_encapsulate_internal(/* Compute: pbDecapsulatedSecret = K' = Decapsulated secret (without implicit rejection) pbReencapsulatedCiphertext = c' = Ciphertext from re-encapsulating decrypted random value */
-                  pk_mlkem_key
-                ,
+              symcrust_mlkem_encapsulate_internal(pk_mlkem_key,
                 Eurydice_array_to_slice((size_t)32U, pb_decapsulated_secret, uint8_t),
                 pb_reencapsulated_ciphertext,
                 pb_decrypted_random,
                 p_comp_temps1);
-            /* original Rust expression is not an lvalue in C */
             symcrust_common_Error lvalue = symcrust_common_Error_NoError;
             EURYDICE_ASSERT(symcrust_common_eq_41(&sc_error1, &lvalue), "panic!");
-            /* Compute the secret we will return if using implicit rejection pbImplicitRejectionSecret = K_bar = SHAKE256( z || c ) */
             symcrust_hash_HashState *p_shake_state = &p_comp_temps1->hash_state0;
             symcrust_hash_shake256_init(p_shake_state);
             symcrust_hash_shake256_append(p_shake_state,
@@ -1651,20 +1656,15 @@ symcrust_mlkem_decapsulate(
               false);
             bool
             successful_reencrypt =
-              core_cmp_impls__core__cmp__PartialEq__0_mut__B___for__1_mut__A___eq(/* Constant time test if re-encryption successful */
-                  &pb_reencapsulated_ciphertext
-                ,
+              core_cmp_impls__core__cmp__PartialEq__0_mut__B___for__1_mut__A___eq(&pb_reencapsulated_ciphertext,
                 &pb_read_ciphertext,
                 Eurydice_derefed_slice,
                 Eurydice_derefed_slice,
                 bool);
             size_t
             cb_copy =
-              core_num__usize__wrapping_sub((size_t)/* If not successful, perform side-channel-safe copy of Implicit Rejection secret over Decapsulated secret */
-                  successful_reencrypt
-                ,
-                (size_t)1U)
-              & SYMCRUST_MLKEM_SIZEOF_AGREED_SECRET;
+              core_num__usize__wrapping_sub((size_t)successful_reencrypt, (size_t)1U) &
+                SYMCRUST_MLKEM_SIZEOF_AGREED_SECRET;
             Eurydice_slice_copy(Eurydice_array_to_subslice3(pb_decapsulated_secret,
                 (size_t)0U,
                 cb_copy,
@@ -1674,9 +1674,7 @@ symcrust_mlkem_decapsulate(
                 cb_copy,
                 uint8_t *),
               uint8_t);
-            Eurydice_slice_copy(/* FIXME, was: SymCryptScsCopy( pbImplicitRejectionSecret, cbCopy, pbDecapsulatedSecret, SIZEOF_AGREED_SECRET ); Write agreed secret (with implicit rejection) to pb_agreed_secret */
-                pb_agreed_secret
-              ,
+            Eurydice_slice_copy(pb_agreed_secret,
               Eurydice_array_to_slice((size_t)32U, pb_decapsulated_secret, uint8_t),
               uint8_t);
             return symcrust_common_Error_NoError;
@@ -1705,15 +1703,12 @@ symcrust_mlkem_encapsulate_ex(
   Eurydice_slice pb_ciphertext
 )
 {
-  size_t cb_random = Eurydice_slice_len(/* wrapper enforce it */ pb_random , uint8_t);
+  /* wrapper enforce it */
+  size_t cb_random = Eurydice_slice_len(pb_random, uint8_t);
   symcrust_common_Error uu____0;
-  if
-  (
-    /* let cb_agreed_secret = pb_agreed_secret.len(); let cb_ciphertext = pb_ciphertext.len(); */
-      cb_random
-
-    != SYMCRUST_MLKEM_SIZEOF_ENCAPS_RANDOM
-  )
+  /* let cb_agreed_secret = pb_agreed_secret.len();
+    let cb_ciphertext = pb_ciphertext.len(); */
+  if (cb_random != SYMCRUST_MLKEM_SIZEOF_ENCAPS_RANDOM)
   {
     uu____0 = symcrust_common_Error_InvalidArgument;
   }
@@ -1852,11 +1847,12 @@ poly_element_sample_ntt_from_shake128(symcrust_hash_HashState *p_state, uint16_t
           uint8_t)
     )
     {
-      symcrust_hash_shake128_extract(/* Note (Rust): shakeOutputBuf[..] seems unnecessary and trips Eurydice (FIXME, see #14) */
-          p_state
-        ,
-        Eurydice_array_to_slice((size_t)24U, shake_output_buf, uint8_t),
-        false);
+      /* Note (Rust): shakeOutputBuf[..] seems unnecessary and trips Eurydice (FIXME, see #14) */
+      /* Note (Rust): shakeOutputBuf[..] seems unnecessary and trips Eurydice (FIXME, see #14) */
+        symcrust_hash_shake128_extract(p_state,
+          Eurydice_array_to_slice((size_t)24U, shake_output_buf, uint8_t),
+          false)
+      ;
       curr_buf_index = (size_t)0U;
     }
     uint8_t ret0[2U];
@@ -1868,9 +1864,7 @@ poly_element_sample_ntt_from_shake128(symcrust_hash_HashState *p_state, uint16_t
     uint16_t sample0 = (uint32_t)core_num__u16__from_le_bytes(ret0) & 4095U;
     uint8_t ret[2U];
     symcrust_ntt_slice_to_sub_array((size_t)2U,
-      Eurydice_array_to_slice((size_t)24U,
-        /* TODO: Aeneas crashes if we comment the code below this line */ shake_output_buf ,
-        uint8_t),
+      Eurydice_array_to_slice((size_t)24U, shake_output_buf, uint8_t),
       curr_buf_index + (size_t)1U,
       ret,
       void *);
@@ -1880,6 +1874,7 @@ poly_element_sample_ntt_from_shake128(symcrust_hash_HashState *p_state, uint16_t
     i = i + (size_t)((uint32_t)sample0 < Q);
     if (i < SYMCRUST_KEY_MLWE_POLYNOMIAL_COEFFICIENTS)
     {
+      /* TODO: Aeneas crashes if we comment the code below this line */
       pe_dst[i] = sample1;
       i = i + (size_t)((uint32_t)sample1 < Q);
     }
@@ -2000,7 +1995,9 @@ symcrust_mlkem_key_expand_from_private_seed(
 {
   uint8_t private_seed_hash[64U] = { 0U };
   uint8_t cbd_sample_buffer[193U] = { 0U };
-  /* PVECTOR pv_tmp; PPOLYELEMENT_ACCUMULATOR pa_tmp; UINT32 i; */
+  /* PVECTOR pv_tmp;
+    PPOLYELEMENT_ACCUMULATOR pa_tmp;
+    UINT32 i; */
   uint8_t n_rows = pk_mlkem_key.ptr->header.params.n_rows;
   uint8_t n_eta1 = pk_mlkem_key.ptr->header.params.n_eta1;
   size_t cb_encoded_vector = symcrust_mlkem_sizeof_encoded_uncompressed_vector((size_t)n_rows);
@@ -2165,10 +2162,9 @@ symcrust_mlkem_key_set_value(
   /* PINTERNAL_COMPUTATION_TEMPORARIES p_comp_temps = NULL; */
   uint8_t n_rows = pk_mlkem_key.ptr->header.params.n_rows;
   size_t cb_encoded_vector = symcrust_mlkem_sizeof_encoded_uncompressed_vector((size_t)n_rows);
+  /* Ensure only allowed flags are specified */
   uint32_t
-  allowed_flags =
-    /* Ensure only allowed flags are specified */ SYMCRUST_MLKEM_FLAG_KEY_NO_FIPS  |
-      SYMCRUST_MLKEM_FLAG_KEY_MINIMAL_VALIDATION;
+  allowed_flags = SYMCRUST_MLKEM_FLAG_KEY_NO_FIPS | SYMCRUST_MLKEM_FLAG_KEY_MINIMAL_VALIDATION;
   symcrust_common_Error uu____0;
   if ((flags & ~allowed_flags) != 0U)
   {
@@ -2176,26 +2172,20 @@ symcrust_mlkem_key_set_value(
   }
   else
   {
-    if
-    (
-      (/* Check that minimal validation flag only specified with no fips */ flags  &
-        SYMCRUST_MLKEM_FLAG_KEY_NO_FIPS)
-      == 0U
-    )
+    /* Check that minimal validation flag only specified with no fips */
+    if ((flags & SYMCRUST_MLKEM_FLAG_KEY_NO_FIPS) == 0U)
     {
       if ((flags & SYMCRUST_MLKEM_FLAG_KEY_MINIMAL_VALIDATION) != 0U)
       {
         uu____0 = symcrust_common_Error_InvalidArgument;
       }
     }
-    if
-    (
-      (/* Note (Rust): ruled out by typing if( mlKemkeyFormat == crate::key::Format_NULL ) { return MLKEM_ERROR::INVALID_ARGUMENT; } */
-        flags
-
-      & SYMCRUST_MLKEM_FLAG_KEY_NO_FIPS)
-      == 0U
-    )
+    /* Note (Rust): ruled out by typing
+      if( mlKemkeyFormat == crate::key::Format_NULL )
+      {
+          return MLKEM_ERROR::INVALID_ARGUMENT;
+      } */
+    if ((flags & SYMCRUST_MLKEM_FLAG_KEY_NO_FIPS) == 0U)
     {
       symcrust_ntt_InternalComputationTemporaries lit;
       uint16_t repeat_expression[4U][256U];
@@ -2273,7 +2263,12 @@ symcrust_mlkem_key_set_value(
             uu____1 = true;
             if (uu____1)
             {
-              /* Note (Rust): exhaustiveness else { sc_error = NOT_IMPLEMENTED; goto cleanup; } */
+              /* Note (Rust): exhaustiveness
+                else
+                {
+                    sc_error = NOT_IMPLEMENTED;
+                    goto cleanup;
+                } */
               uu____3 = pb_curr;
               uu____5 = pb_src;
               uu____4 = Eurydice_slice_len(uu____5, uint8_t);
@@ -2335,7 +2330,6 @@ symcrust_mlkem_key_set_value(
                     uint8_t *),
                   12U,
                   t);
-              /* original Rust expression is not an lvalue in C */
               symcrust_common_Error lvalue = symcrust_common_Error_NoError;
               if
               (
@@ -2343,6 +2337,7 @@ symcrust_mlkem_key_set_value(
                   &lvalue)
               )
               {
+                /* original Rust expression is not an lvalue in C */
                 size_t
                 l =
                   Eurydice_slice_len(Eurydice_array_to_slice((size_t)32U,
@@ -2441,7 +2436,6 @@ symcrust_mlkem_key_set_value(
                   uint8_t *),
                 12U,
                 t);
-            /* original Rust expression is not an lvalue in C */
             symcrust_common_Error lvalue = symcrust_common_Error_NoError;
             if
             (
@@ -2449,6 +2443,7 @@ symcrust_mlkem_key_set_value(
                 &lvalue)
             )
             {
+              /* original Rust expression is not an lvalue in C */
               size_t
               l =
                 Eurydice_slice_len(Eurydice_array_to_slice((size_t)32U,
@@ -2630,7 +2625,6 @@ symcrust_mlkem_key_set_value(
                     uint8_t *),
                   12U,
                   t);
-              /* original Rust expression is not an lvalue in C */
               symcrust_common_Error lvalue = symcrust_common_Error_NoError;
               if
               (
@@ -2638,6 +2632,7 @@ symcrust_mlkem_key_set_value(
                   &lvalue)
               )
               {
+                /* original Rust expression is not an lvalue in C */
                 size_t
                 l =
                   Eurydice_slice_len(Eurydice_array_to_slice((size_t)32U,
@@ -2736,7 +2731,6 @@ symcrust_mlkem_key_set_value(
                   uint8_t *),
                 12U,
                 t);
-            /* original Rust expression is not an lvalue in C */
             symcrust_common_Error lvalue = symcrust_common_Error_NoError;
             if
             (
@@ -2744,6 +2738,7 @@ symcrust_mlkem_key_set_value(
                 &lvalue)
             )
             {
+              /* original Rust expression is not an lvalue in C */
               size_t
               l =
                 Eurydice_slice_len(Eurydice_array_to_slice((size_t)32U,
@@ -2794,8 +2789,8 @@ symcrust_common_Error symcrust_mlkem_key_generate(Eurydice_dst_8c pk_mlkem_key, 
 {
   /* ERROR sc_error = NO_ERROR; */
   uint8_t private_seed[64U] = { 0U };
-  uint32_t
-  allowed_flags = /* Ensure only allowed flags are specified */ SYMCRUST_MLKEM_FLAG_KEY_NO_FIPS ;
+  /* Ensure only allowed flags are specified */
+  uint32_t allowed_flags = SYMCRUST_MLKEM_FLAG_KEY_NO_FIPS;
   symcrust_common_Error uu____0;
   if ((flags & ~allowed_flags) != 0U)
   {
@@ -2847,7 +2842,8 @@ symcrust_mlkem_key_get_value(
   uint32_t _flags
 )
 {
-  /* SIZE_T cb_dst, ERROR sc_error = NO_ERROR; */
+  /* SIZE_T                      cb_dst,
+    ERROR sc_error = NO_ERROR; */
   size_t pb_curr = (size_t)0U;
   uint8_t n_rows = pk_mlkem_key.ptr->header.params.n_rows;
   size_t cb_encoded_vector = symcrust_mlkem_sizeof_encoded_uncompressed_vector((size_t)n_rows);
@@ -2857,7 +2853,11 @@ symcrust_mlkem_key_get_value(
   size_t uu____3;
   size_t uu____4;
   Eurydice_slice uu____5;
-  /* if( mlKemkeyFormat == crate::key::Format_NULL ) { sc_error = INVALID_ARGUMENT; goto cleanup; } */
+  /*     if( mlKemkeyFormat == crate::key::Format_NULL )
+        {
+            sc_error = INVALID_ARGUMENT;
+            goto cleanup;
+        } */
   if (format == symcrust_key_Format_PrivateSeed)
   {
     if (Eurydice_slice_len(pb_dst, uint8_t) != SYMCRUST_MLKEM_SIZEOF_FORMAT_PRIVATE_SEED)
@@ -3080,19 +3080,15 @@ size_t symcrust_mlkem_sizeof_ciphertext_from_params(symcrust_key_Params params)
 {
   symcrust_key_InternalParams
   internal_params = symcrust_key_get_internal_params_from_params(params);
+  /* u vector encoded with n_bits_of_u * MLWE_POLYNOMIAL_COEFFICIENTS bits per polynomial */
   size_t
   cb_u =
-    (size_t)/* u vector encoded with n_bits_of_u * MLWE_POLYNOMIAL_COEFFICIENTS bits per polynomial */
-      internal_params.n_rows
-
-    * (size_t)internal_params.n_bits_of_u
-    * (SYMCRUST_KEY_MLWE_POLYNOMIAL_COEFFICIENTS / (size_t)8U);
+    (size_t)internal_params.n_rows * (size_t)internal_params.n_bits_of_u *
+      (SYMCRUST_KEY_MLWE_POLYNOMIAL_COEFFICIENTS / (size_t)8U);
+  /* v polynomial encoded with n_bits_of_v * MLWE_POLYNOMIAL_COEFFICIENTS bits */
   size_t
   cb_v =
-    (size_t)/* v polynomial encoded with n_bits_of_v * MLWE_POLYNOMIAL_COEFFICIENTS bits */
-      internal_params.n_bits_of_v
-
-    * (SYMCRUST_KEY_MLWE_POLYNOMIAL_COEFFICIENTS / (size_t)8U);
+    (size_t)internal_params.n_bits_of_v * (SYMCRUST_KEY_MLWE_POLYNOMIAL_COEFFICIENTS / (size_t)8U);
   /* original Rust expression is not an lvalue in C */
   symcrust_key_Params lvalue = symcrust_key_Params_MlKem512;
   if
@@ -3103,7 +3099,6 @@ size_t symcrust_mlkem_sizeof_ciphertext_from_params(symcrust_key_Params params)
   {
     EURYDICE_ASSERT(cb_u + cb_v == SYMCRUST_MLKEM_CIPHERTEXT_SIZE_MLKEM512, "panic!");
   }
-  /* original Rust expression is not an lvalue in C */
   symcrust_key_Params lvalue0 = symcrust_key_Params_MlKem768;
   if
   (
@@ -3111,9 +3106,12 @@ size_t symcrust_mlkem_sizeof_ciphertext_from_params(symcrust_key_Params params)
       &lvalue0)
   )
   {
-    EURYDICE_ASSERT(cb_u + cb_v == SYMCRUST_MLKEM_CIPHERTEXT_SIZE_MLKEM768, "panic!");
+    /* original Rust expression is not an lvalue in C */
+    /* original Rust expression is not an lvalue in C */
+      EURYDICE_ASSERT(cb_u + cb_v == SYMCRUST_MLKEM_CIPHERTEXT_SIZE_MLKEM768,
+        "panic!")
+    ;
   }
-  /* original Rust expression is not an lvalue in C */
   symcrust_key_Params lvalue1 = symcrust_key_Params_MlKem1024;
   if
   (
@@ -3121,7 +3119,11 @@ size_t symcrust_mlkem_sizeof_ciphertext_from_params(symcrust_key_Params params)
       &lvalue1)
   )
   {
-    EURYDICE_ASSERT(cb_u + cb_v == SYMCRUST_MLKEM_CIPHERTEXT_SIZE_MLKEM1024, "panic!");
+    /* original Rust expression is not an lvalue in C */
+    /* original Rust expression is not an lvalue in C */
+      EURYDICE_ASSERT(cb_u + cb_v == SYMCRUST_MLKEM_CIPHERTEXT_SIZE_MLKEM1024,
+        "panic!")
+    ;
   }
   return cb_u + cb_v;
 }
