@@ -381,12 +381,7 @@ poly_element_decode_and_decompress(
           *accumulator = u32::from_le_bytes(&pb_src[*cb_src_read..*cb_src_read+4]).try_into().unwrap());
           FIXME
           *accumulator = u32::from_le_bytes(&pb_src[*cb_src_read..*cb_src_read+4]).try_into().unwrap()); */
-          symcrust_ntt_slice_to_sub_array((size_t)4U,
-            pb_src,
-            cb_src_read,
-            uu____0,
-            void *)
-        ;
+        symcrust_ntt_slice_to_sub_array((size_t)4U, pb_src, cb_src_read, uu____0, void *);
         accumulator = core_num__u32__from_le_bytes(uu____0);
         cb_src_read = cb_src_read + (size_t)4U;
         n_bits_in_accumulator = 32U;
@@ -781,8 +776,7 @@ vector_mont_dot_product(
   EURYDICE_ASSERT(n_rows <= MATRIX_MAX_NROWS, "panic!");
   EURYDICE_ASSERT(Eurydice_slice_len(pv_src2, uint16_t [256U]) == n_rows, "panic!");
   /* Zero pa_tmp and pe_dst */
-    symcrust_common_wipe_slice_df(Eurydice_array_to_slice((size_t)256U, pa_tmp, uint32_t))
-  ;
+  symcrust_common_wipe_slice_df(Eurydice_array_to_slice((size_t)256U, pa_tmp, uint32_t));
   symcrust_common_wipe_slice_de(Eurydice_array_to_slice((size_t)256U, pe_dst, uint16_t));
   for (size_t i = (size_t)0U; i < n_rows; i++)
   {
@@ -968,12 +962,7 @@ poly_element_sample_cbd_from_bytes(Eurydice_slice pb_src, uint32_t eta, uint16_t
     {
       uint8_t ret[4U];
       /* unconditionally load 4 bytes (32-bits -> 8 coefficients) into sample_bits */
-        symcrust_ntt_slice_to_sub_array((size_t)4U,
-          pb_src,
-          src_i,
-          ret,
-          void *)
-      ;
+      symcrust_ntt_slice_to_sub_array((size_t)4U, pb_src, src_i, ret, void *);
       uint32_t sample_bits = core_num__u32__from_le_bytes(ret);
       src_i = src_i + (size_t)4U;
       sample_bits = (sample_bits & 1431655765U) + (sample_bits >> 1U & 1431655765U);
@@ -1087,18 +1076,16 @@ matrix_vector_mont_mul_and_add(
     for (size_t j = (size_t)0U; j < n_rows0; j++)
     {
       /* Zero pa_tmp */
-        poly_element_mul_and_accumulate_aux(pm_src1,
-          n_rows0,
-          i,
-          j,
-          Eurydice_slice_index(pv_src2, j, uint16_t [256U], uint16_t (*)[256U]),
-          pa_tmp)
-      ;
+      poly_element_mul_and_accumulate_aux(pm_src1,
+        n_rows0,
+        i,
+        j,
+        Eurydice_slice_index(pv_src2, j, uint16_t [256U], uint16_t (*)[256U]),
+        pa_tmp);
     }
     /* write accumulator to dest and zero accumulator */
-      montgomery_reduce_and_add_poly_element_accumulator_to_poly_element(pa_tmp,
-        Eurydice_slice_index(pv_dst, i, uint16_t [256U], uint16_t (*)[256U]))
-    ;
+    montgomery_reduce_and_add_poly_element_accumulator_to_poly_element(pa_tmp,
+      Eurydice_slice_index(pv_dst, i, uint16_t [256U], uint16_t (*)[256U]));
   }
 }
 
@@ -1233,8 +1220,7 @@ symcrust_mlkem_encapsulate_internal(
       uint16_t *pe_tmp1 = p_comp_temps->ab_poly_element_buffer1;
       uint32_t *pa_tmp = p_comp_temps->ab_poly_element_accumulator_buffer;
       /* cbd_sample_buffer = (K || rOuter) = SHA3-512(pb_random || encapsKeyHash) */
-        symcrust_hash_sha3_512_init(&p_comp_temps->hash_state0)
-      ;
+      symcrust_hash_sha3_512_init(&p_comp_temps->hash_state0);
       symcrust_hash_sha3_512_append(&p_comp_temps->hash_state0,
         Eurydice_array_to_slice((size_t)32U, pb_random, uint8_t));
       symcrust_hash_sha3_512_append(&p_comp_temps->hash_state0,
@@ -1550,10 +1536,7 @@ symcrust_mlkem_decapsulate(
               u vector encoded with n_bits_of_u * MLWE_POLYNOMIAL_COEFFICIENTS bits per polynomial
               v polynomial encoded with n_bits_of_v * MLWE_POLYNOMIAL_COEFFICIENTS bits
               Read the input ciphertext once to local pbReadCiphertext to ensure our view of ciphertext consistent */
-              Eurydice_slice_copy(pb_read_ciphertext,
-                pb_ciphertext,
-                uint8_t)
-            ;
+            Eurydice_slice_copy(pb_read_ciphertext, pb_ciphertext, uint8_t);
             /* Decode and decompress u
               Perform NTT on u
               pe_tmp0 = (s o NTT(u)) ./ R
@@ -1825,10 +1808,9 @@ poly_element_sample_ntt_from_shake128(symcrust_hash_HashState *p_state, uint16_t
     )
     {
       /* Note (Rust): shakeOutputBuf[..] seems unnecessary and trips Eurydice (FIXME, see #14) */
-        symcrust_hash_shake128_extract(p_state,
-          Eurydice_array_to_slice((size_t)24U, shake_output_buf, uint8_t),
-          false)
-      ;
+      symcrust_hash_shake128_extract(p_state,
+        Eurydice_array_to_slice((size_t)24U, shake_output_buf, uint8_t),
+        false);
       curr_buf_index = (size_t)0U;
     }
     uint8_t ret0[2U];
