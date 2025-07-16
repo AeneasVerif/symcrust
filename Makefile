@@ -30,14 +30,14 @@ symcrust.llbc: $(wildcard */*.rs)
 	RUSTFLAGS="--cfg eurydice" $(CHARON_EXE) --hide-marker-traits --exclude=core::fmt::Debug::fmt --opaque=core::fmt::Formatter
 
 symcrust-aeneas.llbc: $(wildcard */*.rs)
-	$(CHARON_EXE) --hide-marker-traits --exclude=core::fmt::Debug::fmt --opaque=core::fmt::Formatter --remove-associated-types='*' \
+	RUSTFLAGS="--cfg eurydice" \
+	$(CHARON_EXE) --preset=aeneas --exclude=core::fmt::Debug::fmt --opaque=core::fmt::Formatter --remove-associated-types='*' \
 	  --dest-file='symcrust-aeneas.llbc' \
 	  --exclude=symcrust::ffi::* --exclude=symcrust::hash::* --exclude=symcrust::mlkem::* \
 	  --exclude=symcrust::ntt::InternalComputationTemporaries \
 	  --include=symcrust::hash::HashState \
 	  --include=symcrust::hash::KeccakState \
 	  --include=crate::hash::shake128_extract --opaque=crate::hash::shake128_extract \
-	  --exclude=symcrust::key::Key3 --exclude=symcrust::key::Key3::* \
 	  --opaque=symcrust::common::random \
 	  --opaque=symcrust::common::wipe_slice \
 	  --exclude=core::intrinsics::discriminant_value --exclude=core::marker::DiscriminantKind \
