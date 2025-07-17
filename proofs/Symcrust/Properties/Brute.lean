@@ -49,6 +49,53 @@ def mkFold1 (b : Nat) (f : (x : Nat) → (hx : x < b) → Bool) (acc : Bool) : B
   Fin.foldr b
     (fun (x : Fin b) (acc : Bool) => acc && f x.1 x.2) acc
 
+class IsNatLike (t : Type) where
+  pf : PSum (t = Nat) (PSum (PSigma (fun n : Nat => t = BitVec n))
+    (PSigma (fun t' : UScalarTy => t' ≠ UScalarTy.Usize ∧ t = UScalar t')))
+
+instance (t : Type) [h : IsNatLike t] : LT t where
+  lt :=
+    match h.pf with
+    | .inl pf => fun x y => cast pf x < cast pf y
+    | .inr (.inl pf) => fun x y => cast pf.2 x < cast pf.2 y
+    | .inr (.inr pf) => fun x y => cast pf.2.2 x < cast pf.2.2 y
+
+def mkFold1' {t : Type} [h : IsNatLike t] (b : t) (f : (x : t) → (hx : x < b) → Bool) (acc : Bool) : Bool :=
+  match h' : h.pf with
+  | .inl pf =>
+    Fin.foldr (cast pf b)
+      (fun (x : Fin (cast pf b)) (acc : Bool) => acc && f (cast pf.symm x.1)
+        (by rw [LT.lt, instLTOfIsNatLike, h']; simp)) acc
+  | .inr (.inl pf) =>
+    Fin.foldr (cast pf.2 b).toNat
+      (fun (x : Fin (cast pf.2 b).toNat) (acc : Bool) => acc && f (cast pf.2.symm x.1)
+        (by
+          rw [BitVec.natCast_eq_ofNat, LT.lt, instLTOfIsNatLike, h']
+          simp only [gt_iff_lt, cast_cast, cast_eq]
+          exact Nat.lt_of_le_of_lt (Nat.mod_le _ _) x.2
+        )
+      ) acc
+  | .inr (.inr pf) =>
+    Fin.foldr (cast pf.2.2 b).val
+      (fun (x : Fin (cast pf.2.2 b).val) (acc : Bool) => acc && f
+        (cast pf.2.2.symm (UScalar.ofNat x.1
+          (by
+            rw [UScalar.cMax_eq_pow_cNumBits, UScalarTy.cNumBits]
+            . have hb : (cast pf.2.2 b).val ≤ UScalar.max pf.1 := by
+                rw [UScalar.val, UScalar.max]
+                apply Nat.le_of_lt_succ
+                simp only [ne_eq, UScalar.bv_toNat, Nat.succ_eq_add_one, Nat.ofNat_pos,
+                  SimpScalar.one_le_pow, Nat.sub_add_cancel]
+                apply BitVec.toNat_lt_twoPow_of_le
+                rfl
+              rw [UScalar.max] at hb
+              omega
+            . exact pf.2.1
+          )
+        ))
+        (by rw [LT.lt, instLTOfIsNatLike, h']; simp)
+      ) acc
+
 theorem ofMkFold1BitVecEqTrueAux (b n : Nat) (hbn : b < 2 ^ n)
   (f : (x : BitVec n) → (hx : x < b) → Bool) (acc : Bool) :
   mkFold1BitVec b n hbn f acc = (acc ∧ ∀ x : BitVec n, ∀ hx : x < b, f x hx) := by
@@ -94,11 +141,10 @@ theorem ofMkFold1BitVecEqTrue (b n : Nat) (hbn : b < 2 ^ n)
   mkFold1BitVec b n hbn f true → ∀ x : BitVec n, ∀ hx : x < b, f x hx := by
   simp only [ofMkFold1BitVecEqTrueAux, BitVec.natCast_eq_ofNat, true_and, imp_self]
 
-axiom mySorry (α : Prop) : α
-
 theorem ofMkFold1BitVec'EqTrue (n : Nat) (b : BitVec n)
   (f : (x : BitVec n) → (hx : x < b) → Bool) :
-  mkFold1BitVec' n b f true → ∀ x : BitVec n, ∀ hx : x < b, f x hx := by apply mySorry
+  mkFold1BitVec' n b f true → ∀ x : BitVec n, ∀ hx : x < b, f x hx := by
+  sorry
 
 theorem ofMkFold1EqTrueAux (b : Nat) (f : (x : Nat) → (hx : x < b) → Bool) (acc : Bool) :
   mkFold1 b f acc = (acc ∧ ∀ x : Nat, ∀ hx : x < b, f x hx) := by
@@ -130,6 +176,14 @@ theorem ofMkFold1EqTrueAux (b : Nat) (f : (x : Nat) → (hx : x < b) → Bool) (
 theorem ofMkFold1EqTrue (b : Nat) (f : (x : Nat) → (hx : x < b) → Bool) :
   mkFold1 b f true → ∀ x : Nat, ∀ hx : x < b, f x hx := by
   simp only [ofMkFold1EqTrueAux, true_and, imp_self]
+
+theorem ofMkFold1'EqTrueAux {t : Type} [h : IsNatLike t] (b : t) (f : (x : t) → (hx : x < b) → Bool)
+  (acc : Bool) : mkFold1' b f acc = (acc ∧ ∀ x : t, ∀ hx : x < b, f x hx) := by
+  sorry
+
+theorem ofMkFold1'EqTrue {t : Type} [h : IsNatLike t] (b : t) (f : (x : t) → (hx : x < b) → Bool) :
+  mkFold1' b f true → ∀ x : t, ∀ hx : x < b, f x hx := by
+  simp only [ofMkFold1'EqTrueAux, true_and, imp_self]
 
 def mkFold2 (b1 : Nat) (b2 : (x : Nat) → (hx : x < b1) → Nat)
   (f : (x : Nat) → (hx : x < b1) → (y : Nat) → (hy : y < b2 x hx) → Bool)
@@ -342,46 +396,48 @@ theorem ofMkFold5EqTrue (b1 : Nat) (b2 : (x : Nat) → (hx : x < b1) → Nat)
     Currently, we only support goals with at most five bounded Nats. -/
 syntax (name := brute) "brute" : tactic
 
-inductive NatLike where
-  | Nat : NatLike
-  | BitVec : Expr → NatLike
-  | UScalar : UScalarTy → NatLike
-
-instance : ToMessageData UScalarTy where
-  toMessageData := fun
-    | .Usize => "Usize"
-    | .U8 => "U8"
-    | .U16 => "U16"
-    | .U32 => "U32"
-    | .U64 => "U64"
-    | .U128 => "U128"
-
-instance : ToMessageData NatLike where
-  toMessageData := fun
-    | .Nat => "Nat"
-    | .BitVec n => m!"BitVec {n}"
-    | .UScalar t => m!"UScalar {t}"
-
 /-- A structure that holds info for binders of the form `∀ x < b, ...`-/
 structure BinderInfo where
   x : FVarId -- The universally quantified variable
-  xType : NatLike -- The type of the universally quantified variable
   b : Expr -- The value that the variable is upper bounded by
   hxb : FVarId -- The variable whose type is `x < b`
+  isNatLikeInst : Expr -- An Expr whose type is `IsNatLike t` where `x : t` and `b : t`
 
 instance : ToMessageData BinderInfo where
-  toMessageData := fun ⟨x, xType, b, hxb⟩ => m!"({Expr.fvar x}, {xType}, {b}, {Expr.fvar hxb})"
+  toMessageData := fun ⟨x, b, hxb, isNatLikeInst⟩ => m!"({Expr.fvar x}, {b}, {Expr.fvar hxb}, {isNatLikeInst})"
 
-#check Expr.rawNatLit?
-#check @OfNat.ofNat ℕ 32 (instOfNatNat 32)
+/-- A helper definition to make it easier to construct the type of `IsNatLike`'s β type -/
+def IsNatLikeβType (t : Type) :=
+  PSum
+    (PSigma (fun n : Nat => t = BitVec n))
+    (PSigma (fun t' : UScalarTy => t' ≠ UScalarTy.Usize ∧ t = UScalar t'))
 
-/-- If `t` is an Expr for Nat, BitVecor, or UScalar, then `getNatLikeType` returns the NatLike
-    corresponding to `t`. Otherwise, `getNatLikeType` returns `none`. -/
-def getNatLike (t : Expr) : Option NatLike :=
+/-- A helper definition to make it easier to construct the type of `IsNatLike`'s ββ type -/
+def IsNatLikeββType (t : Type) := PSigma (fun t' : UScalarTy => t' ≠ UScalarTy.Usize ∧ t = UScalar t')
+
+/-- If `t` is an Expr corresponding to `Nat`, `BitVec n`, or `UScalar t'`, then `getIsNatLike` returns
+    an Expr whose type is `IsNatLike t`. Otherwise, `getIsNatLike` returns `none`. -/
+def getIsNatLikeInstance (t : Expr) : MetaM (Option Expr) := do
   match t with
-  | .const ``Nat _ => some NatLike.Nat
-  | .app (.const ``BitVec _) n => some $ NatLike.BitVec n
-  | _ => none -- **TODO** UScalar support
+  | .const ``Nat _ =>
+    let rflPf ← mkAppOptM ``Eq.refl #[some (.sort 1), some t]
+    let pSumβ ← mkAppM ``IsNatLikeβType #[t]
+    let pSumPf ← mkAppOptM ``PSum.inl #[none, some pSumβ, rflPf]
+    let inst ← mkAppM ``IsNatLike.mk #[pSumPf]
+    return some inst
+  | .app (.const ``BitVec _) n =>
+    let rflPf ← mkAppOptM ``Eq.refl #[some (.sort 1), some t]
+    let pSigmaβBody :=
+      mkApp3 (mkConst ``Eq [2]) (.sort 1) (.app (.const ``BitVec []) n) (.app (.const ``BitVec []) (.bvar 0))
+    let pSigmaβ := Expr.lam `n (mkConst ``Nat) pSigmaβBody .default
+    let pSigmaPf ← mkAppOptM ``PSigma.mk #[none, some pSigmaβ, n, rflPf]
+    let pInnerSumβ ← mkAppM ``IsNatLikeββType #[t]
+    let pInnserSumPf ← mkAppOptM ``PSum.inl #[none, some pInnerSumβ, pSigmaPf]
+    let pSumα ← mkAppM ``Eq #[t, mkConst ``Nat]
+    let pSumPf ← mkAppOptM ``PSum.inr #[some pSumα, none, pInnserSumPf]
+    let inst ← mkAppM ``IsNatLike.mk #[pSumPf]
+    return some inst
+  | _ => return none -- **TODO** UScalar support
 
 /-- If `b1` has a NatLike type and `b2 : b1 < d` then returns a `BinderInfo` corresponding to
     `b1`, `b1`'s Natlike type, and `b2`. Otherwise returns `none` -/
@@ -393,7 +449,7 @@ def popBoundBinders (b1 b2 : FVarId) : TacticM (Option BinderInfo) := do
     | throwError "{decl_name%} :: Unable to find type of goal binder {Expr.fvar b2}"
   let b1Type := b1LocalDecl.type
   let b2Type := b2LocalDecl.type
-  let some b1NatLike := getNatLike b1Type
+  let some isNatLikeInst ← getIsNatLikeInstance b1Type
     | return none -- Don't pop any binders if `b1`
   let b1UpperBound ←
     match b2Type with
@@ -401,7 +457,7 @@ def popBoundBinders (b1 b2 : FVarId) : TacticM (Option BinderInfo) := do
       if x != Expr.fvar b1 then return none
       else pure y
     | _ => return none
-  return some ⟨b1, b1NatLike, b1UpperBound, b2⟩
+  return some ⟨b1, b1UpperBound, b2, isNatLikeInst⟩
 
 /-- Recursively calls `popBoundBinders` as many times as `goalBinders` allows -/
 def popAllBoundBinders (goalBinders : Array FVarId) (acc : Array BinderInfo) : TacticM (Array BinderInfo) := do
@@ -419,7 +475,27 @@ def evalBrute : Tactic
     trace[brute.debug] "xs: {xs}, g: {g}"
     let boundBinders ← popAllBoundBinders (xs.map Expr.fvarId!) #[]
     match boundBinders with
-    | #[⟨x, xType, b, hxb⟩] =>
+    | #[⟨x, b, hxb, isNatLikeInst⟩] =>
+      let boundFVars := #[.fvar x, .fvar hxb]
+      let unboundFVars := xs.filter (fun fvar => !boundFVars.contains fvar)
+      trace[brute.debug] "boundFVars: {boundFVars}, unboundFVars: {unboundFVars}"
+      let f ← mkLambdaFVars boundFVars (← mkDecide (← mkForallFVars unboundFVars g))
+      trace[brute.debug] "f: {f}"
+      let res ← mkAppOptM ``mkFold1' #[none, some isNatLikeInst, b, f, mkConst ``true]
+      trace[brute.debug] "res: {res}"
+
+      let levels := (collectLevelParams {} res).params.toList
+      let auxDeclName ← Term.mkAuxName `_brute
+      let decl := Declaration.defnDecl $
+        mkDefinitionValEx auxDeclName levels (mkConst ``Bool) res .abbrev .safe [auxDeclName]
+      addAndCompile decl
+
+      let rflPrf ← mkEqRefl (toExpr true)
+      let levelParams := levels.map .param
+      let foldResPf := mkApp3 (mkConst ``Lean.ofReduceBool) (mkConst auxDeclName levelParams) (toExpr true) rflPrf
+      let pf ← mkAppOptM ``ofMkFold1'EqTrue #[none, some isNatLikeInst, b, f, foldResPf]
+      mkLambdaFVars boundFVars $ ← mkAppOptM ``of_decide_eq_true #[none, none, ← mkAppM' pf boundFVars]
+      /-
       match xType with
       | .Nat =>
         let boundFVars := #[.fvar x, .fvar hxb]
@@ -463,7 +539,8 @@ def evalBrute : Tactic
           mkApp3 (mkConst ``Lean.ofReduceBool) (mkConst auxDeclName levelParams) (toExpr true) rflPrf
         mkLambdaFVars boundFVars $ ← mkAppOptM ``of_decide_eq_true #[none, none, ← mkAppM' pf boundFVars]
       | _ => throwError "Only Nat support is implemented currently"
-    /-
+    -/
+    /- **TODO** Uncomment these cases to reason about more than one universal binder
     | #[(x, hx, xBound), (y, hy, yBound)] =>
       let boundFVars := #[.fvar x, .fvar hx, .fvar y, .fvar hy]
       let unboundFVars := xs.filter (fun fvar => !boundFVars.contains fvar)
@@ -581,14 +658,16 @@ example : ∀ f : Fin 3 → Bool, ∀ x < 3, f x ∨ ¬f x := by
 -- Note that the comment even explicitly says this instance can be slow for larger bit vectors
 #check BitVec.instDecidableForallBitVec
 
-theorem test : ∀ x : BitVec 32, x < 16 → x = x := by
+set_option trace.profiler true in
+theorem test : ∀ x : BitVec 32, x < 2^20 → x = x := by
   brute
 
+set_option trace.profiler true in
 theorem test2 : ∀ x : ℕ, x < 16 → x = x := by
   brute
 
 set_option trace.profiler true in
-example : ∀ x < 2^20, x = x := by
+theorem test3 : ∀ x < 2^20, x = x := by
   brute
 
 end Brute
