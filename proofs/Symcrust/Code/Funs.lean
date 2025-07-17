@@ -17,7 +17,7 @@ def core.marker.StructuralPartialEqsymcrustcommonError :
   core.marker.StructuralPartialEq common.Error := {
 }
 
-/- [symcrust::common::{core::cmp::PartialEq<symcrust::common::Error> for symcrust::common::Error}#1::eq]:
+/- [symcrust::common::{core::cmp::PartialEq<symcrust::common::Error> for symcrust::common::Error}::eq]:
    Source: 'src/common.rs', lines 5:9-5:18 -/
 def common.PartialEqsymcrustcommonErrorsymcrustcommonError.eq
   (self : common.Error) (other : common.Error) : Result Bool :=
@@ -620,7 +620,7 @@ def common.PartialEqsymcrustcommonErrorsymcrustcommonError.eq
     | common.Error.HbsNoOtsKeysLeft => ok (32789#isize = 32788#isize)
     | common.Error.HbsPublicRootMismatch => ok (32789#isize = 32789#isize)
 
-/- Trait implementation: [symcrust::common::{core::cmp::PartialEq<symcrust::common::Error> for symcrust::common::Error}#1]
+/- Trait implementation: [symcrust::common::{core::cmp::PartialEq<symcrust::common::Error> for symcrust::common::Error}]
    Source: 'src/common.rs', lines 5:9-5:18 -/
 @[reducible]
 def core.cmp.PartialEqsymcrustcommonErrorsymcrustcommonError :
@@ -639,36 +639,14 @@ def common.init : Result Unit :=
 def common.wipe (pb_data : MutRawPtr U8) (cb_data : Usize) : Result Unit :=
   common.SymCryptWipe pb_data cb_data
 
-/- [symcrust::error::{core::ops::try_trait::FromResidual<core::result::Result<core::convert::Infallible, symcrust::common::Error>> for symcrust::common::Error}#2::from_residual]:
-   Source: 'src/error.rs', lines 18:4-23:5 -/
-def
-  error.FromResidualsymcrustcommonErrorcoreresultResultcoreconvertInfalliblesymcrustcommonError.from_residual
-  (r : core.result.Result core.convert.Infallible common.Error) :
-  Result common.Error
-  :=
-  match r with
-  | core.result.Result.Ok _ => ok common.Error.NoError
-  | core.result.Result.Err e => ok e
-
-/- Trait implementation: [symcrust::error::{core::ops::try_trait::FromResidual<core::result::Result<core::convert::Infallible, symcrust::common::Error>> for symcrust::common::Error}#2]
-   Source: 'src/error.rs', lines 17:0-24:1 -/
-@[reducible]
-def
-  core.ops.try_trait.FromResidualsymcrustcommonErrorcoreresultResultcoreconvertInfalliblesymcrustcommonError
-  : core.ops.try_trait.FromResidual common.Error (core.result.Result
-  core.convert.Infallible common.Error) := {
-  from_residual :=
-    error.FromResidualsymcrustcommonErrorcoreresultResultcoreconvertInfalliblesymcrustcommonError.from_residual
-}
-
-/- Trait implementation: [symcrust::key::{core::marker::StructuralPartialEq for symcrust::key::Params}#2]
+/- Trait implementation: [symcrust::key::{core::marker::StructuralPartialEq for symcrust::key::Params}]
    Source: 'src/key.rs', lines 30:9-30:18 -/
 @[reducible]
 def core.marker.StructuralPartialEqsymcrustkeyParams :
   core.marker.StructuralPartialEq key.Params := {
 }
 
-/- [symcrust::key::{core::cmp::PartialEq<symcrust::key::Params> for symcrust::key::Params}#3::eq]:
+/- [symcrust::key::{core::cmp::PartialEq<symcrust::key::Params> for symcrust::key::Params}::eq]:
    Source: 'src/key.rs', lines 30:9-30:18 -/
 def key.PartialEqsymcrustkeyParamssymcrustkeyParams.eq
   (self : key.Params) (other : key.Params) : Result Bool :=
@@ -689,7 +667,7 @@ def key.PartialEqsymcrustkeyParamssymcrustkeyParams.eq
     | key.Params.MlKem768 => ok (3#isize = 2#isize)
     | key.Params.MlKem1024 => ok (3#isize = 3#isize)
 
-/- Trait implementation: [symcrust::key::{core::cmp::PartialEq<symcrust::key::Params> for symcrust::key::Params}#3]
+/- Trait implementation: [symcrust::key::{core::cmp::PartialEq<symcrust::key::Params> for symcrust::key::Params}]
    Source: 'src/key.rs', lines 30:9-30:18 -/
 @[reducible]
 def core.cmp.PartialEqsymcrustkeyParamssymcrustkeyParams : core.cmp.PartialEq
@@ -783,117 +761,13 @@ def key.KEY_MAX_SIZEOF_ENCODED_T_body : Result Usize := ok 1536#usize
 def key.KEY_MAX_SIZEOF_ENCODED_T : Usize :=
   eval_global key.KEY_MAX_SIZEOF_ENCODED_T_body
 
-/- [symcrust::key::{symcrust::key::Key1}::atranspose]:
-   Source: 'src/key.rs', lines 168:4-170:5 -/
-def key.Key1.atranspose
-  (self : key.Key1) : Result (Slice (Array U16 256#usize)) :=
-  ok self.pm_a_transpose.ap_poly_elements
-
-/- [symcrust::key::{symcrust::key::Key1}::t]:
-   Source: 'src/key.rs', lines 171:4-173:5 -/
-def key.Key1.t (self : key.Key1) : Result (Slice (Array U16 256#usize)) :=
-  ok self.pvt
-
-/- [symcrust::key::{symcrust::key::Key1}::s]:
-   Source: 'src/key.rs', lines 174:4-176:5 -/
-def key.Key1.s (self : key.Key1) : Result (Slice (Array U16 256#usize)) :=
-  ok self.pvs
-
-/- [symcrust::key::{symcrust::key::Key1}::atranspose_mut]:
-   Source: 'src/key.rs', lines 177:4-179:5 -/
-def key.Key1.atranspose_mut
-  (self : key.Key1) :
-  Result ((Slice (Array U16 256#usize)) × (Slice (Array U16 256#usize) →
-    key.Key1))
-  :=
-  let back :=
-    fun ret =>
-      {
-        self
-          with
-          pm_a_transpose :=
-            { self.pm_a_transpose with ap_poly_elements := ret }
-      }
-  ok (self.pm_a_transpose.ap_poly_elements, back)
-
-/- [symcrust::key::{symcrust::key::Key1}::t_mut]:
-   Source: 'src/key.rs', lines 180:4-182:5 -/
-def key.Key1.t_mut
-  (self : key.Key1) :
-  Result ((Slice (Array U16 256#usize)) × (Slice (Array U16 256#usize) →
-    key.Key1))
-  :=
-  let back := fun ret => { self with pvt := ret }
-  ok (self.pvt, back)
-
-/- [symcrust::key::{symcrust::key::Key1}::s_mut]:
-   Source: 'src/key.rs', lines 183:4-185:5 -/
-def key.Key1.s_mut
-  (self : key.Key1) :
-  Result ((Slice (Array U16 256#usize)) × (Slice (Array U16 256#usize) →
-    key.Key1))
-  :=
-  let back := fun ret => { self with pvs := ret }
-  ok (self.pvs, back)
-
-/- [symcrust::key::key_allocate1]:
-   Source: 'src/key.rs', lines 190:0-219:1 -/
-def key.key_allocate1
-  (params : key.Params) : Result (core.result.Result key.Key1 common.Error) :=
-  do
-  let params1 ← key.get_internal_params_from_params params
-  let a := Array.repeat 32#usize 0#u8
-  let a1 := Array.repeat 32#usize 0#u8
-  let a2 := Array.repeat 32#usize 0#u8
-  let i ← (↑(UScalar.cast .Usize params1.n_rows) : Result Usize)
-  let i1 ← params1.n_rows * params1.n_rows
-  let i2 ← (↑(UScalar.cast .Usize i1) : Result Usize)
-  let v ←
-    alloc.vec.from_elem (core.clone.CloneArray 256#usize core.clone.CloneU16)
-      key.POLYELEMENT_ZERO i2
-  let s ←
-    core.convert.IntoFrom.into (core.convert.FromBoxSliceVec (Array U16
-      256#usize)) v
-  let i3 ← (↑(UScalar.cast .Usize params1.n_rows) : Result Usize)
-  let v1 ←
-    alloc.vec.from_elem (core.clone.CloneArray 256#usize core.clone.CloneU16)
-      key.POLYELEMENT_ZERO i3
-  let s1 ←
-    core.convert.IntoFrom.into (core.convert.FromBoxSliceVec (Array U16
-      256#usize)) v1
-  let i4 ← (↑(UScalar.cast .Usize params1.n_rows) : Result Usize)
-  let v2 ←
-    alloc.vec.from_elem (core.clone.CloneArray 256#usize core.clone.CloneU16)
-      key.POLYELEMENT_ZERO i4
-  let s2 ←
-    core.convert.IntoFrom.into (core.convert.FromBoxSliceVec (Array U16
-      256#usize)) v2
-  let a3 := Array.repeat 1536#usize 0#u8
-  let a4 := Array.repeat 32#usize 0#u8
-  let k :=
-    ({
-       f_algorithm_info := 0#u32,
-       params := params1,
-       has_private_seed := false,
-       has_private_key := false,
-       private_seed := a,
-       private_random := a1,
-       public_seed := a2,
-       encoded_t := a3,
-       encaps_key_hash := a4,
-       pm_a_transpose := { n_rows := i, ap_poly_elements := s },
-       pvt := s1,
-       pvs := s2
-     } : key.Key1)
-  ok (core.result.Result.Ok k)
-
-/- [symcrust::key::{symcrust::key::PreKey2<@Slice<@Array<u16, 256: usize>>>}#1::matrix_len]:
+/- [symcrust::key::{symcrust::key::PreKey2<@Slice<@Array<u16, 256: usize>>>}::matrix_len]:
    Source: 'src/key.rs', lines 256:4-258:5 -/
 def key.PreKey2SliceArrayU16256.matrix_len
   (self : key.PreKey2 (Slice (Array U16 256#usize))) : Result Usize :=
   self.n_rows * self.n_rows
 
-/- [symcrust::key::{symcrust::key::PreKey2<@Slice<@Array<u16, 256: usize>>>}#1::atranspose]:
+/- [symcrust::key::{symcrust::key::PreKey2<@Slice<@Array<u16, 256: usize>>>}::atranspose]:
    Source: 'src/key.rs', lines 259:4-262:5 -/
 def key.PreKey2SliceArrayU16256.atranspose
   (self : key.PreKey2 (Slice (Array U16 256#usize))) :
@@ -904,7 +778,7 @@ def key.PreKey2SliceArrayU16256.atranspose
   core.slice.index.Slice.index (core.slice.index.SliceIndexRangeUsizeSliceInst
     (Array U16 256#usize)) self.data { start := 0#usize, end_ := m_len }
 
-/- [symcrust::key::{symcrust::key::PreKey2<@Slice<@Array<u16, 256: usize>>>}#1::t]:
+/- [symcrust::key::{symcrust::key::PreKey2<@Slice<@Array<u16, 256: usize>>>}::t]:
    Source: 'src/key.rs', lines 263:4-266:5 -/
 def key.PreKey2SliceArrayU16256.t
   (self : key.PreKey2 (Slice (Array U16 256#usize))) :
@@ -916,7 +790,7 @@ def key.PreKey2SliceArrayU16256.t
   core.slice.index.Slice.index (core.slice.index.SliceIndexRangeUsizeSliceInst
     (Array U16 256#usize)) self.data { start := m_len, end_ := i }
 
-/- [symcrust::key::{symcrust::key::PreKey2<@Slice<@Array<u16, 256: usize>>>}#1::s]:
+/- [symcrust::key::{symcrust::key::PreKey2<@Slice<@Array<u16, 256: usize>>>}::s]:
    Source: 'src/key.rs', lines 267:4-270:5 -/
 def key.PreKey2SliceArrayU16256.s
   (self : key.PreKey2 (Slice (Array U16 256#usize))) :
@@ -930,7 +804,7 @@ def key.PreKey2SliceArrayU16256.s
   core.slice.index.Slice.index (core.slice.index.SliceIndexRangeUsizeSliceInst
     (Array U16 256#usize)) self.data { start := i, end_ := i2 }
 
-/- [symcrust::key::{symcrust::key::PreKey2<@Slice<@Array<u16, 256: usize>>>}#1::atranspose_mut]:
+/- [symcrust::key::{symcrust::key::PreKey2<@Slice<@Array<u16, 256: usize>>>}::atranspose_mut]:
    Source: 'src/key.rs', lines 271:4-274:5 -/
 def key.PreKey2SliceArrayU16256.atranspose_mut
   (self : key.PreKey2 (Slice (Array U16 256#usize))) :
@@ -947,7 +821,7 @@ def key.PreKey2SliceArrayU16256.atranspose_mut
                          { self with data := s1 }
   ok (s, back)
 
-/- [symcrust::key::{symcrust::key::PreKey2<@Slice<@Array<u16, 256: usize>>>}#1::t_mut]:
+/- [symcrust::key::{symcrust::key::PreKey2<@Slice<@Array<u16, 256: usize>>>}::t_mut]:
    Source: 'src/key.rs', lines 275:4-278:5 -/
 def key.PreKey2SliceArrayU16256.t_mut
   (self : key.PreKey2 (Slice (Array U16 256#usize))) :
@@ -965,7 +839,7 @@ def key.PreKey2SliceArrayU16256.t_mut
                          { self with data := s1 }
   ok (s, back)
 
-/- [symcrust::key::{symcrust::key::PreKey2<@Slice<@Array<u16, 256: usize>>>}#1::s_mut]:
+/- [symcrust::key::{symcrust::key::PreKey2<@Slice<@Array<u16, 256: usize>>>}::s_mut]:
    Source: 'src/key.rs', lines 279:4-282:5 -/
 def key.PreKey2SliceArrayU16256.s_mut
   (self : key.PreKey2 (Slice (Array U16 256#usize))) :
@@ -985,7 +859,7 @@ def key.PreKey2SliceArrayU16256.s_mut
                          { self with data := s1 }
   ok (s, back)
 
-/- [symcrust::key::{symcrust::key::PreKey2<@Slice<@Array<u16, 256: usize>>>}#1::ats_mut]:
+/- [symcrust::key::{symcrust::key::PreKey2<@Slice<@Array<u16, 256: usize>>>}::ats_mut]:
    Source: 'src/key.rs', lines 287:4-292:5 -/
 def key.PreKey2SliceArrayU16256.ats_mut
   (self : key.PreKey2 (Slice (Array U16 256#usize))) :
@@ -1008,7 +882,7 @@ def key.PreKey2SliceArrayU16256.ats_mut
       { self with data := s4 }
   ok ((a, t, s), back)
 
-/- [symcrust::key::{symcrust::key::PreKey2<@Slice<@Array<u16, 256: usize>>>}#1::t_encoded_t_mut]:
+/- [symcrust::key::{symcrust::key::PreKey2<@Slice<@Array<u16, 256: usize>>>}::t_encoded_t_mut]:
    Source: 'src/key.rs', lines 294:4-300:5 -/
 def key.PreKey2SliceArrayU16256.t_encoded_t_mut
   (self : key.PreKey2 (Slice (Array U16 256#usize))) :
@@ -2313,138 +2187,6 @@ def ntt.poly_element_sample_cbd_from_bytes.then_inner_loop
   :=
   ntt.poly_element_sample_cbd_from_bytes.then_inner_loop_loop pe_dst i
     sample_bits 0#usize
-
-/- [symcrust::ntt::poly_element_sample_cbd_from_bytes]: loop 0:
-   Source: 'src/ntt.rs', lines 41:8-854:9 -/
-def ntt.poly_element_sample_cbd_from_bytes_loop0
-  (pb_src : Slice U8) (pe_dst : Array U16 256#usize) (src_i : Usize)
-  (i : Usize) :
-  Result (Array U16 256#usize)
-  :=
-  if i < key.MLWE_POLYNOMIAL_COEFFICIENTS
-  then
-    do
-    let a ← ntt.slice_to_sub_array4 pb_src src_i
-    let sample_bits ← (↑(core.num.U32.from_le_bytes a) : Result U32)
-    let src_i1 ← src_i + 3#usize
-    let i1 ← (↑(sample_bits &&& 2396745#u32) : Result U32)
-    let i2 ← sample_bits >>> 1#i32
-    let i3 ← (↑(i2 &&& 2396745#u32) : Result U32)
-    let i4 ← i1 + i3
-    let i5 ← sample_bits >>> 2#i32
-    let i6 ← (↑(i5 &&& 2396745#u32) : Result U32)
-    let sample_bits1 ← i4 + i6
-    let (pe_dst1, _) ←
-      ntt.poly_element_sample_cbd_from_bytes.then_inner_loop pe_dst i
-        sample_bits1
-    let i7 ← i + 4#usize
-    ntt.poly_element_sample_cbd_from_bytes_loop0 pb_src pe_dst1 src_i1 i7
-  else ok pe_dst
-partial_fixpoint
-
-/- [symcrust::ntt::poly_element_sample_cbd_from_bytes]: loop 1:
-   Source: 'src/ntt.rs', lines 41:8-885:9 -/
-def ntt.poly_element_sample_cbd_from_bytes_loop1
-  (pb_src : Slice U8) (pe_dst : Array U16 256#usize) (src_i : Usize)
-  (i : Usize) :
-  Result (Array U16 256#usize)
-  :=
-  if i < key.MLWE_POLYNOMIAL_COEFFICIENTS
-  then
-    do
-    let a ← ntt.slice_to_sub_array4 pb_src src_i
-    let sample_bits ← (↑(core.num.U32.from_le_bytes a) : Result U32)
-    let src_i1 ← src_i + 4#usize
-    let i1 ← (↑(sample_bits &&& 1431655765#u32) : Result U32)
-    let i2 ← sample_bits >>> 1#i32
-    let i3 ← (↑(i2 &&& 1431655765#u32) : Result U32)
-    let sample_bits1 ← i1 + i3
-    let (pe_dst1, _) ←
-      ntt.poly_element_sample_cbd_from_bytes.else_inner_loop pe_dst i
-        sample_bits1
-    let i4 ← i + 8#usize
-    ntt.poly_element_sample_cbd_from_bytes_loop1 pb_src pe_dst1 src_i1 i4
-  else ok pe_dst
-partial_fixpoint
-
-/- [symcrust::ntt::poly_element_sample_cbd_from_bytes]: loop 2:
-   Source: 'src/ntt.rs', lines 41:8-854:9 -/
-def ntt.poly_element_sample_cbd_from_bytes_loop2
-  (pb_src : Slice U8) (pe_dst : Array U16 256#usize) (src_i : Usize)
-  (i : Usize) :
-  Result (Array U16 256#usize)
-  :=
-  if i < key.MLWE_POLYNOMIAL_COEFFICIENTS
-  then
-    do
-    let a ← ntt.slice_to_sub_array4 pb_src src_i
-    let sample_bits ← (↑(core.num.U32.from_le_bytes a) : Result U32)
-    let src_i1 ← src_i + 3#usize
-    let i1 ← (↑(sample_bits &&& 2396745#u32) : Result U32)
-    let i2 ← sample_bits >>> 1#i32
-    let i3 ← (↑(i2 &&& 2396745#u32) : Result U32)
-    let i4 ← i1 + i3
-    let i5 ← sample_bits >>> 2#i32
-    let i6 ← (↑(i5 &&& 2396745#u32) : Result U32)
-    let sample_bits1 ← i4 + i6
-    let (pe_dst1, _) ←
-      ntt.poly_element_sample_cbd_from_bytes.then_inner_loop pe_dst i
-        sample_bits1
-    let i7 ← i + 4#usize
-    ntt.poly_element_sample_cbd_from_bytes_loop2 pb_src pe_dst1 src_i1 i7
-  else ok pe_dst
-partial_fixpoint
-
-/- [symcrust::ntt::poly_element_sample_cbd_from_bytes]: loop 3:
-   Source: 'src/ntt.rs', lines 41:8-885:9 -/
-def ntt.poly_element_sample_cbd_from_bytes_loop3
-  (pb_src : Slice U8) (pe_dst : Array U16 256#usize) (src_i : Usize)
-  (i : Usize) :
-  Result (Array U16 256#usize)
-  :=
-  if i < key.MLWE_POLYNOMIAL_COEFFICIENTS
-  then
-    do
-    let a ← ntt.slice_to_sub_array4 pb_src src_i
-    let sample_bits ← (↑(core.num.U32.from_le_bytes a) : Result U32)
-    let src_i1 ← src_i + 4#usize
-    let i1 ← (↑(sample_bits &&& 1431655765#u32) : Result U32)
-    let i2 ← sample_bits >>> 1#i32
-    let i3 ← (↑(i2 &&& 1431655765#u32) : Result U32)
-    let sample_bits1 ← i1 + i3
-    let (pe_dst1, _) ←
-      ntt.poly_element_sample_cbd_from_bytes.else_inner_loop pe_dst i
-        sample_bits1
-    let i4 ← i + 8#usize
-    ntt.poly_element_sample_cbd_from_bytes_loop3 pb_src pe_dst1 src_i1 i4
-  else ok pe_dst
-partial_fixpoint
-
-/- [symcrust::ntt::poly_element_sample_cbd_from_bytes]:
-   Source: 'src/ntt.rs', lines 814:0-887:1 -/
-def ntt.poly_element_sample_cbd_from_bytes
-  (pb_src : Slice U8) (eta : U32) (pe_dst : Array U16 256#usize) :
-  Result (Array U16 256#usize)
-  :=
-  if eta = 2#u32
-  then
-    if eta = 3#u32
-    then
-      ntt.poly_element_sample_cbd_from_bytes_loop0 pb_src pe_dst 0#usize
-        0#usize
-    else
-      ntt.poly_element_sample_cbd_from_bytes_loop1 pb_src pe_dst 0#usize
-        0#usize
-  else
-    do
-    massert (eta = 3#u32)
-    if eta = 3#u32
-    then
-      ntt.poly_element_sample_cbd_from_bytes_loop2 pb_src pe_dst 0#usize
-        0#usize
-    else
-      ntt.poly_element_sample_cbd_from_bytes_loop3 pb_src pe_dst 0#usize
-        0#usize
 
 /- [symcrust::ntt::matrix_transpose::inner_loop]: loop 0:
    Source: 'src/ntt.rs', lines 41:8-905:13 -/

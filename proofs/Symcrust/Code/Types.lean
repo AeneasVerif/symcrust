@@ -8,6 +8,19 @@ set_option linter.unusedVariables false
 
 namespace Symcrust
 
+/- Trait declaration: [core::marker::StructuralPartialEq]
+   Source: '/rustc/library/core/src/marker.rs', lines 257:0-257:29
+   Name pattern: [core::marker::StructuralPartialEq] -/
+structure core.marker.StructuralPartialEq (Self : Type) where
+
+/- [core::panicking::AssertKind]
+   Source: '/rustc/library/core/src/panicking.rs', lines 382:0-382:19
+   Name pattern: [core::panicking::AssertKind] -/
+inductive core.panicking.AssertKind where
+| Eq : core.panicking.AssertKind
+| Ne : core.panicking.AssertKind
+| Match : core.panicking.AssertKind
+
 /- [symcrust::common::Error]
    Source: 'src/common.rs', lines 7:0-31:1 -/
 inductive common.Error where
@@ -34,22 +47,6 @@ inductive common.Error where
 | SessionReplayFailure : common.Error
 | HbsNoOtsKeysLeft : common.Error
 | HbsPublicRootMismatch : common.Error
-
-/- Trait declaration: [core::marker::StructuralPartialEq]
-   Source: '/rustc/library/core/src/marker.rs', lines 216:0-216:29
-   Name pattern: [core::marker::StructuralPartialEq] -/
-structure core.marker.StructuralPartialEq (Self : Type) where
-
-/- Trait declaration: [core::ops::try_trait::FromResidual]
-   Source: '/rustc/library/core/src/ops/try_trait.rs', lines 307:0-307:51
-   Name pattern: [core::ops::try_trait::FromResidual] -/
-structure core.ops.try_trait.FromResidual (Self : Type) (R : Type) where
-  from_residual : R → Result Self
-
-/- [core::convert::Infallible]
-   Source: '/rustc/library/core/src/convert/mod.rs', lines 905:0-905:19
-   Name pattern: [core::convert::Infallible] -/
-inductive core.convert.Infallible where
 
 /- [symcrust::hash::KeccakState]
    Source: 'src/hash.rs', lines 20:0-26:1 -/
@@ -90,28 +87,6 @@ structure key.InternalParams where
   n_bits_of_u : U8
   n_bits_of_v : U8
 
-/- [symcrust::key::Matrix1]
-   Source: 'src/key.rs', lines 125:0-128:1 -/
-structure key.Matrix1 where
-  n_rows : Usize
-  ap_poly_elements : Slice (Array U16 256#usize)
-
-/- [symcrust::key::Key1]
-   Source: 'src/key.rs', lines 132:0-163:1 -/
-structure key.Key1 where
-  f_algorithm_info : U32
-  params : key.InternalParams
-  has_private_seed : Bool
-  has_private_key : Bool
-  private_seed : Array U8 32#usize
-  private_random : Array U8 32#usize
-  public_seed : Array U8 32#usize
-  encoded_t : Array U8 1536#usize
-  encaps_key_hash : Array U8 32#usize
-  pm_a_transpose : key.Matrix1
-  pvt : Slice (Array U16 256#usize)
-  pvs : Slice (Array U16 256#usize)
-
 /- [symcrust::key::PreKey2]
    Source: 'src/key.rs', lines 229:0-248:1 -/
 structure key.PreKey2 (U : Type) where
@@ -126,13 +101,5 @@ structure key.PreKey2 (U : Type) where
   encaps_key_hash : Array U8 32#usize
   n_rows : Usize
   data : U
-
-/- [core::panicking::AssertKind]
-   Source: '/rustc/library/core/src/panicking.rs', lines 359:0-359:19
-   Name pattern: [core::panicking::AssertKind] -/
-inductive core.panicking.AssertKind where
-| Eq : core.panicking.AssertKind
-| Ne : core.panicking.AssertKind
-| Match : core.panicking.AssertKind
 
 end Symcrust

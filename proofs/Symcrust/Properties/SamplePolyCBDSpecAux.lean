@@ -92,6 +92,29 @@ def ntt.poly_element_sample_cbd_from_bytes.else_inner_loop_loop
 partial_fixpoint
 -/
 
+theorem Target2.samplePolyCBD.loop1.inner_loop.i7_proof (sample_bits : BitVec 32) :
+  let coefficient := sample_bits &&& 15;
+  let i1 := coefficient &&& 3;
+  let i2 := coefficient >>> 2;
+  let coefficient1 := i1 - i2;
+  let i4 := coefficient1 >>> 16;
+  let i5 := ↑↑ntt.Q &&& i4;
+  let coefficient2 := coefficient1 + i5;
+  coefficient2.toNat ≤ UScalar.cMax UScalarTy.U16 := by
+  intro coefficient i1 i2 coefficient1 i4 i5 coefficient2
+  unfold coefficient2 i5 i4 coefficient1 i1 i2 coefficient
+  olet hsample_bits' : sample_bits' := sample_bits &&& 15
+  replace hsample_bits' : sample_bits' < 16 := by
+    rw [hsample_bits', LT.lt, instLTBitVec]
+    simp only [BitVec.ofNat_eq_ofNat, gt_iff_lt, BitVec.toNat_and, BitVec.toNat_ofNat,
+      Nat.reducePow, Nat.reduceMod]
+    rw [Nat.lt_succ_iff]
+    apply Nat.and_le_right
+  revert sample_bits'
+  -- `decide +native` is too slow here and this is out of scope for `bv_decide`
+  -- This is an excellent case for generalizing `brute`
+  sorry
+
 def Target2.samplePolyCBD.loop1.inner_loop (pe_dst : Polynomial) (i j : ℕ) (sample_bits : BitVec 32) :
   Polynomial × BitVec 32 :=
   if j < 8#usize then
@@ -109,35 +132,14 @@ def Target2.samplePolyCBD.loop1.inner_loop (pe_dst : Polynomial) (i j : ℕ) (sa
     let i5 := ntt.Q &&& i4
     let coefficient2 := coefficient1 + i5
     let i6 := i + j
-    let i7 : U16 := U16.ofNat coefficient2.toNat $ by
-      unfold coefficient2 i5 i4 coefficient1 i1 i2 coefficient
-      olet hsample_bits' : sample_bits' := sample_bits &&& 15
-      replace hsample_bits' : sample_bits' < 16 := by
-        rw [hsample_bits', LT.lt, instLTBitVec]
-        simp only [BitVec.ofNat_eq_ofNat, gt_iff_lt, BitVec.toNat_and, BitVec.toNat_ofNat,
-          Nat.reducePow, Nat.reduceMod]
-        rw [Nat.lt_succ_iff]
-        apply Nat.and_le_right
-      revert sample_bits'
-      -- `decide +native` is too slow here and this is out of scope for `bv_decide`
-      -- This is an excellent case for generalizing `brute`
-      sorry
-    /-
-    let i4 ← coefficient1 >>> 16#i32
-    let i5 ← (↑(ntt.Q &&& i4) : Result U32)
-    let coefficient2 ←
-      (↑(core.num.U32.wrapping_add coefficient1 i5) : Result U32)
-    massert (coefficient2 < ntt.Q)
-    let i6 ← i + j
-    let i7 ← (↑(UScalar.cast .U16 coefficient2) : Result U16)
-    let pe_dst1 ← Array.update pe_dst i6 i7
-    let j1 ← j + 1#usize
-    ntt.poly_element_sample_cbd_from_bytes.else_inner_loop_loop pe_dst1 i
-      sample_bits1 j1
-    -/
-    sorry
+    let i7 := U16.ofNat coefficient2.toNat $ by apply Target2.samplePolyCBD.loop1.inner_loop.i7_proof
+    let pe_dst1 := pe_dst.set! i6 i7
+    let j1 := j + 1
+    loop1.inner_loop pe_dst1 i j1 sample_bits1
   else
     (pe_dst, sample_bits)
+termination_by 8 - j
+decreasing_by scalar_tac
 
 def Target2.samplePolyCBD.loop1 (s : Target2.samplePolyCBDState) : Polynomial :=
   if s.i < key.MLWE_POLYNOMIAL_COEFFICIENTS then

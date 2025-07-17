@@ -9,8 +9,8 @@ set_option linter.hashCommand false
 set_option linter.unusedVariables false
 open Symcrust
 
-/- [symcrust::common::{core::cmp::PartialEq<symcrust::common::Error> for symcrust::common::Error}#1::ne]:
-   Source: '/rustc/library/core/src/cmp.rs', lines 262:4-262:37 -/
+/- [symcrust::common::{core::cmp::PartialEq<symcrust::common::Error> for symcrust::common::Error}::ne]:
+   Source: 'src/common.rs', lines 5:9-5:18 -/
 axiom common.PartialEqsymcrustcommonErrorsymcrustcommonError.ne
   : common.Error → common.Error → Result Bool
 
@@ -41,8 +41,13 @@ axiom hash.shake128_extract
   hash.HashState → Slice U8 → Bool → Result (hash.HashState × (Slice
     U8))
 
-/- [symcrust::key::{core::cmp::PartialEq<symcrust::key::Params> for symcrust::key::Params}#3::ne]:
-   Source: '/rustc/library/core/src/cmp.rs', lines 262:4-262:37 -/
+/- [symcrust::key::{core::cmp::PartialEq<symcrust::key::Params> for symcrust::key::Params}::ne]:
+   Source: 'src/key.rs', lines 30:9-30:18 -/
 axiom key.PartialEqsymcrustkeyParamssymcrustkeyParams.ne
   : key.Params → key.Params → Result Bool
+
+/- [symcrust::ntt::poly_element_sample_cbd_from_bytes]:
+   Source: 'src/ntt.rs', lines 814:0-887:1 -/
+axiom ntt.poly_element_sample_cbd_from_bytes
+  : Slice U8 → U32 → Array U16 256#usize → Result (Array U16 256#usize)
 

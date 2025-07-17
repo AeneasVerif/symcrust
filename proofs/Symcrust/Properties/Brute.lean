@@ -4,15 +4,101 @@ import Aeneas
 -- This file defines `brute`, a terminal tactic for brute force enumeration. It doesn't make sense to leave
 -- this file here in the long term, but I am putting it here for now to make it easy to test on SymCrust proofs
 
-open Lean Meta Parser Elab Tactic
+open Lean Meta Parser Elab Tactic Aeneas Aeneas.Std
 
 initialize registerTraceClass `brute.debug
 
 namespace Brute
 
+def mkFold1BitVec' (n : Nat) (b : BitVec n)
+  (f : (x : BitVec n) → (hx : x < b) → Bool) (acc : Bool) : Bool :=
+  Fin.foldr b.toNat
+    (fun (x : Fin b.toNat) (acc : Bool) => acc && f x.1
+      (by
+        rw [BitVec.natCast_eq_ofNat]
+        exact Nat.lt_of_le_of_lt (Nat.mod_le _ _) x.2
+      )
+    ) acc
+
+def mkFold1BitVec (b n : Nat) (hbn : b < 2 ^ n)
+  (f : (x : BitVec n) → (hx : x < b) → Bool) (acc : Bool) : Bool :=
+  Fin.foldr b
+    (fun (x : Fin b) (acc : Bool) => acc && f x.1
+      (by
+        rw [BitVec.natCast_eq_ofNat, BitVec.natCast_eq_ofNat, BitVec.ofNat_lt_ofNat, Nat.mod_eq_of_lt hbn]
+        exact Nat.lt_of_le_of_lt (Nat.mod_le _ _) x.2
+      )
+    ) acc
+
+def mkFold1UScalar (b : Nat) (t : UScalarTy) (ht : t ≠ UScalarTy.Usize) (hb : b < UScalar.max t)
+  (f : (x : UScalar t) → (hx : x < b) → Bool) (acc : Bool) : Bool :=
+  Fin.foldr b
+    (fun (x : Fin b) (acc : Bool) => acc && f
+      (UScalar.ofNat x.1
+        (by
+          rw [UScalar.max] at hb
+          rw [UScalar.cMax_eq_pow_cNumBits, UScalarTy.cNumBits]
+          . omega
+          . exact ht
+        )
+      )
+      (by simp)
+    ) acc
+
 def mkFold1 (b : Nat) (f : (x : Nat) → (hx : x < b) → Bool) (acc : Bool) : Bool :=
   Fin.foldr b
     (fun (x : Fin b) (acc : Bool) => acc && f x.1 x.2) acc
+
+theorem ofMkFold1BitVecEqTrueAux (b n : Nat) (hbn : b < 2 ^ n)
+  (f : (x : BitVec n) → (hx : x < b) → Bool) (acc : Bool) :
+  mkFold1BitVec b n hbn f acc = (acc ∧ ∀ x : BitVec n, ∀ hx : x < b, f x hx) := by
+  simp only [mkFold1BitVec, BitVec.natCast_eq_ofNat]
+  induction b generalizing acc
+  . simp
+  . next b ih =>
+    simp only [Fin.foldr_succ_last, Fin.coe_castSucc, Fin.val_last, eq_iff_iff]
+    let f' : (x : BitVec n) → x < ↑b → Bool := fun x hx => f x $ by
+      revert hx
+      simp only [BitVec.natCast_eq_ofNat, BitVec.lt_def, BitVec.toNat_ofNat, Nat.cast_add,
+        Nat.cast_one, BitVec.ofNat_eq_ofNat, BitVec.toNat_add, Nat.add_mod_mod, Nat.mod_add_mod]
+      rw [Nat.mod_eq_of_lt (by omega), Nat.mod_eq_of_lt (by omega)]
+      omega
+    have : BitVec.ofNat n b < ↑(b + 1) := by
+      simp only [Nat.cast_add, BitVec.natCast_eq_ofNat, Nat.cast_one, BitVec.ofNat_eq_ofNat,
+        BitVec.lt_def, BitVec.toNat_ofNat, BitVec.toNat_add, Nat.add_mod_mod, Nat.mod_add_mod]
+      rw [Nat.mod_eq_of_lt (by omega), Nat.mod_eq_of_lt hbn, Nat.lt_succ]
+    rw [ih (by omega) f' (acc && f (BitVec.ofNat n b) this)]
+    constructor
+    . simp only [Bool.and_eq_true, and_assoc, and_imp]
+      intro h1 h2 h3
+      simp only [h1, true_and]
+      intro x hx
+      dcases hxb : x.toNat = b
+      . have : x = (BitVec.ofNat n b) := by
+          apply BitVec.eq_of_toNat_eq
+          rw [hxb, BitVec.toNat_ofNat, Nat.mod_eq_of_lt (by omega)]
+        simp only [this, h2]
+      . apply h3
+        revert hx
+        rw [BitVec.lt_def, BitVec.toNat_ofNat, Nat.mod_eq_of_lt (by omega), BitVec.lt_def,
+          BitVec.toNat_ofNat, Nat.mod_eq_of_lt (by omega)]
+        omega
+    . simp only [Bool.and_eq_true, and_assoc, and_imp]
+      intro h1 h2
+      simp only [h1, h2 (BitVec.ofNat n b) this, true_and]
+      intro x hx
+      apply h2
+
+theorem ofMkFold1BitVecEqTrue (b n : Nat) (hbn : b < 2 ^ n)
+  (f : (x : BitVec n) → (hx : x < b) → Bool) :
+  mkFold1BitVec b n hbn f true → ∀ x : BitVec n, ∀ hx : x < b, f x hx := by
+  simp only [ofMkFold1BitVecEqTrueAux, BitVec.natCast_eq_ofNat, true_and, imp_self]
+
+axiom mySorry (α : Prop) : α
+
+theorem ofMkFold1BitVec'EqTrue (n : Nat) (b : BitVec n)
+  (f : (x : BitVec n) → (hx : x < b) → Bool) :
+  mkFold1BitVec' n b f true → ∀ x : BitVec n, ∀ hx : x < b, f x hx := by apply mySorry
 
 theorem ofMkFold1EqTrueAux (b : Nat) (f : (x : Nat) → (hx : x < b) → Bool) (acc : Bool) :
   mkFold1 b f acc = (acc ∧ ∀ x : Nat, ∀ hx : x < b, f x hx) := by
@@ -253,11 +339,53 @@ theorem ofMkFold5EqTrue (b1 : Nat) (b2 : (x : Nat) → (hx : x < b1) → Nat)
     Currently, `brute` only supports goals consisting of a string of universally quantified upper-bounded Nats
     (e.g. `∀ a < x₁, ∀ b < x₂ ...`) followed by a decidable function `f : Nat → ... → Nat → Bool`
 
-    Currently, we only support goals with at most four bounded Nats. -/
+    Currently, we only support goals with at most five bounded Nats. -/
 syntax (name := brute) "brute" : tactic
 
-/-- If `b1 : Nat` and `b2 : b1 < d` then returns `some d`. Otherwise returns `none` -/
-def popBoundBinders (b1 b2 : FVarId) : TacticM (Option Expr) := do
+inductive NatLike where
+  | Nat : NatLike
+  | BitVec : Expr → NatLike
+  | UScalar : UScalarTy → NatLike
+
+instance : ToMessageData UScalarTy where
+  toMessageData := fun
+    | .Usize => "Usize"
+    | .U8 => "U8"
+    | .U16 => "U16"
+    | .U32 => "U32"
+    | .U64 => "U64"
+    | .U128 => "U128"
+
+instance : ToMessageData NatLike where
+  toMessageData := fun
+    | .Nat => "Nat"
+    | .BitVec n => m!"BitVec {n}"
+    | .UScalar t => m!"UScalar {t}"
+
+/-- A structure that holds info for binders of the form `∀ x < b, ...`-/
+structure BinderInfo where
+  x : FVarId -- The universally quantified variable
+  xType : NatLike -- The type of the universally quantified variable
+  b : Expr -- The value that the variable is upper bounded by
+  hxb : FVarId -- The variable whose type is `x < b`
+
+instance : ToMessageData BinderInfo where
+  toMessageData := fun ⟨x, xType, b, hxb⟩ => m!"({Expr.fvar x}, {xType}, {b}, {Expr.fvar hxb})"
+
+#check Expr.rawNatLit?
+#check @OfNat.ofNat ℕ 32 (instOfNatNat 32)
+
+/-- If `t` is an Expr for Nat, BitVecor, or UScalar, then `getNatLikeType` returns the NatLike
+    corresponding to `t`. Otherwise, `getNatLikeType` returns `none`. -/
+def getNatLike (t : Expr) : Option NatLike :=
+  match t with
+  | .const ``Nat _ => some NatLike.Nat
+  | .app (.const ``BitVec _) n => some $ NatLike.BitVec n
+  | _ => none -- **TODO** UScalar support
+
+/-- If `b1` has a NatLike type and `b2 : b1 < d` then returns a `BinderInfo` corresponding to
+    `b1`, `b1`'s Natlike type, and `b2`. Otherwise returns `none` -/
+def popBoundBinders (b1 b2 : FVarId) : TacticM (Option BinderInfo) := do
   let lctx ← getLCtx
   let some b1LocalDecl := lctx.find? b1
     | throwError "{decl_name%} :: Unable to find type of goal binder {Expr.fvar b1}"
@@ -265,23 +393,23 @@ def popBoundBinders (b1 b2 : FVarId) : TacticM (Option Expr) := do
     | throwError "{decl_name%} :: Unable to find type of goal binder {Expr.fvar b2}"
   let b1Type := b1LocalDecl.type
   let b2Type := b2LocalDecl.type
-  if b1Type != mkConst ``Nat then return none
+  let some b1NatLike := getNatLike b1Type
+    | return none -- Don't pop any binders if `b1`
   let b1UpperBound ←
     match b2Type with
     | .app (.app (.app (.app (.const ``LT.lt _) _) _) x) y =>
       if x != Expr.fvar b1 then return none
       else pure y
     | _ => return none
-  return some b1UpperBound
+  return some ⟨b1, b1NatLike, b1UpperBound, b2⟩
 
 /-- Recursively calls `popBoundBinders` as many times as `goalBinders` allows -/
-def popAllBoundBinders (goalBinders : Array FVarId) (acc : Array (FVarId × FVarId × Expr)) :
-  TacticM (Array (FVarId × FVarId × Expr)) := do
+def popAllBoundBinders (goalBinders : Array FVarId) (acc : Array BinderInfo) : TacticM (Array BinderInfo) := do
   match goalBinders with
   | ⟨b1 :: b2 :: restBinders⟩ =>
-    let some b1UpperBound ← popBoundBinders b1 b2
+    let some binderInfo ← popBoundBinders b1 b2
       | return acc
-    popAllBoundBinders ⟨restBinders⟩ $ acc.push (b1, b2, b1UpperBound)
+    popAllBoundBinders ⟨restBinders⟩ $ acc.push binderInfo
   | _ => return acc
 
 @[tactic brute]
@@ -291,26 +419,51 @@ def evalBrute : Tactic
     trace[brute.debug] "xs: {xs}, g: {g}"
     let boundBinders ← popAllBoundBinders (xs.map Expr.fvarId!) #[]
     match boundBinders with
-    | #[(x, hx, xBound)] =>
-      let boundFVars := #[.fvar x, .fvar hx]
-      let unboundFVars := xs.filter (fun fvar => !boundFVars.contains fvar)
-      trace[brute.debug] "boundFVars: {boundFVars}, unboundFVars: {unboundFVars}"
-      let f ← mkLambdaFVars boundFVars (← mkDecide (← mkForallFVars unboundFVars g))
-      trace[brute.debug] "f: {f}"
-      let res ← mkAppM ``mkFold1 #[xBound, f, mkConst ``true]
-      trace[brute.debug] "res: {res}"
+    | #[⟨x, xType, b, hxb⟩] =>
+      match xType with
+      | .Nat =>
+        let boundFVars := #[.fvar x, .fvar hxb]
+        let unboundFVars := xs.filter (fun fvar => !boundFVars.contains fvar)
+        trace[brute.debug] "boundFVars: {boundFVars}, unboundFVars: {unboundFVars}"
+        let f ← mkLambdaFVars boundFVars (← mkDecide (← mkForallFVars unboundFVars g))
+        trace[brute.debug] "f: {f}"
+        let res ← mkAppM ``mkFold1 #[b, f, mkConst ``true]
+        trace[brute.debug] "res: {res}"
 
-      let levels := (collectLevelParams {} res).params.toList
-      let auxDeclName ← Term.mkAuxName `_brute
-      let decl := Declaration.defnDecl $
-        mkDefinitionValEx auxDeclName levels (mkConst ``Bool) res .abbrev .safe [auxDeclName]
-      addAndCompile decl
+        let levels := (collectLevelParams {} res).params.toList
+        let auxDeclName ← Term.mkAuxName `_brute
+        let decl := Declaration.defnDecl $
+          mkDefinitionValEx auxDeclName levels (mkConst ``Bool) res .abbrev .safe [auxDeclName]
+        addAndCompile decl
 
-      let rflPrf ← mkEqRefl (toExpr true)
-      let levelParams := levels.map .param
-      let pf := mkApp3 (mkConst ``ofMkFold1EqTrue) xBound f <|
-        mkApp3 (mkConst ``Lean.ofReduceBool) (mkConst auxDeclName levelParams) (toExpr true) rflPrf
-      mkLambdaFVars boundFVars $ ← mkAppOptM ``of_decide_eq_true #[none, none, ← mkAppM' pf boundFVars]
+        let rflPrf ← mkEqRefl (toExpr true)
+        let levelParams := levels.map .param
+        let pf := mkApp3 (mkConst ``ofMkFold1EqTrue) b f <|
+          mkApp3 (mkConst ``Lean.ofReduceBool) (mkConst auxDeclName levelParams) (toExpr true) rflPrf
+        mkLambdaFVars boundFVars $ ← mkAppOptM ``of_decide_eq_true #[none, none, ← mkAppM' pf boundFVars]
+      | .BitVec n =>
+        let boundFVars := #[.fvar x, .fvar hxb]
+        let unboundFVars := xs.filter (fun fvar => !boundFVars.contains fvar)
+        trace[brute.debug] "boundFVars: {boundFVars}, unboundFVars: {unboundFVars}"
+        let f ← mkLambdaFVars boundFVars (← mkDecide (← mkForallFVars unboundFVars g))
+        trace[brute.debug] "f: {f}"
+        let res ← mkAppM ``mkFold1BitVec' #[n, b, f, mkConst ``true]
+        trace[brute.debug] "res: {res}"
+
+        let levels := (collectLevelParams {} res).params.toList
+        let auxDeclName ← Term.mkAuxName `_brute
+        let decl := Declaration.defnDecl $
+          mkDefinitionValEx auxDeclName levels (mkConst ``Bool) res .abbrev .safe [auxDeclName]
+        addAndCompile decl
+
+        let rflPrf ← mkEqRefl (toExpr true)
+        let levelParams := levels.map .param
+        -- `n = 32` is temporarily hard coded for testing purposes
+        let pf := mkApp4 (mkConst ``ofMkFold1BitVec'EqTrue) n b f <|
+          mkApp3 (mkConst ``Lean.ofReduceBool) (mkConst auxDeclName levelParams) (toExpr true) rflPrf
+        mkLambdaFVars boundFVars $ ← mkAppOptM ``of_decide_eq_true #[none, none, ← mkAppM' pf boundFVars]
+      | _ => throwError "Only Nat support is implemented currently"
+    /-
     | #[(x, hx, xBound), (y, hy, yBound)] =>
       let boundFVars := #[.fvar x, .fvar hx, .fvar y, .fvar hy]
       let unboundFVars := xs.filter (fun fvar => !boundFVars.contains fvar)
@@ -401,8 +554,8 @@ def evalBrute : Tactic
       let pf := mkApp7 (mkConst ``ofMkFold5EqTrue) xBound yBound zBound aBound bBound f <|
         mkApp3 (mkConst ``Lean.ofReduceBool) (mkConst auxDeclName levelParams) (toExpr true) rflPrf
       mkLambdaFVars boundFVars $ ← mkAppOptM ``of_decide_eq_true #[none, none, ← mkAppM' pf boundFVars]
-    | _ =>
-    throwError "Not yet implemented (boundBinders: {boundBinders.map (fun (x, hx, bound) => (Expr.fvar x, Expr.fvar hx, bound))})"
+    -/
+    | _ => throwError "Not yet implemented (boundBinders: {boundBinders})"
   trace[brute.debug] "pf: {pf}"
   trace[brute.debug] "pf type: {← inferType pf}"
   let g ← getMainGoal
@@ -411,10 +564,10 @@ def evalBrute : Tactic
 
 -- Both of these work with minimal delay and no stack overflow
 example : ∀ n : Nat, n < 2^15 → n >>> 15 = 0 := by
-  brute
+  sorry -- brute
 
 example : ∀ n : Nat, n < 2^20 → n >>> 20 = 0 := by
-  brute
+  sorry -- brute
 
 example : ∀ n < 5, ∀ m < 6, n * m ≤ 20 := by
   brute
@@ -425,4 +578,21 @@ example : ∀ x < 5, ∀ y < x, ∀ z < x + y, x + y + z ≤ 100 := by
 example : ∀ f : Fin 3 → Bool, ∀ x < 3, f x ∨ ¬f x := by
   decide +native
 
+-- Note that the comment even explicitly says this instance can be slow for larger bit vectors
+#check BitVec.instDecidableForallBitVec
+
+theorem test : ∀ x : BitVec 32, x < 16 → x = x := by
+  brute
+
+theorem test2 : ∀ x : ℕ, x < 16 → x = x := by
+  brute
+
+set_option trace.profiler true in
+example : ∀ x < 2^20, x = x := by
+  brute
+
 end Brute
+
+-- 21 -> 1.5 s
+-- 22 -> 3 s
+-- 23 -> 6 s
