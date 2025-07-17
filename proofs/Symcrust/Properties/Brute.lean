@@ -10,45 +10,6 @@ initialize registerTraceClass `brute.debug
 
 namespace Brute
 
-def mkFold1BitVec' (n : Nat) (b : BitVec n)
-  (f : (x : BitVec n) → (hx : x < b) → Bool) (acc : Bool) : Bool :=
-  Fin.foldr b.toNat
-    (fun (x : Fin b.toNat) (acc : Bool) => acc && f x.1
-      (by
-        rw [BitVec.natCast_eq_ofNat]
-        exact Nat.lt_of_le_of_lt (Nat.mod_le _ _) x.2
-      )
-    ) acc
-
-def mkFold1BitVec (b n : Nat) (hbn : b < 2 ^ n)
-  (f : (x : BitVec n) → (hx : x < b) → Bool) (acc : Bool) : Bool :=
-  Fin.foldr b
-    (fun (x : Fin b) (acc : Bool) => acc && f x.1
-      (by
-        rw [BitVec.natCast_eq_ofNat, BitVec.natCast_eq_ofNat, BitVec.ofNat_lt_ofNat, Nat.mod_eq_of_lt hbn]
-        exact Nat.lt_of_le_of_lt (Nat.mod_le _ _) x.2
-      )
-    ) acc
-
-def mkFold1UScalar (b : Nat) (t : UScalarTy) (ht : t ≠ UScalarTy.Usize) (hb : b < UScalar.max t)
-  (f : (x : UScalar t) → (hx : x < b) → Bool) (acc : Bool) : Bool :=
-  Fin.foldr b
-    (fun (x : Fin b) (acc : Bool) => acc && f
-      (UScalar.ofNat x.1
-        (by
-          rw [UScalar.max] at hb
-          rw [UScalar.cMax_eq_pow_cNumBits, UScalarTy.cNumBits]
-          . omega
-          . exact ht
-        )
-      )
-      (by simp)
-    ) acc
-
-def mkFold1 (b : Nat) (f : (x : Nat) → (hx : x < b) → Bool) (acc : Bool) : Bool :=
-  Fin.foldr b
-    (fun (x : Fin b) (acc : Bool) => acc && f x.1 x.2) acc
-
 class IsNatLike (t : Type) where
   pf : PSum (t = Nat) (PSum (PSigma (fun n : Nat => t = BitVec n))
     (PSigma (fun t' : UScalarTy => t' ≠ UScalarTy.Usize ∧ t = UScalar t')))
@@ -60,7 +21,7 @@ instance (t : Type) [h : IsNatLike t] : LT t where
     | .inr (.inl pf) => fun x y => cast pf.2 x < cast pf.2 y
     | .inr (.inr pf) => fun x y => cast pf.2.2 x < cast pf.2.2 y
 
-def mkFold1' {t : Type} [h : IsNatLike t] (b : t) (f : (x : t) → (hx : x < b) → Bool) (acc : Bool) : Bool :=
+def mkFold1 {t : Type} [h : IsNatLike t] (b : t) (f : (x : t) → (hx : x < b) → Bool) (acc : Bool) : Bool :=
   match h' : h.pf with
   | .inl pf =>
     Fin.foldr (cast pf b)
@@ -96,6 +57,7 @@ def mkFold1' {t : Type} [h : IsNatLike t] (b : t) (f : (x : t) → (hx : x < b) 
         (by rw [LT.lt, instLTOfIsNatLike, h']; simp)
       ) acc
 
+/-
 theorem ofMkFold1BitVecEqTrueAux (b n : Nat) (hbn : b < 2 ^ n)
   (f : (x : BitVec n) → (hx : x < b) → Bool) (acc : Bool) :
   mkFold1BitVec b n hbn f acc = (acc ∧ ∀ x : BitVec n, ∀ hx : x < b, f x hx) := by
@@ -141,11 +103,6 @@ theorem ofMkFold1BitVecEqTrue (b n : Nat) (hbn : b < 2 ^ n)
   mkFold1BitVec b n hbn f true → ∀ x : BitVec n, ∀ hx : x < b, f x hx := by
   simp only [ofMkFold1BitVecEqTrueAux, BitVec.natCast_eq_ofNat, true_and, imp_self]
 
-theorem ofMkFold1BitVec'EqTrue (n : Nat) (b : BitVec n)
-  (f : (x : BitVec n) → (hx : x < b) → Bool) :
-  mkFold1BitVec' n b f true → ∀ x : BitVec n, ∀ hx : x < b, f x hx := by
-  sorry
-
 theorem ofMkFold1EqTrueAux (b : Nat) (f : (x : Nat) → (hx : x < b) → Bool) (acc : Bool) :
   mkFold1 b f acc = (acc ∧ ∀ x : Nat, ∀ hx : x < b, f x hx) := by
   simp only [mkFold1, eq_iff_iff]
@@ -176,15 +133,55 @@ theorem ofMkFold1EqTrueAux (b : Nat) (f : (x : Nat) → (hx : x < b) → Bool) (
 theorem ofMkFold1EqTrue (b : Nat) (f : (x : Nat) → (hx : x < b) → Bool) :
   mkFold1 b f true → ∀ x : Nat, ∀ hx : x < b, f x hx := by
   simp only [ofMkFold1EqTrueAux, true_and, imp_self]
+-/
 
-theorem ofMkFold1'EqTrueAux {t : Type} [h : IsNatLike t] (b : t) (f : (x : t) → (hx : x < b) → Bool)
-  (acc : Bool) : mkFold1' b f acc = (acc ∧ ∀ x : t, ∀ hx : x < b, f x hx) := by
-  sorry
+set_option pp.proofs false in
+theorem ofMkFold1EqTrueAux {t : Type} [h : IsNatLike t] (b : t) (f : (x : t) → (hx : x < b) → Bool)
+  (acc : Bool) : mkFold1 b f acc = (acc ∧ ∀ x : t, ∀ hx : x < b, f x hx) := by
+  unfold mkFold1
+  split
+  . next ht hpf =>
+    simp only [eq_iff_iff]
+    -- Automation note: `olet hb' : b' := cast ht b` fails here because `generalize` fails
+    rcases (Exists.intro (cast ht b) rfl : ∃ b' : Nat, b' = cast ht b) with ⟨b', hb'⟩
+    simp only [← hb', Fin.coe_cast]
+    have : ∃ f' : (x : Nat) → x < b' → Bool,
+      ∀ x : t, ∀ hx : x < b, f x hx = f' (cast ht x)
+        (by
+          rw [LT.lt, instLTOfIsNatLike, hpf] at hx
+          simp only [gt_iff_lt, ← hb'] at hx
+          exact hx) := by
+      apply Exists.intro $
+        fun x hx => f (cast ht.symm x)
+          (by
+            rw [LT.lt, instLTOfIsNatLike , hpf]
+            simp only [gt_iff_lt, cast_cast, cast_eq]
+            omega
+          )
+      simp
+    rcases this with ⟨f', hf'⟩
+    simp only [hf', cast_cast, cast_eq]
+    clear hf' f
+    induction b' generalizing acc
+    . simp only [Fin.foldr_zero, iff_self_and]
+      intro h1 x hx
+      rw [LT.lt, instLTOfIsNatLike, hpf] at hx
+      simp only [gt_iff_lt, ← hb', not_lt_zero'] at hx
+    . next b' ih =>
+      let f'' : (x : ℕ) → x < b' → Bool := fun x hx => f' x (by omega)
+      simp only [Fin.foldr_succ_last, Fin.coe_castSucc, Fin.val_last]
+      -- The sorry in the below specialize call isn't provable because of how the induction interacts
+      -- with `hb'`
+      specialize ih (acc && f' b' (by omega)) (by sorry) f''
+      sorry
+  . sorry
+  . sorry
 
-theorem ofMkFold1'EqTrue {t : Type} [h : IsNatLike t] (b : t) (f : (x : t) → (hx : x < b) → Bool) :
-  mkFold1' b f true → ∀ x : t, ∀ hx : x < b, f x hx := by
-  simp only [ofMkFold1'EqTrueAux, true_and, imp_self]
+theorem ofMkFold1EqTrue {t : Type} [h : IsNatLike t] (b : t) (f : (x : t) → (hx : x < b) → Bool) :
+  mkFold1 b f true → ∀ x : t, ∀ hx : x < b, f x hx := by
+  simp only [ofMkFold1EqTrueAux, true_and, imp_self]
 
+/-
 def mkFold2 (b1 : Nat) (b2 : (x : Nat) → (hx : x < b1) → Nat)
   (f : (x : Nat) → (hx : x < b1) → (y : Nat) → (hy : y < b2 x hx) → Bool)
   (acc : Bool) : Bool :=
@@ -388,6 +385,7 @@ theorem ofMkFold5EqTrue (b1 : Nat) (b2 : (x : Nat) → (hx : x < b1) → Nat)
     ∀ hz : z < b3 x hx y hy, ∀ a : Nat, ∀ ha : a < b4 x hx y hy z hz, ∀ b : Nat,
     ∀ hb : b < b5 x hx y hy z hz a ha, f x hx y hy z hz a ha b hb := by
   simp only [ofMkFold5EqTrueAux, true_and, imp_self]
+-/
 
 /-- A terminal tactic that attempts to prove goals of the form `∀ x y z ..., f x y z ...` via brute force.
     Currently, `brute` only supports goals consisting of a string of universally quantified upper-bounded Nats
@@ -481,7 +479,7 @@ def evalBrute : Tactic
       trace[brute.debug] "boundFVars: {boundFVars}, unboundFVars: {unboundFVars}"
       let f ← mkLambdaFVars boundFVars (← mkDecide (← mkForallFVars unboundFVars g))
       trace[brute.debug] "f: {f}"
-      let res ← mkAppOptM ``mkFold1' #[none, some isNatLikeInst, b, f, mkConst ``true]
+      let res ← mkAppOptM ``mkFold1 #[none, some isNatLikeInst, b, f, mkConst ``true]
       trace[brute.debug] "res: {res}"
 
       let levels := (collectLevelParams {} res).params.toList
@@ -493,7 +491,7 @@ def evalBrute : Tactic
       let rflPrf ← mkEqRefl (toExpr true)
       let levelParams := levels.map .param
       let foldResPf := mkApp3 (mkConst ``Lean.ofReduceBool) (mkConst auxDeclName levelParams) (toExpr true) rflPrf
-      let pf ← mkAppOptM ``ofMkFold1'EqTrue #[none, some isNatLikeInst, b, f, foldResPf]
+      let pf ← mkAppOptM ``ofMkFold1EqTrue #[none, some isNatLikeInst, b, f, foldResPf]
       mkLambdaFVars boundFVars $ ← mkAppOptM ``of_decide_eq_true #[none, none, ← mkAppM' pf boundFVars]
       /-
       match xType with
@@ -641,10 +639,10 @@ def evalBrute : Tactic
 
 -- Both of these work with minimal delay and no stack overflow
 example : ∀ n : Nat, n < 2^15 → n >>> 15 = 0 := by
-  sorry -- brute
+  brute
 
 example : ∀ n : Nat, n < 2^20 → n >>> 20 = 0 := by
-  sorry -- brute
+  brute
 
 example : ∀ n < 5, ∀ m < 6, n * m ≤ 20 := by
   brute
