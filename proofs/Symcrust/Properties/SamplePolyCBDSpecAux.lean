@@ -110,11 +110,8 @@ theorem Target2.samplePolyCBD.loop1.inner_loop.i7_proof (sample_bits : BitVec 32
       Nat.reducePow, Nat.reduceMod]
     rw [Nat.lt_succ_iff]
     apply Nat.and_le_right
-  rw [BitVec.lt_def] at hsample_bits'
   revert sample_bits'
-  -- `decide +native` is too slow here and this is out of scope for `bv_decide`
-  -- This is an excellent case for generalizing `brute`
-  sorry
+  brute
 
 def Target2.samplePolyCBD.loop1.inner_loop (pe_dst : Polynomial) (i j : ℕ) (sample_bits : BitVec 32) :
   Polynomial × BitVec 32 :=

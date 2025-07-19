@@ -18,7 +18,10 @@ namespace Brute
     Currently, we only support goals with at most four bounded Nats.
 
     **TODO** Add comment about the restriction on dependently-typed goals (e.g. goals of the form
-    `∀ x, ∀ hx : x < b, p hx`) -/
+    `∀ x, ∀ hx : x < b, p hx`)
+
+    **TODO** Add comment about the restriction on NatLike types (can't have dependencies between the universally
+    quantified NatLike types (e.g. `∀ n : Nat, n < b → ∀ y : BitVec n, ...`)) -/
 syntax (name := brute) "brute" : tactic
 
 /-- A structure that holds info for binders of the form `∀ x < b, ...`-/
@@ -143,6 +146,84 @@ def evalBrute : Tactic
       let foldResPf := mkApp3 (mkConst ``Lean.ofReduceBool) (mkConst auxDeclName levelParams) (toExpr true) rflPrf
       let pf ← mkAppOptM ``ofMkFold2EqTrue #[none, none, inst1, inst2, b1, b2, f, foldResPf]
       mkLambdaFVars boundFVars $ ← mkAppOptM ``of_decide_eq_true #[none, none, ← mkAppM' pf boundFVars]
+    | #[⟨x, b1, hxb1, inst1⟩, ⟨y, b2, hyb2, inst2⟩, ⟨z, b3, hzb3, inst3⟩] =>
+      let boundFVars := #[.fvar x, .fvar hxb1, .fvar y, .fvar hyb2, .fvar z, .fvar hzb3]
+      let natLikeFVars := #[.fvar x, .fvar y, .fvar z]
+      let unboundFVars := xs.filter (fun fvar => !boundFVars.contains fvar)
+      trace[brute.debug] "boundFVars: {boundFVars}, unboundFVars: {unboundFVars}"
+      let b2 ← mkLambdaFVars #[.fvar x] b2
+      let b3 ← mkLambdaFVars #[.fvar x, .fvar y] b3
+      let f ← mkLambdaFVars natLikeFVars (← mkDecide (← mkForallFVars unboundFVars g))
+      trace[brute.debug] "f: {f}"
+      let res ← mkAppOptM ``mkFold3 #[none, none, none, inst1, inst2, inst3, b1, b2, b3, f, mkConst ``true]
+      trace[brute.debug] "res: {res}"
+
+      let levels := (collectLevelParams {} res).params.toList
+      let auxDeclName ← Term.mkAuxName `_brute
+      let decl := Declaration.defnDecl $
+        mkDefinitionValEx auxDeclName levels (mkConst ``Bool) res .abbrev .safe [auxDeclName]
+      addAndCompile decl
+
+      let rflPrf ← mkEqRefl (toExpr true)
+      let levelParams := levels.map .param
+      let foldResPf := mkApp3 (mkConst ``Lean.ofReduceBool) (mkConst auxDeclName levelParams) (toExpr true) rflPrf
+      let pf ← mkAppOptM ``ofMkFold3EqTrue #[none, none, none, inst1, inst2, inst3, b1, b2, b3, f, foldResPf]
+      mkLambdaFVars boundFVars $ ← mkAppOptM ``of_decide_eq_true #[none, none, ← mkAppM' pf boundFVars]
+    | #[⟨x, b1, hxb1, inst1⟩, ⟨y, b2, hyb2, inst2⟩, ⟨z, b3, hzb3, inst3⟩, ⟨a, b4, hab4, inst4⟩] =>
+      let boundFVars := #[.fvar x, .fvar hxb1, .fvar y, .fvar hyb2, .fvar z, .fvar hzb3, .fvar a, .fvar hab4]
+      let natLikeFVars := #[.fvar x, .fvar y, .fvar z, .fvar a]
+      let unboundFVars := xs.filter (fun fvar => !boundFVars.contains fvar)
+      trace[brute.debug] "boundFVars: {boundFVars}, unboundFVars: {unboundFVars}"
+      let b2 ← mkLambdaFVars #[.fvar x] b2
+      let b3 ← mkLambdaFVars #[.fvar x, .fvar y] b3
+      let b4 ← mkLambdaFVars #[.fvar x, .fvar y, .fvar z] b4
+      let f ← mkLambdaFVars natLikeFVars (← mkDecide (← mkForallFVars unboundFVars g))
+      trace[brute.debug] "f: {f}"
+      let res ← mkAppOptM ``mkFold4
+        #[none, none, none, none, inst1, inst2, inst3, inst4, b1, b2, b3, b4, f, mkConst ``true]
+      trace[brute.debug] "res: {res}"
+
+      let levels := (collectLevelParams {} res).params.toList
+      let auxDeclName ← Term.mkAuxName `_brute
+      let decl := Declaration.defnDecl $
+        mkDefinitionValEx auxDeclName levels (mkConst ``Bool) res .abbrev .safe [auxDeclName]
+      addAndCompile decl
+
+      let rflPrf ← mkEqRefl (toExpr true)
+      let levelParams := levels.map .param
+      let foldResPf := mkApp3 (mkConst ``Lean.ofReduceBool) (mkConst auxDeclName levelParams) (toExpr true) rflPrf
+      let pf ← mkAppOptM ``ofMkFold4EqTrue
+        #[none, none, none, none, inst1, inst2, inst3, inst4, b1, b2, b3, b4, f, foldResPf]
+      mkLambdaFVars boundFVars $ ← mkAppOptM ``of_decide_eq_true #[none, none, ← mkAppM' pf boundFVars]
+    | #[⟨x, b1, hxb1, inst1⟩, ⟨y, b2, hyb2, inst2⟩, ⟨z, b3, hzb3, inst3⟩, ⟨a, b4, hab4, inst4⟩,
+        ⟨b, b5, hbb5, inst5⟩] =>
+      let boundFVars :=
+        #[.fvar x, .fvar hxb1, .fvar y, .fvar hyb2, .fvar z, .fvar hzb3, .fvar a, .fvar hab4, .fvar b, .fvar hbb5]
+      let natLikeFVars := #[.fvar x, .fvar y, .fvar z, .fvar a, .fvar b]
+      let unboundFVars := xs.filter (fun fvar => !boundFVars.contains fvar)
+      trace[brute.debug] "boundFVars: {boundFVars}, unboundFVars: {unboundFVars}"
+      let b2 ← mkLambdaFVars #[.fvar x] b2
+      let b3 ← mkLambdaFVars #[.fvar x, .fvar y] b3
+      let b4 ← mkLambdaFVars #[.fvar x, .fvar y, .fvar z] b4
+      let b5 ← mkLambdaFVars #[.fvar x, .fvar y, .fvar z, .fvar a] b5
+      let f ← mkLambdaFVars natLikeFVars (← mkDecide (← mkForallFVars unboundFVars g))
+      trace[brute.debug] "f: {f}"
+      let res ← mkAppOptM ``mkFold5
+        #[none, none, none, none, none, inst1, inst2, inst3, inst4, inst5, b1, b2, b3, b4, b5, f, mkConst ``true]
+      trace[brute.debug] "res: {res}"
+
+      let levels := (collectLevelParams {} res).params.toList
+      let auxDeclName ← Term.mkAuxName `_brute
+      let decl := Declaration.defnDecl $
+        mkDefinitionValEx auxDeclName levels (mkConst ``Bool) res .abbrev .safe [auxDeclName]
+      addAndCompile decl
+
+      let rflPrf ← mkEqRefl (toExpr true)
+      let levelParams := levels.map .param
+      let foldResPf := mkApp3 (mkConst ``Lean.ofReduceBool) (mkConst auxDeclName levelParams) (toExpr true) rflPrf
+      let pf ← mkAppOptM ``ofMkFold5EqTrue
+        #[none, none, none, none, none, inst1, inst2, inst3, inst4, inst5, b1, b2, b3, b4, b5, f, foldResPf]
+      mkLambdaFVars boundFVars $ ← mkAppOptM ``of_decide_eq_true #[none, none, ← mkAppM' pf boundFVars]
     | _ => throwError "Not yet implemented (boundBinders: {boundBinders})"
   trace[brute.debug] "pf: {pf}"
   trace[brute.debug] "pf type: {← inferType pf}"
@@ -163,17 +244,25 @@ example : ∀ n < 5, ∀ m < 6, n * m ≤ 20 := by
 example : ∀ x < 5, ∀ y < x, ∀ z < x + y, x + y + z ≤ 100 := by
   brute
 
+example : ∀ x < 5, ∀ y < x, ∀ z < x + y, ∀ a < 3, x + y + z + a ≤ 100 := by
+  brute
+
+example : ∀ x < 5, ∀ y < x, ∀ z < x + y, ∀ a < 3, ∀ b < a, x + y + z + a + b ≤ 100 := by
+  brute
+
 example : ∀ f : Fin 3 → Bool, ∀ x < 3, f x ∨ ¬f x := by
   decide +native
 
--- **NOTE** Current approach prevents types from depending on earlier variables
+-- **NOTE** Current approach prevents NatLike types from depending on earlier variables
 
 -- This works
 example : ∀ n < 5, ∀ m : BitVec 8, m < 3 → n * m ≤ 20 := by
   brute
 
 -- This fails
+/-
 example : ∀ n < 5, ∀ m : BitVec n, m < 3 → n * m ≤ 20 := by
   brute
+-/
 
 end Brute

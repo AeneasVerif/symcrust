@@ -22,12 +22,12 @@ lemma testBit_of_sum_mod_md :
   ∀ d < 13, ∀ j : Nat, ∀ hj : j < d, ∀ f : Fin d → Bool,
   (∑ (x : Fin d), (f x).toNat * (2 : ZMod (m d)) ^ (x : ℕ)).val.testBit j = f ⟨j, hj⟩ ∨
   ∑ (x : Fin d), Bool.toNat (f x) * 2 ^ x.val ≥ m d := by
-  brute
+  decide +native -- `brute` used to be able to solve this, but after the refactor, the dependency on `hj` is a problem
 
 lemma testBit_of_sum :
   ∀ d < 13, ∀ j : Nat, ∀ hj : j < d, ∀ f : Fin d → Bool,
   (∑ (x : Fin d), (f x).toNat * 2 ^ (x : ℕ)).testBit j = f ⟨j, hj⟩ := by
-  brute
+  decide +native -- `brute` used to be able to solve this, but after the refactor, the dependency on `hj` is a problem
 
 lemma bitwise_or_eq_and (x y d accSize : ℕ) (hd : d < 13) (h : accSize < d) (hx : x < 2^accSize)
   (hy : y < 2^(d - accSize)) : x ||| (y <<< accSize) = x + (y <<< accSize) := by
