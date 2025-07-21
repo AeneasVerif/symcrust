@@ -811,18 +811,30 @@ fn poly_element_sample_ntt_from_shake128(
     }
 }
 
-pub(crate)
-fn poly_element_sample_cbd_from_bytes(
-    pb_src: &[u8],
-    eta: u32,
-    pe_dst: &mut PolyElement)
-{
+#[inline(always)]
+fn poly_element_sample_cbd_from_bytes_eta3_inner_loop(pe_dst: &mut PolyElement, i: usize, sample_bits: &mut u32) {
+    c_for!(let mut j = 0; j < 4; j += 1;
+        {
+            // each coefficient is formed by taking the difference of two consecutive slices of eta bits
+            // the first eta bits are positive, the second eta bits are negative
+            let mut coefficient = *sample_bits & 0x3f;
+            *sample_bits >>= 6;
+            coefficient = (coefficient&3).wrapping_sub(coefficient>>3);
+            // Note: Commenting out the below debug_assert to significantly simplify Aeneas' translation's cfg
+            // debug_assert!((coefficient >= ((-3i32) as u32)) || (coefficient <= 3));
+
+            coefficient = coefficient.wrapping_add(Q & (coefficient >> 16));     // in range [0, Q-1]
+            debug_assert!( coefficient < Q );
+
+            pe_dst[i+j] = coefficient as u16;
+        });
+}
+
+#[inline(always)]
+fn poly_element_sample_cbd_from_bytes_eta3_loop(pb_src: &[u8], pe_dst: &mut PolyElement) {
     // Note (Rust): using an index rather than incrementing pb_src in place.
     let mut src_i = 0usize;
-    debug_assert!((eta == 2) || (eta == 3));
-    if eta == 3
-    {
-        c_for!(let mut i = 0; i < MLWE_POLYNOMIAL_COEFFICIENTS; i += 4;
+    c_for!(let mut i = 0; i < MLWE_POLYNOMIAL_COEFFICIENTS; i += 4;
         {
             // unconditionally load 4 bytes into sample_bits, but only treat the load
             // as being 3 bytes (24-bits -> 4 coefficients) for eta==3 to align to
@@ -833,29 +845,34 @@ fn poly_element_sample_cbd_from_bytes(
             // sum bit samples - each consecutive slice of eta bits is summed together
             sample_bits = (sample_bits&0x249249) + ((sample_bits>>1)&0x249249) + ((sample_bits>>2)&0x249249);
 
-            #[inline(always)]
-            fn then_inner_loop(pe_dst: &mut PolyElement, i: usize, sample_bits: &mut u32) {
-                c_for!(let mut j = 0; j < 4; j += 1;
-                       {
-                           // each coefficient is formed by taking the difference of two consecutive slices of eta bits
-                           // the first eta bits are positive, the second eta bits are negative
-                           let mut coefficient = *sample_bits & 0x3f;
-                           *sample_bits >>= 6;
-                           coefficient = (coefficient&3).wrapping_sub(coefficient>>3);
-                           debug_assert!((coefficient >= ((-3i32) as u32)) || (coefficient <= 3));
-
-                           coefficient = coefficient.wrapping_add(Q & (coefficient >> 16));     // in range [0, Q-1]
-                           debug_assert!( coefficient < Q );
-
-                           pe_dst[i+j] = coefficient as u16;
-                       });
-            }
-            then_inner_loop(pe_dst, i, &mut sample_bits);
+            poly_element_sample_cbd_from_bytes_eta3_inner_loop(pe_dst, i, &mut sample_bits);
         });
-    }
-    else
-    {
-        c_for!(let mut i = 0; i < MLWE_POLYNOMIAL_COEFFICIENTS; i += 8;
+}
+
+#[inline(always)]
+fn poly_element_sample_cbd_from_bytes_eta2_inner_loop(pe_dst: &mut PolyElement, i: usize, sample_bits: &mut u32) {
+    c_for!(let mut j = 0; j < 8; j += 1;
+        {
+            // each coefficient is formed by taking the difference of two consecutive slices of eta bits
+            // the first eta bits are positive, the second eta bits are negative
+            let mut coefficient = *sample_bits & 0xf;
+            *sample_bits >>= 4;
+            coefficient = (coefficient&3).wrapping_sub(coefficient>>2);
+            // Note: Commenting out the below debug_assert to significantly simplify Aeneas' translation's cfg
+            // debug_assert!((coefficient >= (-2i32 as u32)) || (coefficient <= 2));
+
+            coefficient = coefficient.wrapping_add(Q & (coefficient >> 16));     // in range [0, Q-1]
+            debug_assert!( coefficient < Q );
+
+            pe_dst[i+j] = coefficient as u16;
+        });
+}
+
+#[inline(always)]
+fn poly_element_sample_cbd_from_bytes_eta2_loop(pb_src: &[u8], pe_dst: &mut PolyElement) {
+    // Note (Rust): using an index rather than incrementing pb_src in place.
+    let mut src_i = 0usize;
+    c_for!(let mut i = 0; i < MLWE_POLYNOMIAL_COEFFICIENTS; i += 8;
         {
             // unconditionally load 4 bytes (32-bits -> 8 coefficients) into sample_bits
             let mut sample_bits = u32::from_le_bytes(slice_to_sub_array4(pb_src, src_i));
@@ -864,25 +881,27 @@ fn poly_element_sample_cbd_from_bytes(
             // sum bit samples - each consecutive slice of eta bits is summed together
             sample_bits = (sample_bits&0x55555555) + ((sample_bits>>1)&0x55555555);
 
-            #[inline(always)]
-            fn else_inner_loop(pe_dst: &mut PolyElement, i: usize, sample_bits: &mut u32) {
-                c_for!(let mut j = 0; j < 8; j += 1;
-                       {
-                           // each coefficient is formed by taking the difference of two consecutive slices of eta bits
-                           // the first eta bits are positive, the second eta bits are negative
-                           let mut coefficient = *sample_bits & 0xf;
-                           *sample_bits >>= 4;
-                           coefficient = (coefficient&3).wrapping_sub(coefficient>>2);
-                           debug_assert!((coefficient >= (-2i32 as u32)) || (coefficient <= 2));
-
-                           coefficient = coefficient.wrapping_add(Q & (coefficient >> 16));     // in range [0, Q-1]
-                           debug_assert!( coefficient < Q );
-
-                           pe_dst[i+j] = coefficient as u16;
-                       });
-            }
-            else_inner_loop(pe_dst, i, &mut sample_bits);
+            poly_element_sample_cbd_from_bytes_eta2_inner_loop(pe_dst, i, &mut sample_bits);
         });
+}
+
+pub(crate)
+fn poly_element_sample_cbd_from_bytes(
+    pb_src: &[u8],
+    eta: u32,
+    pe_dst: &mut PolyElement)
+{
+    // Note (Rust): using an index rather than incrementing pb_src in place.
+    let mut src_i = 0usize;
+    // Note: Commenting out the below debug_assert to significantly simplify Aeneas' translation's cfg
+    // debug_assert!((eta == 2) || (eta == 3));
+    if eta == 3
+    {
+        poly_element_sample_cbd_from_bytes_eta3_loop (pb_src, pe_dst);
+    }
+    else
+    {
+        poly_element_sample_cbd_from_bytes_eta2_loop (pb_src, pe_dst);
     }
 }
 

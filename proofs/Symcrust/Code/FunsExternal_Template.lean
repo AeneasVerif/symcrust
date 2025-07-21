@@ -46,8 +46,3 @@ axiom hash.shake128_extract
 axiom key.PartialEqsymcrustkeyParamssymcrustkeyParams.ne
   : key.Params → key.Params → Result Bool
 
-/- [symcrust::ntt::poly_element_sample_cbd_from_bytes]:
-   Source: 'src/ntt.rs', lines 814:0-887:1 -/
-axiom ntt.poly_element_sample_cbd_from_bytes
-  : Slice U8 → U32 → Array U16 256#usize → Result (Array U16 256#usize)
-

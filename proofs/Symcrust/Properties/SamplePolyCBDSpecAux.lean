@@ -44,65 +44,17 @@ structure Target2.samplePolyCBDState where
   src_i : ℕ
   i : ℕ
 
-/-
-/- [symcrust::ntt::poly_element_sample_cbd_from_bytes::else_inner_loop]: loop 0:
-   Source: 'src/ntt.rs', lines 42:12-875:85 -/
-def ntt.poly_element_sample_cbd_from_bytes.else_inner_loop_loop
-  (pe_dst : Array U16 256#usize) (i : Usize) (sample_bits : U32) (j : Usize) :
-  Result ((Array U16 256#usize) × U32)
-  :=
-  if j < 8#usize
-  then
-    do
-    let coefficient ← (↑(sample_bits &&& 15#u32) : Result U32)
-    let sample_bits1 ← sample_bits >>> 4#i32
-    let i1 ← (↑(coefficient &&& 3#u32) : Result U32)
-    let i2 ← coefficient >>> 2#i32
-    let coefficient1 ← (↑(core.num.U32.wrapping_sub i1 i2) : Result U32)
-    let i3 ← (↑(IScalar.hcast .U32 (-2)#i32) : Result U32)
-    if coefficient1 >= i3
-    then
-      do
-      let i4 ← coefficient1 >>> 16#i32
-      let i5 ← (↑(ntt.Q &&& i4) : Result U32)
-      let coefficient2 ←
-        (↑(core.num.U32.wrapping_add coefficient1 i5) : Result U32)
-      massert (coefficient2 < ntt.Q)
-      let i6 ← i + j
-      let i7 ← (↑(UScalar.cast .U16 coefficient2) : Result U16)
-      let pe_dst1 ← Array.update pe_dst i6 i7
-      let j1 ← j + 1#usize
-      ntt.poly_element_sample_cbd_from_bytes.else_inner_loop_loop pe_dst1 i
-        sample_bits1 j1
-    else
-      do
-      massert (coefficient1 <= 2#u32)
-      let i4 ← coefficient1 >>> 16#i32
-      let i5 ← (↑(ntt.Q &&& i4) : Result U32)
-      let coefficient2 ←
-        (↑(core.num.U32.wrapping_add coefficient1 i5) : Result U32)
-      massert (coefficient2 < ntt.Q)
-      let i6 ← i + j
-      let i7 ← (↑(UScalar.cast .U16 coefficient2) : Result U16)
-      let pe_dst1 ← Array.update pe_dst i6 i7
-      let j1 ← j + 1#usize
-      ntt.poly_element_sample_cbd_from_bytes.else_inner_loop_loop pe_dst1 i
-        sample_bits1 j1
-  else ok (pe_dst, sample_bits)
-partial_fixpoint
--/
-
-theorem Target2.samplePolyCBD.loop1.inner_loop.i7_proof (sample_bits : BitVec 32) :
+theorem Target2.samplePolyCBD.eta2_loop.inner_loop.i7_proof (sample_bits : BitVec 32) :
   let coefficient := sample_bits &&& 15;
   let i1 := coefficient &&& 3;
   let i2 := coefficient >>> 2;
   let coefficient1 := i1 - i2;
-  let i4 := coefficient1 >>> 16;
-  let i5 := ↑↑ntt.Q &&& i4;
-  let coefficient2 := coefficient1 + i5;
+  let i3 := coefficient1 >>> 16;
+  let i4 := ↑↑ntt.Q &&& i3;
+  let coefficient2 := coefficient1 + i4;
   coefficient2.toNat ≤ UScalar.cMax UScalarTy.U16 := by
-  intro coefficient i1 i2 coefficient1 i4 i5 coefficient2
-  unfold coefficient2 i5 i4 coefficient1 i1 i2 coefficient
+  intro coefficient i1 i2 coefficient1 i3 i4 coefficient2
+  unfold coefficient2 i4 i3 coefficient1 i1 i2 coefficient
   olet hsample_bits' : sample_bits' := sample_bits &&& 15
   replace hsample_bits' : sample_bits' < 16 := by
     rw [hsample_bits', LT.lt, instLTBitVec]
@@ -113,7 +65,7 @@ theorem Target2.samplePolyCBD.loop1.inner_loop.i7_proof (sample_bits : BitVec 32
   revert sample_bits'
   brute
 
-def Target2.samplePolyCBD.loop1.inner_loop (pe_dst : Polynomial) (i j : ℕ) (sample_bits : BitVec 32) :
+def Target2.samplePolyCBD.eta2_loop.inner_loop (pe_dst : Polynomial) (i j : ℕ) (sample_bits : BitVec 32) :
   Polynomial × BitVec 32 :=
   if j < 8#usize then
     let coefficient := sample_bits &&& 15
@@ -121,25 +73,20 @@ def Target2.samplePolyCBD.loop1.inner_loop (pe_dst : Polynomial) (i j : ℕ) (sa
     let i1 := coefficient &&& 3
     let i2 := coefficient >>> 2
     let coefficient1 := i1 - i2 -- `BitVec.sub_def` indicates that `BitVec`'s subtraction is wrapping
-    let i3 : BitVec 32 := -2
-    /- **Note**: In `ntt.poly_element_sample_cbd_from_bytes.else_inner_loop_loop` there is an
-       `if coefficient >= i3` check caused by `debug_assert!((coefficient >= (-2i32 as u32)) || (coefficient <= 2));`
-       in the source code. I do not translate this check because I intend to remove this check to reduce
-       duplicated code -/
-    let i4 := coefficient1 >>> 16
-    let i5 := ntt.Q &&& i4
-    let coefficient2 := coefficient1 + i5
-    let i6 := i + j
-    let i7 := U16.ofNat coefficient2.toNat $ by apply Target2.samplePolyCBD.loop1.inner_loop.i7_proof
-    let pe_dst1 := pe_dst.set! i6 i7
+    let i3 := coefficient1 >>> 16
+    let i4 := ntt.Q &&& i3
+    let coefficient2 := coefficient1 + i4
+    let i5 := i + j
+    let i6 := U16.ofNat coefficient2.toNat $ by apply inner_loop.i7_proof
+    let pe_dst1 := pe_dst.set! i5 i6
     let j1 := j + 1
-    loop1.inner_loop pe_dst1 i j1 sample_bits1
+    inner_loop pe_dst1 i j1 sample_bits1
   else
     (pe_dst, sample_bits)
 termination_by 8 - j
 decreasing_by scalar_tac
 
-def Target2.samplePolyCBD.loop1 (s : Target2.samplePolyCBDState) : Polynomial :=
+def Target2.samplePolyCBD.eta2_loop (s : Target2.samplePolyCBDState) : Polynomial :=
   if s.i < key.MLWE_POLYNOMIAL_COEFFICIENTS then
     let a := List.slice s.src_i (s.src_i + 4) s.B.1.toList
     let sample_bits := BitVec.fromLEBytes a
@@ -149,14 +96,56 @@ def Target2.samplePolyCBD.loop1 (s : Target2.samplePolyCBDState) : Polynomial :=
     let i3 := i2 &&& 1431655765#u32
     let sample_bits1 := i1 + i3
     let sample_bits2 := sample_bits1.setWidth' (by scalar_tac)
-    let (pe_dst1, _) := loop1.inner_loop s.pe_dst s.i 0 sample_bits2
+    let (pe_dst1, _) := eta2_loop.inner_loop s.pe_dst s.i 0 sample_bits2
     let i4 := s.i + 8
-    loop1 {η := s.η, pe_dst := pe_dst1, B := s.B, src_i := src_i1, i := i4}
+    eta2_loop {η := s.η, pe_dst := pe_dst1, B := s.B, src_i := src_i1, i := i4}
   else
     s.pe_dst
 termination_by key.MLWE_POLYNOMIAL_COEFFICIENTS - s.i
 
-def Target2.samplePolyCBD.loop2 (s : Target2.samplePolyCBDState) : Polynomial :=
+theorem Target2.samplePolyCBD.eta3_loop.inner_loop.i6_proof (sample_bits : BitVec 32) :
+  let coefficient := sample_bits &&& 63;
+  let i1 := coefficient &&& 3;
+  let i2 := coefficient >>> 3;
+  let coefficient1 := i1 - i2;
+  let i3 := coefficient1 >>> 16;
+  let i4 := ↑↑ntt.Q &&& i3;
+  let coefficient2 := coefficient1 + i4;
+  coefficient2.toNat ≤ UScalar.cMax UScalarTy.U16 := by
+  intro coefficient i1 i2 coefficient1 i3 i4 coefficient2
+  unfold coefficient2 i4 i3 coefficient1 i1 i2 coefficient
+  olet hsample_bits' : sample_bits' := sample_bits &&& 63
+  replace hsample_bits' : sample_bits' < 64 := by
+    rw [hsample_bits', LT.lt, instLTBitVec]
+    simp only [BitVec.ofNat_eq_ofNat, gt_iff_lt, BitVec.toNat_and, BitVec.toNat_ofNat,
+      Nat.reducePow, Nat.reduceMod]
+    rw [Nat.lt_succ_iff]
+    apply Nat.and_le_right
+  revert sample_bits'
+  brute
+
+def Target2.samplePolyCBD.eta3_loop.inner_loop (pe_dst : Polynomial) (i j : ℕ) (sample_bits : BitVec 32) :
+  Polynomial × BitVec 32 :=
+  if j < 4#usize then
+    let coefficient := sample_bits &&& 63
+    let sample_bits1 := sample_bits >>> 6
+    let i1 := coefficient &&& 3
+    let i2 := coefficient >>> 3
+    let coefficient1 := i1 - i2 -- `BitVec.sub_def` indicates that `BitVec`'s subtraction is wrapping
+    let i3 := coefficient1 >>> 16
+    let i4 := ntt.Q &&& i3
+    let coefficient2 := coefficient1 + i4
+    let i5 := i + j
+    let i6 := U16.ofNat coefficient2.toNat $ by apply inner_loop.i6_proof
+    let pe_dst1 := pe_dst.set! i5 i6
+    let j1 := j + 1
+    inner_loop pe_dst1 i j1 sample_bits1
+  else
+    (pe_dst, sample_bits)
+termination_by 4 - j
+decreasing_by scalar_tac
+
+def Target2.samplePolyCBD.eta3_loop (s : Target2.samplePolyCBDState) : Polynomial :=
   if s.i < key.MLWE_POLYNOMIAL_COEFFICIENTS then
     let a := List.slice s.src_i (s.src_i + 4) s.B.1.toList
     let sample_bits := BitVec.fromLEBytes a
@@ -168,21 +157,14 @@ def Target2.samplePolyCBD.loop2 (s : Target2.samplePolyCBDState) : Polynomial :=
     let i5 := sample_bits >>> 2
     let i6 := i5 &&& 2396745#u32
     let sample_bits1 := i4 + i6
-    let pe_dst1 := sorry -- ntt.poly_element_sample_cbd_from_bytes.then_inner_loop pe_dst i sample_bits1
+    let sample_bits2 := sample_bits1.setWidth' (by scalar_tac)
+    let (pe_dst1, _) := eta3_loop.inner_loop s.pe_dst s.i 0 sample_bits2
     let i7 := s.i + 4
-    loop2 {η := s.η, pe_dst := pe_dst1, B := s.B, src_i := src_i1, i := i7}
+    eta3_loop {η := s.η, pe_dst := pe_dst1, B := s.B, src_i := src_i1, i := i7}
   else
     s.pe_dst
 termination_by key.MLWE_POLYNOMIAL_COEFFICIENTS - s.i
 
 def Target2.samplePolyCBD (η : Η) (B : Vector Byte (64 * η)) : Polynomial :=
-  if η.1 = 2 then
-    if η.1 = 3 then
-      sorry -- This case shouldn't be possible, and I'm surprised that `Funs.lean` generates code for it
-    else
-      samplePolyCBD.loop1 {η := η, pe_dst := Polynomial.zero, B := B, src_i := 0, i := 0}
-  else
-    if η.1 = 3 then
-      samplePolyCBD.loop1 {η := η, pe_dst := Polynomial.zero, B := B, src_i := 0, i := 0}
-    else
-      sorry -- This case shouldn't be possible, though it makes sense to me that `Funs.lean` would generate code for it
+  if η.1 = 3 then samplePolyCBD.eta3_loop {η := η, pe_dst := Polynomial.zero, B := B, src_i := 0, i := 0}
+  else samplePolyCBD.eta2_loop {η := η, pe_dst := Polynomial.zero, B := B, src_i := 0, i := 0}
