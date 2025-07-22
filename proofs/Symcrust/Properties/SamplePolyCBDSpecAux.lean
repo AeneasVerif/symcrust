@@ -210,6 +210,10 @@ def Target2.samplePolyCBD.eta3_loop.inner_loop.preserves_above (pe_dst : Polynom
   simp only [Q]
   rw [Vector.getElem!_set!_ne, Vector.getElem!_set!_ne, Vector.getElem!_set!_ne, Vector.getElem!_set!_ne] <;> omega
 
+lemma Fin.unfold3 {α} [AddCommMonoid α] {n : Nat} (hn : n = 3) (f : Fin n → α) :
+  ∑ x : Fin n, f x = f ⟨0, sorry⟩ + f ⟨1, sorry⟩ + f ⟨2, sorry⟩ := by
+  sorry
+
 def Target2.samplePolyCBD.eta3_loop.spec {η : Η} (s : Target2.samplePolyCBDState)
   (hs1 : ∀ j < s.i, s.pe_dst[j]! = (Target.samplePolyCBD s.B)[j]!)
   (hs2 : ∀ j < 256, s.i ≤ j → s.pe_dst[j]! = 0)
@@ -244,28 +248,50 @@ def Target2.samplePolyCBD.eta3_loop.spec {η : Η} (s : Target2.samplePolyCBDSta
         unfold inner_loop
         simp only [Q, Vector.Inhabited_getElem_eq_getElem!, Nat.cast_sum]
         have hj3 : j = s.i ∨ j = s.i + 1 ∨ j = s.i + 2 ∨ j = s.i + 3 := by omega
-        have : s.src_i < 64 * s.η.val :=
-          -- Follows from the fact that `s.i + 4 ≤ 256` (which is a fact that I have yet to add)
-          sorry
-        specialize hBytesToBits s.src_i this
         rcases hj3 with hj3 | hj3 | hj3 | hj3
-        . rw [Vector.getElem!_set!_ne (by omega), Vector.getElem!_set!_ne (by omega),
+        . have src_i_bound : s.src_i < 64 * s.η.val :=
+            -- Follows from the fact that `s.i + 4 ≤ 256` (which is a fact that I have yet to add)
+            sorry
+          rw [Vector.getElem!_set!_ne (by omega), Vector.getElem!_set!_ne (by omega),
             Vector.getElem!_set!_ne (by omega), Vector.getElem!_set! (by omega)]
           simp only [hj3, hη, Nat.mul_assoc 2 s.i 3, ← hs3, Nat.mul_comm s.src_i 4,
-            ← Nat.mul_assoc 2 4 s.src_i, Nat.reduceMul]
-          -- **TODO** The below approach is brittle (doesn't work for the other cases). I should
-          -- instead unfold the summation
-          conv => rhs; lhs; rhs; intro x; rw [hBytesToBits x.val (by omega)]
-          conv => rhs; rhs; rhs; intro x; rw [Nat.add_assoc, hBytesToBits (3 + x.val) (by omega)]
+            ← Nat.mul_assoc 2 4 s.src_i, Nat.reduceMul, Fin.unfold3 hη]
+          specialize hBytesToBits s.src_i src_i_bound
+          rw [hBytesToBits 0 (by omega), hBytesToBits 1 (by omega), hBytesToBits 2 (by omega),
+            hBytesToBits 3 (by omega), hBytesToBits 4 (by omega), Nat.add_assoc,
+            hBytesToBits 5 (by omega)]
+          unfold inner_loop.next_coefficient
+          simp only [BitVec.ofNat_eq_ofNat, ntt.Q.eq, UScalar.ofNat_val_eq, Nat.cast_ofNat,
+            BitVec.toNat_add, BitVec.toNat_sub, Nat.reducePow, BitVec.toNat_ushiftRight,
+            BitVec.toNat_and, BitVec.toNat_setWidth, BitVec.toNat_ofNat, Nat.reduceMod,
+            Nat.mod_add_mod]
+          olet hsample_bits_slice : sample_bits_slice := sample_bits.toNat % 4294967296 &&& 63
+          -- If I can rewrite `s.B[s.src_i]` in terms of `sample_bits_slice`, then `brute` can
+          -- hopefully get the rest
           sorry
-        . rw [Vector.getElem!_set!_ne (by omega), Vector.getElem!_set!_ne (by omega),
+        . have src_i_bound1 : s.src_i < 64 * s.η.val :=
+            -- Follows from the fact that `s.i + 4 ≤ 256` (which is a fact that I have yet to add)
+            sorry
+          have src_i_bound2 : s.src_i + 1 < 64 * s.η.val :=
+            sorry
+          rw [Vector.getElem!_set!_ne (by omega), Vector.getElem!_set!_ne (by omega),
             Vector.getElem!_set! (by omega)]
           simp only [hj3, hη, Nat.mul_assoc 2 (s.i + 1) 3, Nat.mul_comm (s.i + 1) 3,
             Nat.mul_add 3 s.i 1, Nat.mul_comm 3 s.i, ← hs3, Nat.mul_comm s.src_i 4, mul_one,
-            Nat.mul_add 2 (4 * s.src_i) 3, ← Nat.mul_assoc 2 4 s.src_i, Nat.reduceMul]
-          -- **NOTE** Need to modify the below approach because it is not feasible (`hBytesToBits`'s
-          -- precondition cannot be proven because `6 + x.val` might be equal to 8)
-          conv => rhs; lhs; rhs; intro x; rw [Nat.add_assoc, hBytesToBits (6 + x.val) (by sorry)]
+            Nat.mul_add 2 (4 * s.src_i) 3, ← Nat.mul_assoc 2 4 s.src_i, Nat.reduceMul,
+            Nat.add_assoc, Fin.unfold3 hη, add_zero, Nat.reduceAdd]
+          conv in 8 * s.src_i + 8 => rw [(by omega : 8 * s.src_i + 8 = 8 * (s.src_i + 1) + 0)]
+          conv in 8 * s.src_i + 9 => rw [(by omega : 8 * s.src_i + 9 = 8 * (s.src_i + 1) + 1)]
+          conv in 8 * s.src_i + 10 => rw [(by omega : 8 * s.src_i + 10 = 8 * (s.src_i + 1) + 2)]
+          conv in 8 * s.src_i + 11 => rw [(by omega : 8 * s.src_i + 11 = 8 * (s.src_i + 1) + 3)]
+          rw [hBytesToBits s.src_i src_i_bound1 6 (by omega),
+              hBytesToBits s.src_i src_i_bound1 7 (by omega),
+              hBytesToBits (s.src_i + 1) src_i_bound2 0 (by omega),
+              hBytesToBits (s.src_i + 1) src_i_bound2 1 (by omega),
+              hBytesToBits (s.src_i + 1) src_i_bound2 2 (by omega),
+              hBytesToBits (s.src_i + 1) src_i_bound2 3 (by omega),]
+          -- If I can rewrite `s.B[s.src_i]` and `s.B[s.src_i + 1]` in terms of
+          -- `sample_bits_slice`, then `brute` can hopefully get the rest
           sorry
         . rw [Vector.getElem!_set!_ne (by omega), Vector.getElem!_set! (by omega)]
           sorry
