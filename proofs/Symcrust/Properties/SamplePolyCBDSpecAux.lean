@@ -231,16 +231,17 @@ def Target2.samplePolyCBD.eta3_loop.spec {η : Η} (s : Target2.samplePolyCBDSta
       . rw [eta3_loop.inner_loop.preserves_below]
         . exact hs1 j hj2
         . exact hj2
-      . olet hsample_bits : sample_bits :=
+      . next hs4 =>
+        olet hsample_bits : sample_bits :=
           ((BitVec.fromLEBytes (List.slice s.src_i (s.src_i + 4) s.B.toArray.toList) &&&
                 2396745#(8 * (List.slice s.src_i (s.src_i + 4) s.B.toArray.toList).length)) +
               (BitVec.fromLEBytes (List.slice s.src_i (s.src_i + 4) s.B.toArray.toList) >>> 1 &&&
                 2396745#(8 * (List.slice s.src_i (s.src_i + 4) s.B.toArray.toList).length)) +
             (BitVec.fromLEBytes (List.slice s.src_i (s.src_i + 4) s.B.toArray.toList) >>> 2 &&&
               2396745#(8 * (List.slice s.src_i (s.src_i + 4) s.B.toArray.toList).length)))
-        have j_upper_bound : j + 3 < 256 := by
-          -- **TODO** This will probably become an invariant passed into `eta3_loop.spec` (via the fact
-          -- that `s.i + 4 ≤ 256`)
+        have j_upper_bound : j < 256 := by
+          -- `s.i + 4 ≤ 256` because `s.i < 256` (from `hs4`) and `4 ∣ s.i` from `hs3`
+          -- Since `j < s.i + 4` (from `hj1`) it follows that `j < 256` as desired
           sorry
         rw [Target.samplePolyCBD.spec s.B j (by omega), ← Symcrust.SpecAux.Target.bytesToBits.eq_spec]
         have hBytesToBits := Target.bytesToBits.spec s.B
@@ -249,14 +250,11 @@ def Target2.samplePolyCBD.eta3_loop.spec {η : Η} (s : Target2.samplePolyCBDSta
         simp only [Q, Vector.Inhabited_getElem_eq_getElem!, Nat.cast_sum]
         have hj3 : j = s.i ∨ j = s.i + 1 ∨ j = s.i + 2 ∨ j = s.i + 3 := by omega
         rcases hj3 with hj3 | hj3 | hj3 | hj3
-        . have src_i_bound : s.src_i < 64 * s.η.val :=
-            -- Follows from the fact that `s.i + 4 ≤ 256` (which is a fact that I have yet to add)
-            sorry
-          rw [Vector.getElem!_set!_ne (by omega), Vector.getElem!_set!_ne (by omega),
+        . rw [Vector.getElem!_set!_ne (by omega), Vector.getElem!_set!_ne (by omega),
             Vector.getElem!_set!_ne (by omega), Vector.getElem!_set! (by omega)]
           simp only [hj3, hη, Nat.mul_assoc 2 s.i 3, ← hs3, Nat.mul_comm s.src_i 4,
             ← Nat.mul_assoc 2 4 s.src_i, Nat.reduceMul, Fin.unfold3 hη]
-          specialize hBytesToBits s.src_i src_i_bound
+          specialize hBytesToBits s.src_i (by omega)
           rw [hBytesToBits 0 (by omega), hBytesToBits 1 (by omega), hBytesToBits 2 (by omega),
             hBytesToBits 3 (by omega), hBytesToBits 4 (by omega), Nat.add_assoc,
             hBytesToBits 5 (by omega)]
@@ -266,15 +264,18 @@ def Target2.samplePolyCBD.eta3_loop.spec {η : Η} (s : Target2.samplePolyCBDSta
             BitVec.toNat_and, BitVec.toNat_setWidth, BitVec.toNat_ofNat, Nat.reduceMod,
             Nat.mod_add_mod]
           olet hsample_bits_slice : sample_bits_slice := sample_bits.toNat % 4294967296 &&& 63
-          -- If I can rewrite `s.B[s.src_i]` in terms of `sample_bits_slice`, then `brute` can
-          -- hopefully get the rest
-          sorry
-        . have src_i_bound1 : s.src_i < 64 * s.η.val :=
-            -- Follows from the fact that `s.i + 4 ≤ 256` (which is a fact that I have yet to add)
+          olet hs_B_byte : s_B_byte := s.B[s.src_i]!
+          replace hs_B_byte : sample_bits_slice = (s_B_byte &&& 9) +
+            ((s_B_byte >>> 1) &&& 9) + ((s_B_byte >>> 2) &&& 9) := by
             sorry
-          have src_i_bound2 : s.src_i + 1 < 64 * s.η.val :=
-            sorry
-          rw [Vector.getElem!_set!_ne (by omega), Vector.getElem!_set!_ne (by omega),
+          replace hsample_bits_slice : sample_bits_slice < 64 := by
+            rw [hsample_bits_slice]
+            exact Nat.lt_succ_of_le Nat.and_le_right
+          clear hBytesToBits
+          revert s_B_byte
+          revert sample_bits_slice
+          brute
+        . rw [Vector.getElem!_set!_ne (by omega), Vector.getElem!_set!_ne (by omega),
             Vector.getElem!_set! (by omega)]
           simp only [hj3, hη, Nat.mul_assoc 2 (s.i + 1) 3, Nat.mul_comm (s.i + 1) 3,
             Nat.mul_add 3 s.i 1, Nat.mul_comm 3 s.i, ← hs3, Nat.mul_comm s.src_i 4, mul_one,
@@ -284,18 +285,106 @@ def Target2.samplePolyCBD.eta3_loop.spec {η : Η} (s : Target2.samplePolyCBDSta
           conv in 8 * s.src_i + 9 => rw [(by omega : 8 * s.src_i + 9 = 8 * (s.src_i + 1) + 1)]
           conv in 8 * s.src_i + 10 => rw [(by omega : 8 * s.src_i + 10 = 8 * (s.src_i + 1) + 2)]
           conv in 8 * s.src_i + 11 => rw [(by omega : 8 * s.src_i + 11 = 8 * (s.src_i + 1) + 3)]
-          rw [hBytesToBits s.src_i src_i_bound1 6 (by omega),
-              hBytesToBits s.src_i src_i_bound1 7 (by omega),
-              hBytesToBits (s.src_i + 1) src_i_bound2 0 (by omega),
-              hBytesToBits (s.src_i + 1) src_i_bound2 1 (by omega),
-              hBytesToBits (s.src_i + 1) src_i_bound2 2 (by omega),
-              hBytesToBits (s.src_i + 1) src_i_bound2 3 (by omega),]
-          -- If I can rewrite `s.B[s.src_i]` and `s.B[s.src_i + 1]` in terms of
-          -- `sample_bits_slice`, then `brute` can hopefully get the rest
+          rw [hBytesToBits s.src_i (by omega) 6 (by omega),
+              hBytesToBits s.src_i (by omega) 7 (by omega),
+              hBytesToBits (s.src_i + 1) (by omega) 0 (by omega),
+              hBytesToBits (s.src_i + 1) (by omega) 1 (by omega),
+              hBytesToBits (s.src_i + 1) (by omega) 2 (by omega),
+              hBytesToBits (s.src_i + 1) (by omega) 3 (by omega)]
+          unfold inner_loop.next_coefficient
+          simp only [BitVec.ofNat_eq_ofNat, ntt.Q.eq, UScalar.ofNat_val_eq, Nat.cast_ofNat,
+            BitVec.toNat_add, BitVec.toNat_sub, Nat.reducePow, BitVec.toNat_ushiftRight,
+            BitVec.toNat_and, BitVec.toNat_setWidth, BitVec.toNat_ofNat, Nat.reduceMod,
+            Nat.mod_add_mod]
+          olet hsample_bits_slice : sample_bits_slice := (sample_bits.toNat % 4294967296) >>> 6 &&& 63
+          olet hs_B_byte0 : s_B_byte0 := s.B[s.src_i]!
+          olet hs_B_byte1 : s_B_byte1 := s.B[s.src_i + 1]!
+          replace hs_B_byte0 : sample_bits_slice = sorry := by -- **TODO**
+            sorry
+          replace hs_B_byte1 : sample_bits_slice = sorry := by -- **TODO**
+            sorry
+          replace hsample_bits_slice : sample_bits_slice < 64 := by
+            rw [hsample_bits_slice]
+            exact Nat.lt_succ_of_le Nat.and_le_right
+          clear hBytesToBits
+          revert hs_B_byte0 hs_B_byte1
+          revert s_B_byte0 s_B_byte1
+          revert sample_bits_slice
+          -- Once I finish the statements of `hs_B_byte0` and `hs_B_byte1` this should be provable via `brute`
           sorry
         . rw [Vector.getElem!_set!_ne (by omega), Vector.getElem!_set! (by omega)]
+          simp only [hj3, hη, Nat.mul_assoc 2 (s.i + 2) 3, Nat.mul_comm (s.i + 2) 3,
+            Nat.mul_add 3 s.i 2, Nat.mul_comm 3 s.i, ← hs3, Nat.mul_comm s.src_i 4, mul_one,
+            Nat.mul_add 2 (4 * s.src_i) 6, ← Nat.mul_assoc 2 4 s.src_i, Nat.reduceMul,
+            Nat.add_assoc, Fin.unfold3 hη, add_zero, Nat.reduceAdd]
+          conv in 8 * s.src_i + 12 => rw [(by omega : 8 * s.src_i + 12 = 8 * (s.src_i + 1) + 4)]
+          conv in 8 * s.src_i + 13 => rw [(by omega : 8 * s.src_i + 13 = 8 * (s.src_i + 1) + 5)]
+          conv in 8 * s.src_i + 14 => rw [(by omega : 8 * s.src_i + 14 = 8 * (s.src_i + 1) + 6)]
+          conv in 8 * s.src_i + 15 => rw [(by omega : 8 * s.src_i + 15 = 8 * (s.src_i + 1) + 7)]
+          conv in 8 * s.src_i + 16 => rw [(by omega : 8 * s.src_i + 16 = 8 * (s.src_i + 2) + 0)]
+          conv in 8 * s.src_i + 17 => rw [(by omega : 8 * s.src_i + 17 = 8 * (s.src_i + 2) + 1)]
+          rw [hBytesToBits (s.src_i + 1) (by omega) 4 (by omega),
+              hBytesToBits (s.src_i + 1) (by omega) 5 (by omega),
+              hBytesToBits (s.src_i + 1) (by omega) 6 (by omega),
+              hBytesToBits (s.src_i + 1) (by omega) 7 (by omega),
+              hBytesToBits (s.src_i + 2) (by omega) 0 (by omega),
+              hBytesToBits (s.src_i + 2) (by omega) 1 (by omega)]
+          unfold inner_loop.next_coefficient
+          simp only [BitVec.ofNat_eq_ofNat, ntt.Q.eq, UScalar.ofNat_val_eq, Nat.cast_ofNat,
+            BitVec.toNat_add, BitVec.toNat_sub, Nat.reducePow, BitVec.toNat_ushiftRight,
+            BitVec.toNat_and, BitVec.toNat_setWidth, BitVec.toNat_ofNat, Nat.reduceMod,
+            Nat.mod_add_mod]
+          olet hsample_bits_slice : sample_bits_slice :=
+            (sample_bits.toNat % 4294967296) >>> 6 >>> 6 &&& 63
+          olet hs_B_byte1 : s_B_byte1 := s.B[s.src_i + 1]!
+          olet hs_B_byte2 : s_B_byte2 := s.B[s.src_i + 2]!
+          replace hs_B_byte1 : sample_bits_slice = sorry := by -- **TODO**
+            sorry
+          replace hs_B_byte2 : sample_bits_slice = sorry := by -- **TODO**
+            sorry
+          replace hsample_bits_slice : sample_bits_slice < 64 := by
+            rw [hsample_bits_slice]
+            exact Nat.lt_succ_of_le Nat.and_le_right
+          clear hBytesToBits
+          revert hs_B_byte1 hs_B_byte2
+          revert s_B_byte1 s_B_byte2
+          revert sample_bits_slice
+          -- Once I finish the statements of `hs_B_byte1` and `hs_B_byte2` this should be provable via `brute`
           sorry
         . rw [Vector.getElem!_set! (by omega)]
+          simp only [hj3, hη, Nat.mul_assoc 2 (s.i + 3) 3, Nat.mul_comm (s.i + 3) 3,
+            Nat.mul_add 3 s.i 3, Nat.mul_comm 3 s.i, ← hs3, Nat.mul_comm s.src_i 4, mul_one,
+            Nat.mul_add 2 (4 * s.src_i) 9, ← Nat.mul_assoc 2 4 s.src_i, Nat.reduceMul,
+            Nat.add_assoc, Fin.unfold3 hη, add_zero, Nat.reduceAdd]
+          conv in 8 * s.src_i + 18 => rw [(by omega : 8 * s.src_i + 18 = 8 * (s.src_i + 2) + 2)]
+          conv in 8 * s.src_i + 19 => rw [(by omega : 8 * s.src_i + 19 = 8 * (s.src_i + 2) + 3)]
+          conv in 8 * s.src_i + 20 => rw [(by omega : 8 * s.src_i + 20 = 8 * (s.src_i + 2) + 4)]
+          conv in 8 * s.src_i + 21 => rw [(by omega : 8 * s.src_i + 21 = 8 * (s.src_i + 2) + 5)]
+          conv in 8 * s.src_i + 22 => rw [(by omega : 8 * s.src_i + 22 = 8 * (s.src_i + 2) + 6)]
+          conv in 8 * s.src_i + 23 => rw [(by omega : 8 * s.src_i + 23 = 8 * (s.src_i + 2) + 7)]
+          rw [hBytesToBits (s.src_i + 2) (by omega) 2 (by omega),
+              hBytesToBits (s.src_i + 2) (by omega) 3 (by omega),
+              hBytesToBits (s.src_i + 2) (by omega) 4 (by omega),
+              hBytesToBits (s.src_i + 2) (by omega) 5 (by omega),
+              hBytesToBits (s.src_i + 2) (by omega) 6 (by omega),
+              hBytesToBits (s.src_i + 2) (by omega) 7 (by omega)]
+          unfold inner_loop.next_coefficient
+          simp only [BitVec.ofNat_eq_ofNat, ntt.Q.eq, UScalar.ofNat_val_eq, Nat.cast_ofNat,
+            BitVec.toNat_add, BitVec.toNat_sub, Nat.reducePow, BitVec.toNat_ushiftRight,
+            BitVec.toNat_and, BitVec.toNat_setWidth, BitVec.toNat_ofNat, Nat.reduceMod,
+            Nat.mod_add_mod]
+          olet hsample_bits_slice : sample_bits_slice :=
+            (sample_bits.toNat % 4294967296) >>> 6 >>> 6 >>> 6 &&& 63
+          olet hs_B_byte2 : s_B_byte2 := s.B[s.src_i + 2]!
+          replace hs_B_byte2 : sample_bits_slice = sorry := by -- **TODO**
+            sorry
+          replace hsample_bits_slice : sample_bits_slice < 64 := by
+            rw [hsample_bits_slice]
+            exact Nat.lt_succ_of_le Nat.and_le_right
+          clear hBytesToBits
+          revert hs_B_byte2 s_B_byte2
+          revert sample_bits_slice
+          -- Once I finish the statement of `hs_B_byte2` this should be provable via `brute`
           sorry
     . intro j hj1 hj2
       simp only at hj2
