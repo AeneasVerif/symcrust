@@ -144,26 +144,32 @@ theorem Target2.samplePolyCBD.eta3_loop.inner_loop.i6_proof (sample_bits : BitVe
   revert sample_bits'
   brute
 
-def Target2.samplePolyCBD.eta3_loop.inner_loop (pe_dst : Polynomial) (i j : ℕ) (sample_bits : BitVec 32) :
+def Target2.samplePolyCBD.eta3_loop.inner_loop.next_coefficient (i j : ℕ) (sample_bits : BitVec 32) :
+  BitVec 32 × UScalar UScalarTy.U16 :=
+  let coefficient := sample_bits &&& 63
+  let sample_bits1 := sample_bits >>> 6
+  let i1 := coefficient &&& 3
+  let i2 := coefficient >>> 3
+  let coefficient1 := i1 - i2 -- `BitVec.sub_def` indicates that `BitVec`'s subtraction is wrapping
+  let i3 := coefficient1 >>> 16
+  let i4 := ntt.Q &&& i3
+  let coefficient2 := coefficient1 + i4
+  let i5 := i + j
+  let i6 := U16.ofNat coefficient2.toNat $ by apply inner_loop.i6_proof
+  (sample_bits1, i6)
+
+/-- This is a simplified and unrolled version of the Aeneas translation, structured for ease verification -/
+def Target2.samplePolyCBD.eta3_loop.inner_loop (pe_dst : Polynomial) (i : ℕ) (sample_bits : BitVec 32) :
   Polynomial × BitVec 32 :=
-  if j < 4#usize then
-    let coefficient := sample_bits &&& 63
-    let sample_bits1 := sample_bits >>> 6
-    let i1 := coefficient &&& 3
-    let i2 := coefficient >>> 3
-    let coefficient1 := i1 - i2 -- `BitVec.sub_def` indicates that `BitVec`'s subtraction is wrapping
-    let i3 := coefficient1 >>> 16
-    let i4 := ntt.Q &&& i3
-    let coefficient2 := coefficient1 + i4
-    let i5 := i + j
-    let i6 := U16.ofNat coefficient2.toNat $ by apply inner_loop.i6_proof
-    let pe_dst1 := pe_dst.set! i5 i6
-    let j1 := j + 1
-    inner_loop pe_dst1 i j1 sample_bits1
-  else
-    (pe_dst, sample_bits)
-termination_by 4 - j
-decreasing_by scalar_tac
+  let (sample_bits1, coefficient1) := inner_loop.next_coefficient i 0 sample_bits
+  let (sample_bits2, coefficient2) := inner_loop.next_coefficient i 1 sample_bits1
+  let (sample_bits3, coefficient3) := inner_loop.next_coefficient i 2 sample_bits2
+  let (sample_bits4, coefficient4) := inner_loop.next_coefficient i 3 sample_bits3
+  let pe_dst1 := pe_dst.set! i coefficient1
+  let pe_dst2 := pe_dst1.set! (i + 1) coefficient2
+  let pe_dst3 := pe_dst2.set! (i + 2) coefficient3
+  let pe_dst4 := pe_dst3.set! (i + 3) coefficient4
+  (pe_dst4, sample_bits4)
 
 def Target2.samplePolyCBD.eta3_loop (s : Target2.samplePolyCBDState) : Polynomial :=
   if s.i < key.MLWE_POLYNOMIAL_COEFFICIENTS then
@@ -178,7 +184,7 @@ def Target2.samplePolyCBD.eta3_loop (s : Target2.samplePolyCBDState) : Polynomia
     let i6 := i5 &&& 2396745#u32
     let sample_bits1 := i4 + i6
     let sample_bits2 := sample_bits1.setWidth' (by scalar_tac)
-    let (pe_dst1, _) := eta3_loop.inner_loop s.pe_dst s.i 0 sample_bits2
+    let (pe_dst1, _) := eta3_loop.inner_loop s.pe_dst s.i sample_bits2
     let i7 := s.i + 4
     eta3_loop {η := s.η, pe_dst := pe_dst1, B := s.B, src_i := src_i1, i := i7}
   else
@@ -190,65 +196,24 @@ def Target2.samplePolyCBD {η : Η} (B : Vector Byte (64 * η)) : Polynomial :=
   if η.1 = 3 then samplePolyCBD.eta3_loop {η := η, pe_dst := Polynomial.zero, B := B, src_i := 0, i := 0}
   else samplePolyCBD.eta2_loop {η := η, pe_dst := Polynomial.zero, B := B, src_i := 0, i := 0}
 
-def Target2.samplePolyCBD.eta3_loop.inner_loop.preserves_below (pe_dst : Polynomial) (i j : ℕ)
+def Target2.samplePolyCBD.eta3_loop.inner_loop.preserves_below (pe_dst : Polynomial) (i : ℕ)
   (sample_bits : BitVec 32) (k : ℕ) (hk : k < i) :
-  (eta3_loop.inner_loop pe_dst i j sample_bits).1[k]! = pe_dst[k]! := by
+  (eta3_loop.inner_loop pe_dst i sample_bits).1[k]! = pe_dst[k]! := by
   unfold inner_loop
-  simp only [Q, UScalar.ofNat_val_eq, BitVec.ofNat_eq_ofNat, ntt.Q.eq, Nat.cast_ofNat,
-    BitVec.toNat_add, BitVec.toNat_sub, Nat.reducePow, BitVec.toNat_ushiftRight, BitVec.toNat_and,
-    BitVec.toNat_ofNat, Nat.reduceMod, Nat.mod_add_mod]
-  split
-  . unfold inner_loop
-    simp
-    split
-    . unfold inner_loop
-      simp
-      split
-      . unfold inner_loop
-        simp
-        split
-        . unfold inner_loop
-          simp
-          split
-          . omega
-          . rw [Vector.getElem!_set!_ne, Vector.getElem!_set!_ne, Vector.getElem!_set!_ne,
-              Vector.getElem!_set!_ne] <;> omega
-        . rw [Vector.getElem!_set!_ne, Vector.getElem!_set!_ne, Vector.getElem!_set!_ne] <;> omega
-      . rw [Vector.getElem!_set!_ne, Vector.getElem!_set!_ne] <;> omega
-    . rw [Vector.getElem!_set!_ne]; omega
-  . simp only
+  simp only [Q]
+  rw [Vector.getElem!_set!_ne, Vector.getElem!_set!_ne, Vector.getElem!_set!_ne, Vector.getElem!_set!_ne] <;> omega
 
-def Target2.samplePolyCBD.eta3_loop.inner_loop.preserves_above (pe_dst : Polynomial) (i j : ℕ)
+def Target2.samplePolyCBD.eta3_loop.inner_loop.preserves_above (pe_dst : Polynomial) (i : ℕ)
   (sample_bits : BitVec 32) (k : ℕ) (hk : i + 3 < k) :
-  (eta3_loop.inner_loop pe_dst i j sample_bits).1[k]! = pe_dst[k]! := by
+  (eta3_loop.inner_loop pe_dst i sample_bits).1[k]! = pe_dst[k]! := by
   unfold inner_loop
-  simp only [Q, UScalar.ofNat_val_eq, BitVec.ofNat_eq_ofNat, ntt.Q.eq, Nat.cast_ofNat,
-    BitVec.toNat_add, BitVec.toNat_sub, Nat.reducePow, BitVec.toNat_ushiftRight, BitVec.toNat_and,
-    BitVec.toNat_ofNat, Nat.reduceMod, Nat.mod_add_mod]
-  split
-  . unfold inner_loop
-    simp
-    split
-    . unfold inner_loop
-      simp
-      split
-      . unfold inner_loop
-        simp
-        split
-        . unfold inner_loop
-          simp
-          split
-          . omega
-          . rw [Vector.getElem!_set!_ne, Vector.getElem!_set!_ne, Vector.getElem!_set!_ne,
-              Vector.getElem!_set!_ne] <;> omega
-        . rw [Vector.getElem!_set!_ne, Vector.getElem!_set!_ne, Vector.getElem!_set!_ne] <;> omega
-      . rw [Vector.getElem!_set!_ne, Vector.getElem!_set!_ne] <;> omega
-    . rw [Vector.getElem!_set!_ne]; omega
-  . simp only
+  simp only [Q]
+  rw [Vector.getElem!_set!_ne, Vector.getElem!_set!_ne, Vector.getElem!_set!_ne, Vector.getElem!_set!_ne] <;> omega
 
 def Target2.samplePolyCBD.eta3_loop.spec {η : Η} (s : Target2.samplePolyCBDState)
   (hs1 : ∀ j < s.i, s.pe_dst[j]! = (Target.samplePolyCBD s.B)[j]!)
   (hs2 : ∀ j < 256, s.i ≤ j → s.pe_dst[j]! = 0)
+  (hs3 : s.src_i * 4 = s.i * 3)
   (i : ℕ) (hi : i < 256) (hη : s.η.1 = 3) : (eta3_loop s)[i]! = (Target.samplePolyCBD s.B)[i]! := by
   unfold eta3_loop
   split
@@ -269,18 +234,51 @@ def Target2.samplePolyCBD.eta3_loop.spec {η : Η} (s : Target2.samplePolyCBDSta
                 2396745#(8 * (List.slice s.src_i (s.src_i + 4) s.B.toArray.toList).length)) +
             (BitVec.fromLEBytes (List.slice s.src_i (s.src_i + 4) s.B.toArray.toList) >>> 2 &&&
               2396745#(8 * (List.slice s.src_i (s.src_i + 4) s.B.toArray.toList).length)))
-        rw [Target.samplePolyCBD.spec, ← Symcrust.SpecAux.Target.bytesToBits.eq_spec]
-        -- Target.bytesToBits.spec
-        have test := Target.bytesToBits.spec s.B
-        unfold Target.bytesToBits.post at test
-        sorry
-        sorry
+        have j_upper_bound : j + 3 < 256 := by
+          -- **TODO** This will probably become an invariant passed into `eta3_loop.spec` (via the fact
+          -- that `s.i + 4 ≤ 256`)
+          sorry
+        rw [Target.samplePolyCBD.spec s.B j (by omega), ← Symcrust.SpecAux.Target.bytesToBits.eq_spec]
+        have hBytesToBits := Target.bytesToBits.spec s.B
+        unfold Target.bytesToBits.post at hBytesToBits
+        unfold inner_loop
+        simp only [Q, Vector.Inhabited_getElem_eq_getElem!, Nat.cast_sum]
+        have hj3 : j = s.i ∨ j = s.i + 1 ∨ j = s.i + 2 ∨ j = s.i + 3 := by omega
+        have : s.src_i < 64 * s.η.val :=
+          -- Follows from the fact that `s.i + 4 ≤ 256` (which is a fact that I have yet to add)
+          sorry
+        specialize hBytesToBits s.src_i this
+        rcases hj3 with hj3 | hj3 | hj3 | hj3
+        . rw [Vector.getElem!_set!_ne (by omega), Vector.getElem!_set!_ne (by omega),
+            Vector.getElem!_set!_ne (by omega), Vector.getElem!_set! (by omega)]
+          simp only [hj3, hη, Nat.mul_assoc 2 s.i 3, ← hs3, Nat.mul_comm s.src_i 4,
+            ← Nat.mul_assoc 2 4 s.src_i, Nat.reduceMul]
+          -- **TODO** The below approach is brittle (doesn't work for the other cases). I should
+          -- instead unfold the summation
+          conv => rhs; lhs; rhs; intro x; rw [hBytesToBits x.val (by omega)]
+          conv => rhs; rhs; rhs; intro x; rw [Nat.add_assoc, hBytesToBits (3 + x.val) (by omega)]
+          sorry
+        . rw [Vector.getElem!_set!_ne (by omega), Vector.getElem!_set!_ne (by omega),
+            Vector.getElem!_set! (by omega)]
+          simp only [hj3, hη, Nat.mul_assoc 2 (s.i + 1) 3, Nat.mul_comm (s.i + 1) 3,
+            Nat.mul_add 3 s.i 1, Nat.mul_comm 3 s.i, ← hs3, Nat.mul_comm s.src_i 4, mul_one,
+            Nat.mul_add 2 (4 * s.src_i) 3, ← Nat.mul_assoc 2 4 s.src_i, Nat.reduceMul]
+          -- **NOTE** Need to modify the below approach because it is not feasible (`hBytesToBits`'s
+          -- precondition cannot be proven because `6 + x.val` might be equal to 8)
+          conv => rhs; lhs; rhs; intro x; rw [Nat.add_assoc, hBytesToBits (6 + x.val) (by sorry)]
+          sorry
+        . rw [Vector.getElem!_set!_ne (by omega), Vector.getElem!_set! (by omega)]
+          sorry
+        . rw [Vector.getElem!_set! (by omega)]
+          sorry
     . intro j hj1 hj2
       simp only at hj2
       simp only [ReduceZMod.reduceZMod]
       rw [eta3_loop.inner_loop.preserves_above]
       . exact hs2 j hj1 (by omega)
       . omega
+    . simp only
+      omega
     . exact hi
     . simp [hη]
   . next hi2 =>
@@ -304,6 +302,7 @@ def Target2.samplePolyCBD.spec {η : Η} (B : Vector Byte (64 * η)) : samplePol
     have hs2 : ∀ j < 256, 0 ≤ j → Polynomial.zero[j]! = 0 := by
       intro j hj1 hj2
       rw [Polynomial.zero, Vector.getElem!_replicate hj1]
+    have hs3 : 0 * 4 = 0 * 3 := by simp
     apply eta3_loop.spec <;> assumption
   . have : η.1 = 2 := by
       have hη := η.2
