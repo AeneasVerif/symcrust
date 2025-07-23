@@ -29,7 +29,8 @@ extract: symcrust-aeneas.llbc proofs/Symcrust/Code/Funs.lean proofs/Symcrust/Cod
 symcrust.llbc: $(wildcard */*.rs)
 	RUSTFLAGS="--cfg eurydice" $(CHARON_EXE) --hide-marker-traits \
 	  --exclude=core::fmt::Debug::fmt --opaque=core::fmt::Formatter --preset=eurydice \
-	  --include=alloc::collections::*  --include=core::alloc::* --include=core::ptr::alignment::*
+	  --include=alloc::collections::*  --include=core::alloc::* --include=core::ptr::alignment::* \
+	  --include=core::result::*::branch --include=core::convert::*::try_into
 
 symcrust-aeneas.llbc: $(wildcard */*.rs)
 	$(CHARON_EXE) --hide-marker-traits --exclude=core::fmt::Debug::fmt --opaque=core::fmt::Formatter --remove-associated-types='*' \
