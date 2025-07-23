@@ -124,6 +124,29 @@ alloc_collections_TryReserveErrorKind;
 
 typedef alloc_collections_TryReserveErrorKind alloc_collections_TryReserveError;
 
+
+
+typedef uint8_t core_convert_Infallible;
+
+static inline uint32_t core_convert_num__core__convert__From_u16__for_u32__from(uint16_t x0);
+
+extern core_fmt_Arguments
+core_fmt_rt__core__fmt__Arguments__a___new_const(size_t x0, Eurydice_str *x1);
+
+extern core_fmt_Arguments
+core_fmt_rt__core__fmt__Arguments__a___new_v1(
+  size_t x0,
+  size_t x1,
+  Eurydice_str *x2,
+  core_fmt_rt_Argument *x3
+);
+
+extern core_result_Result_10
+core_fmt__core__fmt__Debug_for_____fmt(void **x0, core_fmt_Formatter *x1);
+
+extern core_result_Result_10
+core_fmt__core__fmt__Formatter__a___write_fmt(core_fmt_Formatter *x0, core_fmt_Arguments x1);
+
 extern core_result_Result_10
 core_fmt__core__fmt__Formatter__a___write_str(core_fmt_Formatter *x0, Eurydice_str x1);
 
@@ -140,6 +163,8 @@ static inline uint32_t core_num__u32__wrapping_mul(uint32_t x0, uint32_t x1);
 static inline uint32_t core_num__u32__wrapping_sub(uint32_t x0, uint32_t x1);
 
 static inline size_t core_num__usize__wrapping_sub(size_t x0, size_t x1);
+
+extern void std_io_stdio__print(core_fmt_Arguments x0);
 
 extern void symcrust_common_SymCryptModuleInit(uint32_t x0, uint32_t x1);
 

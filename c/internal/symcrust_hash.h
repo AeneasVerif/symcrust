@@ -17,35 +17,38 @@ extern "C" {
 
 #include "hash_shims.h"
 
-extern size_t SYMCRUST_HASH_SHA3_512_RESULT_SIZE;
-
 extern symcrust_hash_HashState SYMCRUST_HASH_UNINITIALIZED_HASH_STATE;
-
-extern void
-symcrust_hash_sha3_256_append(symcrust_hash_HashState *p_state, Eurydice_slice pb_data);
-
-extern void symcrust_hash_sha3_256_init(symcrust_hash_HashState *p_state);
-
-extern void
-symcrust_hash_sha3_256_result(symcrust_hash_HashState *p_state, uint8_t *pb_result);
-
-extern void symcrust_hash_sha3_512(Eurydice_slice pb_data, uint8_t *pb_result);
-
-extern void
-symcrust_hash_sha3_512_append(symcrust_hash_HashState *p_state, Eurydice_slice pb_data);
 
 extern void symcrust_hash_sha3_512_init(symcrust_hash_HashState *p_state);
 
 extern void
+symcrust_hash_sha3_512_append(symcrust_hash_HashState *p_state, Eurydice_slice pb_data);
+
+extern size_t SYMCRUST_HASH_SHA3_512_RESULT_SIZE;
+
+extern void
 symcrust_hash_sha3_512_result(symcrust_hash_HashState *p_state, uint8_t *pb_result);
+
+extern void symcrust_hash_shake256_init(symcrust_hash_HashState *p_state);
+
+extern void
+symcrust_hash_shake256_append(symcrust_hash_HashState *p_state, Eurydice_slice pb_data);
+
+extern void
+symcrust_hash_shake256_state_copy(
+  symcrust_hash_HashState *p_src,
+  symcrust_hash_HashState *p_dst
+);
+
+extern void
+symcrust_hash_shake256_extract(symcrust_hash_HashState *st, Eurydice_slice dst, bool wipe);
+
+extern void symcrust_hash_sha3_512(Eurydice_slice pb_data, uint8_t *pb_result);
+
+extern void symcrust_hash_shake128_init(symcrust_hash_HashState *p_state);
 
 extern void
 symcrust_hash_shake128_append(symcrust_hash_HashState *p_state, Eurydice_slice pb_data);
-
-extern void
-symcrust_hash_shake128_extract(symcrust_hash_HashState *st, Eurydice_slice dst, bool wipe);
-
-extern void symcrust_hash_shake128_init(symcrust_hash_HashState *p_state);
 
 extern void
 symcrust_hash_shake128_state_copy(
@@ -54,18 +57,15 @@ symcrust_hash_shake128_state_copy(
 );
 
 extern void
-symcrust_hash_shake256_append(symcrust_hash_HashState *p_state, Eurydice_slice pb_data);
+symcrust_hash_shake128_extract(symcrust_hash_HashState *st, Eurydice_slice dst, bool wipe);
+
+extern void symcrust_hash_sha3_256_init(symcrust_hash_HashState *p_state);
 
 extern void
-symcrust_hash_shake256_extract(symcrust_hash_HashState *st, Eurydice_slice dst, bool wipe);
-
-extern void symcrust_hash_shake256_init(symcrust_hash_HashState *p_state);
+symcrust_hash_sha3_256_append(symcrust_hash_HashState *p_state, Eurydice_slice pb_data);
 
 extern void
-symcrust_hash_shake256_state_copy(
-  symcrust_hash_HashState *p_src,
-  symcrust_hash_HashState *p_dst
-);
+symcrust_hash_sha3_256_result(symcrust_hash_HashState *p_state, uint8_t *pb_result);
 
 #if defined(__cplusplus)
 }

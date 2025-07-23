@@ -38,6 +38,7 @@ file(GLOB sources
   ${PROJECT_SOURCE_DIR}/mlkem_shims.c
   ${PROJECT_SOURCE_DIR}/symcrust_common.c
   ${PROJECT_SOURCE_DIR}/symcrust_mlkem.c
+  ${PROJECT_SOURCE_DIR}/symcrust_ffi.c
   ${PROJECT_SOURCE_DIR}/test.c
 )
 # Add precompiler definitions like that:

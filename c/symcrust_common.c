@@ -174,6 +174,11 @@ symcrust_common_fmt_b9(symcrust_common_Error *self, core_fmt_Formatter *f)
           (KRML_CLITERAL(Eurydice_str){ .data = "HbsPublicRootMismatch", .len = (size_t)21U });
         break;
       }
+    default:
+      {
+        KRML_HOST_EPRINTF("KaRaMeL incomplete match at %s:%d\n", __FILE__, __LINE__);
+        KRML_HOST_EXIT(253U);
+      }
   }
   return core_fmt__core__fmt__Formatter__a___write_str(uu____0, uu____1);
 }

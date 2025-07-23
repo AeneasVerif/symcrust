@@ -10,7 +10,6 @@
 
 pub mod common;
 
-#[cfg(not(eurydice))]
 pub mod error;
 
 pub mod hash;
@@ -18,7 +17,6 @@ pub mod key;
 pub mod mlkem;
 pub mod ntt;
 
-#[cfg(not(eurydice))]
 pub mod ffi;
 
 #[cfg(test)]

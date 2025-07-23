@@ -3,7 +3,9 @@ files:
     internal:
       - [ symcrust, common, "*" ]
       - [ core, fmt, "*" ]
+      - [ core, convert, "*" ]
     private:
+      - [ std, "*" ]
       - [ core, "*" ]
       - [ alloc, "*" ]
       - [ Eurydice, "*" ]
@@ -14,6 +16,10 @@ files:
       - '"hash_shims.h"'
     private:
       - [ symcrust, hash, "*" ]
+
+  - name: symcrust_ffi
+    api:
+      - [ symcrust, ffi, "*" ]
 
   - name: symcrust_mlkem
     include_in_h:

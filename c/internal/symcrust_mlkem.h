@@ -15,15 +15,30 @@
 extern "C" {
 #endif
 
+#include "internal/symcrust_common.h"
 #include "symcrust_common.h"
 #include "../symcrust_mlkem.h"
 
-typedef struct Eurydice_slice_uint16_t_256size_t__x2_s
+/**
+A monomorphic instance of core.result.Result
+with types core_convert_Infallible, symcrust_common_Error
+
+*/
+typedef struct core_result_Result_b5_s
 {
-  Eurydice_slice fst;
-  Eurydice_slice snd;
+  core_result_Result_10 tag;
+  union {
+    core_convert_Infallible case_Ok;
+    symcrust_common_Error case_Err;
+  }
+  val;
 }
-Eurydice_slice_uint16_t_256size_t__x2;
+core_result_Result_b5;
+
+/**
+This function found in impl {core::ops::try_trait::FromResidual<core::result::Result<core::convert::Infallible, symcrust::common::Error>> for symcrust::common::Error}
+*/
+symcrust_common_Error symcrust_error_from_residual_54(core_result_Result_b5 r);
 
 /**
 A monomorphic instance of symcrust.common.wipe_slice
@@ -73,6 +88,13 @@ typedef struct Eurydice_slice_uint8_t_x2_s
   Eurydice_slice snd;
 }
 Eurydice_slice_uint8_t_x2;
+
+typedef struct Eurydice_slice_uint16_t_256size_t__x2_s
+{
+  Eurydice_slice fst;
+  Eurydice_slice snd;
+}
+Eurydice_slice_uint16_t_256size_t__x2;
 
 /**
 A monomorphic instance of symcrust.common.wipe_slice

@@ -11,302 +11,20 @@
 #include "internal/symcrust_hash.h"
 #include "internal/symcrust_common.h"
 
+/**
+This function found in impl {core::ops::try_trait::FromResidual<core::result::Result<core::convert::Infallible, symcrust::common::Error>> for symcrust::common::Error}
+*/
+symcrust_common_Error symcrust_error_from_residual_54(core_result_Result_b5 r)
+{
+  if (!(r.tag == core_result_Ok))
+  {
+    symcrust_common_Error e = r.val.case_Err;
+    return e;
+  }
+  return symcrust_common_Error_NoError;
+}
+
 const uint16_t symcrust_key_POLYELEMENT_ZERO[256U] = { 0U };
-
-symcrust_key_InternalParams
-symcrust_key_get_internal_params_from_params(symcrust_key_Params params)
-{
-  switch (params)
-  {
-    case symcrust_key_Params_MlKem512:
-      {
-        break;
-      }
-    case symcrust_key_Params_MlKem768:
-      {
-        return SYMCRUST_KEY_INTERNAL_PARAMS_ML_KEM768;
-      }
-    case symcrust_key_Params_MlKem1024:
-      {
-        return SYMCRUST_KEY_INTERNAL_PARAMS_ML_KEM1024;
-      }
-  }
-  return SYMCRUST_KEY_INTERNAL_PARAMS_ML_KEM512;
-}
-
-core_result_Result_67 symcrust_key_key_allocate2(symcrust_key_Params params)
-{
-  symcrust_key_InternalParams
-  internal_params = symcrust_key_get_internal_params_from_params(params);
-  size_t n_rows = (size_t)internal_params.n_rows;
-  symcrust_key_PreKey2Header
-  header =
-    {
-      .algorithm_info = 0U, .params = internal_params, .has_private_seed = false,
-      .has_private_key = false, .private_seed = { 0U }, .private_random = { 0U },
-      .public_seed = { 0U }, .encoded_t = { 0U }, .encaps_key_hash = { 0U }, .n_rows = n_rows
-    };
-  core_result_Result_67 uu____0;
-  switch (params)
-  {
-    case symcrust_key_Params_MlKem512:
-      {
-        symcrust_key_PreKey2_51 lit;
-        lit.header = header;
-        uint16_t repeat_expression[8U][256U];
-        KRML_MAYBE_FOR8(i,
-          (size_t)0U,
-          (size_t)8U,
-          (size_t)1U,
-          memcpy(repeat_expression[i],
-            symcrust_key_POLYELEMENT_ZERO,
-            (size_t)256U * sizeof (uint16_t)););
-        memcpy(lit.data, repeat_expression, (size_t)8U * sizeof (uint16_t [256U]));
-        uu____0 =
-          (
-            KRML_CLITERAL(core_result_Result_67){
-              .tag = core_result_Ok,
-              .val = {
-                .case_Ok = {
-                  .ptr = (symcrust_key_Key *)Eurydice_box_new(lit,
-                    symcrust_key_PreKey2_51,
-                    symcrust_key_PreKey2_51 *),
-                  .len = (size_t)8U
-                }
-              }
-            }
-          );
-        break;
-      }
-    case symcrust_key_Params_MlKem768:
-      {
-        symcrust_key_PreKey2_7d lit;
-        lit.header = header;
-        uint16_t repeat_expression[15U][256U];
-        KRML_MAYBE_FOR15(i,
-          (size_t)0U,
-          (size_t)15U,
-          (size_t)1U,
-          memcpy(repeat_expression[i],
-            symcrust_key_POLYELEMENT_ZERO,
-            (size_t)256U * sizeof (uint16_t)););
-        memcpy(lit.data, repeat_expression, (size_t)15U * sizeof (uint16_t [256U]));
-        uu____0 =
-          (
-            KRML_CLITERAL(core_result_Result_67){
-              .tag = core_result_Ok,
-              .val = {
-                .case_Ok = {
-                  .ptr = (symcrust_key_Key *)Eurydice_box_new(lit,
-                    symcrust_key_PreKey2_7d,
-                    symcrust_key_PreKey2_7d *),
-                  .len = (size_t)15U
-                }
-              }
-            }
-          );
-        break;
-      }
-    case symcrust_key_Params_MlKem1024:
-      {
-        symcrust_key_PreKey2_76 lit;
-        lit.header = header;
-        uint16_t repeat_expression[24U][256U];
-        for (size_t i = (size_t)0U; i < (size_t)24U; i++)
-        {
-          memcpy(repeat_expression[i],
-            symcrust_key_POLYELEMENT_ZERO,
-            (size_t)256U * sizeof (uint16_t));
-        }
-        memcpy(lit.data, repeat_expression, (size_t)24U * sizeof (uint16_t [256U]));
-        uu____0 =
-          (
-            KRML_CLITERAL(core_result_Result_67){
-              .tag = core_result_Ok,
-              .val = {
-                .case_Ok = {
-                  .ptr = (symcrust_key_Key *)Eurydice_box_new(lit,
-                    symcrust_key_PreKey2_76,
-                    symcrust_key_PreKey2_76 *),
-                  .len = (size_t)24U
-                }
-              }
-            }
-          );
-        break;
-      }
-  }
-  return uu____0;
-}
-
-core_result_Result_67 symcrust_key_key_allocate(symcrust_key_Params params)
-{
-  return symcrust_key_key_allocate2(params);
-}
-
-/**
-This function found in impl {core::clone::Clone for symcrust::key::Params}
-*/
-inline symcrust_key_Params symcrust_key_clone_61(symcrust_key_Params *self)
-{
-  return self[0U];
-}
-
-/**
-This function found in impl {core::cmp::PartialEq<symcrust::key::Params> for symcrust::key::Params}
-*/
-inline bool symcrust_key_eq_d5(symcrust_key_Params *self, symcrust_key_Params *other)
-{
-  ptrdiff_t __self_discr = (ptrdiff_t)self[0U];
-  ptrdiff_t __arg1_discr = (ptrdiff_t)other[0U];
-  return __self_discr == __arg1_discr;
-}
-
-/**
-This function found in impl {symcrust::key::PreKey2<@Slice<@Array<u16, 256: usize>>>}
-*/
-size_t symcrust_key_matrix_len_fd(Eurydice_dst_8c self)
-{
-  return self.ptr->header.n_rows * self.ptr->header.n_rows;
-}
-
-/**
-This function found in impl {symcrust::key::PreKey2<@Slice<@Array<u16, 256: usize>>>}
-*/
-Eurydice_slice symcrust_key_atranspose_fd(Eurydice_dst_8c self)
-{
-  size_t m_len = symcrust_key_matrix_len_fd(self);
-  return
-    Eurydice_slice_subslice3(Eurydice_slice_of_dst(&self.ptr->data,
-        self.len,
-        uint16_t [256U],
-        Eurydice_slice),
-      (size_t)0U,
-      m_len,
-      uint16_t (*)[256U]);
-}
-
-/**
-This function found in impl {symcrust::key::PreKey2<@Slice<@Array<u16, 256: usize>>>}
-*/
-Eurydice_slice symcrust_key_atranspose_mut_fd(Eurydice_dst_8c self)
-{
-  size_t m_len = symcrust_key_matrix_len_fd(self);
-  return
-    Eurydice_slice_subslice3(Eurydice_slice_of_dst(&self.ptr->data,
-        self.len,
-        uint16_t [256U],
-        Eurydice_slice),
-      (size_t)0U,
-      m_len,
-      uint16_t (*)[256U]);
-}
-
-/**
-This function found in impl {symcrust::key::PreKey2<@Slice<@Array<u16, 256: usize>>>}
-*/
-Eurydice_slice_uint16_t_256size_t__x3 symcrust_key_ats_mut_fd(Eurydice_dst_8c self)
-{
-  size_t m_len = symcrust_key_matrix_len_fd(self);
-  Eurydice_slice_uint16_t_256size_t__x2
-  uu____0 =
-    Eurydice_slice_split_at_mut(Eurydice_slice_of_dst(&self.ptr->data,
-        self.len,
-        uint16_t [256U],
-        Eurydice_slice),
-      m_len,
-      uint16_t [256U],
-      Eurydice_slice_uint16_t_256size_t__x2);
-  Eurydice_slice a = uu____0.fst;
-  Eurydice_slice ts = uu____0.snd;
-  Eurydice_slice_uint16_t_256size_t__x2
-  uu____1 =
-    Eurydice_slice_split_at_mut(ts,
-      self.ptr->header.n_rows,
-      uint16_t [256U],
-      Eurydice_slice_uint16_t_256size_t__x2);
-  Eurydice_slice t = uu____1.fst;
-  Eurydice_slice s = uu____1.snd;
-  return (KRML_CLITERAL(Eurydice_slice_uint16_t_256size_t__x3){ .fst = a, .snd = t, .thd = s });
-}
-
-/**
-This function found in impl {symcrust::key::PreKey2<@Slice<@Array<u16, 256: usize>>>}
-*/
-Eurydice_slice symcrust_key_s_fd(Eurydice_dst_8c self)
-{
-  size_t m_len = symcrust_key_matrix_len_fd(self);
-  Eurydice_slice
-  uu____0 = Eurydice_slice_of_dst(&self.ptr->data, self.len, uint16_t [256U], Eurydice_slice);
-  return
-    Eurydice_slice_subslice3(uu____0,
-      m_len + self.ptr->header.n_rows,
-      m_len + (size_t)2U * self.ptr->header.n_rows,
-      uint16_t (*)[256U]);
-}
-
-/**
-This function found in impl {symcrust::key::PreKey2<@Slice<@Array<u16, 256: usize>>>}
-*/
-Eurydice_slice symcrust_key_s_mut_fd(Eurydice_dst_8c self)
-{
-  size_t m_len = symcrust_key_matrix_len_fd(self);
-  Eurydice_slice
-  uu____0 = Eurydice_slice_of_dst(&self.ptr->data, self.len, uint16_t [256U], Eurydice_slice);
-  return
-    Eurydice_slice_subslice3(uu____0,
-      m_len + self.ptr->header.n_rows,
-      m_len + (size_t)2U * self.ptr->header.n_rows,
-      uint16_t (*)[256U]);
-}
-
-/**
-This function found in impl {symcrust::key::PreKey2<@Slice<@Array<u16, 256: usize>>>}
-*/
-Eurydice_slice symcrust_key_t_fd(Eurydice_dst_8c self)
-{
-  size_t m_len = symcrust_key_matrix_len_fd(self);
-  Eurydice_slice
-  uu____0 = Eurydice_slice_of_dst(&self.ptr->data, self.len, uint16_t [256U], Eurydice_slice);
-  return
-    Eurydice_slice_subslice3(uu____0,
-      m_len,
-      m_len + self.ptr->header.n_rows,
-      uint16_t (*)[256U]);
-}
-
-/**
-This function found in impl {symcrust::key::PreKey2<@Slice<@Array<u16, 256: usize>>>}
-*/
-tuple_48 symcrust_key_t_encoded_t_mut_fd(Eurydice_dst_8c self)
-{
-  size_t m_len = symcrust_key_matrix_len_fd(self);
-  Eurydice_slice
-  uu____0 = Eurydice_slice_of_dst(&self.ptr->data, self.len, uint16_t [256U], Eurydice_slice);
-  tuple_48 lit;
-  lit.fst =
-    Eurydice_slice_subslice3(uu____0,
-      m_len,
-      m_len + self.ptr->header.n_rows,
-      uint16_t (*)[256U]);
-  lit.snd = self.ptr->header.encoded_t;
-  return lit;
-}
-
-/**
-This function found in impl {symcrust::key::PreKey2<@Slice<@Array<u16, 256: usize>>>}
-*/
-Eurydice_slice symcrust_key_t_mut_fd(Eurydice_dst_8c self)
-{
-  size_t m_len = symcrust_key_matrix_len_fd(self);
-  Eurydice_slice
-  uu____0 = Eurydice_slice_of_dst(&self.ptr->data, self.len, uint16_t [256U], Eurydice_slice);
-  return
-    Eurydice_slice_subslice3(uu____0,
-      m_len,
-      m_len + self.ptr->header.n_rows,
-      uint16_t (*)[256U]);
-}
 
 #define MATRIX_MAX_NROWS ((size_t)4U)
 
@@ -634,6 +352,29 @@ static void vector_ntt(Eurydice_slice pv_src)
   {
     poly_element_ntt(Eurydice_slice_index(pv_src, i, uint16_t [256U], uint16_t (*)[256U]));
   }
+}
+
+/**
+This function found in impl {symcrust::key::PreKey2<@Slice<@Array<u16, 256: usize>>>}
+*/
+size_t symcrust_key_matrix_len_fd(Eurydice_dst_8c self)
+{
+  return self.ptr->header.n_rows * self.ptr->header.n_rows;
+}
+
+/**
+This function found in impl {symcrust::key::PreKey2<@Slice<@Array<u16, 256: usize>>>}
+*/
+Eurydice_slice symcrust_key_s_mut_fd(Eurydice_dst_8c self)
+{
+  size_t m_len = symcrust_key_matrix_len_fd(self);
+  Eurydice_slice
+  uu____0 = Eurydice_slice_of_dst(&self.ptr->data, self.len, uint16_t [256U], Eurydice_slice);
+  return
+    Eurydice_slice_subslice3(uu____0,
+      m_len + self.ptr->header.n_rows,
+      m_len + (size_t)2U * self.ptr->header.n_rows,
+      uint16_t (*)[256U]);
 }
 
 static const
@@ -1025,6 +766,22 @@ static void vector_set_zero(Eurydice_slice pv_src)
   }
 }
 
+/**
+This function found in impl {symcrust::key::PreKey2<@Slice<@Array<u16, 256: usize>>>}
+*/
+Eurydice_slice symcrust_key_atranspose_mut_fd(Eurydice_dst_8c self)
+{
+  size_t m_len = symcrust_key_matrix_len_fd(self);
+  return
+    Eurydice_slice_subslice3(Eurydice_slice_of_dst(&self.ptr->data,
+        self.len,
+        uint16_t [256U],
+        Eurydice_slice),
+      (size_t)0U,
+      m_len,
+      uint16_t (*)[256U]);
+}
+
 static KRML_MUSTINLINE void
 poly_element_mul_and_accumulate_aux(
   Eurydice_slice pm_src1,
@@ -1139,6 +896,21 @@ vector_compress_and_encode(
       n_bits_per_coefficient,
       Eurydice_slice_subslice_from(pb_dst, pb_dst_index, uint8_t, size_t, Eurydice_derefed_slice));
   }
+}
+
+/**
+This function found in impl {symcrust::key::PreKey2<@Slice<@Array<u16, 256: usize>>>}
+*/
+Eurydice_slice symcrust_key_t_mut_fd(Eurydice_dst_8c self)
+{
+  size_t m_len = symcrust_key_matrix_len_fd(self);
+  Eurydice_slice
+  uu____0 = Eurydice_slice_of_dst(&self.ptr->data, self.len, uint16_t [256U], Eurydice_slice);
+  return
+    Eurydice_slice_subslice3(uu____0,
+      m_len,
+      m_len + self.ptr->header.n_rows,
+      uint16_t (*)[256U]);
 }
 
 /**
@@ -1754,30 +1526,243 @@ symcrust_mlkem_encapsulate(
   return sc_error;
 }
 
+symcrust_key_InternalParams
+symcrust_key_get_internal_params_from_params(symcrust_key_Params params)
+{
+  switch (params)
+  {
+    case symcrust_key_Params_MlKem512:
+      {
+        break;
+      }
+    case symcrust_key_Params_MlKem768:
+      {
+        return SYMCRUST_KEY_INTERNAL_PARAMS_ML_KEM768;
+      }
+    case symcrust_key_Params_MlKem1024:
+      {
+        return SYMCRUST_KEY_INTERNAL_PARAMS_ML_KEM1024;
+      }
+    default:
+      {
+        KRML_HOST_EPRINTF("KaRaMeL incomplete match at %s:%d\n", __FILE__, __LINE__);
+        KRML_HOST_EXIT(253U);
+      }
+  }
+  return SYMCRUST_KEY_INTERNAL_PARAMS_ML_KEM512;
+}
+
+size_t symcrust_mlkem_sizeof_ciphertext_from_params(symcrust_key_Params params)
+{
+  symcrust_key_InternalParams
+  internal_params = symcrust_key_get_internal_params_from_params(params);
+  /* u vector encoded with n_bits_of_u * MLWE_POLYNOMIAL_COEFFICIENTS bits per polynomial */
+  size_t
+  cb_u =
+    (size_t)internal_params.n_rows * (size_t)internal_params.n_bits_of_u *
+      (SYMCRUST_KEY_MLWE_POLYNOMIAL_COEFFICIENTS / (size_t)8U);
+  /* v polynomial encoded with n_bits_of_v * MLWE_POLYNOMIAL_COEFFICIENTS bits */
+  size_t
+  cb_v =
+    (size_t)internal_params.n_bits_of_v * (SYMCRUST_KEY_MLWE_POLYNOMIAL_COEFFICIENTS / (size_t)8U);
+  /* original Rust expression is not an lvalue in C */
+  symcrust_key_Params lvalue = symcrust_key_Params_MlKem512;
+  if
+  (
+    !symcrust_key__core__cmp__PartialEq_symcrust__key__Params__for_symcrust__key__Params__ne(&internal_params.params,
+      &lvalue)
+  )
+  {
+    EURYDICE_ASSERT(cb_u + cb_v == SYMCRUST_MLKEM_CIPHERTEXT_SIZE_MLKEM512, "panic!");
+  }
+  /* original Rust expression is not an lvalue in C */
+  symcrust_key_Params lvalue0 = symcrust_key_Params_MlKem768;
+  if
+  (
+    !symcrust_key__core__cmp__PartialEq_symcrust__key__Params__for_symcrust__key__Params__ne(&internal_params.params,
+      &lvalue0)
+  )
+  {
+    EURYDICE_ASSERT(cb_u + cb_v == SYMCRUST_MLKEM_CIPHERTEXT_SIZE_MLKEM768, "panic!");
+  }
+  /* original Rust expression is not an lvalue in C */
+  symcrust_key_Params lvalue1 = symcrust_key_Params_MlKem1024;
+  if
+  (
+    !symcrust_key__core__cmp__PartialEq_symcrust__key__Params__for_symcrust__key__Params__ne(&internal_params.params,
+      &lvalue1)
+  )
+  {
+    EURYDICE_ASSERT(cb_u + cb_v == SYMCRUST_MLKEM_CIPHERTEXT_SIZE_MLKEM1024, "panic!");
+  }
+  return cb_u + cb_v;
+}
+
 size_t symcrust_mlkem_sizeof_encoded_uncompressed_vector(size_t _n_rows)
 {
   return (size_t)384U * _n_rows;
 }
 
-void
-symcrust_mlkem_key_compute_encapsulation_key_hash(
-  Eurydice_dst_8c pk_mlkem_key,
-  symcrust_ntt_InternalComputationTemporaries *p_comp_temps
+size_t symcrust_mlkem_sizeof_format_decapsulation_key(size_t _n_rows)
+{
+  return
+    (size_t)2U * symcrust_mlkem_sizeof_encoded_uncompressed_vector(_n_rows) +
+      (size_t)3U * (size_t)32U;
+}
+
+size_t symcrust_mlkem_sizeof_format_encapsulation_key(size_t _n_rows)
+{
+  return symcrust_mlkem_sizeof_encoded_uncompressed_vector(_n_rows) + (size_t)32U;
+}
+
+size_t
+symcrust_mlkem_sizeof_key_format_from_params(
+  symcrust_key_Params params,
+  symcrust_key_Format format
 )
 {
-  symcrust_hash_HashState *p_state = &p_comp_temps->hash_state0;
-  size_t
-  cb_encoded_vector =
-    symcrust_mlkem_sizeof_encoded_uncompressed_vector((size_t)pk_mlkem_key.ptr->header.params.n_rows);
-  symcrust_hash_sha3_256_init(p_state);
-  symcrust_hash_sha3_256_append(p_state,
-    Eurydice_array_to_subslice3(pk_mlkem_key.ptr->header.encoded_t,
-      (size_t)0U,
-      cb_encoded_vector,
-      uint8_t *));
-  symcrust_hash_sha3_256_append(p_state,
-    Eurydice_array_to_slice((size_t)32U, pk_mlkem_key.ptr->header.public_seed, uint8_t));
-  symcrust_hash_sha3_256_result(p_state, pk_mlkem_key.ptr->header.encaps_key_hash);
+  symcrust_key_InternalParams
+  internal_params = symcrust_key_get_internal_params_from_params(params);
+  size_t uu____0;
+  switch (format)
+  {
+    case symcrust_key_Format_PrivateSeed:
+      {
+        uu____0 = SYMCRUST_MLKEM_SIZEOF_FORMAT_PRIVATE_SEED;
+        break;
+      }
+    case symcrust_key_Format_DecapsulationKey:
+      {
+        uu____0 = symcrust_mlkem_sizeof_format_decapsulation_key((size_t)internal_params.n_rows);
+        break;
+      }
+    case symcrust_key_Format_EncapsulationKey:
+      {
+        uu____0 = symcrust_mlkem_sizeof_format_encapsulation_key((size_t)internal_params.n_rows);
+        break;
+      }
+    default:
+      {
+        KRML_HOST_EPRINTF("KaRaMeL incomplete match at %s:%d\n", __FILE__, __LINE__);
+        KRML_HOST_EXIT(253U);
+      }
+  }
+  return uu____0;
+}
+
+core_result_Result_67 symcrust_key_key_allocate2(symcrust_key_Params params)
+{
+  symcrust_key_InternalParams
+  internal_params = symcrust_key_get_internal_params_from_params(params);
+  size_t n_rows = (size_t)internal_params.n_rows;
+  symcrust_key_PreKey2Header
+  header =
+    {
+      .algorithm_info = 0U, .params = internal_params, .has_private_seed = false,
+      .has_private_key = false, .private_seed = { 0U }, .private_random = { 0U },
+      .public_seed = { 0U }, .encoded_t = { 0U }, .encaps_key_hash = { 0U }, .n_rows = n_rows
+    };
+  core_result_Result_67 uu____0;
+  switch (params)
+  {
+    case symcrust_key_Params_MlKem512:
+      {
+        symcrust_key_PreKey2_51 lit;
+        lit.header = header;
+        uint16_t repeat_expression[8U][256U];
+        KRML_MAYBE_FOR8(i,
+          (size_t)0U,
+          (size_t)8U,
+          (size_t)1U,
+          memcpy(repeat_expression[i],
+            symcrust_key_POLYELEMENT_ZERO,
+            (size_t)256U * sizeof (uint16_t)););
+        memcpy(lit.data, repeat_expression, (size_t)8U * sizeof (uint16_t [256U]));
+        uu____0 =
+          (
+            KRML_CLITERAL(core_result_Result_67){
+              .tag = core_result_Ok,
+              .val = {
+                .case_Ok = {
+                  .ptr = (symcrust_key_PreKey2_0e *)Eurydice_box_new(lit,
+                    symcrust_key_PreKey2_51,
+                    symcrust_key_PreKey2_51 *),
+                  .len = (size_t)8U
+                }
+              }
+            }
+          );
+        break;
+      }
+    case symcrust_key_Params_MlKem768:
+      {
+        symcrust_key_PreKey2_7d lit;
+        lit.header = header;
+        uint16_t repeat_expression[15U][256U];
+        KRML_MAYBE_FOR15(i,
+          (size_t)0U,
+          (size_t)15U,
+          (size_t)1U,
+          memcpy(repeat_expression[i],
+            symcrust_key_POLYELEMENT_ZERO,
+            (size_t)256U * sizeof (uint16_t)););
+        memcpy(lit.data, repeat_expression, (size_t)15U * sizeof (uint16_t [256U]));
+        uu____0 =
+          (
+            KRML_CLITERAL(core_result_Result_67){
+              .tag = core_result_Ok,
+              .val = {
+                .case_Ok = {
+                  .ptr = (symcrust_key_PreKey2_0e *)Eurydice_box_new(lit,
+                    symcrust_key_PreKey2_7d,
+                    symcrust_key_PreKey2_7d *),
+                  .len = (size_t)15U
+                }
+              }
+            }
+          );
+        break;
+      }
+    case symcrust_key_Params_MlKem1024:
+      {
+        symcrust_key_PreKey2_76 lit;
+        lit.header = header;
+        uint16_t repeat_expression[24U][256U];
+        for (size_t i = (size_t)0U; i < (size_t)24U; i++)
+        {
+          memcpy(repeat_expression[i],
+            symcrust_key_POLYELEMENT_ZERO,
+            (size_t)256U * sizeof (uint16_t));
+        }
+        memcpy(lit.data, repeat_expression, (size_t)24U * sizeof (uint16_t [256U]));
+        uu____0 =
+          (
+            KRML_CLITERAL(core_result_Result_67){
+              .tag = core_result_Ok,
+              .val = {
+                .case_Ok = {
+                  .ptr = (symcrust_key_PreKey2_0e *)Eurydice_box_new(lit,
+                    symcrust_key_PreKey2_76,
+                    symcrust_key_PreKey2_76 *),
+                  .len = (size_t)24U
+                }
+              }
+            }
+          );
+        break;
+      }
+    default:
+      {
+        KRML_HOST_EPRINTF("KaRaMeL incomplete match at %s:%d\n", __FILE__, __LINE__);
+        KRML_HOST_EXIT(253U);
+      }
+  }
+  return uu____0;
+}
+
+core_result_Result_67 symcrust_key_key_allocate(symcrust_key_Params params)
+{
+  return symcrust_key_key_allocate2(params);
 }
 
 static void
@@ -1895,6 +1880,34 @@ static void vector_mul_r(Eurydice_slice pv_src, Eurydice_slice pv_dst)
 }
 
 /**
+This function found in impl {symcrust::key::PreKey2<@Slice<@Array<u16, 256: usize>>>}
+*/
+Eurydice_slice_uint16_t_256size_t__x3 symcrust_key_ats_mut_fd(Eurydice_dst_8c self)
+{
+  size_t m_len = symcrust_key_matrix_len_fd(self);
+  Eurydice_slice_uint16_t_256size_t__x2
+  uu____0 =
+    Eurydice_slice_split_at_mut(Eurydice_slice_of_dst(&self.ptr->data,
+        self.len,
+        uint16_t [256U],
+        Eurydice_slice),
+      m_len,
+      uint16_t [256U],
+      Eurydice_slice_uint16_t_256size_t__x2);
+  Eurydice_slice a = uu____0.fst;
+  Eurydice_slice ts = uu____0.snd;
+  Eurydice_slice_uint16_t_256size_t__x2
+  uu____1 =
+    Eurydice_slice_split_at_mut(ts,
+      self.ptr->header.n_rows,
+      uint16_t [256U],
+      Eurydice_slice_uint16_t_256size_t__x2);
+  Eurydice_slice t = uu____1.fst;
+  Eurydice_slice s = uu____1.snd;
+  return (KRML_CLITERAL(Eurydice_slice_uint16_t_256size_t__x3){ .fst = a, .snd = t, .thd = s });
+}
+
+/**
 This function found in impl {@Slice<T>}
 */
 /**
@@ -1928,6 +1941,45 @@ static void matrix_transpose(Eurydice_slice pm_src, uint8_t n_rows)
       swap_2b_c3(pm_src, i * n_rows0 + j, j * n_rows0 + i);
     }
   }
+}
+
+/**
+This function found in impl {symcrust::key::PreKey2<@Slice<@Array<u16, 256: usize>>>}
+*/
+tuple_48 symcrust_key_t_encoded_t_mut_fd(Eurydice_dst_8c self)
+{
+  size_t m_len = symcrust_key_matrix_len_fd(self);
+  Eurydice_slice
+  uu____0 = Eurydice_slice_of_dst(&self.ptr->data, self.len, uint16_t [256U], Eurydice_slice);
+  tuple_48 lit;
+  lit.fst =
+    Eurydice_slice_subslice3(uu____0,
+      m_len,
+      m_len + self.ptr->header.n_rows,
+      uint16_t (*)[256U]);
+  lit.snd = self.ptr->header.encoded_t;
+  return lit;
+}
+
+void
+symcrust_mlkem_key_compute_encapsulation_key_hash(
+  Eurydice_dst_8c pk_mlkem_key,
+  symcrust_ntt_InternalComputationTemporaries *p_comp_temps
+)
+{
+  symcrust_hash_HashState *p_state = &p_comp_temps->hash_state0;
+  size_t
+  cb_encoded_vector =
+    symcrust_mlkem_sizeof_encoded_uncompressed_vector((size_t)pk_mlkem_key.ptr->header.params.n_rows);
+  symcrust_hash_sha3_256_init(p_state);
+  symcrust_hash_sha3_256_append(p_state,
+    Eurydice_array_to_subslice3(pk_mlkem_key.ptr->header.encoded_t,
+      (size_t)0U,
+      cb_encoded_vector,
+      uint8_t *));
+  symcrust_hash_sha3_256_append(p_state,
+    Eurydice_array_to_slice((size_t)32U, pk_mlkem_key.ptr->header.public_seed, uint8_t));
+  symcrust_hash_sha3_256_result(p_state, pk_mlkem_key.ptr->header.encaps_key_hash);
 }
 
 /**
@@ -2090,18 +2142,6 @@ symcrust_mlkem_key_expand_from_private_seed(
   symcrust_mlkem_key_compute_encapsulation_key_hash(pk_mlkem_key, p_comp_temps);
   symcrust_common_wipe_slice_90(Eurydice_array_to_slice((size_t)64U, private_seed_hash, uint8_t));
   symcrust_common_wipe_slice_90(Eurydice_array_to_slice((size_t)193U, cbd_sample_buffer, uint8_t));
-}
-
-size_t symcrust_mlkem_sizeof_format_decapsulation_key(size_t _n_rows)
-{
-  return
-    (size_t)2U * symcrust_mlkem_sizeof_encoded_uncompressed_vector(_n_rows) +
-      (size_t)3U * (size_t)32U;
-}
-
-size_t symcrust_mlkem_sizeof_format_encapsulation_key(size_t _n_rows)
-{
-  return symcrust_mlkem_sizeof_encoded_uncompressed_vector(_n_rows) + (size_t)32U;
 }
 
 symcrust_common_Error
@@ -2445,6 +2485,11 @@ symcrust_mlkem_key_set_value(
               }
               break;
             }
+          default:
+            {
+              KRML_HOST_EPRINTF("KaRaMeL incomplete match at %s:%d\n", __FILE__, __LINE__);
+              KRML_HOST_EXIT(253U);
+            }
         }
       }
       else
@@ -2751,6 +2796,11 @@ symcrust_mlkem_key_set_value(
               }
               break;
             }
+          default:
+            {
+              KRML_HOST_EPRINTF("KaRaMeL incomplete match at %s:%d\n", __FILE__, __LINE__);
+              KRML_HOST_EXIT(253U);
+            }
         }
       }
       else
@@ -2809,6 +2859,21 @@ symcrust_common_Error symcrust_mlkem_key_generate(Eurydice_dst_8c pk_mlkem_key, 
     }
   }
   return uu____0;
+}
+
+/**
+This function found in impl {symcrust::key::PreKey2<@Slice<@Array<u16, 256: usize>>>}
+*/
+Eurydice_slice symcrust_key_s_fd(Eurydice_dst_8c self)
+{
+  size_t m_len = symcrust_key_matrix_len_fd(self);
+  Eurydice_slice
+  uu____0 = Eurydice_slice_of_dst(&self.ptr->data, self.len, uint16_t [256U], Eurydice_slice);
+  return
+    Eurydice_slice_subslice3(uu____0,
+      m_len + self.ptr->header.n_rows,
+      m_len + (size_t)2U * self.ptr->header.n_rows,
+      uint16_t (*)[256U]);
 }
 
 symcrust_common_Error
@@ -3053,83 +3118,61 @@ symcrust_mlkem_key_get_value(
         uu____0 = symcrust_common_Error_InvalidArgument;
         break;
       }
+    default:
+      {
+        KRML_HOST_EPRINTF("KaRaMeL incomplete match at %s:%d\n", __FILE__, __LINE__);
+        KRML_HOST_EXIT(253U);
+      }
   }
   return uu____0;
 }
 
-size_t symcrust_mlkem_sizeof_ciphertext_from_params(symcrust_key_Params params)
+/**
+This function found in impl {core::clone::Clone for symcrust::key::Params}
+*/
+inline symcrust_key_Params symcrust_key_clone_61(symcrust_key_Params *self)
 {
-  symcrust_key_InternalParams
-  internal_params = symcrust_key_get_internal_params_from_params(params);
-  /* u vector encoded with n_bits_of_u * MLWE_POLYNOMIAL_COEFFICIENTS bits per polynomial */
-  size_t
-  cb_u =
-    (size_t)internal_params.n_rows * (size_t)internal_params.n_bits_of_u *
-      (SYMCRUST_KEY_MLWE_POLYNOMIAL_COEFFICIENTS / (size_t)8U);
-  /* v polynomial encoded with n_bits_of_v * MLWE_POLYNOMIAL_COEFFICIENTS bits */
-  size_t
-  cb_v =
-    (size_t)internal_params.n_bits_of_v * (SYMCRUST_KEY_MLWE_POLYNOMIAL_COEFFICIENTS / (size_t)8U);
-  /* original Rust expression is not an lvalue in C */
-  symcrust_key_Params lvalue = symcrust_key_Params_MlKem512;
-  if
-  (
-    !symcrust_key__core__cmp__PartialEq_symcrust__key__Params__for_symcrust__key__Params__ne(&internal_params.params,
-      &lvalue)
-  )
-  {
-    EURYDICE_ASSERT(cb_u + cb_v == SYMCRUST_MLKEM_CIPHERTEXT_SIZE_MLKEM512, "panic!");
-  }
-  /* original Rust expression is not an lvalue in C */
-  symcrust_key_Params lvalue0 = symcrust_key_Params_MlKem768;
-  if
-  (
-    !symcrust_key__core__cmp__PartialEq_symcrust__key__Params__for_symcrust__key__Params__ne(&internal_params.params,
-      &lvalue0)
-  )
-  {
-    EURYDICE_ASSERT(cb_u + cb_v == SYMCRUST_MLKEM_CIPHERTEXT_SIZE_MLKEM768, "panic!");
-  }
-  /* original Rust expression is not an lvalue in C */
-  symcrust_key_Params lvalue1 = symcrust_key_Params_MlKem1024;
-  if
-  (
-    !symcrust_key__core__cmp__PartialEq_symcrust__key__Params__for_symcrust__key__Params__ne(&internal_params.params,
-      &lvalue1)
-  )
-  {
-    EURYDICE_ASSERT(cb_u + cb_v == SYMCRUST_MLKEM_CIPHERTEXT_SIZE_MLKEM1024, "panic!");
-  }
-  return cb_u + cb_v;
+  return self[0U];
 }
 
-size_t
-symcrust_mlkem_sizeof_key_format_from_params(
-  symcrust_key_Params params,
-  symcrust_key_Format format
-)
+/**
+This function found in impl {core::cmp::PartialEq<symcrust::key::Params> for symcrust::key::Params}
+*/
+inline bool symcrust_key_eq_d5(symcrust_key_Params *self, symcrust_key_Params *other)
 {
-  symcrust_key_InternalParams
-  internal_params = symcrust_key_get_internal_params_from_params(params);
-  size_t uu____0;
-  switch (format)
-  {
-    case symcrust_key_Format_PrivateSeed:
-      {
-        uu____0 = SYMCRUST_MLKEM_SIZEOF_FORMAT_PRIVATE_SEED;
-        break;
-      }
-    case symcrust_key_Format_DecapsulationKey:
-      {
-        uu____0 = symcrust_mlkem_sizeof_format_decapsulation_key((size_t)internal_params.n_rows);
-        break;
-      }
-    case symcrust_key_Format_EncapsulationKey:
-      {
-        uu____0 = symcrust_mlkem_sizeof_format_encapsulation_key((size_t)internal_params.n_rows);
-        break;
-      }
-  }
-  return uu____0;
+  ptrdiff_t __self_discr = (ptrdiff_t)self[0U];
+  ptrdiff_t __arg1_discr = (ptrdiff_t)other[0U];
+  return __self_discr == __arg1_discr;
+}
+
+/**
+This function found in impl {symcrust::key::PreKey2<@Slice<@Array<u16, 256: usize>>>}
+*/
+Eurydice_slice symcrust_key_atranspose_fd(Eurydice_dst_8c self)
+{
+  size_t m_len = symcrust_key_matrix_len_fd(self);
+  return
+    Eurydice_slice_subslice3(Eurydice_slice_of_dst(&self.ptr->data,
+        self.len,
+        uint16_t [256U],
+        Eurydice_slice),
+      (size_t)0U,
+      m_len,
+      uint16_t (*)[256U]);
+}
+
+/**
+This function found in impl {symcrust::key::PreKey2<@Slice<@Array<u16, 256: usize>>>}
+*/
+Eurydice_slice symcrust_key_t_fd(Eurydice_dst_8c self)
+{
+  size_t m_len = symcrust_key_matrix_len_fd(self);
+  Eurydice_slice
+  uu____0 = Eurydice_slice_of_dst(&self.ptr->data, self.len, uint16_t [256U], Eurydice_slice);
+  return
+    Eurydice_slice_subslice3(uu____0,
+      m_len,
+      m_len + self.ptr->header.n_rows,
+      uint16_t (*)[256U]);
 }
 
