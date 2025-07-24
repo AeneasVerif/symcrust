@@ -1,7 +1,7 @@
 import Symcrust.Code
 import Symcrust.Properties.BarrettReduction
 import Symcrust.Properties.MontReduction
-import Symcrust.Properties.NttSpecAux
+import Symcrust.Properties.Ntt.NttSpecAux
 import Symcrust.Properties.Basic
 
 open Aeneas
@@ -16,6 +16,7 @@ open Aeneas.Arith
 
 set_option maxHeartbeats 10000000
 set_option maxRecDepth 2048
+set_option linter.dupNamespace false -- This option is needed because `Ntt.lean` is in an `Ntt` directory
 
 @[local simp] theorem bv_and_65535_eq_mod (x : BitVec 32) : x &&& 65535#32 = x % 65536#32 := by bv_decide
 @[local simp] theorem bv_shift_16_eq_div (x : BitVec 32) : x >>> 16 = x / 65536#32 := by bv_decide

@@ -5,6 +5,8 @@ open Lean Aeneas Aeneas.Std Aeneas.SRRange Result
 -- **TODO** Write a docstring-like comment explaining that this namespace has scoped instances which
 -- override the instance defined in `src/lean/Init/While.lean` invoked by the `while` syntax
 
+-- **TODO** Long-term, it would probably make more sense for this file to live in Aeneas than here
+
 namespace CustomLoops
 
 def Option.Loop.forIn.loop {β : Type u} (f : Unit → β → Option (ForInStep β)) (b : β) : Option β := do

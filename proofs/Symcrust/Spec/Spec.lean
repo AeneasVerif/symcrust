@@ -3,7 +3,7 @@ import Mathlib.Data.ZMod.Defs
 import Aeneas
 import Symcrust.Spec.NatBit
 import Symcrust.Spec.Round
-import Symcrust.Properties.While
+import Symcrust.While
 
 /-!
 The spec of ML-KEM, based on: https://csrc.nist.gov/pubs/fips/203/final

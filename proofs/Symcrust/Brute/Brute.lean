@@ -1,6 +1,6 @@
 import Lean
 import Aeneas
-import Symcrust.Properties.BruteLemmas
+import Symcrust.Brute.BruteLemmas
 
 -- This file defines `brute`, a terminal tactic for brute force enumeration. It doesn't make sense to leave
 -- this file here in the long term, but I am putting it here for now to make it easy to test on SymCrust proofs

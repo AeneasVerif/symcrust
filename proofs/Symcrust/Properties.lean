@@ -1,3 +1,3 @@
-import Symcrust.Properties.Ntt
-import Symcrust.Properties.CompressEncode
-import Symcrust.Properties.DecodeDecompress
+import Symcrust.Properties.Ntt.Ntt
+import Symcrust.Properties.CompressEncode.CompressEncode
+import Symcrust.Properties.DecodeDecompress.DecodeDecompress

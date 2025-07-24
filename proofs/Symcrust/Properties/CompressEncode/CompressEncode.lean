@@ -1,16 +1,35 @@
 import Symcrust.Code
-import Symcrust.Properties.CompressEncodeSpecAux
+import Symcrust.Properties.CompressEncode.Compress
 import Symcrust.Properties.Basic
 
 open Aeneas
 open Std
 open Result
 
+/-!
+This file contains theorems about `Symcrust.Spec.byteEncode` and `Symcrust.Spec.compress` defined in
+Symcrust.Spec.Spec.lean.
+
+`Nist spec ⟷₁ Lean spec (monadic) ⟷₂ Lean spec (functional) ⟷₃ Auxiliary spec ⟷₄ Aeneas translation`
+  - In the above verification pipeline:
+    - `Nist spec` corresponds to (4.7) (Compress) and Algorithm 5 (ByteEncode).
+    - `Lean spec (monadic)` corresponds to `Symcrust.Spec.compress` and `Symcrust.Spec.byteEncode`.
+    - `Lean spec (functional)` corresponds to `Symcrust.Spec.compress` and `Target.byteEncode`.
+      - `Lean spec (monadic)` and `Lean spec (functional)` coincide for Compress because the natural
+        Lean translation of Nist's Compress is already functional.
+    - `Auxiliary spec` corresponds to `Symcrust.SpecAux.compress` and `Stream.encode`.
+      - Additionally, `Auxiliary spec` for the combination of compress and encode that appears in the Rust
+        code corresponds to `Stream.compressOpt_encode`.
+    - `Aeneas translation` corresponds to `Symcrust.ntt.poly_element_compress_and_encode`.
+    - `⟷₃` is bundled together with `⟷₂` in the form of `compress_eq` and `Stream.encode.spec`.
+    - `⟷₄` corresponds to `Symcrust.SpecAux.poly_element_compress_and_encode.spec`.
+-/
+
 #setup_aeneas_simps
 
-namespace Symcrust.ntt
+namespace Symcrust.SpecAux
 
-open Result
+open Result Symcrust.ntt
 
 attribute [-progress] UScalar.cast.progress_spec U32.sub_spec
 attribute [local progress] UScalar.cast_inBounds_spec U32.sub_bv_spec
@@ -92,12 +111,11 @@ theorem compress_coeff.spec (d coeff : U32) (hd : d.val ≤ 12) (hc: coeff.val <
 -- TODO: use the Std min in Rust
 @[progress]
 theorem min_spec (x y : U32) :
-  ∃ z, min x y = ok z ∧ -- TODO: simp lemmas for `... = toResult ...`
+  ∃ z, ntt.min x y = ok z ∧ -- TODO: simp lemmas for `... = toResult ...`
   z.val = Min.min x.val y.val := by
-  unfold min
+  unfold ntt.min
   split <;> progress*
 
-open SpecAux in
 theorem encode_coefficient.progress_spec_aux
   (x : U32) (d : U32) (dst : Slice U8)
   (bi : Usize) (acc : U32) (acci : U32)
@@ -136,7 +154,6 @@ theorem encode_coefficient.progress_spec_aux
     simp only [*, Stream.encode.body.length_spec]
     simp_scalar
 
-open SpecAux in
 @[progress]
 theorem encode_coefficient.progress_spec
   (x : U32) (d : U32) (dst : Slice U8)
@@ -200,7 +217,6 @@ theorem encode_coefficient.progress_spec
 
 attribute [local progress] wfArray_update wfArray_index
 
-open SpecAux in
 @[progress]
 theorem poly_element_compress_and_encode_loop.progress_spec
   (f : Array U16 256#usize) (d : U32)
@@ -256,7 +272,6 @@ theorem poly_element_compress_and_encode_loop.progress_spec
 termination_by 256 - i.val
 decreasing_by scalar_decr_tac
 
-open SpecAux in
 @[progress]
 theorem poly_element_compress_and_encode.spec (f : Array U16 256#usize) (d : U32) (b : Slice U8)
   (hd : 0 < d.val ∧ d.val ≤ 12)
@@ -279,4 +294,4 @@ theorem poly_element_compress_and_encode.spec (f : Array U16 256#usize) (d : U32
       simp_lists_scalar [hb1]
     simp_all [Stream.compressOpt_encode]
 
-end Symcrust.ntt
+end Symcrust.SpecAux

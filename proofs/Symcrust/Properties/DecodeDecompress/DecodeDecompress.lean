@@ -1,17 +1,35 @@
 import Symcrust.Code
-import Symcrust.Properties.DecodeDecompressSpecAux
-import Symcrust.Properties.CompressEncode -- This file has `Symcrust.ntt.min_spec`
+import Symcrust.Properties.DecodeDecompress.Decompress
 import Symcrust.Properties.Basic
 
 open Aeneas
 open Std
 open Result
 
+/-!
+This file contains theorems about `Symcrust.Spec.decompress` and `Symcrust.Spec.byteDecode` defined in
+Symcrust.Spec.Spec.lean.
+
+`Nist spec ⟷₁ Lean spec (monadic) ⟷₂ Lean spec (functional) ⟷₃ Auxiliary spec ⟷₄ Aeneas translation`
+  - In the above verification pipeline:
+    - `Nist spec` corresponds to (4.8) (Decompress) and Algorithm 6 (ByteDecode).
+    - `Lean spec (monadic)` corresponds to `Symcrust.Spec.decompress` and `Symcrust.Spec.byteDecode`.
+    - `Lean spec (functional)` corresponds to `Symcrust.Spec.compress` and `Target.byteDecode`.
+      - `Lean spec (monadic)` and `Lean spec (functional)` coincide for Decompress because the natural
+        Lean translation of Nist's Decompress is already functional.
+    - `Auxiliary spec` corresponds to `Symcrust.SpecAux.decompress` and `Stream.decode`.
+      - Additionally, `Auxiliary spec` for the combination of decode and decompress that appears in the Rust
+        code corresponds to `Stream.decode_decompressOpt`.
+    - `Aeneas translation` corresponds to `Symcrust.ntt.poly_element_decode_and_decompress`.
+    - `⟷₃` is bundled together with `⟷₂` in the form of `decompress_eq` and `Stream.decode.spec`.
+    - `⟷₄` corresponds to `Symcrust.SpecAux.poly_element_decode_and_decompress.spec`.
+-/
+
 #setup_aeneas_simps
 
-namespace Symcrust.ntt
+namespace Symcrust.SpecAux
 
-open Result
+open Result Symcrust.ntt
 
 attribute [-progress] UScalar.cast.progress_spec U32.sub_spec
 attribute [local progress] UScalar.cast_inBounds_spec U32.sub_bv_spec
@@ -282,7 +300,6 @@ theorem decode_coefficient.late_load_progress_spec (b : Slice U8) (d : U32) (f :
   (hacc1 : (∀ j < n_bits_in_accumulator.val, acc.val.testBit j =
     b[(8 * num_bytes_read.val - n_bits_in_accumulator.val + j) / 8]!.val.testBit
       ((8 * num_bytes_read.val - n_bits_in_accumulator.val + j) % 8)))
-  (hacc2 : ∀ j ∈ [n_bits_in_accumulator.val:32], acc.val.testBit j = false)
   (hinv : SpecAux.Stream.decode.length_inv (↑d) 4 ↑num_bytes_read ↑n_bits_in_accumulator ↑i)
   (hb1 : ∀ i < 256,
     ∑ (a : Fin d), (Bool.toNat (b[(d.val * i + a) / 8]!.val.testBit ((d * i + a) % 8))) * 2^a.val < Spec.m d)
@@ -296,7 +313,6 @@ theorem decode_coefficient.late_load_progress_spec (b : Slice U8) (d : U32) (f :
   (__7 : [> let bits_to_decode ← ↑(acc &&& i1) <]) (hbits_to_decode : bits_to_decode.val = (acc &&& i1).val)
   (__8 : bits_to_decode.bv = acc.bv &&& i1.bv) (accumulator1 : U32)
   (__9 : [> let accumulator1 ← acc >>> n_bits_to_decode <])
-  (haccumulator1 : ↑accumulator1 = acc.val >>> ↑n_bits_to_decode)
   (__10 : accumulator1.bv = acc.bv >>> n_bits_to_decode.val) (n_bits_in_accumulator1 : U32)
   (__11 : [> let n_bits_in_accumulator1 ← n_bits_in_accumulator - n_bits_to_decode <])
   (hn_bits_in_accumulator1 : ↑n_bits_in_accumulator1 = n_bits_in_accumulator.val - ↑n_bits_to_decode)
@@ -690,12 +706,11 @@ def decode_coefficient.progress_spec (b : Slice U8) (d : U32) (f : Array U16 256
       split
       . simp only [mem_std_range_step_one]
         exact decode_coefficient.late_load_progress_spec b d f num_bytes_read acc n_bits_in_accumulator i
-          hacc1 hacc2 hinv hb1 hb2 hi hd (by assumption) n_bits_to_decode (by assumption) (by assumption)
+          hacc1 hinv hb1 hb2 hi hd (by assumption) n_bits_to_decode (by assumption) (by assumption)
           i' (by assumption) (by assumption) (by assumption) i1 (by assumption) (by assumption) (by assumption)
           (by assumption) bits_to_decode (by assumption) (by assumption) (by assumption) accumulator1
-          (by assumption) (by assumption) (by assumption) n_bits_in_accumulator1 (by assumption)
-          (by assumption) (by assumption) (by assumption) coefficient1 (by assumption) (by assumption)
-          (by assumption) (by assumption)
+          (by assumption) (by assumption) n_bits_in_accumulator1 (by assumption) (by assumption) (by assumption)
+          (by assumption) coefficient1 (by assumption) (by assumption) (by assumption) (by assumption)
       . next hd =>
         replace hd : d = n_bits_to_decode := by scalar_tac
         simp only [UScalar.neq_to_neq_val, UScalar.ofNat_val_eq] at hn_bits_in_accumulator
@@ -917,3 +932,5 @@ def poly_element_decode_and_decompress.spec (b : Slice U8) (d : U32) (f : Array 
       simp [hf i hi]
     rw [heq]
     rfl
+
+end Symcrust.SpecAux
