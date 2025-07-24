@@ -1,6 +1,6 @@
 import Symcrust.Code
-import Symcrust.Properties.BarrettReduction
-import Symcrust.Properties.MontReduction
+import Symcrust.Properties.Ntt.BarrettReduction
+import Symcrust.Properties.Ntt.MontReduction
 import Symcrust.Properties.Ntt.NttSpecAux
 import Symcrust.Properties.Basic
 

@@ -11,6 +11,11 @@ initialize registerTraceClass `brute.debug
 
 namespace Brute
 
+register_option brute.trust : Bool := {
+  defValue := false
+  descr := "When brute.trust is enabled, brute does not actually perform any computation and just applies sorry"
+}
+
 /-- A terminal tactic that attempts to prove goals of the form `∀ x y z ..., f x y z ...` via brute force.
     Currently, `brute` only supports goals consisting of a string of universally quantified upper-bounded Nats
     (e.g. `∀ a < x₁, ∀ b < x₂ ...`) followed by a decidable function `f : Nat → ... → Nat → Bool`
@@ -99,170 +104,138 @@ def popAllBoundBinders (goalBinders : Array FVarId) (acc : Array BinderInfo) : T
 @[tactic brute]
 def evalBrute : Tactic
 | `(tactic| brute) => withMainContext do
-  let pf ← forallTelescope (← getMainTarget).consumeMData (cleanupAnnotations := true) $ fun xs g => do
-    trace[brute.debug] "xs: {xs}, g: {g}"
-    let boundBinders ← popAllBoundBinders (xs.map Expr.fvarId!) #[]
-    match boundBinders with
-    | #[⟨x, b, hxb, inst⟩] =>
-      let boundFVars := #[.fvar x, .fvar hxb]
-      let natLikeFVars := #[.fvar x]
-      let unboundFVars := xs.filter (fun fvar => !boundFVars.contains fvar)
-      trace[brute.debug] "boundFVars: {boundFVars}, unboundFVars: {unboundFVars}"
-      let f ← mkLambdaFVars natLikeFVars (← mkDecide (← mkForallFVars unboundFVars g))
-      trace[brute.debug] "f: {f}"
-      let res ← mkAppOptM ``mkFold1 #[none, some inst, b, f, mkConst ``true]
-      trace[brute.debug] "res: {res}"
+  if brute.trust.get (← getOptions) then evalTactic $ ← `(tactic| sorry)
+  else
+    let pf ← forallTelescope (← getMainTarget).consumeMData (cleanupAnnotations := true) $ fun xs g => do
+      trace[brute.debug] "xs: {xs}, g: {g}"
+      let boundBinders ← popAllBoundBinders (xs.map Expr.fvarId!) #[]
+      match boundBinders with
+      | #[⟨x, b, hxb, inst⟩] =>
+        let boundFVars := #[.fvar x, .fvar hxb]
+        let natLikeFVars := #[.fvar x]
+        let unboundFVars := xs.filter (fun fvar => !boundFVars.contains fvar)
+        trace[brute.debug] "boundFVars: {boundFVars}, unboundFVars: {unboundFVars}"
+        let f ← mkLambdaFVars natLikeFVars (← mkDecide (← mkForallFVars unboundFVars g))
+        trace[brute.debug] "f: {f}"
+        let res ← mkAppOptM ``mkFold1 #[none, some inst, b, f, mkConst ``true]
+        trace[brute.debug] "res: {res}"
 
-      let levels := (collectLevelParams {} res).params.toList
-      let auxDeclName ← Term.mkAuxName `_brute
-      let decl := Declaration.defnDecl $
-        mkDefinitionValEx auxDeclName levels (mkConst ``Bool) res .abbrev .safe [auxDeclName]
-      addAndCompile decl
+        let levels := (collectLevelParams {} res).params.toList
+        let auxDeclName ← Term.mkAuxName `_brute
+        let decl := Declaration.defnDecl $
+          mkDefinitionValEx auxDeclName levels (mkConst ``Bool) res .abbrev .safe [auxDeclName]
+        addAndCompile decl
 
-      let rflPrf ← mkEqRefl (toExpr true)
-      let levelParams := levels.map .param
-      let foldResPf := mkApp3 (mkConst ``Lean.ofReduceBool) (mkConst auxDeclName levelParams) (toExpr true) rflPrf
-      let pf ← mkAppOptM ``ofMkFold1EqTrue #[none, some inst, b, f, foldResPf]
-      mkLambdaFVars boundFVars $ ← mkAppOptM ``of_decide_eq_true #[none, none, ← mkAppM' pf boundFVars]
-    | #[⟨x, b1, hxb1, inst1⟩, ⟨y, b2, hyb2, inst2⟩] =>
-      let boundFVars := #[.fvar x, .fvar hxb1, .fvar y, .fvar hyb2]
-      let natLikeFVars := #[.fvar x, .fvar y]
-      let unboundFVars := xs.filter (fun fvar => !boundFVars.contains fvar)
-      trace[brute.debug] "boundFVars: {boundFVars}, unboundFVars: {unboundFVars}"
-      let b2 ← mkLambdaFVars #[.fvar x] b2
-      let f ← mkLambdaFVars natLikeFVars (← mkDecide (← mkForallFVars unboundFVars g))
-      trace[brute.debug] "f: {f}"
-      let res ← mkAppOptM ``mkFold2 #[none, none, inst1, inst2, b1, b2, f, mkConst ``true]
-      trace[brute.debug] "res: {res}"
+        let rflPrf ← mkEqRefl (toExpr true)
+        let levelParams := levels.map .param
+        let foldResPf := mkApp3 (mkConst ``Lean.ofReduceBool) (mkConst auxDeclName levelParams) (toExpr true) rflPrf
+        let pf ← mkAppOptM ``ofMkFold1EqTrue #[none, some inst, b, f, foldResPf]
+        mkLambdaFVars boundFVars $ ← mkAppOptM ``of_decide_eq_true #[none, none, ← mkAppM' pf boundFVars]
+      | #[⟨x, b1, hxb1, inst1⟩, ⟨y, b2, hyb2, inst2⟩] =>
+        let boundFVars := #[.fvar x, .fvar hxb1, .fvar y, .fvar hyb2]
+        let natLikeFVars := #[.fvar x, .fvar y]
+        let unboundFVars := xs.filter (fun fvar => !boundFVars.contains fvar)
+        trace[brute.debug] "boundFVars: {boundFVars}, unboundFVars: {unboundFVars}"
+        let b2 ← mkLambdaFVars #[.fvar x] b2
+        let f ← mkLambdaFVars natLikeFVars (← mkDecide (← mkForallFVars unboundFVars g))
+        trace[brute.debug] "f: {f}"
+        let res ← mkAppOptM ``mkFold2 #[none, none, inst1, inst2, b1, b2, f, mkConst ``true]
+        trace[brute.debug] "res: {res}"
 
-      let levels := (collectLevelParams {} res).params.toList
-      let auxDeclName ← Term.mkAuxName `_brute
-      let decl := Declaration.defnDecl $
-        mkDefinitionValEx auxDeclName levels (mkConst ``Bool) res .abbrev .safe [auxDeclName]
-      addAndCompile decl
+        let levels := (collectLevelParams {} res).params.toList
+        let auxDeclName ← Term.mkAuxName `_brute
+        let decl := Declaration.defnDecl $
+          mkDefinitionValEx auxDeclName levels (mkConst ``Bool) res .abbrev .safe [auxDeclName]
+        addAndCompile decl
 
-      let rflPrf ← mkEqRefl (toExpr true)
-      let levelParams := levels.map .param
-      let foldResPf := mkApp3 (mkConst ``Lean.ofReduceBool) (mkConst auxDeclName levelParams) (toExpr true) rflPrf
-      let pf ← mkAppOptM ``ofMkFold2EqTrue #[none, none, inst1, inst2, b1, b2, f, foldResPf]
-      mkLambdaFVars boundFVars $ ← mkAppOptM ``of_decide_eq_true #[none, none, ← mkAppM' pf boundFVars]
-    | #[⟨x, b1, hxb1, inst1⟩, ⟨y, b2, hyb2, inst2⟩, ⟨z, b3, hzb3, inst3⟩] =>
-      let boundFVars := #[.fvar x, .fvar hxb1, .fvar y, .fvar hyb2, .fvar z, .fvar hzb3]
-      let natLikeFVars := #[.fvar x, .fvar y, .fvar z]
-      let unboundFVars := xs.filter (fun fvar => !boundFVars.contains fvar)
-      trace[brute.debug] "boundFVars: {boundFVars}, unboundFVars: {unboundFVars}"
-      let b2 ← mkLambdaFVars #[.fvar x] b2
-      let b3 ← mkLambdaFVars #[.fvar x, .fvar y] b3
-      let f ← mkLambdaFVars natLikeFVars (← mkDecide (← mkForallFVars unboundFVars g))
-      trace[brute.debug] "f: {f}"
-      let res ← mkAppOptM ``mkFold3 #[none, none, none, inst1, inst2, inst3, b1, b2, b3, f, mkConst ``true]
-      trace[brute.debug] "res: {res}"
+        let rflPrf ← mkEqRefl (toExpr true)
+        let levelParams := levels.map .param
+        let foldResPf := mkApp3 (mkConst ``Lean.ofReduceBool) (mkConst auxDeclName levelParams) (toExpr true) rflPrf
+        let pf ← mkAppOptM ``ofMkFold2EqTrue #[none, none, inst1, inst2, b1, b2, f, foldResPf]
+        mkLambdaFVars boundFVars $ ← mkAppOptM ``of_decide_eq_true #[none, none, ← mkAppM' pf boundFVars]
+      | #[⟨x, b1, hxb1, inst1⟩, ⟨y, b2, hyb2, inst2⟩, ⟨z, b3, hzb3, inst3⟩] =>
+        let boundFVars := #[.fvar x, .fvar hxb1, .fvar y, .fvar hyb2, .fvar z, .fvar hzb3]
+        let natLikeFVars := #[.fvar x, .fvar y, .fvar z]
+        let unboundFVars := xs.filter (fun fvar => !boundFVars.contains fvar)
+        trace[brute.debug] "boundFVars: {boundFVars}, unboundFVars: {unboundFVars}"
+        let b2 ← mkLambdaFVars #[.fvar x] b2
+        let b3 ← mkLambdaFVars #[.fvar x, .fvar y] b3
+        let f ← mkLambdaFVars natLikeFVars (← mkDecide (← mkForallFVars unboundFVars g))
+        trace[brute.debug] "f: {f}"
+        let res ← mkAppOptM ``mkFold3 #[none, none, none, inst1, inst2, inst3, b1, b2, b3, f, mkConst ``true]
+        trace[brute.debug] "res: {res}"
 
-      let levels := (collectLevelParams {} res).params.toList
-      let auxDeclName ← Term.mkAuxName `_brute
-      let decl := Declaration.defnDecl $
-        mkDefinitionValEx auxDeclName levels (mkConst ``Bool) res .abbrev .safe [auxDeclName]
-      addAndCompile decl
+        let levels := (collectLevelParams {} res).params.toList
+        let auxDeclName ← Term.mkAuxName `_brute
+        let decl := Declaration.defnDecl $
+          mkDefinitionValEx auxDeclName levels (mkConst ``Bool) res .abbrev .safe [auxDeclName]
+        addAndCompile decl
 
-      let rflPrf ← mkEqRefl (toExpr true)
-      let levelParams := levels.map .param
-      let foldResPf := mkApp3 (mkConst ``Lean.ofReduceBool) (mkConst auxDeclName levelParams) (toExpr true) rflPrf
-      let pf ← mkAppOptM ``ofMkFold3EqTrue #[none, none, none, inst1, inst2, inst3, b1, b2, b3, f, foldResPf]
-      mkLambdaFVars boundFVars $ ← mkAppOptM ``of_decide_eq_true #[none, none, ← mkAppM' pf boundFVars]
-    | #[⟨x, b1, hxb1, inst1⟩, ⟨y, b2, hyb2, inst2⟩, ⟨z, b3, hzb3, inst3⟩, ⟨a, b4, hab4, inst4⟩] =>
-      let boundFVars := #[.fvar x, .fvar hxb1, .fvar y, .fvar hyb2, .fvar z, .fvar hzb3, .fvar a, .fvar hab4]
-      let natLikeFVars := #[.fvar x, .fvar y, .fvar z, .fvar a]
-      let unboundFVars := xs.filter (fun fvar => !boundFVars.contains fvar)
-      trace[brute.debug] "boundFVars: {boundFVars}, unboundFVars: {unboundFVars}"
-      let b2 ← mkLambdaFVars #[.fvar x] b2
-      let b3 ← mkLambdaFVars #[.fvar x, .fvar y] b3
-      let b4 ← mkLambdaFVars #[.fvar x, .fvar y, .fvar z] b4
-      let f ← mkLambdaFVars natLikeFVars (← mkDecide (← mkForallFVars unboundFVars g))
-      trace[brute.debug] "f: {f}"
-      let res ← mkAppOptM ``mkFold4
-        #[none, none, none, none, inst1, inst2, inst3, inst4, b1, b2, b3, b4, f, mkConst ``true]
-      trace[brute.debug] "res: {res}"
+        let rflPrf ← mkEqRefl (toExpr true)
+        let levelParams := levels.map .param
+        let foldResPf := mkApp3 (mkConst ``Lean.ofReduceBool) (mkConst auxDeclName levelParams) (toExpr true) rflPrf
+        let pf ← mkAppOptM ``ofMkFold3EqTrue #[none, none, none, inst1, inst2, inst3, b1, b2, b3, f, foldResPf]
+        mkLambdaFVars boundFVars $ ← mkAppOptM ``of_decide_eq_true #[none, none, ← mkAppM' pf boundFVars]
+      | #[⟨x, b1, hxb1, inst1⟩, ⟨y, b2, hyb2, inst2⟩, ⟨z, b3, hzb3, inst3⟩, ⟨a, b4, hab4, inst4⟩] =>
+        let boundFVars := #[.fvar x, .fvar hxb1, .fvar y, .fvar hyb2, .fvar z, .fvar hzb3, .fvar a, .fvar hab4]
+        let natLikeFVars := #[.fvar x, .fvar y, .fvar z, .fvar a]
+        let unboundFVars := xs.filter (fun fvar => !boundFVars.contains fvar)
+        trace[brute.debug] "boundFVars: {boundFVars}, unboundFVars: {unboundFVars}"
+        let b2 ← mkLambdaFVars #[.fvar x] b2
+        let b3 ← mkLambdaFVars #[.fvar x, .fvar y] b3
+        let b4 ← mkLambdaFVars #[.fvar x, .fvar y, .fvar z] b4
+        let f ← mkLambdaFVars natLikeFVars (← mkDecide (← mkForallFVars unboundFVars g))
+        trace[brute.debug] "f: {f}"
+        let res ← mkAppOptM ``mkFold4
+          #[none, none, none, none, inst1, inst2, inst3, inst4, b1, b2, b3, b4, f, mkConst ``true]
+        trace[brute.debug] "res: {res}"
 
-      let levels := (collectLevelParams {} res).params.toList
-      let auxDeclName ← Term.mkAuxName `_brute
-      let decl := Declaration.defnDecl $
-        mkDefinitionValEx auxDeclName levels (mkConst ``Bool) res .abbrev .safe [auxDeclName]
-      addAndCompile decl
+        let levels := (collectLevelParams {} res).params.toList
+        let auxDeclName ← Term.mkAuxName `_brute
+        let decl := Declaration.defnDecl $
+          mkDefinitionValEx auxDeclName levels (mkConst ``Bool) res .abbrev .safe [auxDeclName]
+        addAndCompile decl
 
-      let rflPrf ← mkEqRefl (toExpr true)
-      let levelParams := levels.map .param
-      let foldResPf := mkApp3 (mkConst ``Lean.ofReduceBool) (mkConst auxDeclName levelParams) (toExpr true) rflPrf
-      let pf ← mkAppOptM ``ofMkFold4EqTrue
-        #[none, none, none, none, inst1, inst2, inst3, inst4, b1, b2, b3, b4, f, foldResPf]
-      mkLambdaFVars boundFVars $ ← mkAppOptM ``of_decide_eq_true #[none, none, ← mkAppM' pf boundFVars]
-    | #[⟨x, b1, hxb1, inst1⟩, ⟨y, b2, hyb2, inst2⟩, ⟨z, b3, hzb3, inst3⟩, ⟨a, b4, hab4, inst4⟩,
-        ⟨b, b5, hbb5, inst5⟩] =>
-      let boundFVars :=
-        #[.fvar x, .fvar hxb1, .fvar y, .fvar hyb2, .fvar z, .fvar hzb3, .fvar a, .fvar hab4, .fvar b, .fvar hbb5]
-      let natLikeFVars := #[.fvar x, .fvar y, .fvar z, .fvar a, .fvar b]
-      let unboundFVars := xs.filter (fun fvar => !boundFVars.contains fvar)
-      trace[brute.debug] "boundFVars: {boundFVars}, unboundFVars: {unboundFVars}"
-      let b2 ← mkLambdaFVars #[.fvar x] b2
-      let b3 ← mkLambdaFVars #[.fvar x, .fvar y] b3
-      let b4 ← mkLambdaFVars #[.fvar x, .fvar y, .fvar z] b4
-      let b5 ← mkLambdaFVars #[.fvar x, .fvar y, .fvar z, .fvar a] b5
-      let f ← mkLambdaFVars natLikeFVars (← mkDecide (← mkForallFVars unboundFVars g))
-      trace[brute.debug] "f: {f}"
-      let res ← mkAppOptM ``mkFold5
-        #[none, none, none, none, none, inst1, inst2, inst3, inst4, inst5, b1, b2, b3, b4, b5, f, mkConst ``true]
-      trace[brute.debug] "res: {res}"
+        let rflPrf ← mkEqRefl (toExpr true)
+        let levelParams := levels.map .param
+        let foldResPf := mkApp3 (mkConst ``Lean.ofReduceBool) (mkConst auxDeclName levelParams) (toExpr true) rflPrf
+        let pf ← mkAppOptM ``ofMkFold4EqTrue
+          #[none, none, none, none, inst1, inst2, inst3, inst4, b1, b2, b3, b4, f, foldResPf]
+        mkLambdaFVars boundFVars $ ← mkAppOptM ``of_decide_eq_true #[none, none, ← mkAppM' pf boundFVars]
+      | #[⟨x, b1, hxb1, inst1⟩, ⟨y, b2, hyb2, inst2⟩, ⟨z, b3, hzb3, inst3⟩, ⟨a, b4, hab4, inst4⟩,
+          ⟨b, b5, hbb5, inst5⟩] =>
+        let boundFVars :=
+          #[.fvar x, .fvar hxb1, .fvar y, .fvar hyb2, .fvar z, .fvar hzb3, .fvar a, .fvar hab4, .fvar b, .fvar hbb5]
+        let natLikeFVars := #[.fvar x, .fvar y, .fvar z, .fvar a, .fvar b]
+        let unboundFVars := xs.filter (fun fvar => !boundFVars.contains fvar)
+        trace[brute.debug] "boundFVars: {boundFVars}, unboundFVars: {unboundFVars}"
+        let b2 ← mkLambdaFVars #[.fvar x] b2
+        let b3 ← mkLambdaFVars #[.fvar x, .fvar y] b3
+        let b4 ← mkLambdaFVars #[.fvar x, .fvar y, .fvar z] b4
+        let b5 ← mkLambdaFVars #[.fvar x, .fvar y, .fvar z, .fvar a] b5
+        let f ← mkLambdaFVars natLikeFVars (← mkDecide (← mkForallFVars unboundFVars g))
+        trace[brute.debug] "f: {f}"
+        let res ← mkAppOptM ``mkFold5
+          #[none, none, none, none, none, inst1, inst2, inst3, inst4, inst5, b1, b2, b3, b4, b5, f, mkConst ``true]
+        trace[brute.debug] "res: {res}"
 
-      let levels := (collectLevelParams {} res).params.toList
-      let auxDeclName ← Term.mkAuxName `_brute
-      let decl := Declaration.defnDecl $
-        mkDefinitionValEx auxDeclName levels (mkConst ``Bool) res .abbrev .safe [auxDeclName]
-      addAndCompile decl
+        let levels := (collectLevelParams {} res).params.toList
+        let auxDeclName ← Term.mkAuxName `_brute
+        let decl := Declaration.defnDecl $
+          mkDefinitionValEx auxDeclName levels (mkConst ``Bool) res .abbrev .safe [auxDeclName]
+        addAndCompile decl
 
-      let rflPrf ← mkEqRefl (toExpr true)
-      let levelParams := levels.map .param
-      let foldResPf := mkApp3 (mkConst ``Lean.ofReduceBool) (mkConst auxDeclName levelParams) (toExpr true) rflPrf
-      let pf ← mkAppOptM ``ofMkFold5EqTrue
-        #[none, none, none, none, none, inst1, inst2, inst3, inst4, inst5, b1, b2, b3, b4, b5, f, foldResPf]
-      mkLambdaFVars boundFVars $ ← mkAppOptM ``of_decide_eq_true #[none, none, ← mkAppM' pf boundFVars]
-    | _ => throwError "Not yet implemented (boundBinders: {boundBinders})"
-  trace[brute.debug] "pf: {pf}"
-  trace[brute.debug] "pf type: {← inferType pf}"
-  let g ← getMainGoal
-  g.assign pf
+        let rflPrf ← mkEqRefl (toExpr true)
+        let levelParams := levels.map .param
+        let foldResPf := mkApp3 (mkConst ``Lean.ofReduceBool) (mkConst auxDeclName levelParams) (toExpr true) rflPrf
+        let pf ← mkAppOptM ``ofMkFold5EqTrue
+          #[none, none, none, none, none, inst1, inst2, inst3, inst4, inst5, b1, b2, b3, b4, b5, f, foldResPf]
+        mkLambdaFVars boundFVars $ ← mkAppOptM ``of_decide_eq_true #[none, none, ← mkAppM' pf boundFVars]
+      | _ => throwError "Not yet implemented (boundBinders: {boundBinders})"
+    trace[brute.debug] "pf: {pf}"
+    trace[brute.debug] "pf type: {← inferType pf}"
+    let g ← getMainGoal
+    g.assign pf
 | _ => throwUnsupportedSyntax
-
--- Both of these work with minimal delay and no stack overflow
-example : ∀ n : Nat, n < 2^15 → n >>> 15 = 0 := by
-  brute
-
-example : ∀ n : Nat, n < 2^20 → n >>> 20 = 0 := by
-  brute
-
-example : ∀ n < 5, ∀ m < 6, n * m ≤ 20 := by
-  brute
-
-example : ∀ x < 5, ∀ y < x, ∀ z < x + y, x + y + z ≤ 100 := by
-  brute
-
-example : ∀ x < 5, ∀ y < x, ∀ z < x + y, ∀ a < 3, x + y + z + a ≤ 100 := by
-  brute
-
-example : ∀ x < 5, ∀ y < x, ∀ z < x + y, ∀ a < 3, ∀ b < a, x + y + z + a + b ≤ 100 := by
-  brute
-
-example : ∀ f : Fin 3 → Bool, ∀ x < 3, f x ∨ ¬f x := by
-  decide +native
-
--- **NOTE** Current approach prevents NatLike types from depending on earlier variables
-
--- This works
-example : ∀ n < 5, ∀ m : BitVec 8, m < 3 → n * m ≤ 20 := by
-  brute
-
--- This fails
-/-
-example : ∀ n < 5, ∀ m : BitVec n, m < 3 → n * m ≤ 20 := by
-  brute
--/
 
 end Brute
