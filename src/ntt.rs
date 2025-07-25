@@ -891,8 +891,6 @@ fn poly_element_sample_cbd_from_bytes(
     eta: u32,
     pe_dst: &mut PolyElement)
 {
-    // Note (Rust): using an index rather than incrementing pb_src in place.
-    let mut src_i = 0usize;
     // Note: Commenting out the below debug_assert to significantly simplify Aeneas' translation's cfg
     // debug_assert!((eta == 2) || (eta == 3));
     if eta == 3
