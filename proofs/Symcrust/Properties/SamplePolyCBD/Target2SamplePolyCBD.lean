@@ -339,6 +339,219 @@ theorem Target2.samplePolyCBD.eta3_loop.spec.aux0 (s : samplePolyCBDState)
   revert sample_bits_slice
   brute
 
+theorem Target2.samplePolyCBD.eta3_loop.spec.aux1 {s : samplePolyCBDState}
+  (BVector : Vector Byte (64 * ↑s.η))
+  (hBVector : BVector = ⟨s.B.take (64 * s.η), by have := s.hB; simp; omega⟩)
+  (hs1 : ∀ j < s.i, s.pe_dst[j]! = (Target.samplePolyCBD BVector)[j]!)
+  (hs2 : ∀ j < 256, s.i ≤ j → s.pe_dst[j]! = 0)
+  (hs3 : s.src_i * 4 = s.i * 3) (hη : s.η.val = 3)
+  (hs4 : s.i < ↑key.MLWE_POLYNOMIAL_COEFFICIENTS)
+  (j : ℕ) (hj1 : j < s.i + 4) (hj2 : ¬j < s.i)
+  (sample_bits : BitVec (8 * (List.slice s.src_i (s.src_i + 4) s.B.toList).length))
+  (hsample_bits :
+    sample_bits =
+      (BitVec.fromLEBytes (List.slice s.src_i (s.src_i + 4) s.B.toList) &&&
+            2396745#(8 * (List.slice s.src_i (s.src_i + 4) s.B.toList).length)) +
+          (BitVec.fromLEBytes (List.slice s.src_i (s.src_i + 4) s.B.toList) >>> 1 &&&
+            2396745#(8 * (List.slice s.src_i (s.src_i + 4) s.B.toList).length)) +
+        (BitVec.fromLEBytes (List.slice s.src_i (s.src_i + 4) s.B.toList) >>> 2 &&&
+          2396745#(8 * (List.slice s.src_i (s.src_i + 4) s.B.toList).length)))
+  (hBytesToBits : ∀ i < 64 * s.η.val, ∀ j < 8, (Target.bytesToBits BVector)[8 * i + j]! = s.B[i]!.testBit j)
+  (hj3 : j = s.i + 1) :
+  ((((Vector.set! s.pe_dst s.i ↑↑(inner_loop.next_coefficient s.i 0 (BitVec.setWidth 32 sample_bits)).2).set! (s.i + 1)
+                ↑↑(inner_loop.next_coefficient s.i 1
+                        (inner_loop.next_coefficient s.i 0 (BitVec.setWidth 32 sample_bits)).1).2).set!
+            (s.i + 2)
+            ↑↑(inner_loop.next_coefficient s.i 2
+                    (inner_loop.next_coefficient s.i 1
+                        (inner_loop.next_coefficient s.i 0 (BitVec.setWidth 32 sample_bits)).1).1).2).set!
+        (s.i + 3)
+        ↑↑(inner_loop.next_coefficient s.i 3
+                (inner_loop.next_coefficient s.i 2
+                    (inner_loop.next_coefficient s.i 1
+                        (inner_loop.next_coefficient s.i 0 (BitVec.setWidth 32 sample_bits)).1).1).1).2)[j]! =
+    ∑ (x : Fin s.η.val), ↑(Target.bytesToBits BVector)[2 * j * ↑s.η + ↑x]!.toNat -
+      ∑ (x : Fin s.η.val), ↑(Target.bytesToBits BVector)[2 * j * ↑s.η + ↑s.η + ↑x]!.toNat := by
+  rw [Vector.getElem!_set!_ne (by omega), Vector.getElem!_set!_ne (by omega),
+    Vector.getElem!_set! (by scalar_tac)]
+  simp only [hj3, hη, Nat.mul_assoc 2 (s.i + 1) 3, Nat.mul_comm (s.i + 1) 3,
+    Nat.mul_add 3 s.i 1, Nat.mul_comm 3 s.i, ← hs3, Nat.mul_comm s.src_i 4, mul_one,
+    Nat.mul_add 2 (4 * s.src_i) 3, ← Nat.mul_assoc 2 4 s.src_i, Nat.reduceMul,
+    Nat.add_assoc, Fin.unfold3 hη, add_zero, Nat.reduceAdd]
+  conv in 8 * s.src_i + 8 => rw [(by omega : 8 * s.src_i + 8 = 8 * (s.src_i + 1) + 0)]
+  conv in 8 * s.src_i + 9 => rw [(by omega : 8 * s.src_i + 9 = 8 * (s.src_i + 1) + 1)]
+  conv in 8 * s.src_i + 10 => rw [(by omega : 8 * s.src_i + 10 = 8 * (s.src_i + 1) + 2)]
+  conv in 8 * s.src_i + 11 => rw [(by omega : 8 * s.src_i + 11 = 8 * (s.src_i + 1) + 3)]
+  rw [hBytesToBits s.src_i (by scalar_tac) 6 (by omega),
+      hBytesToBits s.src_i (by scalar_tac) 7 (by omega),
+      hBytesToBits (s.src_i + 1) (by scalar_tac) 0 (by omega),
+      hBytesToBits (s.src_i + 1) (by scalar_tac) 1 (by omega),
+      hBytesToBits (s.src_i + 1) (by scalar_tac) 2 (by omega),
+      hBytesToBits (s.src_i + 1) (by scalar_tac) 3 (by omega)]
+  unfold inner_loop.next_coefficient
+  simp only [BitVec.ofNat_eq_ofNat, ntt.Q.eq, UScalar.ofNat_val_eq, Nat.cast_ofNat,
+    BitVec.toNat_add, BitVec.toNat_sub, Nat.reducePow, BitVec.toNat_ushiftRight,
+    BitVec.toNat_and, BitVec.toNat_setWidth, BitVec.toNat_ofNat, Nat.reduceMod,
+    Nat.mod_add_mod]
+  olet hsample_bits_slice : sample_bits_slice := (sample_bits.toNat % 4294967296) >>> 6 &&& 63
+  olet hs_B_byte0 : s_B_byte0 := s.B[s.src_i]!
+  olet hs_B_byte1 : s_B_byte1 := s.B[s.src_i + 1]!
+  have hs_B_byte : sample_bits_slice =
+    (((s_B_byte0 >>> 6) ||| (s_B_byte1 <<< 2)) &&& 9) +
+    (((s_B_byte0 >>> 7) ||| (s_B_byte1 <<< 1)) &&& 9) +
+    (s_B_byte1 &&& 9) := by
+    sorry
+  replace hsample_bits_slice : sample_bits_slice < 64 := by
+    rw [hsample_bits_slice]
+    exact Nat.lt_succ_of_le Nat.and_le_right
+  clear hs_B_byte0 hs_B_byte1 hBytesToBits
+  revert hs_B_byte
+  revert s_B_byte0 s_B_byte1
+  revert sample_bits_slice
+  brute
+
+theorem Target2.samplePolyCBD.eta3_loop.spec.aux2 {s : samplePolyCBDState}
+  (BVector : Vector Byte (64 * ↑s.η))
+  (hBVector : BVector = ⟨s.B.take (64 * s.η), by have := s.hB; simp; omega⟩)
+  (hs1 : ∀ j < s.i, s.pe_dst[j]! = (Target.samplePolyCBD BVector)[j]!)
+  (hs2 : ∀ j < 256, s.i ≤ j → s.pe_dst[j]! = 0)
+  (hs3 : s.src_i * 4 = s.i * 3) (hη : s.η.val = 3)
+  (hs4 : s.i < ↑key.MLWE_POLYNOMIAL_COEFFICIENTS)
+  (j : ℕ) (hj1 : j < s.i + 4) (hj2 : ¬j < s.i)
+  (sample_bits : BitVec (8 * (List.slice s.src_i (s.src_i + 4) s.B.toList).length))
+  (hsample_bits :
+    sample_bits =
+      (BitVec.fromLEBytes (List.slice s.src_i (s.src_i + 4) s.B.toList) &&&
+            2396745#(8 * (List.slice s.src_i (s.src_i + 4) s.B.toList).length)) +
+          (BitVec.fromLEBytes (List.slice s.src_i (s.src_i + 4) s.B.toList) >>> 1 &&&
+            2396745#(8 * (List.slice s.src_i (s.src_i + 4) s.B.toList).length)) +
+        (BitVec.fromLEBytes (List.slice s.src_i (s.src_i + 4) s.B.toList) >>> 2 &&&
+          2396745#(8 * (List.slice s.src_i (s.src_i + 4) s.B.toList).length)))
+  (hBytesToBits : ∀ i < 64 * s.η.val, ∀ j < 8, (Target.bytesToBits BVector)[8 * i + j]! = s.B[i]!.testBit j)
+  (hj3 : j = s.i + 2) :
+  ((((Vector.set! s.pe_dst s.i ↑↑(inner_loop.next_coefficient s.i 0 (BitVec.setWidth 32 sample_bits)).2).set! (s.i + 1)
+                ↑↑(inner_loop.next_coefficient s.i 1
+                        (inner_loop.next_coefficient s.i 0 (BitVec.setWidth 32 sample_bits)).1).2).set!
+            (s.i + 2)
+            ↑↑(inner_loop.next_coefficient s.i 2
+                    (inner_loop.next_coefficient s.i 1
+                        (inner_loop.next_coefficient s.i 0 (BitVec.setWidth 32 sample_bits)).1).1).2).set!
+        (s.i + 3)
+        ↑↑(inner_loop.next_coefficient s.i 3
+                (inner_loop.next_coefficient s.i 2
+                    (inner_loop.next_coefficient s.i 1
+                        (inner_loop.next_coefficient s.i 0 (BitVec.setWidth 32 sample_bits)).1).1).1).2)[j]! =
+    ∑ (x : Fin s.η.val), ↑(Target.bytesToBits BVector)[2 * j * ↑s.η + ↑x]!.toNat -
+      ∑ (x : Fin s.η.val), ↑(Target.bytesToBits BVector)[2 * j * ↑s.η + ↑s.η + ↑x]!.toNat := by
+  rw [Vector.getElem!_set!_ne (by omega), Vector.getElem!_set! (by scalar_tac)]
+  simp only [hj3, hη, Nat.mul_assoc 2 (s.i + 2) 3, Nat.mul_comm (s.i + 2) 3,
+    Nat.mul_add 3 s.i 2, Nat.mul_comm 3 s.i, ← hs3, Nat.mul_comm s.src_i 4, mul_one,
+    Nat.mul_add 2 (4 * s.src_i) 6, ← Nat.mul_assoc 2 4 s.src_i, Nat.reduceMul,
+    Nat.add_assoc, Fin.unfold3 hη, add_zero, Nat.reduceAdd]
+  conv in 8 * s.src_i + 12 => rw [(by omega : 8 * s.src_i + 12 = 8 * (s.src_i + 1) + 4)]
+  conv in 8 * s.src_i + 13 => rw [(by omega : 8 * s.src_i + 13 = 8 * (s.src_i + 1) + 5)]
+  conv in 8 * s.src_i + 14 => rw [(by omega : 8 * s.src_i + 14 = 8 * (s.src_i + 1) + 6)]
+  conv in 8 * s.src_i + 15 => rw [(by omega : 8 * s.src_i + 15 = 8 * (s.src_i + 1) + 7)]
+  conv in 8 * s.src_i + 16 => rw [(by omega : 8 * s.src_i + 16 = 8 * (s.src_i + 2) + 0)]
+  conv in 8 * s.src_i + 17 => rw [(by omega : 8 * s.src_i + 17 = 8 * (s.src_i + 2) + 1)]
+  rw [hBytesToBits (s.src_i + 1) (by scalar_tac) 4 (by omega),
+      hBytesToBits (s.src_i + 1) (by scalar_tac) 5 (by omega),
+      hBytesToBits (s.src_i + 1) (by scalar_tac) 6 (by omega),
+      hBytesToBits (s.src_i + 1) (by scalar_tac) 7 (by omega),
+      hBytesToBits (s.src_i + 2) (by scalar_tac) 0 (by omega),
+      hBytesToBits (s.src_i + 2) (by scalar_tac) 1 (by omega)]
+  unfold inner_loop.next_coefficient
+  simp only [BitVec.ofNat_eq_ofNat, ntt.Q.eq, UScalar.ofNat_val_eq, Nat.cast_ofNat,
+    BitVec.toNat_add, BitVec.toNat_sub, Nat.reducePow, BitVec.toNat_ushiftRight,
+    BitVec.toNat_and, BitVec.toNat_setWidth, BitVec.toNat_ofNat, Nat.reduceMod,
+    Nat.mod_add_mod]
+  olet hsample_bits_slice : sample_bits_slice :=
+    (sample_bits.toNat % 4294967296) >>> 6 >>> 6 &&& 63
+  olet hs_B_byte1 : s_B_byte1 := s.B[s.src_i + 1]!
+  olet hs_B_byte2 : s_B_byte2 := s.B[s.src_i + 2]!
+  have hs_B_byte : sample_bits_slice =
+    ((s_B_byte1 >>> 4) &&& 9) +
+    (((s_B_byte1 >>> 5) ||| (s_B_byte2 <<< 3)) &&& 9) +
+    (((s_B_byte1 >>> 6) ||| (s_B_byte2 <<< 2)) &&& 9) := by
+    sorry
+  replace hsample_bits_slice : sample_bits_slice < 64 := by
+    rw [hsample_bits_slice]
+    exact Nat.lt_succ_of_le Nat.and_le_right
+  clear hs_B_byte1 hs_B_byte2 hBytesToBits
+  revert hs_B_byte
+  revert s_B_byte1 s_B_byte2
+  revert sample_bits_slice
+  brute
+
+theorem Target2.samplePolyCBD.eta3_loop.spec.aux3 {s : samplePolyCBDState}
+  (BVector : Vector Byte (64 * ↑s.η))
+  (hBVector : BVector = ⟨s.B.take (64 * s.η), by have := s.hB; simp; omega⟩)
+  (hs1 : ∀ j < s.i, s.pe_dst[j]! = (Target.samplePolyCBD BVector)[j]!)
+  (hs2 : ∀ j < 256, s.i ≤ j → s.pe_dst[j]! = 0)
+  (hs3 : s.src_i * 4 = s.i * 3) (hη : s.η.val = 3)
+  (hs4 : s.i < ↑key.MLWE_POLYNOMIAL_COEFFICIENTS)
+  (j : ℕ) (hj1 : j < s.i + 4) (hj2 : ¬j < s.i)
+  (sample_bits : BitVec (8 * (List.slice s.src_i (s.src_i + 4) s.B.toList).length))
+  (hsample_bits :
+    sample_bits =
+      (BitVec.fromLEBytes (List.slice s.src_i (s.src_i + 4) s.B.toList) &&&
+            2396745#(8 * (List.slice s.src_i (s.src_i + 4) s.B.toList).length)) +
+          (BitVec.fromLEBytes (List.slice s.src_i (s.src_i + 4) s.B.toList) >>> 1 &&&
+            2396745#(8 * (List.slice s.src_i (s.src_i + 4) s.B.toList).length)) +
+        (BitVec.fromLEBytes (List.slice s.src_i (s.src_i + 4) s.B.toList) >>> 2 &&&
+          2396745#(8 * (List.slice s.src_i (s.src_i + 4) s.B.toList).length)))
+  (hBytesToBits : ∀ i < 64 * s.η.val, ∀ j < 8, (Target.bytesToBits BVector)[8 * i + j]! = s.B[i]!.testBit j)
+  (hj3 : j = s.i + 3) :
+  ((((Vector.set! s.pe_dst s.i ↑↑(inner_loop.next_coefficient s.i 0 (BitVec.setWidth 32 sample_bits)).2).set! (s.i + 1)
+                ↑↑(inner_loop.next_coefficient s.i 1
+                        (inner_loop.next_coefficient s.i 0 (BitVec.setWidth 32 sample_bits)).1).2).set!
+            (s.i + 2)
+            ↑↑(inner_loop.next_coefficient s.i 2
+                    (inner_loop.next_coefficient s.i 1
+                        (inner_loop.next_coefficient s.i 0 (BitVec.setWidth 32 sample_bits)).1).1).2).set!
+        (s.i + 3)
+        ↑↑(inner_loop.next_coefficient s.i 3
+                (inner_loop.next_coefficient s.i 2
+                    (inner_loop.next_coefficient s.i 1
+                        (inner_loop.next_coefficient s.i 0 (BitVec.setWidth 32 sample_bits)).1).1).1).2)[j]! =
+    ∑ (x : Fin s.η.val), ↑(Target.bytesToBits BVector)[2 * j * ↑s.η + ↑x]!.toNat -
+      ∑ (x : Fin s.η.val), ↑(Target.bytesToBits BVector)[2 * j * ↑s.η + ↑s.η + ↑x]!.toNat := by
+  rw [Vector.getElem!_set! (by scalar_tac)]
+  simp only [hj3, hη, Nat.mul_assoc 2 (s.i + 3) 3, Nat.mul_comm (s.i + 3) 3,
+    Nat.mul_add 3 s.i 3, Nat.mul_comm 3 s.i, ← hs3, Nat.mul_comm s.src_i 4, mul_one,
+    Nat.mul_add 2 (4 * s.src_i) 9, ← Nat.mul_assoc 2 4 s.src_i, Nat.reduceMul,
+    Nat.add_assoc, Fin.unfold3 hη, add_zero, Nat.reduceAdd]
+  conv in 8 * s.src_i + 18 => rw [(by omega : 8 * s.src_i + 18 = 8 * (s.src_i + 2) + 2)]
+  conv in 8 * s.src_i + 19 => rw [(by omega : 8 * s.src_i + 19 = 8 * (s.src_i + 2) + 3)]
+  conv in 8 * s.src_i + 20 => rw [(by omega : 8 * s.src_i + 20 = 8 * (s.src_i + 2) + 4)]
+  conv in 8 * s.src_i + 21 => rw [(by omega : 8 * s.src_i + 21 = 8 * (s.src_i + 2) + 5)]
+  conv in 8 * s.src_i + 22 => rw [(by omega : 8 * s.src_i + 22 = 8 * (s.src_i + 2) + 6)]
+  conv in 8 * s.src_i + 23 => rw [(by omega : 8 * s.src_i + 23 = 8 * (s.src_i + 2) + 7)]
+  rw [hBytesToBits (s.src_i + 2) (by scalar_tac) 2 (by omega),
+      hBytesToBits (s.src_i + 2) (by scalar_tac) 3 (by omega),
+      hBytesToBits (s.src_i + 2) (by scalar_tac) 4 (by omega),
+      hBytesToBits (s.src_i + 2) (by scalar_tac) 5 (by omega),
+      hBytesToBits (s.src_i + 2) (by scalar_tac) 6 (by omega),
+      hBytesToBits (s.src_i + 2) (by scalar_tac) 7 (by omega)]
+  unfold inner_loop.next_coefficient
+  simp only [BitVec.ofNat_eq_ofNat, ntt.Q.eq, UScalar.ofNat_val_eq, Nat.cast_ofNat,
+    BitVec.toNat_add, BitVec.toNat_sub, Nat.reducePow, BitVec.toNat_ushiftRight,
+    BitVec.toNat_and, BitVec.toNat_setWidth, BitVec.toNat_ofNat, Nat.reduceMod,
+    Nat.mod_add_mod]
+  olet hsample_bits_slice : sample_bits_slice :=
+    (sample_bits.toNat % 4294967296) >>> 6 >>> 6 >>> 6 &&& 63
+  olet hs_B_byte2 : s_B_byte2 := s.B[s.src_i + 2]!
+  replace hs_B_byte2 : sample_bits_slice = ((s_B_byte2 >>> 2) &&& 9) +
+    ((s_B_byte2 >>> 3) &&& 9) + ((s_B_byte2 >>> 4) &&& 9) := by
+    sorry
+  replace hsample_bits_slice : sample_bits_slice < 64 := by
+    rw [hsample_bits_slice]
+    exact Nat.lt_succ_of_le Nat.and_le_right
+  clear hBytesToBits
+  revert s_B_byte2
+  revert sample_bits_slice
+  brute
+
 def Target2.samplePolyCBD.eta3_loop.spec {s : Target2.samplePolyCBDState}
   (BVector : Vector Byte (64 * s.η))
   (hBVector : BVector = ⟨s.B.take (64 * s.η), by have := s.hB; simp; omega⟩)
@@ -381,126 +594,9 @@ def Target2.samplePolyCBD.eta3_loop.spec {s : Target2.samplePolyCBDState}
         have hj3 : j = s.i ∨ j = s.i + 1 ∨ j = s.i + 2 ∨ j = s.i + 3 := by omega
         rcases hj3 with hj3 | hj3 | hj3 | hj3
         . apply eta3_loop.spec.aux0 <;> assumption
-        . sorry
-          /-
-          rw [Vector.getElem!_set!_ne (by omega), Vector.getElem!_set!_ne (by omega),
-            Vector.getElem!_set! (by scalar_tac)]
-          simp only [hj3, hη, Nat.mul_assoc 2 (s.i + 1) 3, Nat.mul_comm (s.i + 1) 3,
-            Nat.mul_add 3 s.i 1, Nat.mul_comm 3 s.i, ← hs3, Nat.mul_comm s.src_i 4, mul_one,
-            Nat.mul_add 2 (4 * s.src_i) 3, ← Nat.mul_assoc 2 4 s.src_i, Nat.reduceMul,
-            Nat.add_assoc, Fin.unfold3 hη, add_zero, Nat.reduceAdd]
-          conv in 8 * s.src_i + 8 => rw [(by omega : 8 * s.src_i + 8 = 8 * (s.src_i + 1) + 0)]
-          conv in 8 * s.src_i + 9 => rw [(by omega : 8 * s.src_i + 9 = 8 * (s.src_i + 1) + 1)]
-          conv in 8 * s.src_i + 10 => rw [(by omega : 8 * s.src_i + 10 = 8 * (s.src_i + 1) + 2)]
-          conv in 8 * s.src_i + 11 => rw [(by omega : 8 * s.src_i + 11 = 8 * (s.src_i + 1) + 3)]
-          rw [hBytesToBits s.src_i (by scalar_tac) 6 (by omega),
-              hBytesToBits s.src_i (by scalar_tac) 7 (by omega),
-              hBytesToBits (s.src_i + 1) (by scalar_tac) 0 (by omega),
-              hBytesToBits (s.src_i + 1) (by scalar_tac) 1 (by omega),
-              hBytesToBits (s.src_i + 1) (by scalar_tac) 2 (by omega),
-              hBytesToBits (s.src_i + 1) (by scalar_tac) 3 (by omega)]
-          unfold inner_loop.next_coefficient
-          simp only [BitVec.ofNat_eq_ofNat, ntt.Q.eq, UScalar.ofNat_val_eq, Nat.cast_ofNat,
-            BitVec.toNat_add, BitVec.toNat_sub, Nat.reducePow, BitVec.toNat_ushiftRight,
-            BitVec.toNat_and, BitVec.toNat_setWidth, BitVec.toNat_ofNat, Nat.reduceMod,
-            Nat.mod_add_mod]
-          olet hsample_bits_slice : sample_bits_slice := (sample_bits.toNat % 4294967296) >>> 6 &&& 63
-          olet hs_B_byte0 : s_B_byte0 := s.B[s.src_i]!
-          olet hs_B_byte1 : s_B_byte1 := s.B[s.src_i + 1]!
-          replace hs_B_byte0 : sample_bits_slice = sorry := by -- **TODO**
-            sorry
-          replace hs_B_byte1 : sample_bits_slice = sorry := by -- **TODO**
-            sorry
-          replace hsample_bits_slice : sample_bits_slice < 64 := by
-            rw [hsample_bits_slice]
-            exact Nat.lt_succ_of_le Nat.and_le_right
-          clear hBytesToBits
-          revert hs_B_byte0 hs_B_byte1
-          revert s_B_byte0 s_B_byte1
-          revert sample_bits_slice
-          -- Once I finish the statements of `hs_B_byte0` and `hs_B_byte1` this should be provable via `brute`
-          sorry
-          -/
-        . sorry
-          /-
-          rw [Vector.getElem!_set!_ne (by omega), Vector.getElem!_set! (by scalar_tac)]
-          simp only [hj3, hη, Nat.mul_assoc 2 (s.i + 2) 3, Nat.mul_comm (s.i + 2) 3,
-            Nat.mul_add 3 s.i 2, Nat.mul_comm 3 s.i, ← hs3, Nat.mul_comm s.src_i 4, mul_one,
-            Nat.mul_add 2 (4 * s.src_i) 6, ← Nat.mul_assoc 2 4 s.src_i, Nat.reduceMul,
-            Nat.add_assoc, Fin.unfold3 hη, add_zero, Nat.reduceAdd]
-          conv in 8 * s.src_i + 12 => rw [(by omega : 8 * s.src_i + 12 = 8 * (s.src_i + 1) + 4)]
-          conv in 8 * s.src_i + 13 => rw [(by omega : 8 * s.src_i + 13 = 8 * (s.src_i + 1) + 5)]
-          conv in 8 * s.src_i + 14 => rw [(by omega : 8 * s.src_i + 14 = 8 * (s.src_i + 1) + 6)]
-          conv in 8 * s.src_i + 15 => rw [(by omega : 8 * s.src_i + 15 = 8 * (s.src_i + 1) + 7)]
-          conv in 8 * s.src_i + 16 => rw [(by omega : 8 * s.src_i + 16 = 8 * (s.src_i + 2) + 0)]
-          conv in 8 * s.src_i + 17 => rw [(by omega : 8 * s.src_i + 17 = 8 * (s.src_i + 2) + 1)]
-          rw [hBytesToBits (s.src_i + 1) (by scalar_tac) 4 (by omega),
-              hBytesToBits (s.src_i + 1) (by scalar_tac) 5 (by omega),
-              hBytesToBits (s.src_i + 1) (by scalar_tac) 6 (by omega),
-              hBytesToBits (s.src_i + 1) (by scalar_tac) 7 (by omega),
-              hBytesToBits (s.src_i + 2) (by scalar_tac) 0 (by omega),
-              hBytesToBits (s.src_i + 2) (by scalar_tac) 1 (by omega)]
-          unfold inner_loop.next_coefficient
-          simp only [BitVec.ofNat_eq_ofNat, ntt.Q.eq, UScalar.ofNat_val_eq, Nat.cast_ofNat,
-            BitVec.toNat_add, BitVec.toNat_sub, Nat.reducePow, BitVec.toNat_ushiftRight,
-            BitVec.toNat_and, BitVec.toNat_setWidth, BitVec.toNat_ofNat, Nat.reduceMod,
-            Nat.mod_add_mod]
-          olet hsample_bits_slice : sample_bits_slice :=
-            (sample_bits.toNat % 4294967296) >>> 6 >>> 6 &&& 63
-          olet hs_B_byte1 : s_B_byte1 := s.B[s.src_i + 1]!
-          olet hs_B_byte2 : s_B_byte2 := s.B[s.src_i + 2]!
-          replace hs_B_byte1 : sample_bits_slice = sorry := by -- **TODO**
-            sorry
-          replace hs_B_byte2 : sample_bits_slice = sorry := by -- **TODO**
-            sorry
-          replace hsample_bits_slice : sample_bits_slice < 64 := by
-            rw [hsample_bits_slice]
-            exact Nat.lt_succ_of_le Nat.and_le_right
-          clear hBytesToBits
-          revert hs_B_byte1 hs_B_byte2
-          revert s_B_byte1 s_B_byte2
-          revert sample_bits_slice
-          -- Once I finish the statements of `hs_B_byte1` and `hs_B_byte2` this should be provable via `brute`
-          sorry
-          -/
-        . sorry
-          /-
-          rw [Vector.getElem!_set! (by scalar_tac)]
-          simp only [hj3, hη, Nat.mul_assoc 2 (s.i + 3) 3, Nat.mul_comm (s.i + 3) 3,
-            Nat.mul_add 3 s.i 3, Nat.mul_comm 3 s.i, ← hs3, Nat.mul_comm s.src_i 4, mul_one,
-            Nat.mul_add 2 (4 * s.src_i) 9, ← Nat.mul_assoc 2 4 s.src_i, Nat.reduceMul,
-            Nat.add_assoc, Fin.unfold3 hη, add_zero, Nat.reduceAdd]
-          conv in 8 * s.src_i + 18 => rw [(by omega : 8 * s.src_i + 18 = 8 * (s.src_i + 2) + 2)]
-          conv in 8 * s.src_i + 19 => rw [(by omega : 8 * s.src_i + 19 = 8 * (s.src_i + 2) + 3)]
-          conv in 8 * s.src_i + 20 => rw [(by omega : 8 * s.src_i + 20 = 8 * (s.src_i + 2) + 4)]
-          conv in 8 * s.src_i + 21 => rw [(by omega : 8 * s.src_i + 21 = 8 * (s.src_i + 2) + 5)]
-          conv in 8 * s.src_i + 22 => rw [(by omega : 8 * s.src_i + 22 = 8 * (s.src_i + 2) + 6)]
-          conv in 8 * s.src_i + 23 => rw [(by omega : 8 * s.src_i + 23 = 8 * (s.src_i + 2) + 7)]
-          rw [hBytesToBits (s.src_i + 2) (by scalar_tac) 2 (by omega),
-              hBytesToBits (s.src_i + 2) (by scalar_tac) 3 (by omega),
-              hBytesToBits (s.src_i + 2) (by scalar_tac) 4 (by omega),
-              hBytesToBits (s.src_i + 2) (by scalar_tac) 5 (by omega),
-              hBytesToBits (s.src_i + 2) (by scalar_tac) 6 (by omega),
-              hBytesToBits (s.src_i + 2) (by scalar_tac) 7 (by omega)]
-          unfold inner_loop.next_coefficient
-          simp only [BitVec.ofNat_eq_ofNat, ntt.Q.eq, UScalar.ofNat_val_eq, Nat.cast_ofNat,
-            BitVec.toNat_add, BitVec.toNat_sub, Nat.reducePow, BitVec.toNat_ushiftRight,
-            BitVec.toNat_and, BitVec.toNat_setWidth, BitVec.toNat_ofNat, Nat.reduceMod,
-            Nat.mod_add_mod]
-          olet hsample_bits_slice : sample_bits_slice :=
-            (sample_bits.toNat % 4294967296) >>> 6 >>> 6 >>> 6 &&& 63
-          olet hs_B_byte2 : s_B_byte2 := s.B[s.src_i + 2]!
-          replace hs_B_byte2 : sample_bits_slice = sorry := by -- **TODO**
-            sorry
-          replace hsample_bits_slice : sample_bits_slice < 64 := by
-            rw [hsample_bits_slice]
-            exact Nat.lt_succ_of_le Nat.and_le_right
-          clear hBytesToBits
-          revert hs_B_byte2 s_B_byte2
-          revert sample_bits_slice
-          -- Once I finish the statement of `hs_B_byte2` this should be provable via `brute`
-          sorry
-          -/
+        . apply eta3_loop.spec.aux1 <;> assumption
+        . apply eta3_loop.spec.aux2 <;> assumption
+        . apply eta3_loop.spec.aux3 <;> assumption
     . intro j hj1 hj2
       simp only at hj2
       simp only [ReduceZMod.reduceZMod]
