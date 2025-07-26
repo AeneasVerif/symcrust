@@ -190,7 +190,7 @@ lemma testBitOfAdd {x1 x2 y1 y2 : ℕ} (n : ℕ) (hx : ∀ i < n, x1.testBit i =
   (hy : ∀ i < n, y1.testBit i = y2.testBit i) : ∀ i < n, (x1 + y1).testBit i = (x2 + y2).testBit i := by
   sorry
 
-lemma Target2.samplePolyCBD.eta3_loop.spec.aux0.helper :
+lemma Target2.samplePolyCBD.eta3_loop.spec.aux.helper :
   ∀ k < 6, ∀ a < 7190238, (a % 256).testBit k = a.testBit k := by
   brute
 
@@ -278,7 +278,7 @@ theorem Target2.samplePolyCBD.eta3_loop.spec.aux0 (s : samplePolyCBDState)
           BitVec.getElem!_eq_testBit_toNat, BitVec.toNat_ofNat, Nat.reducePow, BitVec.toNat_add,
           BitVec.toNat_and, Nat.reduceMod, BitVec.toNat_ushiftRight, Nat.mod_add_mod]
         have : ((x' + y' + z') % 256).testBit k = (x' + y' + z').testBit k := by
-          apply Target2.samplePolyCBD.eta3_loop.spec.aux0.helper <;> omega
+          apply Target2.samplePolyCBD.eta3_loop.spec.aux.helper <;> omega
         rw [this, Nat.mod_eq_of_lt]
         . apply testBitOfAdd 6 _ _ k hk2
           . intro i hi
@@ -400,7 +400,124 @@ theorem Target2.samplePolyCBD.eta3_loop.spec.aux1 {s : samplePolyCBDState}
     (((s_B_byte0 >>> 6) ||| (s_B_byte1 <<< 2)) &&& 9) +
     (((s_B_byte0 >>> 7) ||| (s_B_byte1 <<< 1)) &&& 9) +
     (s_B_byte1 &&& 9) := by
-    sorry
+    rw [hsample_bits_slice, hsample_bits]
+    simp only [BitVec.toNat_add, BitVec.toNat_and, BitVec.toNat_ofNat,
+      BitVec.toNat_ushiftRight, Nat.mod_add_mod, BitVec.natCast_eq_ofNat, BitVec.ofNat_and,
+      Nat.cast_ofNat, BitVec.ofNat_eq_ofNat]
+    have sHB := s.hB
+    have hmin : min (s.B.size - s.src_i) 4 = 4 := by scalar_tac
+    simp only [List.slice_length, Array.length_toList, add_tsub_cancel_left]
+    olet hz : z := (BitVec.fromLEBytes (List.slice s.src_i (s.src_i + 4) s.B.toList)).toNat >>> 2
+    olet hy : y := (BitVec.fromLEBytes (List.slice s.src_i (s.src_i + 4) s.B.toList)).toNat >>> 1
+    olet hx : x := (BitVec.fromLEBytes (List.slice s.src_i (s.src_i + 4) s.B.toList)).toNat
+    olet hx' : x' := (x &&& 2396745 % 2 ^ (8 * min (s.B.size - s.src_i) 4))
+    olet hy' : y' := (y &&& 2396745 % 2 ^ (8 * min (s.B.size - s.src_i) 4))
+    olet hz' : z' := (z &&& 2396745 % 2 ^ (8 * min (s.B.size - s.src_i) 4))
+    rw [Nat.mod_eq_of_lt] at hx' hy' hz' <;> (try rw [hmin]; decide +native)
+    have hz'' : z' < 2396745 + 1 := by
+      apply Nat.lt_succ_of_le
+      rw [hz']
+      exact Nat.and_le_right
+    have hy'' : y' < 2396745 + 1 := by
+      apply Nat.lt_succ_of_le
+      rw [hy']
+      exact Nat.and_le_right
+    have hx'' : x' < 2396745 + 1 := by
+      apply Nat.lt_succ_of_le
+      rw [hx']
+      exact Nat.and_le_right
+    rw [Nat.mod_eq_of_lt, Nat.mod_eq_of_lt]
+    . rw [(by decide : 63#8 = 2#8^6 - 1#8), BitVec.and_two_pow_sub_one_eq_mod]
+      ext k hk1
+      by_cases hk2 : k < 6
+      . simp only [← BitVec.getElem!_eq_getElem, BitVec.getElem!_mod_pow2_eq _ _ _ hk2,
+          BitVec.getElem!_eq_testBit_toNat, BitVec.toNat_ofNat, Nat.reducePow, BitVec.toNat_add,
+          BitVec.toNat_and, Nat.reduceMod, BitVec.toNat_ushiftRight, Nat.mod_add_mod]
+        have : (((x' + y' + z') >>> 6) % 256).testBit k = ((x' + y' + z') >>> 6).testBit k := by
+          apply Target2.samplePolyCBD.eta3_loop.spec.aux.helper <;> omega
+        rw [this, Nat.mod_eq_of_lt]
+        . have : ((x' + y' + z') >>> 6).testBit k = ((x' >>> 6) + (y' >>> 6) + (z' >>> 6)).testBit k := by
+            -- **NOTE** Distributing `>>>` over `+` is not valid in general, but this lemma is true because
+            -- of the masks applied to `x'`, `y'`, and `z'`. However, this is a somewhat involved argument
+            -- (carrying can occur, but only at certain bits such that the above remains true). I will
+            -- probably have to extract this and make it it's own lemma
+            sorry
+          rw [this]
+          apply testBitOfAdd 6 _ _ k hk2
+          . intro i hi
+            apply testBitOfAdd 6 _ _ i hi
+            . intro j hj
+              simp only [hx', hx, Nat.testBit_and, Nat.testBit_shiftRight,
+                ← BitVec.getElem!_eq_testBit_toNat, BitVec.fromLEBytes_getElem!]
+              rw [List.getElem!_slice, hs_B_byte0, hs_B_byte1, Array.getElem!_toList]
+              . simp only [BitVec.getElem!_or, BitVec.getElem!_shiftRight]
+                by_cases hj2 : j < 2
+                . simp_scalar
+                  congr 1
+                  . simp only [Bool.eq_self_or]
+                    rw [BitVec.getElem!_shiftLeft_false]
+                    . simp
+                    . omega
+                  . revert j; brute
+                . rw [(by omega : (6 + j) / 8 = 1), BitVec.getElem!_shiftLeft_eq _ _ _ (by omega),
+                    BitVec.getElem!_eq_false _ (6 + j) (by omega)]
+                  simp_scalar
+                  congr 1
+                  . congr; omega
+                  . revert j; brute
+              . scalar_tac
+            . intro j hj
+              simp only [hy', hy, hx, Nat.testBit_and, Nat.testBit_shiftRight,
+                ← BitVec.getElem!_eq_testBit_toNat, BitVec.fromLEBytes_getElem!]
+              rw [List.getElem!_slice, hs_B_byte0, hs_B_byte1, Array.getElem!_toList]
+              . simp only [BitVec.getElem!_or, BitVec.getElem!_shiftRight]
+                by_cases hj2 : j < 1
+                . simp_scalar
+                  simp only [← add_assoc, Nat.reduceAdd]
+                  congr 1
+                  . simp only [Bool.eq_self_or]
+                    rw [BitVec.getElem!_shiftLeft_false]
+                    . simp
+                    . omega
+                  . revert j; brute
+                . rw [(by omega : (1 + (6 + j)) / 8 = 1), BitVec.getElem!_shiftLeft_eq _ _ _ (by omega),
+                    BitVec.getElem!_eq_false _ (7 + j) (by omega)]
+                  simp_scalar
+                  congr 1
+                  . congr; omega
+                  . revert j; brute
+              . scalar_tac
+          . intro i hi
+            simp only [hz', hz, hx, Nat.testBit_and, Nat.testBit_shiftRight,
+              ← BitVec.getElem!_eq_testBit_toNat, BitVec.fromLEBytes_getElem!]
+            rw [List.getElem!_slice, hs_B_byte1, Array.getElem!_toList]
+            . rw [(by omega : (2 + (6 + i)) / 8 = 1), (by omega : (2 + (6 + i)) % 8 = i)]
+              congr 1
+              revert i
+              brute
+            . scalar_tac
+        . have : ((s_B_byte0 >>> 6 ||| s_B_byte1 <<< 2).toNat &&& 9) ≤ 9 := Nat.and_le_right
+          have : ((s_B_byte0 >>> 7 ||| s_B_byte1 <<< 1).toNat &&& 9) ≤ 9 := Nat.and_le_right
+          have : (BitVec.toNat s_B_byte1 &&& 9) ≤ 9 := Nat.and_le_right
+          omega
+      . have : (((s_B_byte0 >>> 6 ||| s_B_byte1 <<< 2) &&& 9#8) +
+          ((s_B_byte0 >>> 7 ||| s_B_byte1 <<< 1) &&& 9#8) + (s_B_byte1 &&& 9#8)) < 2^6 := by
+          clear hs_B_byte0 hs_B_byte1 hBytesToBits
+          revert s_B_byte0 s_B_byte1
+          decide +native -- **TODO** Once `brute` supports unbounded UScalars, `brute` should be faster
+        rw [← BitVec.getElem!_eq_getElem, ← BitVec.getElem!_eq_getElem,
+          BitVec.getElem!_mod_pow2_false _ _ _ (by omega), BitVec.getElem!_eq_testBit_toNat,
+          ← Nat.mod_eq_of_lt this]
+        simp only [BitVec.toNat_add, BitVec.toNat_and, BitVec.toNat_ofNat, Nat.reducePow,
+          Nat.reduceMod, BitVec.toNat_ushiftRight, Nat.mod_add_mod, BitVec.ofNat_eq_ofNat,
+          BitVec.toNat_pow, Nat.reduceDvd, Nat.mod_mod_of_dvd, Bool.false_eq]
+        rw [(by decide : 64 = 2^6), Nat.testBit_mod_two_pow,
+          Bool.and_eq_false_eq_eq_false_or_eq_false]
+        left
+        simp only [decide_eq_false_iff_not, not_lt]
+        omega
+    . rw [hmin]; omega
+    . rw [hmin, Nat.mod_eq_of_lt] <;> omega
   replace hsample_bits_slice : sample_bits_slice < 64 := by
     rw [hsample_bits_slice]
     exact Nat.lt_succ_of_le Nat.and_le_right
@@ -409,6 +526,9 @@ theorem Target2.samplePolyCBD.eta3_loop.spec.aux1 {s : samplePolyCBDState}
   revert s_B_byte0 s_B_byte1
   revert sample_bits_slice
   brute
+
+#check BitVec.getElem!_shiftLeft_false
+#check BitVec.getElem!_shiftLeft_eq
 
 theorem Target2.samplePolyCBD.eta3_loop.spec.aux2 {s : samplePolyCBDState}
   (BVector : Vector Byte (64 * ↑s.η))
