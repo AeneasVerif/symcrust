@@ -30,7 +30,9 @@ symcrust.llbc: $(wildcard */*.rs)
 	RUSTFLAGS="--cfg eurydice" $(CHARON_EXE) --hide-marker-traits \
 	  --exclude=core::fmt::Debug::fmt --opaque=core::fmt::Formatter --preset=eurydice \
 	  --include=alloc::collections::*  --include=core::alloc::* --include=core::ptr::alignment::* \
-	  --include=core::result::*::branch --include=core::convert::*::try_into
+	  --include=core::result::*::branch --include=core::convert::*::try_into \
+	  --include=core::fmt::Arguments --include=core::fmt::rt::*::new_const \
+	  --include=core::fmt::rt::Argument
 
 symcrust-aeneas.llbc: $(wildcard */*.rs)
 	$(CHARON_EXE) --hide-marker-traits --exclude=core::fmt::Debug::fmt --opaque=core::fmt::Formatter --remove-associated-types='*' \
