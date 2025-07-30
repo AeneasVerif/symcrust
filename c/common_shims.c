@@ -31,3 +31,12 @@ core_fmt__core__fmt__Formatter__a___write_str(core_fmt_Formatter *x0, Eurydice_s
   fprintf(stderr, "TODO: formatter\n");
   exit(255);
 }
+
+// Only prints constant strings
+void std_io_stdio__print(core_fmt_Arguments args) {
+  for (size_t i = 0; i < args.pieces.len; ++i) {
+    Eurydice_str s = ((Eurydice_str*)args.pieces.ptr)[i];
+    // FIXME: is there a better way to do this?
+    printf("%.*s\n", (int)s.len, s.data);
+  }
+}

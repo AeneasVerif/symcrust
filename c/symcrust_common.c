@@ -183,11 +183,3 @@ symcrust_common_fmt_b9(symcrust_common_Error *self, core_fmt_Formatter *f)
   return core_fmt__core__fmt__Formatter__a___write_str(uu____0, uu____1);
 }
 
-// Only prints constant strings
-void std_io_stdio__print(core_fmt_Arguments args) {
-  for (size_t i = 0; i < args.pieces.len; ++i) {
-    Eurydice_str s = ((Eurydice_str*)args.pieces.ptr)[i];
-    // FIXME: is there a better way to do this?
-    printf("%.*s\n", (int)s.len, s.data);
-  }
-}

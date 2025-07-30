@@ -132,7 +132,6 @@ poly_element_decode_and_decompress(
       otherwise we perform input validation per 203 6.2 Input validation 2 (Modulus check) */
     if (n_bits_per_coefficient < 12U)
     {
-      /* Multiply by Q / 2^(n_bits_per_coefficient-1) by multiplying by constant and shifting right */
       coefficient = coefficient * Q;
       coefficient = coefficient >> (uint32_t)(n_bits_per_coefficient - 1U);
       coefficient++;
