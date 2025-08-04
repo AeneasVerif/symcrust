@@ -39,24 +39,14 @@ structure BinderInfo where
 instance : ToMessageData BinderInfo where
   toMessageData := fun ⟨x, b, hxb, isNatLikeInst⟩ => m!"({Expr.fvar x}, {b}, {Expr.fvar hxb}, {isNatLikeInst})"
 
-/-- A helper definition to make it easier to construct the type of `IsNatLike`'s β type -/
-def IsNatLikeβType (t : Type) :=
-  PSum
-    (PSigma (fun n : Nat => t = BitVec n))
-    (PSigma (fun t' : UScalarTy => t' ≠ UScalarTy.Usize ∧ t = UScalar t'))
-
-/-- A helper definition to make it easier to construct the type of `IsNatLike`'s ββ type -/
-def IsNatLikeββType (t : Type) := PSigma (fun t' : UScalarTy => t' ≠ UScalarTy.Usize ∧ t = UScalar t')
-
 /-- If `t` is an Expr corresponding to `Nat`, `BitVec n`, or `UScalar t'`, then `getIsNatLike` returns
     an Expr whose type is `IsNatLike t`. Otherwise, `getIsNatLike` returns `none`. -/
 def getIsNatLikeInstance (t : Expr) : MetaM (Option Expr) := do
   match t with
   | .const ``Nat _ =>
     let rflPf ← mkAppOptM ``Eq.refl #[some (.sort 1), some t]
-    let pSumβ ← mkAppM ``IsNatLikeβType #[t]
-    let pSumPf ← mkAppOptM ``PSum.inl #[none, some pSumβ, rflPf]
-    let inst ← mkAppM ``IsNatLike.mk #[pSumPf]
+    let isNatPf ← mkAppOptM ``IsNatLikePf.isNatPf #[none, rflPf]
+    let inst ← mkAppM ``IsNatLike.mk #[isNatPf]
     return some inst
   | .app (.const ``BitVec _) n =>
     let rflPf ← mkAppOptM ``Eq.refl #[some (.sort 1), some t]
@@ -64,11 +54,8 @@ def getIsNatLikeInstance (t : Expr) : MetaM (Option Expr) := do
       mkApp3 (mkConst ``Eq [2]) (.sort 1) (.app (.const ``BitVec []) n) (.app (.const ``BitVec []) (.bvar 0))
     let pSigmaβ := Expr.lam `n (mkConst ``Nat) pSigmaβBody .default
     let pSigmaPf ← mkAppOptM ``PSigma.mk #[none, some pSigmaβ, n, rflPf]
-    let pInnerSumβ ← mkAppM ``IsNatLikeββType #[t]
-    let pInnserSumPf ← mkAppOptM ``PSum.inl #[none, some pInnerSumβ, pSigmaPf]
-    let pSumα ← mkAppM ``Eq #[t, mkConst ``Nat]
-    let pSumPf ← mkAppOptM ``PSum.inr #[some pSumα, none, pInnserSumPf]
-    let inst ← mkAppM ``IsNatLike.mk #[pSumPf]
+    let isBitVecPf ← mkAppOptM ``IsNatLikePf.isBitVecPf #[none, pSigmaPf]
+    let inst ← mkAppM ``IsNatLike.mk #[isBitVecPf]
     return some inst
   | _ => return none -- **TODO** UScalar support
 

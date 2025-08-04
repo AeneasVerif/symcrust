@@ -5,16 +5,20 @@ open Lean Meta Parser Elab Tactic Aeneas Aeneas.Std
 
 namespace Brute
 
+inductive IsNatLikePf (t : Type) where
+  | isNatPf : t = Nat → IsNatLikePf t
+  | isBitVecPf : PSigma (fun n : Nat => t = BitVec n) → IsNatLikePf t
+  | isUScalarPf : PSigma (fun t' : UScalarTy => t' ≠ UScalarTy.Usize ∧ t = UScalar t') → IsNatLikePf t
+
 class IsNatLike (t : Type) where
-  pf : PSum (t = Nat) (PSum (PSigma (fun n : Nat => t = BitVec n))
-    (PSigma (fun t' : UScalarTy => t' ≠ UScalarTy.Usize ∧ t = UScalar t')))
+  pf : IsNatLikePf t
 
 instance (t : Type) [h : IsNatLike t] : LT t where
   lt :=
     match h.pf with
-    | .inl pf => fun x y => cast pf x < cast pf y
-    | .inr (.inl pf) => fun x y => cast pf.2 x < cast pf.2 y
-    | .inr (.inr pf) => fun x y => cast pf.2.2 x < cast pf.2.2 y
+    | .isNatPf pf => fun x y => cast pf x < cast pf y
+    | .isBitVecPf pf => fun x y => cast pf.2 x < cast pf.2 y
+    | .isUScalarPf pf => fun x y => cast pf.2.2 x < cast pf.2.2 y
 
 def UScalar.ofNat' {t : UScalarTy} (x : Nat) : UScalar t :=
   UScalar.ofNat (x % (UScalar.cMax t + 1)) (Nat.le_of_lt_succ (Nat.mod_lt _ (by simp)))
@@ -33,13 +37,13 @@ lemma UScalar.ofNat'_val_eq {t : UScalarTy} (ht : t ≠ UScalarTy.Usize) (x : US
 
 def mkFold1 {t : Type} [h : IsNatLike t] (b : t) (f : t → Bool) (acc : Bool) : Bool :=
   match h.pf with
-  | .inl pf =>
+  | .isNatPf pf =>
     Fin.foldr (cast pf b)
       (fun (x : Fin (cast pf b)) (acc : Bool) => acc && f (cast pf.symm x.1)) acc
-  | .inr (.inl pf) =>
+  | .isBitVecPf pf =>
     Fin.foldr (cast pf.2 b).toNat
       (fun (x : Fin (cast pf.2 b).toNat) (acc : Bool) => acc && f (cast pf.2.symm x.1)) acc
-  | .inr (.inr pf) =>
+  | .isUScalarPf pf =>
     Fin.foldr (cast pf.2.2 b).val
       (fun (x : Fin (cast pf.2.2 b).val) (acc : Bool) => acc && f
         (cast pf.2.2.symm (UScalar.ofNat' x.1))) acc
@@ -137,15 +141,15 @@ theorem ofMkFold1EqTrue {t : Type} [h : IsNatLike t] (b : t) (f : t → Bool) :
 def mkFold2 {t1 t2 : Type} [h1 : IsNatLike t1] [h2 : IsNatLike t2] (b1 : t1) (b2 : t1 → t2)
   (f : t1 → t2 → Bool) (acc : Bool) : Bool :=
   match h1.pf with
-  | .inl pf =>
+  | .isNatPf pf =>
     Fin.foldr (cast pf b1)
       (fun (x : Fin (cast pf b1)) (acc : Bool) =>
         mkFold1 (b2 (cast pf.symm x.1)) (f (cast pf.symm x.1)) acc) acc
-  | .inr (.inl pf) =>
+  | .isBitVecPf pf =>
     Fin.foldr (cast pf.2 b1).toNat
       (fun (x : Fin (cast pf.2 b1).toNat) (acc : Bool) =>
         mkFold1 (b2 (cast pf.2.symm x.1)) (f (cast pf.2.symm x.1)) acc) acc
-  | .inr (.inr pf) =>
+  | .isUScalarPf pf =>
     Fin.foldr (cast pf.2.2 b1).val
       (fun (x : Fin (cast pf.2.2 b1).val) (acc : Bool) =>
         mkFold1 (b2 (cast pf.2.2.symm (UScalar.ofNat' x.1)))
@@ -254,15 +258,15 @@ theorem ofMkFold2EqTrue {t1 t2 : Type} [h1 : IsNatLike t1] [h2 : IsNatLike t2] (
 def mkFold3 {t1 t2 t3 : Type} [h1 : IsNatLike t1] [h2 : IsNatLike t2] [h3 : IsNatLike t3] (b1 : t1)
   (b2 : t1 → t2) (b3 : t1 → t2 → t3) (f : t1 → t2 → t3 → Bool) (acc : Bool) : Bool :=
   match h1.pf with
-  | .inl pf =>
+  | .isNatPf pf =>
     Fin.foldr (cast pf b1)
       (fun (x : Fin (cast pf b1)) (acc : Bool) =>
         mkFold2 (b2 (cast pf.symm x.1)) (b3 (cast pf.symm x.1)) (f (cast pf.symm x.1)) acc) acc
-  | .inr (.inl pf) =>
+  | .isBitVecPf pf =>
     Fin.foldr (cast pf.2 b1).toNat
       (fun (x : Fin (cast pf.2 b1).toNat) (acc : Bool) =>
         mkFold2 (b2 (cast pf.2.symm x.1)) (b3 (cast pf.2.symm x.1)) (f (cast pf.2.symm x.1)) acc) acc
-  | .inr (.inr pf) =>
+  | .isUScalarPf pf =>
     Fin.foldr (cast pf.2.2 b1).val
       (fun (x : Fin (cast pf.2.2 b1).val) (acc : Bool) =>
         mkFold2 (b2 (cast pf.2.2.symm (UScalar.ofNat' x.1))) (b3 (cast pf.2.2.symm (UScalar.ofNat' x.1)))
@@ -374,17 +378,17 @@ def mkFold4 {t1 t2 t3 t4 : Type} [h1 : IsNatLike t1] [h2 : IsNatLike t2] [h3 : I
   [h4 : IsNatLike t4] (b1 : t1) (b2 : t1 → t2) (b3 : t1 → t2 → t3) (b4 : t1 → t2 → t3 → t4)
   (f : t1 → t2 → t3 → t4 → Bool) (acc : Bool) : Bool :=
   match h1.pf with
-  | .inl pf =>
+  | .isNatPf pf =>
     Fin.foldr (cast pf b1)
       (fun (x : Fin (cast pf b1)) (acc : Bool) =>
         mkFold3 (b2 (cast pf.symm x.1)) (b3 (cast pf.symm x.1)) (b4 (cast pf.symm x.1))
           (f (cast pf.symm x.1)) acc) acc
-  | .inr (.inl pf) =>
+  | .isBitVecPf pf =>
     Fin.foldr (cast pf.2 b1).toNat
       (fun (x : Fin (cast pf.2 b1).toNat) (acc : Bool) =>
         mkFold3 (b2 (cast pf.2.symm x.1)) (b3 (cast pf.2.symm x.1)) (b4 (cast pf.2.symm x.1))
           (f (cast pf.2.symm x.1)) acc) acc
-  | .inr (.inr pf) =>
+  | .isUScalarPf pf =>
     Fin.foldr (cast pf.2.2 b1).val
       (fun (x : Fin (cast pf.2.2 b1).val) (acc : Bool) =>
         mkFold3 (b2 (cast pf.2.2.symm (UScalar.ofNat' x.1))) (b3 (cast pf.2.2.symm (UScalar.ofNat' x.1)))
@@ -501,17 +505,17 @@ def mkFold5 {t1 t2 t3 t4 t5 : Type} [h1 : IsNatLike t1] [h2 : IsNatLike t2] [h3 
   [h4 : IsNatLike t4] [h5 : IsNatLike t5] (b1 : t1) (b2 : t1 → t2) (b3 : t1 → t2 → t3)
   (b4 : t1 → t2 → t3 → t4) (b5 : t1 → t2 → t3 → t4 → t5) (f : t1 → t2 → t3 → t4 → t5 → Bool) (acc : Bool) : Bool :=
   match h1.pf with
-  | .inl pf =>
+  | .isNatPf pf =>
     Fin.foldr (cast pf b1)
       (fun (x : Fin (cast pf b1)) (acc : Bool) =>
         mkFold4 (b2 (cast pf.symm x.1)) (b3 (cast pf.symm x.1)) (b4 (cast pf.symm x.1))
           (b5 (cast pf.symm x.1)) (f (cast pf.symm x.1)) acc) acc
-  | .inr (.inl pf) =>
+  | .isBitVecPf pf =>
     Fin.foldr (cast pf.2 b1).toNat
       (fun (x : Fin (cast pf.2 b1).toNat) (acc : Bool) =>
         mkFold4 (b2 (cast pf.2.symm x.1)) (b3 (cast pf.2.symm x.1)) (b4 (cast pf.2.symm x.1))
           (b5 (cast pf.2.symm x.1)) (f (cast pf.2.symm x.1)) acc) acc
-  | .inr (.inr pf) =>
+  | .isUScalarPf pf =>
     Fin.foldr (cast pf.2.2 b1).val
       (fun (x : Fin (cast pf.2.2 b1).val) (acc : Bool) =>
         mkFold4 (b2 (cast pf.2.2.symm (UScalar.ofNat' x.1)))
