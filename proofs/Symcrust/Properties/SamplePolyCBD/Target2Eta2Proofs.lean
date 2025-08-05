@@ -59,12 +59,95 @@ lemma Fin.unfold2 {α} [AddCommMonoid α] {n : Nat} (hn : n = 2) (f : Fin n → 
 
 /-- Distributing `>>>` over `+` is not valid in general, but this lemma is true because
     of the masks applied to `x` and `y`. -/
-lemma shiftDistribMask1431655765 {x y shift k : ℕ}
-  (hShift : shift = 4 ∨ shift = 8 ∨ shift = 12 ∨ shift = 16 ∨ shift = 20 ∨ shift = 24 ∨ shift = 28)
-  (hk : k < 4) :
+lemma shiftDistribMask1431655765 {x y shift k : ℕ} (hShift1 : 4 ∣ shift) (hShift2 : shift < 29) (hk : k < 4) :
   (((x &&& 1431655765) + (y &&& 1431655765)) >>> shift).testBit k =
   ((x &&& 1431655765) >>> shift + (y &&& 1431655765) >>> shift).testBit k := by
-  sorry
+  have hShift3 : shift = 0 ∨ shift = 4 ∨ shift = 8 ∨ shift = 12 ∨
+                 shift = 16 ∨ shift = 20 ∨ shift = 24 ∨ shift = 28 := by omega
+  rcases hShift3 with hShift3 | hShift3 | hShift3 | hShift3 | hShift3 | hShift3 | hShift3 | hShift3
+  . simp [hShift3]
+  . simp only [hShift3, Nat.testBit_shiftRight, Nat.shiftRight_and_distrib, Nat.reduceShiftRight]
+    rw [← Bool.true_and (((x &&& 1431655765) + (y &&& 1431655765)).testBit (4 + k)),
+      (by revert k; clear hShift1; revert shift; decide : true = decide (4 + k < 2^3)),
+      ← Nat.testBit_mod_two_pow _ (2^3) (4 + k), Nat.add_mod, Nat.and_mod_two_pow,
+      Nat.and_mod_two_pow]
+    simp only [Nat.reducePow, Nat.reduceMod]
+    conv =>
+      rhs
+      rw [← Bool.true_and (((x >>> 4 &&& 89478485) + (y >>> 4 &&& 89478485)).testBit k),
+        (by revert k; clear hShift1; revert shift; decide : true = decide (k < 2^2)),
+        ← Nat.testBit_mod_two_pow _ (2^2) k, Nat.add_mod, Nat.and_mod_two_pow, Nat.and_mod_two_pow]
+    simp only [Nat.reducePow, Nat.reduceMod, Nat.add_mod_mod]
+    rw [(by omega : x >>> 4 % 16 = (x % 256) >>> 4 % 16), (by omega : y >>> 4 % 16 = (y % 256) >>> 4 % 16)]
+    olet hx' : x' := x % 256
+    olet hy' : y' := y % 256
+    replace hx' : x' < 256 := by rw [hx']; exact Nat.mod_lt x (by omega)
+    replace hy' : y' < 256 := by rw [hy']; exact Nat.mod_lt y (by omega)
+    revert k
+    revert y'
+    revert x'
+    brute
+  . simp only [hShift3, Nat.testBit_shiftRight, Nat.shiftRight_and_distrib, Nat.reduceShiftRight]
+    rw [← Bool.true_and (((x &&& 1431655765) + (y &&& 1431655765)).testBit (8 + k)),
+      (by revert k; clear hShift1; revert shift; decide : true = decide (8 + k < 2^4)),
+      ← Nat.testBit_mod_two_pow _ (2^4) (8 + k), Nat.add_mod, Nat.and_mod_two_pow,
+      Nat.and_mod_two_pow]
+    simp only [Nat.reducePow, Nat.reduceMod]
+    conv =>
+      rhs
+      rw [← Bool.true_and (((x >>> 8 &&& 5592405) + (y >>> 8 &&& 5592405)).testBit k),
+        (by revert k; clear hShift1; revert shift; decide : true = decide (k < 2^2)),
+        ← Nat.testBit_mod_two_pow _ (2^2) k, Nat.add_mod, Nat.and_mod_two_pow, Nat.and_mod_two_pow]
+    simp only [Nat.reducePow, Nat.reduceMod, Nat.add_mod_mod]
+    rw [(by omega : x >>> 8 % 16 = (x % 65536) >>> 8 % 16),
+      (by omega : y >>> 8 % 16 = (y % 65536) >>> 8 % 16)]
+    olet hx' : x' := x % 65536
+    olet hy' : y' := y % 65536
+    replace hx' : x' < 65536 := by rw [hx']; exact Nat.mod_lt x (by omega)
+    replace hy' : y' < 65536 := by rw [hy']; exact Nat.mod_lt y (by omega)
+    rw [(by decide : 65536 = 2^16), ← BitVec.toNat_ofNat, ← BitVec.getElem!_eq_testBit_toNat]
+    rw [(by decide : 16 = 2^4), ← BitVec.toNat_ofNat, ← BitVec.getElem!_eq_testBit_toNat,
+      ← Nat.and_two_pow_sub_one_eq_mod, ← Nat.and_two_pow_sub_one_eq_mod]
+    simp only [Nat.reducePow, BitVec.ofNat_add, BitVec.ofNat_and]
+    -- `bv_decide` doesn't work here
+    rw [BitVec.getElem!_eq_getElem, BitVec.getElem!_eq_getElem, BitVec.getElem_add, BitVec.getElem_add]
+    . -- `bv_decide` doesn't work here
+      sorry
+    . omega
+    . omega -- sorry
+    /-
+    simp only [hShift3, Nat.testBit_shiftRight, Nat.shiftRight_and_distrib, Nat.reduceShiftRight]
+    rw [← Bool.true_and (((x &&& 1431655765) + (y &&& 1431655765)).testBit (8 + k)),
+      (by revert k; clear hShift1; revert shift; decide : true = decide (8 + k < 2^4)),
+      ← Nat.testBit_mod_two_pow _ (2^4) (8 + k), Nat.add_mod, Nat.and_mod_two_pow,
+      Nat.and_mod_two_pow]
+    simp only [Nat.reducePow, Nat.reduceMod]
+    conv =>
+      rhs
+      rw [← Bool.true_and (((x >>> 8 &&& 5592405) + (y >>> 8 &&& 5592405)).testBit k),
+        (by revert k; clear hShift1; revert shift; decide : true = decide (k < 2^2)),
+        ← Nat.testBit_mod_two_pow _ (2^2) k, Nat.add_mod, Nat.and_mod_two_pow, Nat.and_mod_two_pow]
+    simp only [Nat.reducePow, Nat.reduceMod, Nat.add_mod_mod]
+    rw [(by omega : x >>> 8 % 16 = (x % 65536) >>> 8 % 16),
+      (by omega : y >>> 8 % 16 = (y % 65536) >>> 8 % 16)]
+    olet hx' : x' := x % 65536
+    olet hy' : y' := y % 65536
+    replace hx' : x' < 65536 := by rw [hx']; exact Nat.mod_lt x (by omega)
+    replace hy' : y' < 65536 := by rw [hy']; exact Nat.mod_lt y (by omega)
+    rw [Nat.mod_eq_of_lt, Nat.mod_eq_of_lt]
+    . have h1 : (x' >>> 8 % 16 &&& 5) = (x' >>> 8) &&& 5 := by sorry
+      have h2 : (y' >>> 8 % 16 &&& 5) = (y' >>> 8) &&& 5 := by sorry
+      rw [h1, h2, ← Nat.testBit_shiftRight]
+      congr 1
+      sorry
+    . have : (x' >>> 8 % 16 &&& 5) ≤ 5 := by apply Nat.and_le_right
+      have : (y' >>> 8 % 16 &&& 5) ≤ 5 := by apply Nat.and_le_right
+      omega
+    . have : (x' &&& 21845) ≤ 21845 := by apply Nat.and_le_right
+      have : (y' &&& 21845) ≤ 21845 := by apply Nat.and_le_right
+      omega
+    -/
+  repeat sorry
 
 theorem Target2.samplePolyCBD.eta2_loop.spec.aux0 {s : samplePolyCBDState}
   (BVector : Vector Byte (64 * ↑s.η))
@@ -234,7 +317,7 @@ theorem Target2.samplePolyCBD.eta2_loop.spec.aux1 {s : samplePolyCBDState}
           BitVec.getElem!_eq_testBit_toNat, BitVec.toNat_ofNat, Nat.reducePow, BitVec.toNat_add,
           BitVec.toNat_and, Nat.reduceMod, BitVec.toNat_ushiftRight, Nat.mod_add_mod]
         rw [testBitMod256 ((x' + y') >>> 4) k (by omega), Nat.mod_eq_of_lt]
-        . rw [hx', hy', hy, shiftDistribMask1431655765 (by omega) hk2, ← hy, ← hy', ← hx']
+        . rw [hx', hy', hy, shiftDistribMask1431655765 (by omega) (by omega) hk2, ← hy, ← hy', ← hx']
           apply testBitOfAdd 4 _ _ k hk2
           . intro i hi
             simp only [hx', hx, Nat.testBit_and, Nat.testBit_shiftRight,
@@ -351,7 +434,7 @@ theorem Target2.samplePolyCBD.eta2_loop.spec.aux2 {s : samplePolyCBDState}
           BitVec.getElem!_eq_testBit_toNat, BitVec.toNat_ofNat, Nat.reducePow, BitVec.toNat_add,
           BitVec.toNat_and, Nat.reduceMod, BitVec.toNat_ushiftRight, Nat.mod_add_mod]
         rw [testBitMod256 ((x' + y') >>> 8) k (by omega), Nat.mod_eq_of_lt]
-        . rw [hx', hy', hy, shiftDistribMask1431655765 (by omega) hk2, ← hy, ← hy', ← hx']
+        . rw [hx', hy', hy, shiftDistribMask1431655765 (by omega) (by omega) hk2, ← hy, ← hy', ← hx']
           apply testBitOfAdd 4 _ _ k hk2
           . intro i hi
             simp only [hx', hx, Nat.testBit_shiftRight, Nat.testBit_and, ←
@@ -466,7 +549,7 @@ theorem Target2.samplePolyCBD.eta2_loop.spec.aux3 {s : samplePolyCBDState}
           BitVec.getElem!_eq_testBit_toNat, BitVec.toNat_ofNat, Nat.reducePow, BitVec.toNat_add,
           BitVec.toNat_and, Nat.reduceMod, BitVec.toNat_ushiftRight, Nat.mod_add_mod]
         rw [testBitMod256 ((x' + y') >>> 12) k (by omega), Nat.mod_eq_of_lt]
-        . rw [hx', hy', hy, shiftDistribMask1431655765 (by omega) hk2, ← hy, ← hy', ← hx']
+        . rw [hx', hy', hy, shiftDistribMask1431655765 (by omega) (by omega) hk2, ← hy, ← hy', ← hx']
           apply testBitOfAdd 4 _ _ k hk2
           . intro i hi
             simp only [hx', hx, Nat.testBit_shiftRight, Nat.testBit_and,
@@ -586,7 +669,7 @@ theorem Target2.samplePolyCBD.eta2_loop.spec.aux4 {s : samplePolyCBDState}
           BitVec.getElem!_eq_testBit_toNat, BitVec.toNat_ofNat, Nat.reducePow, BitVec.toNat_add,
           BitVec.toNat_and, Nat.reduceMod, BitVec.toNat_ushiftRight, Nat.mod_add_mod]
         rw [testBitMod256 ((x' + y') >>> 16) k (by omega), Nat.mod_eq_of_lt]
-        . rw [hx', hy', hy, shiftDistribMask1431655765 (by omega) hk2, ← hy, ← hy', ← hx']
+        . rw [hx', hy', hy, shiftDistribMask1431655765 (by omega) (by omega) hk2, ← hy, ← hy', ← hx']
           apply testBitOfAdd 4 _ _ k hk2
           . intro i hi
             simp only [hx', hx, Nat.testBit_shiftRight, Nat.testBit_and, ←
@@ -704,7 +787,7 @@ theorem Target2.samplePolyCBD.eta2_loop.spec.aux5 {s : samplePolyCBDState}
           BitVec.getElem!_eq_testBit_toNat, BitVec.toNat_ofNat, Nat.reducePow, BitVec.toNat_add,
           BitVec.toNat_and, Nat.reduceMod, BitVec.toNat_ushiftRight, Nat.mod_add_mod]
         rw [testBitMod256 ((x' + y') >>> 20) k (by omega), Nat.mod_eq_of_lt]
-        . rw [hx', hy', hy, shiftDistribMask1431655765 (by omega) hk2, ← hy, ← hy', ← hx']
+        . rw [hx', hy', hy, shiftDistribMask1431655765 (by omega) (by omega) hk2, ← hy, ← hy', ← hx']
           apply testBitOfAdd 4 _ _ k hk2
           . intro i hi
             simp only [hx', hx, Nat.testBit_shiftRight, Nat.testBit_and,
@@ -826,7 +909,7 @@ theorem Target2.samplePolyCBD.eta2_loop.spec.aux6 {s : samplePolyCBDState}
           BitVec.getElem!_eq_testBit_toNat, BitVec.toNat_ofNat, Nat.reducePow, BitVec.toNat_add,
           BitVec.toNat_and, Nat.reduceMod, BitVec.toNat_ushiftRight, Nat.mod_add_mod]
         rw [testBitMod256 ((x' + y') >>> 24) k (by omega), Nat.mod_eq_of_lt]
-        . rw [hx', hy', hy, shiftDistribMask1431655765 (by omega) hk2, ← hy, ← hy', ← hx']
+        . rw [hx', hy', hy, shiftDistribMask1431655765 (by omega) (by omega) hk2, ← hy, ← hy', ← hx']
           apply testBitOfAdd 4 _ _ k hk2
           . intro i hi
             simp only [hx', hx, Nat.testBit_shiftRight, Nat.testBit_and, ←
@@ -946,7 +1029,7 @@ theorem Target2.samplePolyCBD.eta2_loop.spec.aux7 {s : samplePolyCBDState}
           BitVec.getElem!_eq_testBit_toNat, BitVec.toNat_ofNat, Nat.reducePow, BitVec.toNat_add,
           BitVec.toNat_and, Nat.reduceMod, BitVec.toNat_ushiftRight, Nat.mod_add_mod]
         rw [testBitMod256 ((x' + y') >>> 28) k (by omega), Nat.mod_eq_of_lt]
-        . rw [hx', hy', hy, shiftDistribMask1431655765 (by omega) hk2, ← hy, ← hy', ← hx']
+        . rw [hx', hy', hy, shiftDistribMask1431655765 (by omega) (by omega) hk2, ← hy, ← hy', ← hx']
           apply testBitOfAdd 4 _ _ k hk2
           . intro i hi
             simp only [hx', hx, Nat.testBit_shiftRight, Nat.testBit_and,
