@@ -2,6 +2,7 @@ import Symcrust.Spec
 import Symcrust.Code.Funs
 import Symcrust.Brute
 import Symcrust.Properties.SamplePolyCBD.Target2Code
+import Symcrust.Properties.SamplePolyCBD.Target2HelperLemmas
 
 /-!
 This file contains theorems about `Symcrust.Spec.samplePolyCBD` defined in Symcrust.Spec.Spec.lean.
@@ -16,7 +17,11 @@ This file contains theorems about `Symcrust.Spec.samplePolyCBD` defined in Symcr
     - `⟷₂` corresponds to `Target.samplePolyCBD.eq_spec`.
     - Analogues for later portions of the verification pipeline appear in other files.
 
-  `Target2.samplePolyCBD.eta3_loop.spec` (which is the critical theorem in this file) proves `⟷₃` when `η = 3`
+  `Target2.samplePolyCBD.eta3_loop.spec` (which is the critical theorem in this file) proves `⟷₃` when `η = 3`.
+
+  **Note** although the various `Target2.samplePolyCBD.eta3_loop.spec.aux` lemmas appear to be extremely similar,
+  there are enough minor changes to the indices that appear in the arguments that there is not a convenient way
+  to combine all of these lemmas into one parameterized theorem.
 -/
 
 #setup_aeneas_simps
@@ -48,20 +53,12 @@ lemma Fin.unfold3 {α} [AddCommMonoid α] {n : Nat} (hn : n = 3) (f : Fin n → 
   simp only [List.finRange, List.ofFn, Fin.foldr, hn, Fin.foldr.loop, Multiset.lift_coe, List.map_cons,
     List.map_nil, Multiset.coe_foldr, List.foldr_cons, List.foldr_nil, add_zero, add_assoc]
 
-lemma testBitOfAdd {x1 x2 y1 y2 : ℕ} (n : ℕ) (hx : ∀ i < n, x1.testBit i = x2.testBit i)
-  (hy : ∀ i < n, y1.testBit i = y2.testBit i) : ∀ i < n, (x1 + y1).testBit i = (x2 + y2).testBit i := by
-  sorry
-
 /-- Distributing `>>>` over `+` is not valid in general, but this lemma is true because
     of the masks applied to `x`, `y`, and `z`. -/
-lemma shiftDistrib {x y z shift k : ℕ} (hShift : shift = 6 ∨ shift = 12 ∨ shift = 18) (hk : k < 6) :
+lemma shiftDistribMask2396745 {x y z shift k : ℕ} (hShift : shift = 6 ∨ shift = 12 ∨ shift = 18) (hk : k < 6) :
   (((x &&& 2396745) + (y &&& 2396745) + (z &&& 2396745)) >>> shift).testBit k =
   ((x &&& 2396745) >>> shift + (y &&& 2396745) >>> shift + (z &&& 2396745) >>> shift).testBit k := by
   sorry
-
-lemma Target2.samplePolyCBD.eta3_loop.spec.aux.helper :
-  ∀ k < 6, ∀ a < 7190238, (a % 256).testBit k = a.testBit k := by
-  brute
 
 theorem Target2.samplePolyCBD.eta3_loop.spec.aux0 (s : samplePolyCBDState)
   (BVector : Vector Byte (64 * s.η))
@@ -146,9 +143,7 @@ theorem Target2.samplePolyCBD.eta3_loop.spec.aux0 (s : samplePolyCBDState)
       . simp only [← BitVec.getElem!_eq_getElem, BitVec.getElem!_mod_pow2_eq _ _ _ hk2,
           BitVec.getElem!_eq_testBit_toNat, BitVec.toNat_ofNat, Nat.reducePow, BitVec.toNat_add,
           BitVec.toNat_and, Nat.reduceMod, BitVec.toNat_ushiftRight, Nat.mod_add_mod]
-        have : ((x' + y' + z') % 256).testBit k = (x' + y' + z').testBit k := by
-          apply Target2.samplePolyCBD.eta3_loop.spec.aux.helper <;> omega
-        rw [this, Nat.mod_eq_of_lt]
+        rw [testBitMod256 (x' + y' + z') k (by omega), Nat.mod_eq_of_lt]
         . apply testBitOfAdd 6 _ _ k hk2
           . intro i hi
             apply testBitOfAdd 6 _ _ i hi
@@ -302,10 +297,8 @@ theorem Target2.samplePolyCBD.eta3_loop.spec.aux1 {s : samplePolyCBDState}
       . simp only [← BitVec.getElem!_eq_getElem, BitVec.getElem!_mod_pow2_eq _ _ _ hk2,
           BitVec.getElem!_eq_testBit_toNat, BitVec.toNat_ofNat, Nat.reducePow, BitVec.toNat_add,
           BitVec.toNat_and, Nat.reduceMod, BitVec.toNat_ushiftRight, Nat.mod_add_mod]
-        have : (((x' + y' + z') >>> 6) % 256).testBit k = ((x' + y' + z') >>> 6).testBit k := by
-          apply Target2.samplePolyCBD.eta3_loop.spec.aux.helper <;> omega
-        rw [this, Nat.mod_eq_of_lt]
-        . rw [hx', hy', hz', hy, hz, shiftDistrib (by omega) hk2, ← hz, ← hy, ← hz', ← hy', ← hx']
+        rw [testBitMod256 ((x' + y' + z') >>> 6) k (by omega), Nat.mod_eq_of_lt]
+        . rw [hx', hy', hz', hy, hz, shiftDistribMask2396745 (by omega) hk2, ← hz, ← hy, ← hz', ← hy', ← hx']
           apply testBitOfAdd 6 _ _ k hk2
           . intro i hi
             apply testBitOfAdd 6 _ _ i hi
@@ -487,10 +480,8 @@ theorem Target2.samplePolyCBD.eta3_loop.spec.aux2 {s : samplePolyCBDState}
           BitVec.getElem!_eq_testBit_toNat, BitVec.toNat_ofNat, Nat.reducePow, BitVec.toNat_add,
           BitVec.toNat_and, Nat.reduceMod, BitVec.toNat_ushiftRight, Nat.mod_add_mod, ← Nat.shiftRight_add,
           Nat.reduceAdd]
-        have : (((x' + y' + z') >>> 12) % 256).testBit k = ((x' + y' + z') >>> 12).testBit k := by
-          apply Target2.samplePolyCBD.eta3_loop.spec.aux.helper <;> omega
-        rw [this, Nat.mod_eq_of_lt]
-        . rw [hx', hy', hz', hy, hz, shiftDistrib (by omega) hk2, ← hz, ← hy, ← hz', ← hy', ← hx']
+        rw [testBitMod256 ((x' + y' + z') >>> 12) k (by omega), Nat.mod_eq_of_lt]
+        . rw [hx', hy', hz', hy, hz, shiftDistribMask2396745 (by omega) hk2, ← hz, ← hy, ← hz', ← hy', ← hx']
           apply testBitOfAdd 6 _ _ k hk2
           . intro i hi
             apply testBitOfAdd 6 _ _ i hi
@@ -673,10 +664,8 @@ theorem Target2.samplePolyCBD.eta3_loop.spec.aux3 {s : samplePolyCBDState}
           BitVec.getElem!_eq_testBit_toNat, BitVec.toNat_ofNat, Nat.reducePow, BitVec.toNat_add,
           BitVec.toNat_and, Nat.reduceMod, BitVec.toNat_ushiftRight, Nat.mod_add_mod, ← Nat.shiftRight_add,
           Nat.reduceAdd]
-        have : (((x' + y' + z') >>> 18) % 256).testBit k = ((x' + y' + z') >>> 18).testBit k := by
-          apply Target2.samplePolyCBD.eta3_loop.spec.aux.helper <;> omega
-        rw [this, Nat.mod_eq_of_lt]
-        . rw [hx', hy', hz', hy, hz, shiftDistrib (by omega) hk2, ← hz, ← hy, ← hz', ← hy', ← hx']
+        rw [testBitMod256 ((x' + y' + z') >>> 18) k (by omega), Nat.mod_eq_of_lt]
+        . rw [hx', hy', hz', hy, hz, shiftDistribMask2396745 (by omega) hk2, ← hz, ← hy, ← hz', ← hy', ← hx']
           apply testBitOfAdd 6 _ _ k hk2
           . intro i hi
             apply testBitOfAdd 6 _ _ i hi
