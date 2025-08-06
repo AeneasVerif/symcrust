@@ -35,6 +35,18 @@ lemma BitVec.getElem!_eq_mask_ne_zero {x : BitVec 64} (k : ℕ) (hk : k < 64) :
     brute
   . simp [h]
 
+lemma Nat.mod_eq_of_bits_eq (x y n : ℕ) (hx : ∀ i < n, x.testBit i = y.testBit i) : x % 2^n = y % 2^n := by
+  rw [← BitVec.toNat_ofNat, ← BitVec.toNat_ofNat, BitVec.toNat_inj]
+  ext i hi
+  rw [← BitVec.getElem!_eq_getElem, ← BitVec.getElem!_eq_getElem, BitVec.getElem!_eq_testBit_toNat,
+    BitVec.getElem!_eq_testBit_toNat]
+  simp only [BitVec.toNat_ofNat, Nat.testBit_mod_two_pow, hi, decide_true, hx i hi, Bool.true_and]
+
 lemma testBitOfAdd {x1 x2 y1 y2 : ℕ} (n : ℕ) (hx : ∀ i < n, x1.testBit i = x2.testBit i)
   (hy : ∀ i < n, y1.testBit i = y2.testBit i) : ∀ i < n, (x1 + y1).testBit i = (x2 + y2).testBit i := by
-  sorry
+  intro i hi
+  rw [← Bool.true_and ((x1 + y1).testBit i), ← Bool.true_and ((x2 + y2).testBit i), ← decide_eq_true hi,
+    ← Nat.testBit_mod_two_pow, ← Nat.testBit_mod_two_pow]
+  conv => lhs; rw [Nat.add_mod]
+  conv => rhs; rw [Nat.add_mod]
+  rw [Nat.mod_eq_of_bits_eq x1 x2 _ hx, Nat.mod_eq_of_bits_eq y1 y2 _ hy]
