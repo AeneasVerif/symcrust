@@ -66,17 +66,6 @@ lemma shiftDistribMask1431655765Core {x y : BitVec 64} (shift : Nat) (hs : shift
   rcases hk with hk | hk | hk | hk <;>
   simp [hs, hk] <;> bv_decide
 
-lemma BitVec.getElem!_eq_mask_ne_zero {x : BitVec 64} (k : ℕ) (hk : k < 64) :
-  x[k]! = ((x &&& BitVec.ofNat 64 (2^k)) != 0#64) := by
-  rw [(by revert k; brute : BitVec.ofNat 64 (2 ^ k) = 1#64 <<< k),
-    ← BitVec.twoPow_eq, BitVec.and_twoPow, BitVec.getLsbD_eq_getElem hk, BitVec.getElem!_eq_getElem _ _ hk]
-  by_cases h : x[k]
-  . simp only [h, ↓reduceIte, Bool.true_eq, bne_iff_ne, ne_eq]
-    clear h
-    revert k
-    brute
-  . simp [h]
-
 /-- Distributing `>>>` over `+` is not valid in general, but this lemma is true because
     of the masks applied to `x` and `y`. -/
 lemma shiftDistribMask1431655765 {x y shift k : ℕ} (hx : x < 2^64) (hy : y < 2^64)
@@ -100,12 +89,9 @@ lemma shiftDistribMask1431655765 {x y shift k : ℕ} (hx : x < 2^64) (hy : y < 2
   have h3 : (BitVec.ofNat 64 x &&& 1431655765#64).toNat + (BitVec.ofNat 64 y &&& 1431655765#64).toNat =
     ((BitVec.ofNat 64 x &&& 1431655765#64) + (BitVec.ofNat 64 y &&& 1431655765#64)).toNat := by
     simp only [BitVec.toNat_and, BitVec.toNat_ofNat, Nat.reducePow, Nat.reduceMod, BitVec.toNat_add]
-    rw [Nat.mod_eq_of_lt, Nat.mod_eq_of_lt, Nat.mod_eq_of_lt]
-    . have : x &&& 1431655765 ≤ 1431655765 := Nat.and_le_right
-      have : y &&& 1431655765 ≤ 1431655765 := Nat.and_le_right
-      omega
-    . omega
-    . omega
+    have : x &&& 1431655765 ≤ 1431655765 := Nat.and_le_right
+    have : y &&& 1431655765 ≤ 1431655765 := Nat.and_le_right
+    rw [Nat.mod_eq_of_lt, Nat.mod_eq_of_lt, Nat.mod_eq_of_lt] <;> omega
   have h4 :
     (((BitVec.ofNat 64 x &&& 1431655765#64) >>> shift).toNat +
      ((BitVec.ofNat 64 y &&& 1431655765#64) >>> shift).toNat) =
@@ -113,14 +99,11 @@ lemma shiftDistribMask1431655765 {x y shift k : ℕ} (hx : x < 2^64) (hy : y < 2
      ((BitVec.ofNat 64 y &&& 1431655765#64) >>> shift)).toNat := by
     simp only [BitVec.toNat_ushiftRight, BitVec.toNat_and, BitVec.toNat_ofNat, Nat.reducePow,
       Nat.reduceMod, BitVec.toNat_add]
-    rw [Nat.mod_eq_of_lt, Nat.mod_eq_of_lt, Nat.mod_eq_of_lt]
-    . have : x &&& 1431655765 ≤ 1431655765 := Nat.and_le_right
-      have : y &&& 1431655765 ≤ 1431655765 := Nat.and_le_right
-      have : (x &&& 1431655765) >>> shift ≤ (x &&& 1431655765) := Nat.shiftRight_le _ _
-      have : (y &&& 1431655765) >>> shift ≤ (y &&& 1431655765) := Nat.shiftRight_le _ _
-      omega
-    . omega
-    . omega
+    have : x &&& 1431655765 ≤ 1431655765 := Nat.and_le_right
+    have : y &&& 1431655765 ≤ 1431655765 := Nat.and_le_right
+    have : (x &&& 1431655765) >>> shift ≤ (x &&& 1431655765) := Nat.shiftRight_le _ _
+    have : (y &&& 1431655765) >>> shift ≤ (y &&& 1431655765) := Nat.shiftRight_le _ _
+    rw [Nat.mod_eq_of_lt, Nat.mod_eq_of_lt, Nat.mod_eq_of_lt] <;> omega
   rw [h1, h2, h3, ← BitVec.toNat_ushiftRight, ← BitVec.toNat_ushiftRight, ← BitVec.toNat_ushiftRight, h4,
     ← BitVec.getElem!_eq_testBit_toNat, ← BitVec.getElem!_eq_testBit_toNat, BitVec.getElem!_eq_mask_ne_zero,
     BitVec.getElem!_eq_mask_ne_zero, shiftDistribMask1431655765Core] <;> omega

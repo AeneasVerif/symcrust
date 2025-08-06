@@ -53,12 +53,62 @@ lemma Fin.unfold3 {α} [AddCommMonoid α] {n : Nat} (hn : n = 3) (f : Fin n → 
   simp only [List.finRange, List.ofFn, Fin.foldr, hn, Fin.foldr.loop, Multiset.lift_coe, List.map_cons,
     List.map_nil, Multiset.coe_foldr, List.foldr_cons, List.foldr_nil, add_zero, add_assoc]
 
+lemma shiftDistribMask2396745Core {x y z : BitVec 64} (shift : Nat) (hs : shift ∈ [6,12,18]) (k : Nat) :
+  (((x &&& 2396745#64) + (y &&& 2396745#64) + (z &&& 2396745#64)) >>> shift) &&& BitVec.ofNat 64 (2^k : Nat) =
+  ((x &&& 2396745#64) >>> shift + (y &&& 2396745#64) >>> shift + (z &&& 2396745#64) >>> shift)
+    &&& BitVec.ofNat 64 (2^k : Nat) := by
+  simp only [List.mem_cons, List.not_mem_nil, or_false] at hs
+  rcases hs with hs | hs | hs <;> simp only [hs] <;> bv_decide
+
 /-- Distributing `>>>` over `+` is not valid in general, but this lemma is true because
     of the masks applied to `x`, `y`, and `z`. -/
-lemma shiftDistribMask2396745 {x y z shift k : ℕ} (hShift : shift = 6 ∨ shift = 12 ∨ shift = 18) (hk : k < 6) :
+lemma shiftDistribMask2396745 {x y z shift k : ℕ} (hx : x < 2^64) (hy : y < 2^64) (hz : z < 2^64)
+  (hShift : shift = 6 ∨ shift = 12 ∨ shift = 18) (hk : k < 6) :
   (((x &&& 2396745) + (y &&& 2396745) + (z &&& 2396745)) >>> shift).testBit k =
   ((x &&& 2396745) >>> shift + (y &&& 2396745) >>> shift + (z &&& 2396745) >>> shift).testBit k := by
-  sorry
+  have hs : shift ∈ [6,12,18] := by
+    simp only [List.mem_cons, List.not_mem_nil, or_false]
+    omega
+  have h1 : (x &&& 2396745) = BitVec.toNat ((BitVec.ofNat 64 x &&& 2396745#64)) := by
+    simp only [BitVec.toNat_and, BitVec.toNat_ofNat, Nat.reducePow, Nat.reduceMod]
+    rw [Nat.mod_eq_of_lt]
+    omega
+  have h2 : (y &&& 2396745) = BitVec.toNat ((BitVec.ofNat 64 y &&& 2396745#64)) := by
+    simp only [BitVec.toNat_and, BitVec.toNat_ofNat, Nat.reducePow, Nat.reduceMod]
+    rw [Nat.mod_eq_of_lt]
+    omega
+  have h3 : (z &&& 2396745) = BitVec.toNat ((BitVec.ofNat 64 z &&& 2396745#64)) := by
+    simp only [BitVec.toNat_and, BitVec.toNat_ofNat, Nat.reducePow, Nat.reduceMod]
+    rw [Nat.mod_eq_of_lt]
+    omega
+  have h4 :
+    ((BitVec.ofNat 64 x &&& 2396745#64).toNat + (BitVec.ofNat 64 y &&& 2396745#64).toNat +
+     (BitVec.ofNat 64 z &&& 2396745#64).toNat) =
+    ((BitVec.ofNat 64 x &&& 2396745#64) + (BitVec.ofNat 64 y &&& 2396745#64) +
+     (BitVec.ofNat 64 z &&& 2396745#64)).toNat := by
+    simp only [BitVec.toNat_and, BitVec.toNat_ofNat, Nat.reducePow, Nat.reduceMod, BitVec.toNat_add]
+    have : x &&& 2396745 ≤ 2396745 := Nat.and_le_right
+    have : y &&& 2396745 ≤ 2396745 := Nat.and_le_right
+    have : z &&& 2396745 ≤ 2396745 := Nat.and_le_right
+    rw [Nat.mod_eq_of_lt, Nat.mod_eq_of_lt, Nat.mod_eq_of_lt, Nat.mod_eq_of_lt, Nat.mod_eq_of_lt] <;> omega
+  have h5 :
+    (((BitVec.ofNat 64 x &&& 2396745#64) >>> shift).toNat + ((BitVec.ofNat 64 y &&& 2396745#64) >>> shift).toNat +
+     ((BitVec.ofNat 64 z &&& 2396745#64) >>> shift).toNat) =
+    (((BitVec.ofNat 64 x &&& 2396745#64) >>> shift) + ((BitVec.ofNat 64 y &&& 2396745#64) >>> shift) +
+     ((BitVec.ofNat 64 z &&& 2396745#64) >>> shift)).toNat := by
+    simp only [BitVec.toNat_ushiftRight, BitVec.toNat_and, BitVec.toNat_ofNat, Nat.reducePow,
+      Nat.reduceMod, BitVec.toNat_add]
+    have : x &&& 2396745 ≤ 2396745 := Nat.and_le_right
+    have : y &&& 2396745 ≤ 2396745 := Nat.and_le_right
+    have : z &&& 2396745 ≤ 2396745 := Nat.and_le_right
+    have : (x &&& 2396745) >>> shift ≤ (x &&& 2396745) := Nat.shiftRight_le _ _
+    have : (y &&& 2396745) >>> shift ≤ (y &&& 2396745) := Nat.shiftRight_le _ _
+    have : (z &&& 2396745) >>> shift ≤ (z &&& 2396745) := Nat.shiftRight_le _ _
+    rw [Nat.mod_eq_of_lt, Nat.mod_eq_of_lt, Nat.mod_eq_of_lt, Nat.mod_eq_of_lt, Nat.mod_eq_of_lt] <;> try omega
+    rw [Nat.mod_eq_of_lt] <;> omega
+  rw [h1, h2, h3, h4, ← BitVec.toNat_ushiftRight, ← BitVec.toNat_ushiftRight, ← BitVec.toNat_ushiftRight,
+    ← BitVec.toNat_ushiftRight, h5, ← BitVec.getElem!_eq_testBit_toNat, ← BitVec.getElem!_eq_testBit_toNat,
+    BitVec.getElem!_eq_mask_ne_zero, BitVec.getElem!_eq_mask_ne_zero, shiftDistribMask2396745Core] <;> omega
 
 theorem Target2.samplePolyCBD.eta3_loop.spec.aux0 (s : samplePolyCBDState)
   (BVector : Vector Byte (64 * s.η))
@@ -290,6 +340,11 @@ theorem Target2.samplePolyCBD.eta3_loop.spec.aux1 {s : samplePolyCBDState}
       apply Nat.lt_succ_of_le
       rw [hx']
       exact Nat.and_le_right
+    have hx_bound : x < 2^64 := by
+      rw [hx]
+      apply BitVec.toNat_lt_twoPow_of_le
+      simp only [List.slice_length, Array.length_toList, add_tsub_cancel_left]
+      omega
     rw [Nat.mod_eq_of_lt, Nat.mod_eq_of_lt]
     . rw [(by decide : 63#8 = 2#8^6 - 1#8), BitVec.and_two_pow_sub_one_eq_mod]
       ext k hk1
@@ -298,7 +353,8 @@ theorem Target2.samplePolyCBD.eta3_loop.spec.aux1 {s : samplePolyCBDState}
           BitVec.getElem!_eq_testBit_toNat, BitVec.toNat_ofNat, Nat.reducePow, BitVec.toNat_add,
           BitVec.toNat_and, Nat.reduceMod, BitVec.toNat_ushiftRight, Nat.mod_add_mod]
         rw [testBitMod256 ((x' + y' + z') >>> 6) k (by omega), Nat.mod_eq_of_lt]
-        . rw [hx', hy', hz', hy, hz, shiftDistribMask2396745 (by omega) hk2, ← hz, ← hy, ← hz', ← hy', ← hx']
+        . rw [hx', hy', hz', hy, hz, shiftDistribMask2396745 hx_bound (by omega) (by omega) (by omega) hk2,
+            ← hz, ← hy, ← hz', ← hy', ← hx']
           apply testBitOfAdd 6 _ _ k hk2
           . intro i hi
             apply testBitOfAdd 6 _ _ i hi
@@ -472,6 +528,11 @@ theorem Target2.samplePolyCBD.eta3_loop.spec.aux2 {s : samplePolyCBDState}
       apply Nat.lt_succ_of_le
       rw [hx']
       exact Nat.and_le_right
+    have hx_bound : x < 2^64 := by
+      rw [hx]
+      apply BitVec.toNat_lt_twoPow_of_le
+      simp only [List.slice_length, Array.length_toList, add_tsub_cancel_left]
+      omega
     rw [Nat.mod_eq_of_lt, Nat.mod_eq_of_lt]
     . rw [(by decide : 63#8 = 2#8^6 - 1#8), BitVec.and_two_pow_sub_one_eq_mod]
       ext k hk1
@@ -481,7 +542,8 @@ theorem Target2.samplePolyCBD.eta3_loop.spec.aux2 {s : samplePolyCBDState}
           BitVec.toNat_and, Nat.reduceMod, BitVec.toNat_ushiftRight, Nat.mod_add_mod, ← Nat.shiftRight_add,
           Nat.reduceAdd]
         rw [testBitMod256 ((x' + y' + z') >>> 12) k (by omega), Nat.mod_eq_of_lt]
-        . rw [hx', hy', hz', hy, hz, shiftDistribMask2396745 (by omega) hk2, ← hz, ← hy, ← hz', ← hy', ← hx']
+        . rw [hx', hy', hz', hy, hz, shiftDistribMask2396745 hx_bound (by omega) (by omega) (by omega) hk2,
+            ← hz, ← hy, ← hz', ← hy', ← hx']
           apply testBitOfAdd 6 _ _ k hk2
           . intro i hi
             apply testBitOfAdd 6 _ _ i hi
@@ -656,6 +718,11 @@ theorem Target2.samplePolyCBD.eta3_loop.spec.aux3 {s : samplePolyCBDState}
       apply Nat.lt_succ_of_le
       rw [hx']
       exact Nat.and_le_right
+    have hx_bound : x < 2^64 := by
+      rw [hx]
+      apply BitVec.toNat_lt_twoPow_of_le
+      simp only [List.slice_length, Array.length_toList, add_tsub_cancel_left]
+      omega
     rw [Nat.mod_eq_of_lt, Nat.mod_eq_of_lt]
     . rw [(by decide : 63#8 = 2#8^6 - 1#8), BitVec.and_two_pow_sub_one_eq_mod]
       ext k hk1
@@ -665,7 +732,8 @@ theorem Target2.samplePolyCBD.eta3_loop.spec.aux3 {s : samplePolyCBDState}
           BitVec.toNat_and, Nat.reduceMod, BitVec.toNat_ushiftRight, Nat.mod_add_mod, ← Nat.shiftRight_add,
           Nat.reduceAdd]
         rw [testBitMod256 ((x' + y' + z') >>> 18) k (by omega), Nat.mod_eq_of_lt]
-        . rw [hx', hy', hz', hy, hz, shiftDistribMask2396745 (by omega) hk2, ← hz, ← hy, ← hz', ← hy', ← hx']
+        . rw [hx', hy', hz', hy, hz, shiftDistribMask2396745 hx_bound (by omega) (by omega) (by omega) hk2,
+            ← hz, ← hy, ← hz', ← hy', ← hx']
           apply testBitOfAdd 6 _ _ k hk2
           . intro i hi
             apply testBitOfAdd 6 _ _ i hi
