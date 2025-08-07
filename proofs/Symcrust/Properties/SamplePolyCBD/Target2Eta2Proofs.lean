@@ -78,6 +78,7 @@ lemma shiftDistribMask1431655765 {x y shift k : ℕ} (hx : x < 2^64) (hy : y < 2
   have hs : shift ∈ [0,4,8,12,16,20,24,28] := by
     simp only [List.mem_cons, List.not_mem_nil, or_false]
     omega
+  -- **TODO** Modify `bvify` so that `bvify` can automate the following rewrites
   have h1 : (x &&& 1431655765) = BitVec.toNat ((BitVec.ofNat 64 x &&& 1431655765#64)) := by
     simp only [BitVec.toNat_and, BitVec.toNat_ofNat, Nat.reducePow, Nat.reduceMod]
     rw [Nat.mod_eq_of_lt]

@@ -124,6 +124,23 @@ theorem to_bytes_setSlice! {b : Slice U8} (i : Usize) (s : List U8) :
   to_bytes (b.setSlice! i s) = (to_bytes b).setSlice! i (s.map U8.bv) := by
   simp only [to_bytes, Slice.setSlice!_val, List.map_setSlice!]
 
+@[progress]
+theorem slice_to_sub_array4_spec (b : Slice U8) (startIdx : Usize)
+  (h : startIdx.val + 3 < b.length) :
+  ∃ x, slice_to_sub_array4 b startIdx = ok x ∧
+  ∀ i < 4, x[i]! = b[startIdx.val + i]! := by
+  unfold slice_to_sub_array4
+  let* ⟨e0, he0⟩ ← Slice.index_usize_spec
+  let* ⟨i1, hi1⟩ ← Usize.add_spec
+  let* ⟨e1, he1⟩ ← Slice.index_usize_spec
+  let* ⟨i2, hi2⟩ ← Usize.add_spec
+  let* ⟨e2, he2⟩ ← Slice.index_usize_spec
+  let* ⟨i3, hi3⟩ ← Usize.add_spec
+  let* ⟨e3, he3⟩ ← Slice.index_usize_spec
+  intro i hi
+  replace hi : i = 0 ∨ i = 1 ∨ i = 2 ∨ i = 3 := by omega
+  rcases hi with hi | hi | hi | hi <;> simp_all [Array.make]
+
 end ntt
 
 end Symcrust
