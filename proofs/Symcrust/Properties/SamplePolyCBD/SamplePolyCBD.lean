@@ -29,41 +29,124 @@ open Aeneas Aeneas.Std Aeneas.SRRange Result
 
 set_option maxHeartbeats 1000000
 
-/-
-@[reducible]
-def ntt.poly_element_sample_cbd_from_bytes_eta2_inner_loop
-  (pe_dst : Array U16 256#usize) (i : Usize) (sample_bits : U32) :
-  Result ((Array U16 256#usize) × U32)
-  :=
-  ntt.poly_element_sample_cbd_from_bytes_eta2_inner_loop_loop pe_dst i
-    sample_bits 0#usize
--/
-
-/-
-def Target2.samplePolyCBD.eta3_loop.inner_loop (pe_dst : Polynomial) (i : ℕ) (sample_bits : BitVec 32) :
-  Polynomial × BitVec 32 :=
--/
-
+-- This proof contains a lot of repeated code because `Target2.samplePolyCBD.eta2_loop.inner_loop` manually
+-- unfolds the loop body of `poly_element_sample_cbd_from_bytes_eta2_inner_loop` 8 times.
 @[progress]
 def ntt.poly_element_sample_cbd_from_bytes_eta2_inner_loop.spec (f : Array U16 256#usize)
-  (i : Usize) (sample_bits : U32) :
+  (i : Usize) (sample_bits : U32) (hi1 : i.val < 256) (hi2 : 8 ∣ i.val) :
   ∃ f' sample_bits',
   poly_element_sample_cbd_from_bytes_eta2_inner_loop f i sample_bits = ok (f', sample_bits') ∧
   to_poly f' = (Target2.samplePolyCBD.eta2_loop.inner_loop (to_poly f) i sample_bits).1 ∧
   sample_bits'.bv = (Target2.samplePolyCBD.eta2_loop.inner_loop (to_poly f) i sample_bits).2 := by
+  unfold poly_element_sample_cbd_from_bytes_eta2_inner_loop
+  unfold poly_element_sample_cbd_from_bytes_eta2_inner_loop_loop
+  simp only [UScalar.lt_equiv, UScalar.ofNat_val_eq, Nat.ofNat_pos, ↓reduceIte, Q.eq, Spec.Q,
+    BitVec.natCast_eq_ofNat, Bvify.UScalar.BitVec_ofNat_setWidth, UScalarTy.U32_numBits_eq,
+    Bvify.U32.UScalar_bv, BitVec.setWidth_eq]
+  progress*
+  . simp only [U32.wrapping_add_val_eq, U32.wrapping_sub_val_eq, UScalar.val_and,
+      UScalar.ofNat_val_eq, UScalar.size_UScalarTyU32, Nat.mod_add_mod, coefficient2_post,
+      coefficient1_post, i1_post_1, coefficient_post_1, i2_post_1, i4_post_1, i3_post_1]
+    olet hsample_bits' : sample_bits' := sample_bits.val &&& 15
+    replace hsample_bits' : sample_bits' < 16 := by
+      apply Nat.lt_succ_of_le
+      rw [hsample_bits']
+      exact Nat.and_le_right
+    revert sample_bits'
+    brute
+  -- **TODO** Figure out how to proceed in a more modular way so that the proof doesn't slow down so much
   sorry
-
-/-
-def ntt.poly_element_sample_cbd_from_bytes_eta2_loop_loop
-  (pb_src : Slice U8) (pe_dst : Array U16 256#usize) (src_i : Usize)
-  (i : Usize) :
-  Result (Array U16 256#usize)
-  :=
--/
+  /-
+  unfold poly_element_sample_cbd_from_bytes_eta2_inner_loop_loop
+  simp only [UScalar.lt_equiv, j1_post, UScalar.ofNat_val_eq, Nat.one_lt_ofNat, ↓reduceIte, Q.eq]
+  progress*
+  . simp only [U32.wrapping_add_val_eq, U32.wrapping_sub_val_eq, UScalar.val_and,
+      UScalar.ofNat_val_eq, UScalar.size_UScalarTyU32, Nat.mod_add_mod, *]
+    olet hsample_bits' : sample_bits' := ↑sample_bits >>> 4 &&& 15
+    replace hsample_bits' : sample_bits' < 16 := by
+      apply Nat.lt_succ_of_le
+      rw [hsample_bits']
+      exact Nat.and_le_right
+    revert sample_bits'
+    brute
+  unfold poly_element_sample_cbd_from_bytes_eta2_inner_loop_loop
+  simp only [UScalar.lt_equiv, Nat.reduceAdd, UScalar.ofNat_val_eq, Nat.reduceLT, ↓reduceIte, Q.eq, *]
+  progress*
+  . simp only [U32.wrapping_add_val_eq, U32.wrapping_sub_val_eq, UScalar.val_and,
+      UScalar.ofNat_val_eq, UScalar.size_UScalarTyU32, Nat.mod_add_mod, *]
+    olet hsample_bits' : sample_bits' := ↑sample_bits >>> 4 >>> 4 &&& 15
+    replace hsample_bits' : sample_bits' < 16 := by
+      apply Nat.lt_succ_of_le
+      rw [hsample_bits']
+      exact Nat.and_le_right
+    revert sample_bits'
+    brute
+  unfold poly_element_sample_cbd_from_bytes_eta2_inner_loop_loop
+  simp only [UScalar.lt_equiv, Nat.reduceAdd, UScalar.ofNat_val_eq, Nat.reduceLT, ↓reduceIte, Q.eq, *]
+  progress*
+  . simp only [U32.wrapping_add_val_eq, U32.wrapping_sub_val_eq, UScalar.val_and,
+      UScalar.ofNat_val_eq, UScalar.size_UScalarTyU32, Nat.mod_add_mod, *]
+    olet hsample_bits' : sample_bits' := ↑sample_bits >>> 4 >>> 4 >>> 4 &&& 15
+    replace hsample_bits' : sample_bits' < 16 := by
+      apply Nat.lt_succ_of_le
+      rw [hsample_bits']
+      exact Nat.and_le_right
+    revert sample_bits'
+    brute
+  unfold poly_element_sample_cbd_from_bytes_eta2_inner_loop_loop
+  simp only [UScalar.lt_equiv, Nat.reduceAdd, UScalar.ofNat_val_eq, Nat.reduceLT, ↓reduceIte, Q.eq, *]
+  progress*
+  . simp only [U32.wrapping_add_val_eq, U32.wrapping_sub_val_eq, UScalar.val_and,
+      UScalar.ofNat_val_eq, UScalar.size_UScalarTyU32, Nat.mod_add_mod, *]
+    olet hsample_bits' : sample_bits' := ↑sample_bits >>> 4 >>> 4 >>> 4 >>> 4 &&& 15
+    replace hsample_bits' : sample_bits' < 16 := by
+      apply Nat.lt_succ_of_le
+      rw [hsample_bits']
+      exact Nat.and_le_right
+    revert sample_bits'
+    brute
+  unfold poly_element_sample_cbd_from_bytes_eta2_inner_loop_loop
+  simp only [UScalar.lt_equiv, Nat.reduceAdd, UScalar.ofNat_val_eq, Nat.reduceLT, ↓reduceIte, Q.eq, *]
+  progress*
+  . simp only [U32.wrapping_add_val_eq, U32.wrapping_sub_val_eq, UScalar.val_and,
+      UScalar.ofNat_val_eq, UScalar.size_UScalarTyU32, Nat.mod_add_mod, *]
+    olet hsample_bits' : sample_bits' := ↑sample_bits >>> 4 >>> 4 >>> 4 >>> 4 >>> 4 &&& 15
+    replace hsample_bits' : sample_bits' < 16 := by
+      apply Nat.lt_succ_of_le
+      rw [hsample_bits']
+      exact Nat.and_le_right
+    revert sample_bits'
+    brute
+  unfold poly_element_sample_cbd_from_bytes_eta2_inner_loop_loop
+  simp only [UScalar.lt_equiv, Nat.reduceAdd, UScalar.ofNat_val_eq, Nat.reduceLT, ↓reduceIte, Q.eq, *]
+  progress*
+  . simp only [U32.wrapping_add_val_eq, U32.wrapping_sub_val_eq, UScalar.val_and,
+      UScalar.ofNat_val_eq, UScalar.size_UScalarTyU32, Nat.mod_add_mod, *]
+    olet hsample_bits' : sample_bits' := ↑sample_bits >>> 4 >>> 4 >>> 4 >>> 4 >>> 4 >>> 4 &&& 15
+    replace hsample_bits' : sample_bits' < 16 := by
+      apply Nat.lt_succ_of_le
+      rw [hsample_bits']
+      exact Nat.and_le_right
+    revert sample_bits'
+    brute
+  unfold poly_element_sample_cbd_from_bytes_eta2_inner_loop_loop
+  simp only [UScalar.lt_equiv, Nat.reduceAdd, UScalar.ofNat_val_eq, Nat.reduceLT, ↓reduceIte, Q.eq, *]
+  progress*
+  . simp only [U32.wrapping_add_val_eq, U32.wrapping_sub_val_eq, UScalar.val_and,
+      UScalar.ofNat_val_eq, UScalar.size_UScalarTyU32, Nat.mod_add_mod, *]
+    olet hsample_bits' : sample_bits' := ↑sample_bits >>> 4 >>> 4 >>> 4 >>> 4 >>> 4 >>> 4 >>> 4 &&& 15
+    replace hsample_bits' : sample_bits' < 16 := by
+      apply Nat.lt_succ_of_le
+      rw [hsample_bits']
+      exact Nat.and_le_right
+    revert sample_bits'
+    brute
+  sorry
+  -/
 
 @[progress]
 def ntt.poly_element_sample_cbd_from_bytes_eta2_loop_loop.spec (b : Slice U8) (f : Array U16 256#usize)
-  (src_i i : Usize) (hb : 64 * 2 + 1 ≤ b.length) :
+  (src_i i : Usize) (hb : 64 * 2 + 1 ≤ b.length) (hsrc_i : ↑src_i + 3 < b.length) (hi : 8 ∣ i.val) :
   let B := (b.val.map (fun x => x.bv)).toArray
   let η : Η := ⟨2, by simp⟩
   let hB : 64 * η.val + 1 ≤ B.size := by simp [B]; omega
@@ -74,8 +157,7 @@ def ntt.poly_element_sample_cbd_from_bytes_eta2_loop_loop.spec (b : Slice U8) (f
   simp only [UScalar.lt_equiv, UScalar.ofNat_val_eq, key.MLWE_POLYNOMIAL_COEFFICIENTS_eq,
     Nat.ofNat_pos, ↓reduceIte]
   split
-  . next hi =>
-    have : ↑src_i + 3 < b.length := by sorry -- **TODO** Add precondition to the spec
+  . next hi' =>
     let* ⟨a, ha⟩ ← slice_to_sub_array4_spec
     let* ⟨sample_bits, hsample_bits⟩ ← core.num.U32.from_le_bytes.progress_spec
     let* ⟨src_i1, hsrc_i1⟩ ← Usize.add_spec
@@ -91,11 +173,14 @@ def ntt.poly_element_sample_cbd_from_bytes_eta2_loop_loop.spec (b : Slice U8) (f
     let* ⟨sample_bits1, hsample_bits1⟩ ← U32.add_spec
     let* ⟨f', sample_bits', hf', hsample_bits'⟩ ← poly_element_sample_cbd_from_bytes_eta2_inner_loop.spec
     let* ⟨i4, hi4⟩ ← Usize.add_spec
+    have : ↑src_i1 + 3 < b.length := by
+      rw [hsrc_i1]
+      sorry
     let* ⟨f'', hf''⟩ ← spec
     rw [hf'']
     -- This goal is true (though `fcongr` yields a false goal). The LHS is one iteration ahead of the RHS
     conv => rhs; unfold Target2.samplePolyCBD.eta2_loop
-    simp only [key.MLWE_POLYNOMIAL_COEFFICIENTS_eq, hi, ↓reduceIte, Spec.Q, UScalar.ofNat_val_eq,
+    simp only [key.MLWE_POLYNOMIAL_COEFFICIENTS_eq, hi', ↓reduceIte, Spec.Q, UScalar.ofNat_val_eq,
       Nat.cast_ofNat, BitVec.ofNat_eq_ofNat, BitVec.setWidth'_eq]
     rw [hf', hsample_bits1, hi1, hi3]
     simp only [Spec.Q, UScalar.val_and, UScalar.ofNat_val_eq, hi2, Nat.cast_add,
@@ -103,7 +188,35 @@ def ntt.poly_element_sample_cbd_from_bytes_eta2_loop_loop.spec (b : Slice U8) (f
       UScalarTy.U32_numBits_eq, Bvify.U32.UScalar_bv, hsample_bits, BitVec.setWidth_eq,
       Bvify.BitVec.ofNat_shift_U32_val]
     fcongr
-    sorry
+    have h1 : 8 * (List.slice (↑src_i) (↑src_i + 4) (List.map (fun x => x.bv) b.val)).length = 32 := by
+      simp only [List.slice_length, List.length_map, add_tsub_cancel_left]
+      scalar_tac
+    rw [BitVec.setWidth_add, BitVec.setWidth_and, BitVec.setWidth_and, BitVec.setWidth_ushiftRight]
+    . have h2 : ∀ h : 8 * (List.map U8.bv ↑a).length = 32,
+        BitVec.cast h (BitVec.fromLEBytes (List.map U8.bv ↑a)) =
+        BitVec.setWidth 32
+          (BitVec.fromLEBytes (List.slice (↑src_i) (↑src_i + 4) (List.map (fun x => x.bv) b.val))) := by
+        intro h
+        have : List.map U8.bv ↑a = List.slice (↑src_i) (↑src_i + 4) (List.map (fun x => x.bv) b.val) := by
+          rw [List.eq_iff_forall_eq_getElem!]
+          constructor
+          . simp only [List.length_map, List.Vector.length_val, UScalar.ofNat_val_eq,
+              List.slice_length, add_tsub_cancel_left, right_eq_inf]
+            simp only [Slice.length] at hsrc_i
+            omega
+          . intro i hi
+            simp only [Array.getElem!_Nat_eq, Slice.getElem!_Nat_eq] at ha
+            rw [List.getElem!_map_eq, ha i (by omega), List.getElem!_slice, List.getElem!_map_eq] <;> scalar_tac
+        rw [← BitVec.setWidth_eq (BitVec.fromLEBytes (List.map U8.bv ↑a)), BitVec.cast_setWidth, this]
+      have h3 : 1431655765#32 =
+        BitVec.setWidth 32 1431655765#(8 * (List.slice (↑src_i) (↑src_i + 4)
+          (List.map (fun x => x.bv) b.val)).length) := by
+        rw [BitVec.setWidth_ofNat_of_le]
+        simp only [List.slice_length, List.length_map, add_tsub_cancel_left]
+        scalar_tac
+      rw [h2, h3]
+    . omega
+    . omega
   . next hi =>
     simp only [ok.injEq, exists_eq_left']
     unfold Target2.samplePolyCBD.eta2_loop
@@ -155,3 +268,5 @@ def ntt.poly_element_sample_cbd_from_bytes.spec (b : Slice U8) (eta : U32) (f : 
     simp only [heta, ↓reduceIte, Spec.Q, UScalar.ofNat_val_eq, List.map_toArray]
     let* ⟨f', hf'⟩ ← poly_element_sample_cbd_from_bytes_eta3_loop.spec
     rw [hf']
+
+end Symcrust.SpecAux
