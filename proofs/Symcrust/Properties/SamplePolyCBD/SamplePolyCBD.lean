@@ -29,6 +29,7 @@ open Aeneas Aeneas.Std Aeneas.SRRange Result
 
 set_option maxHeartbeats 2000000
 
+set_option linter.unusedVariables false in -- This goal was generated via `extract_goal`
 theorem ntt.poly_element_sample_cbd_from_bytes_eta2_inner_loop.spec.aux
   (f : Std.Array U16 256#usize) (i : Usize) (sample_bits : U32) (hi1 : i.val < 256) (hi2 : 8 ∣ i.val)
   (coefficient_1 : U32)
@@ -214,7 +215,138 @@ theorem ntt.poly_element_sample_cbd_from_bytes_eta2_inner_loop.spec.aux
                 ((4294967296 - (↑sample_bits >>> 28 &&& 15) >>> 2 + (↑sample_bits >>> 28 &&& 15 &&& 3)) %
                     4294967296) >>>
                   16)) %
-            4294967296))[k] := sorry
+            4294967296))[k] := by
+  simp only [Spec.Q, Vector.Inhabited_getElem_eq_getElem!]
+  by_cases hk2 : k = i.val ∨ k = i.val + 1 ∨ k = i.val + 2 ∨ k = i.val + 3 ∨
+                 k = i.val + 4 ∨ k = i.val + 5 ∨ k = i.val + 6 ∨ k = i.val + 7
+  . rcases hk2 with hk2 | hk2 | hk2 | hk2 | hk2 | hk2 | hk2 | hk2
+    . simp only [hk2, ne_eq, Nat.add_eq_left, OfNat.ofNat_ne_zero, not_false_eq_true,
+        Vector.getElem!_set!_ne, one_ne_zero]
+      rw [Vector.getElem!_set! (by omega), Vector.getElem!_set! (by omega)]
+      simp only [UScalar.cast_val_eq, U32.wrapping_add_val_eq, U32.wrapping_sub_val_eq,
+        UScalar.val_and, UScalar.ofNat_val_eq, UScalar.size_UScalarTyU32, Nat.mod_add_mod,
+        UScalarTy.U16_numBits_eq, Nat.reducePow, i1_post_1_1, coefficient_post_1_1, i4_post_1_1,
+        i2_post_1_1, i3_post_1_1, coefficient1_post_1]
+      olet hsample_bits' : sample_bits' := sample_bits.val &&& 15
+      replace hsample_bits' : sample_bits' < 16 := by
+        apply Nat.lt_succ_of_le
+        rw [hsample_bits']
+        exact Nat.and_le_right
+      revert sample_bits'
+      brute
+    . simp only [hk2, ne_eq, Nat.add_left_cancel_iff, OfNat.ofNat_ne_one, not_false_eq_true,
+        Vector.getElem!_set!_ne]
+      rw [Vector.getElem!_set! (by omega), Vector.getElem!_set! (by omega)]
+      simp only [UScalar.cast_val_eq, U32.wrapping_add_val_eq, U32.wrapping_sub_val_eq,
+        UScalar.val_and, UScalar.ofNat_val_eq, UScalar.size_UScalarTyU32, Nat.mod_add_mod,
+        UScalarTy.U16_numBits_eq, Nat.reducePow, i1_post_1_2, coefficient_post_1_2, i4_post_1_2,
+        sample_bits1_post_1_1, i2_post_1_2, i3_post_1_2, coefficient1_post_2]
+      olet hsample_bits' : sample_bits' := sample_bits.val >>> 4 &&& 15
+      replace hsample_bits' : sample_bits' < 16 := by
+        apply Nat.lt_succ_of_le
+        rw [hsample_bits']
+        exact Nat.and_le_right
+      revert sample_bits'
+      brute
+    . simp only [hk2, ne_eq, Nat.add_left_cancel_iff, Nat.reduceEqDiff, not_false_eq_true,
+        Vector.getElem!_set!_ne, Nat.succ_ne_self]
+      rw [Vector.getElem!_set! (by omega), Vector.getElem!_set! (by omega)]
+      simp only [Q.eq, UScalar.cast_val_eq, U32.wrapping_add_val_eq, U32.wrapping_sub_val_eq,
+        UScalar.val_and, UScalar.ofNat_val_eq, UScalar.size_UScalarTyU32, Nat.mod_add_mod,
+        UScalarTy.U16_numBits_eq, Nat.reducePow, i1_post_1_3, coefficient_post_1_3, i4_post_1_3,
+        sample_bits1_post_1_2, sample_bits1_post_1_1, i2_post_1_3, i3_post_1_3, coefficient1_post_3,
+        ← Nat.shiftRight_add]
+      olet hsample_bits' : sample_bits' := sample_bits.val >>> 8 &&& 15
+      replace hsample_bits' : sample_bits' < 16 := by
+        apply Nat.lt_succ_of_le
+        rw [hsample_bits']
+        exact Nat.and_le_right
+      revert sample_bits'
+      brute
+    . simp only [hk2, ne_eq, Nat.add_left_cancel_iff, Nat.reduceEqDiff, not_false_eq_true,
+        Vector.getElem!_set!_ne, Nat.succ_ne_self]
+      rw [Vector.getElem!_set! (by omega), Vector.getElem!_set! (by omega)]
+      simp only [Q.eq, UScalar.cast_val_eq, U32.wrapping_add_val_eq, U32.wrapping_sub_val_eq,
+        UScalar.val_and, ← Nat.shiftRight_add, Nat.reduceAdd, UScalar.ofNat_val_eq,
+        UScalar.size_UScalarTyU32, Nat.mod_add_mod, UScalarTy.U16_numBits_eq, Nat.reducePow,
+        i1_post_1_4, coefficient_post_1_4, i4_post_1_4, sample_bits1_post_1_3,
+        sample_bits1_post_1_2, sample_bits1_post_1_1, i2_post_1_4, i3_post_1_4, coefficient1_post_4]
+      olet hsample_bits' : sample_bits' := sample_bits.val >>> 12 &&& 15
+      replace hsample_bits' : sample_bits' < 16 := by
+        apply Nat.lt_succ_of_le
+        rw [hsample_bits']
+        exact Nat.and_le_right
+      revert sample_bits'
+      brute
+    . simp only [hk2, ne_eq, Nat.add_left_cancel_iff, Nat.reduceEqDiff, not_false_eq_true,
+        Vector.getElem!_set!_ne, Nat.succ_ne_self]
+      rw [Vector.getElem!_set! (by omega), Vector.getElem!_set! (by omega)]
+      simp only [Q.eq, UScalar.cast_val_eq, U32.wrapping_add_val_eq, U32.wrapping_sub_val_eq,
+        UScalar.val_and, ← Nat.shiftRight_add, Nat.reduceAdd, UScalar.ofNat_val_eq,
+        UScalar.size_UScalarTyU32, Nat.mod_add_mod, UScalarTy.U16_numBits_eq, Nat.reducePow,
+        i1_post_1_5, coefficient_post_1_5, i4_post_1_5, sample_bits1_post_1_4,
+        sample_bits1_post_1_3, sample_bits1_post_1_2, sample_bits1_post_1_1, i2_post_1_5,
+        i3_post_1_5, coefficient1_post_5]
+      olet hsample_bits' : sample_bits' := sample_bits.val >>> 16 &&& 15
+      replace hsample_bits' : sample_bits' < 16 := by
+        apply Nat.lt_succ_of_le
+        rw [hsample_bits']
+        exact Nat.and_le_right
+      revert sample_bits'
+      brute
+    . simp only [hk2, ne_eq, Nat.add_left_cancel_iff, Nat.reduceEqDiff, not_false_eq_true,
+        Vector.getElem!_set!_ne, Nat.succ_ne_self]
+      rw [Vector.getElem!_set! (by omega), Vector.getElem!_set! (by omega)]
+      simp only [Q.eq, UScalar.cast_val_eq, U32.wrapping_add_val_eq, U32.wrapping_sub_val_eq,
+        UScalar.val_and, ← Nat.shiftRight_add, Nat.reduceAdd, UScalar.ofNat_val_eq,
+        UScalar.size_UScalarTyU32, Nat.mod_add_mod, UScalarTy.U16_numBits_eq, Nat.reducePow,
+        i1_post_1_6, coefficient_post_1_6, i4_post_1_6, sample_bits1_post_1_5,
+        sample_bits1_post_1_4, sample_bits1_post_1_3, sample_bits1_post_1_2, sample_bits1_post_1_1,
+        i2_post_1_6, i3_post_1_6, coefficient1_post_6]
+      olet hsample_bits' : sample_bits' := sample_bits.val >>> 20 &&& 15
+      replace hsample_bits' : sample_bits' < 16 := by
+        apply Nat.lt_succ_of_le
+        rw [hsample_bits']
+        exact Nat.and_le_right
+      revert sample_bits'
+      brute
+    . simp only [hk2, ne_eq, Nat.add_left_cancel_iff, Nat.reduceEqDiff, not_false_eq_true,
+        Vector.getElem!_set!_ne, Nat.succ_ne_self]
+      rw [Vector.getElem!_set! (by omega), Vector.getElem!_set! (by omega)]
+      simp only [Q.eq, UScalar.cast_val_eq, U32.wrapping_add_val_eq, U32.wrapping_sub_val_eq,
+        UScalar.val_and, ← Nat.shiftRight_add, Nat.reduceAdd, UScalar.ofNat_val_eq,
+        UScalar.size_UScalarTyU32, Nat.mod_add_mod, UScalarTy.U16_numBits_eq, Nat.reducePow,
+        i1_post_1_7, coefficient_post_1_7, i4_post_1_7, sample_bits1_post_1_6,
+        sample_bits1_post_1_5, sample_bits1_post_1_4, sample_bits1_post_1_3, sample_bits1_post_1_2,
+        sample_bits1_post_1_1, i2_post_1_7, i3_post_1_7, coefficient1_post_7]
+      olet hsample_bits' : sample_bits' := sample_bits.val >>> 24 &&& 15
+      replace hsample_bits' : sample_bits' < 16 := by
+        apply Nat.lt_succ_of_le
+        rw [hsample_bits']
+        exact Nat.and_le_right
+      revert sample_bits'
+      brute
+    . simp only [hk2, ne_eq, Nat.add_left_cancel_iff, Nat.reduceEqDiff, not_false_eq_true,
+        Vector.getElem!_set!_ne, Nat.succ_ne_self]
+      rw [Vector.getElem!_set! (by omega), Vector.getElem!_set! (by omega)]
+      simp only [Q.eq, UScalar.cast_val_eq, U32.wrapping_add_val_eq, U32.wrapping_sub_val_eq,
+        UScalar.val_and, ← Nat.shiftRight_add, Nat.reduceAdd, UScalar.ofNat_val_eq,
+        UScalar.size_UScalarTyU32, Nat.mod_add_mod, UScalarTy.U16_numBits_eq, Nat.reducePow,
+        i1_post_1, coefficient_post_1, i4_post_1, sample_bits1_post_1_7, sample_bits1_post_1_6,
+        sample_bits1_post_1_5, sample_bits1_post_1_4, sample_bits1_post_1_3, sample_bits1_post_1_2,
+        sample_bits1_post_1_1, i2_post_1, i3_post_1, coefficient1_post]
+      olet hsample_bits' : sample_bits' := sample_bits.val >>> 28 &&& 15
+      replace hsample_bits' : sample_bits' < 16 := by
+        apply Nat.lt_succ_of_le
+        rw [hsample_bits']
+        exact Nat.and_le_right
+      revert sample_bits'
+      brute
+  . rw [Vector.getElem!_set!_ne, Vector.getElem!_set!_ne, Vector.getElem!_set!_ne, Vector.getElem!_set!_ne,
+        Vector.getElem!_set!_ne, Vector.getElem!_set!_ne, Vector.getElem!_set!_ne, Vector.getElem!_set!_ne,
+        Vector.getElem!_set!_ne, Vector.getElem!_set!_ne, Vector.getElem!_set!_ne, Vector.getElem!_set!_ne,
+        Vector.getElem!_set!_ne, Vector.getElem!_set!_ne, Vector.getElem!_set!_ne, Vector.getElem!_set!_ne]
+    <;> omega
 
 /-
 @[progress]
@@ -229,6 +361,7 @@ def ntt.poly_element_sample_cbd_from_bytes_eta2_inner_loop_loop.spec (f : Array 
   sample_bits'.bv = (Target2.samplePolyCBD.eta2_loop.inner_loop (to_poly f) i sample_bits).2 := by
 -/
 
+/-
 -- This proof contains a lot of repeated code because `Target2.samplePolyCBD.eta2_loop.inner_loop` manually
 -- unfolds the loop body of `poly_element_sample_cbd_from_bytes_eta2_inner_loop` 8 times.
 @[progress]
@@ -636,3 +769,4 @@ def ntt.poly_element_sample_cbd_from_bytes.spec (b : Slice U8) (eta : U32) (f : 
     rw [hf']
 
 end Symcrust.SpecAux
+-/
