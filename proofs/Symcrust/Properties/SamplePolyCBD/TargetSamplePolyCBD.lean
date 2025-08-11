@@ -26,7 +26,6 @@ open Aeneas Aeneas.Std Aeneas.SRRange
 set_option maxHeartbeats 1000000
 
 def Target.samplePolyCBD.body {rangeStart : Nat} {η : Η} (b : Vector Bool (8 * (64 * ↑η))) (f : Polynomial)
-  -- (i : { x // x < 256}) : Polynomial :=
   (i : { x // x ∈ List.range' rangeStart (256 - rangeStart) }) : Polynomial :=
   have hi := i.2
   have : 2 * i.1 * η ≤ 510 * η := by
@@ -52,44 +51,83 @@ def Target.samplePolyCBD.eq_spec {η : Η} (B : Vector Byte (64 * η)) :
     forIn'_eq_forIn, forIn_eq_forIn_range', size, tsub_zero, Nat.reduceAdd, Nat.add_one_sub_one,
     Nat.div_one, List.forIn_pure_yield_eq_foldl, bind_pure, Id.run_pure]
 
-/-
-irreducible_def Target.byteDecode.decodeCoefficient.inv {m d : ℕ} (b : Vector Bool (8 * (32 * d)))
-  (F : Polynomial m) (i : ℕ) : Prop :=
-  -- Coefficients below `i` have been set
-  (∀ i' < i, F[i']! = (∑ (j : Fin d), (Bool.toNat b[i' * d + j]!) * 2^j.val)) ∧
-  -- Coefficients at or above `i` have not yet been set
-  ∀ i' ∈ [i:256], F[i']! = 0
--/
+lemma Target.samplePolyCBD.recBody.preserves_below {η : Η} (b : Vector Bool (8 * (64 * ↑η)))
+  (f : Polynomial) (i : Nat) (hi : i < 256) : ∀ j < i, (recBody b f i)[j]! = f[j]! := by
+  intro j hj
+  dcases hi2 : i = 255
+  . simp only [Q, recBody, List.attach, hi2, Nat.reduceSub, List.range'_one, List.attachWith_cons,
+      List.attachWith_nil, List.foldl_cons, body, Nat.reduceMul, Vector.Inhabited_getElem_eq_getElem!,
+      Nat.cast_sum, List.foldl_nil]
+    rw [Vector.getElem!_set!_ne]
+    omega
+  . have hi2 : i ∈ List.range' i (256 - i) := by simp [hi]
+    have recBodyUnfold :
+      recBody b (body b f ⟨i, hi2⟩) (i + 1) = recBody b f i := by
+      simp [recBody, Nat.reduceSubDiff]
+      have : 256 - i = (255 - i) + 1 := by omega
+      rw [List.attach, List.attach]
+      simp only [Nat.reduceSubDiff, List.foldl_attachWith, this, List.range'_succ,
+        List.attachWith_cons, List.foldl_cons]
+      rfl
+    rw [← recBodyUnfold, preserves_below b (body b f ⟨i, hi2⟩) (i + 1) (by omega) j (by omega)]
+    simp only [Q, body, Vector.Inhabited_getElem_eq_getElem!, Nat.cast_sum]
+    rw [Vector.getElem!_set!_ne]
+    omega
 
-def Target.samplePolyCBD.inv {η : Η}  (b : Vector Bool (8 * (64 * ↑η))) (f : Polynomial) (i : ℕ) : Prop :=
-  -- Coefficients below `i` have been set
-  (∀ j < i, f[j]! =
-    ∑ x : Fin η, (b[2 * j * ↑η + ↑x]!.toNat : ZMod Q) -
-    ∑ x : Fin η, (b[2 * j * ↑η + ↑η + ↑x]!.toNat : ZMod Q)) ∧
-  -- Coefficients at or above `i` have not yet been set
-  ∀ j ∈ [i:256], f[j]! = 0
+def Target.samplePolyCBD.body.spec {rangeStart : Nat} {η : Η} (b : Vector Bool (8 * (64 * ↑η))) (f : Polynomial)
+  (hRangeStart : rangeStart ∈ List.range' rangeStart (256 - rangeStart))
+  (hf : ∀ j < rangeStart, f[j]! =
+    ∑ x : Fin η.val, ↑b[2 * j * ↑η + ↑x]!.toNat - ∑ x : Fin η.val, ↑b[2 * j * ↑η + ↑η + ↑x]!.toNat) :
+  ∀ j < rangeStart + 1, (body b f ⟨rangeStart, hRangeStart⟩)[j]! =
+    ∑ x : Fin η.val, ↑b[2 * j * ↑η + ↑x]!.toNat -
+    ∑ x : Fin η.val, ↑b[2 * j * ↑η + ↑η + ↑x]!.toNat := by
+  intro j hj
+  simp only [Q, body, Vector.Inhabited_getElem_eq_getElem!, Nat.cast_sum]
+  simp only [List.mem_range'_1, le_refl, lt_add_iff_pos_right, tsub_pos_iff_lt, true_and] at hRangeStart
+  rcases Nat.lt_or_eq_of_le $ Nat.le_of_lt_succ hj with hj | hj
+  . rw [Vector.getElem!_set!_ne (by omega), hf j hj]
+  . rw [hj, Vector.getElem!_set!]
+    omega
 
 def Target.samplePolyCBD.spec_aux {η : Η} (b : Vector Bool (8 * (64 * ↑η))) (f : Polynomial)
-  (rangeStart : ℕ)
+  (rangeStart : ℕ) (hRangeStart : rangeStart < 256)
   (hf : ∀ i < rangeStart,
     f[i]! = ∑ x : Fin η, (b[2 * i * ↑η + ↑x]!.toNat : ZMod Q) -
             ∑ x : Fin η, (b[2 * i * ↑η + ↑η + ↑x]!.toNat : ZMod Q)) :
-  ∀ i : { x // x ∈ List.range' rangeStart (256 - rangeStart) },
-    (recBody b f rangeStart)[i.1]! =
-    -- (List.foldl (body b) f (List.range' rangeStart (256 - rangeStart)).attach)[i.1]! =
-    ∑ x : Fin η, (b[2 * i.1 * ↑η + ↑x]!.toNat : ZMod Q) -
-    ∑ x : Fin η, (b[2 * i.1 * ↑η + ↑η + ↑x]!.toNat : ZMod Q) := by
-  rintro ⟨i, hi⟩
-  dcases hRangeStart : rangeStart = 255
-  . simp only [hRangeStart, Nat.reduceSub, List.range'_one, List.mem_cons, List.not_mem_nil, or_false] at hi
-    simp only [Q, List.attach, hRangeStart, Nat.reduceSub, List.range'_one, List.attachWith_cons,
-      List.attachWith_nil, List.foldl_cons, body, Nat.reduceMul,
-      Vector.Inhabited_getElem_eq_getElem!, Nat.cast_sum, List.foldl_nil, hi, Nat.lt_add_one,
-      and_self, Vector.getElem!_set!, recBody]
-  . have recBodyUnfold : recBody b (body b f ⟨i, hi⟩) (rangeStart + 1) = recBody b f rangeStart := by
-      sorry
-    rw [← recBodyUnfold]
-    sorry -- exact spec_aux b (body b f ⟨i, hi⟩) (rangeStart + 1)
+  ∀ i < 256,
+    (recBody b f rangeStart)[i]! =
+    ∑ x : Fin η, (b[2 * i * ↑η + ↑x]!.toNat : ZMod Q) -
+    ∑ x : Fin η, (b[2 * i * ↑η + ↑η + ↑x]!.toNat : ZMod Q) := by
+  intro i hi
+  dcases hRangeStart2 : rangeStart = 255
+  . rcases Nat.lt_or_eq_of_le $ Nat.le_of_lt_succ hi with hi | hi
+    . simp only [hRangeStart2, Q] at hf
+      simp only [Q, recBody, List.attach, hRangeStart2, Nat.reduceSub, List.range'_one,
+        List.attachWith_cons, List.attachWith_nil, List.foldl_cons, body, Nat.reduceMul,
+        Vector.Inhabited_getElem_eq_getElem!, Nat.cast_sum, List.foldl_nil]
+      rw [Vector.getElem!_set!_ne (by omega), hf i hi]
+    . simp only [Q, recBody, List.attach, hRangeStart2, Nat.reduceSub, List.range'_one,
+        List.attachWith_cons, List.attachWith_nil, List.foldl_cons, body, Nat.reduceMul,
+        Vector.Inhabited_getElem_eq_getElem!, Nat.cast_sum, List.foldl_nil, hi, Nat.lt_add_one,
+        and_self, Vector.getElem!_set!]
+  . by_cases hi2 : i < rangeStart
+    . rw [recBody.preserves_below b f rangeStart (by omega) i hi2, hf i hi2]
+    . have hRangeStart : rangeStart ∈ List.range' rangeStart (256 - rangeStart) := by simp [hRangeStart]
+      replace hi2 : i ∈ List.range' rangeStart (256 - rangeStart) := by
+        simp only [List.mem_range'_1]
+        omega
+      have recBodyUnfold :
+        recBody b (body b f ⟨rangeStart, hRangeStart⟩) (rangeStart + 1) = recBody b f rangeStart := by
+        simp [recBody, Nat.reduceSubDiff]
+        have : 256 - rangeStart = (255 - rangeStart) + 1 := by omega
+        rw [List.attach, List.attach]
+        simp only [Nat.reduceSubDiff, List.foldl_attachWith, this, List.range'_succ,
+          List.attachWith_cons, List.foldl_cons]
+        rfl
+      rw [← recBodyUnfold]
+      have := body.spec b f (by omega) hf
+      exact spec_aux b (body b f ⟨rangeStart, hRangeStart⟩) (rangeStart + 1) (by omega) this i hi
+termination_by 256 - rangeStart
 
 def Target.samplePolyCBD.spec {η : Η} (B : Vector Byte (64 * η)) (i : ℕ) (hi : i < 256) :
   let b := Spec.bytesToBits B
@@ -97,5 +135,5 @@ def Target.samplePolyCBD.spec {η : Η} (B : Vector Byte (64 * η)) (i : ℕ) (h
   let x := ∑ (j : Fin η), Bool.toNat b[2 * i * η + j]
   let y := ∑ (j : Fin η), Bool.toNat b[2 * i * η + η + j]
   (samplePolyCBD B)[i]! = x - y := by
-  simp only [Q, samplePolyCBD, spec_aux (Spec.bytesToBits B) Polynomial.zero 0 (by simp) ⟨i, by simp [hi]⟩,
+  simp only [Q, samplePolyCBD, spec_aux (Spec.bytesToBits B) Polynomial.zero 0 (by simp) (by simp) i hi,
     Vector.Inhabited_getElem_eq_getElem!, Nat.cast_sum]
