@@ -70,7 +70,7 @@ def Target2.samplePolyCBD.eta2_loop.inner_loop.next_coefficient (i j : ℕ) (sam
   (sample_bits1, i6)
 
 /-- This is a simplified and unrolled version of the Aeneas translation, structured for ease verification -/
-def Target2.samplePolyCBD.eta2_loop.inner_loop (pe_dst : Polynomial) (i : ℕ) (sample_bits : BitVec 32) :
+def Target2.samplePolyCBD.eta2_loop.inner_loop_unrolled (pe_dst : Polynomial) (i : ℕ) (sample_bits : BitVec 32) :
   Polynomial × BitVec 32 :=
   let (sample_bits1, coefficient1) := inner_loop.next_coefficient i 0 sample_bits
   let (sample_bits2, coefficient2) := inner_loop.next_coefficient i 1 sample_bits1
@@ -90,6 +90,14 @@ def Target2.samplePolyCBD.eta2_loop.inner_loop (pe_dst : Polynomial) (i : ℕ) (
   let pe_dst8 := pe_dst7.set! (i + 7) coefficient8
   (pe_dst8, sample_bits8)
 
+def Target2.samplePolyCBD.eta2_loop.inner_loop (pe_dst : Polynomial) (i j : ℕ) (sample_bits : BitVec 32) :
+  Polynomial × BitVec 32 :=
+  if j < 8 then
+    let (sample_bits', coefficient) := inner_loop.next_coefficient i j sample_bits
+    let pe_dst' := pe_dst.set! (i + j) coefficient
+    inner_loop pe_dst' i (j + 1) sample_bits'
+  else (pe_dst, sample_bits)
+
 def Target2.samplePolyCBD.eta2_loop (s : Target2.samplePolyCBDState) : Polynomial :=
   if s.i < key.MLWE_POLYNOMIAL_COEFFICIENTS then
     let a := List.slice s.src_i (s.src_i + 4) s.B.1
@@ -100,7 +108,7 @@ def Target2.samplePolyCBD.eta2_loop (s : Target2.samplePolyCBDState) : Polynomia
     let i3 := i2 &&& 1431655765#u32
     let sample_bits1 := i1 + i3
     let sample_bits2 := sample_bits1.setWidth' (by scalar_tac)
-    let (pe_dst1, _) := eta2_loop.inner_loop s.pe_dst s.i sample_bits2
+    let (pe_dst1, _) := eta2_loop.inner_loop s.pe_dst s.i 0 sample_bits2
     let i4 := s.i + 8
     eta2_loop {η := s.η, pe_dst := pe_dst1, B := s.B, hB := s.hB, src_i := src_i1, i := i4}
   else
@@ -144,7 +152,7 @@ def Target2.samplePolyCBD.eta3_loop.inner_loop.next_coefficient (i j : ℕ) (sam
   (sample_bits1, i6)
 
 /-- This is a simplified and unrolled version of the Aeneas translation, structured for ease verification -/
-def Target2.samplePolyCBD.eta3_loop.inner_loop (pe_dst : Polynomial) (i : ℕ) (sample_bits : BitVec 32) :
+def Target2.samplePolyCBD.eta3_loop.inner_loop_unrolled (pe_dst : Polynomial) (i : ℕ) (sample_bits : BitVec 32) :
   Polynomial × BitVec 32 :=
   let (sample_bits1, coefficient1) := inner_loop.next_coefficient i 0 sample_bits
   let (sample_bits2, coefficient2) := inner_loop.next_coefficient i 1 sample_bits1
@@ -155,6 +163,14 @@ def Target2.samplePolyCBD.eta3_loop.inner_loop (pe_dst : Polynomial) (i : ℕ) (
   let pe_dst3 := pe_dst2.set! (i + 2) coefficient3
   let pe_dst4 := pe_dst3.set! (i + 3) coefficient4
   (pe_dst4, sample_bits4)
+
+def Target2.samplePolyCBD.eta3_loop.inner_loop (pe_dst : Polynomial) (i j : ℕ) (sample_bits : BitVec 32) :
+  Polynomial × BitVec 32 :=
+  if j < 4 then
+    let (sample_bits', coefficient) := inner_loop.next_coefficient i j sample_bits
+    let pe_dst' := pe_dst.set! (i + j) coefficient
+    inner_loop pe_dst' i (j + 1) sample_bits'
+  else (pe_dst, sample_bits)
 
 def Target2.samplePolyCBD.eta3_loop (s : Target2.samplePolyCBDState) : Polynomial :=
   if s.i < key.MLWE_POLYNOMIAL_COEFFICIENTS then
@@ -169,7 +185,7 @@ def Target2.samplePolyCBD.eta3_loop (s : Target2.samplePolyCBDState) : Polynomia
     let i6 := i5 &&& 2396745#u32
     let sample_bits1 := i4 + i6
     let sample_bits2 := sample_bits1.setWidth' (by scalar_tac)
-    let (pe_dst1, _) := eta3_loop.inner_loop s.pe_dst s.i sample_bits2
+    let (pe_dst1, _) := eta3_loop.inner_loop s.pe_dst s.i 0 sample_bits2
     let i7 := s.i + 4
     eta3_loop {η := s.η, pe_dst := pe_dst1, B := s.B, hB := s.hB, src_i := src_i1, i := i7}
   else

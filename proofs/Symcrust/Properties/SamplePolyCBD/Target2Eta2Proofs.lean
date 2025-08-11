@@ -33,23 +33,27 @@ open Aeneas Aeneas.Std Aeneas.SRRange
 
 set_option maxHeartbeats 1000000
 
-def Target2.samplePolyCBD.eta2_loop.inner_loop.preserves_below (pe_dst : Polynomial) (i : ℕ)
+def Target2.samplePolyCBD.eta2_loop.inner_loop_unrolled.preserves_below (pe_dst : Polynomial) (i : ℕ)
   (sample_bits : BitVec 32) (k : ℕ) (hk : k < i) :
-  (eta2_loop.inner_loop pe_dst i sample_bits).1[k]! = pe_dst[k]! := by
-  unfold inner_loop
+  (eta2_loop.inner_loop_unrolled pe_dst i sample_bits).1[k]! = pe_dst[k]! := by
+  unfold inner_loop_unrolled
   simp only [Q]
   rw [Vector.getElem!_set!_ne, Vector.getElem!_set!_ne, Vector.getElem!_set!_ne, Vector.getElem!_set!_ne,
     Vector.getElem!_set!_ne, Vector.getElem!_set!_ne, Vector.getElem!_set!_ne, Vector.getElem!_set!_ne]
   all_goals omega
 
-def Target2.samplePolyCBD.eta2_loop.inner_loop.preserves_above (pe_dst : Polynomial) (i : ℕ)
+def Target2.samplePolyCBD.eta2_loop.inner_loop_unrolled.preserves_above (pe_dst : Polynomial) (i : ℕ)
   (sample_bits : BitVec 32) (k : ℕ) (hk : i + 7 < k) :
-  (eta2_loop.inner_loop pe_dst i sample_bits).1[k]! = pe_dst[k]! := by
-  unfold inner_loop
+  (eta2_loop.inner_loop_unrolled pe_dst i sample_bits).1[k]! = pe_dst[k]! := by
+  unfold inner_loop_unrolled
   simp only [Q]
   rw [Vector.getElem!_set!_ne, Vector.getElem!_set!_ne, Vector.getElem!_set!_ne, Vector.getElem!_set!_ne,
     Vector.getElem!_set!_ne, Vector.getElem!_set!_ne, Vector.getElem!_set!_ne, Vector.getElem!_set!_ne]
   all_goals omega
+
+def Target2.samplePolyCBD.eta2_loop.inner_loop.equals_unrolled (pe_dst : Polynomial) (i : ℕ)
+  (sample_bits : BitVec 32) : inner_loop pe_dst i 0 sample_bits = inner_loop_unrolled pe_dst i sample_bits := by
+  simp [inner_loop, inner_loop_unrolled]
 
 lemma Fin.unfold2 {α} [AddCommMonoid α] {n : Nat} (hn : n = 2) (f : Fin n → α) :
   ∑ x : Fin n, f x = f ⟨0, by omega⟩ + f ⟨1, by omega⟩ := by
@@ -1101,7 +1105,7 @@ def Target2.samplePolyCBD.eta2_loop.spec {s : Target2.samplePolyCBDState}
       simp only at hj1
       simp only
       by_cases hj2 : j < s.i
-      . rw [eta2_loop.inner_loop.preserves_below]
+      . rw [eta2_loop.inner_loop.equals_unrolled, eta2_loop.inner_loop_unrolled.preserves_below]
         . exact hs1 j hj2
         . exact hj2
       . next hs6 =>
@@ -1121,7 +1125,8 @@ def Target2.samplePolyCBD.eta2_loop.spec {s : Target2.samplePolyCBDState}
           . simp only [Array.size_extract, tsub_zero, lt_inf_iff]
             have := s.hB
             omega
-        unfold inner_loop
+        rw [inner_loop.equals_unrolled]
+        unfold inner_loop_unrolled
         simp only [Q, Vector.Inhabited_getElem_eq_getElem!, Nat.cast_sum]
         have hj3 : j = s.i ∨ j = s.i + 1 ∨ j = s.i + 2 ∨ j = s.i + 3 ∨
                    j = s.i + 4 ∨ j = s.i + 5 ∨ j = s.i + 6 ∨ j = s.i + 7 := by omega
@@ -1157,7 +1162,7 @@ def Target2.samplePolyCBD.eta2_loop.spec {s : Target2.samplePolyCBDState}
     . intro j hj1 hj2
       simp only at hj2
       simp only [ReduceZMod.reduceZMod]
-      rw [eta2_loop.inner_loop.preserves_above]
+      rw [inner_loop.equals_unrolled, inner_loop_unrolled.preserves_above]
       . exact hs2 j hj1 (by omega)
       . omega
     . simp only
