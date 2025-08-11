@@ -26,6 +26,7 @@ open Aeneas Aeneas.Std Aeneas.SRRange
 set_option maxHeartbeats 1000000
 
 def Target.samplePolyCBD.body {rangeStart : Nat} {η : Η} (b : Vector Bool (8 * (64 * ↑η))) (f : Polynomial)
+  -- (i : { x // x < 256}) : Polynomial :=
   (i : { x // x ∈ List.range' rangeStart (256 - rangeStart) }) : Polynomial :=
   have hi := i.2
   have : 2 * i.1 * η ≤ 510 * η := by
@@ -51,13 +52,44 @@ def Target.samplePolyCBD.eq_spec {η : Η} (B : Vector Byte (64 * η)) :
     forIn'_eq_forIn, forIn_eq_forIn_range', size, tsub_zero, Nat.reduceAdd, Nat.add_one_sub_one,
     Nat.div_one, List.forIn_pure_yield_eq_foldl, bind_pure, Id.run_pure]
 
+/-
+irreducible_def Target.byteDecode.decodeCoefficient.inv {m d : ℕ} (b : Vector Bool (8 * (32 * d)))
+  (F : Polynomial m) (i : ℕ) : Prop :=
+  -- Coefficients below `i` have been set
+  (∀ i' < i, F[i']! = (∑ (j : Fin d), (Bool.toNat b[i' * d + j]!) * 2^j.val)) ∧
+  -- Coefficients at or above `i` have not yet been set
+  ∀ i' ∈ [i:256], F[i']! = 0
+-/
+
+def Target.samplePolyCBD.inv {η : Η}  (b : Vector Bool (8 * (64 * ↑η))) (f : Polynomial) (i : ℕ) : Prop :=
+  -- Coefficients below `i` have been set
+  (∀ j < i, f[j]! =
+    ∑ x : Fin η, (b[2 * j * ↑η + ↑x]!.toNat : ZMod Q) -
+    ∑ x : Fin η, (b[2 * j * ↑η + ↑η + ↑x]!.toNat : ZMod Q)) ∧
+  -- Coefficients at or above `i` have not yet been set
+  ∀ j ∈ [i:256], f[j]! = 0
+
 def Target.samplePolyCBD.spec_aux {η : Η} (b : Vector Bool (8 * (64 * ↑η))) (f : Polynomial)
-  (rangeStart : ℕ) (i : { x // x ∈ List.range' rangeStart (256 - rangeStart) }) :
-  (List.foldl (body b) f (List.range' rangeStart (256 - rangeStart)).attach)[i.1]! =
-  ∑ x : Fin η, (b[2 * i.1 * ↑η + ↑x]!.toNat : ZMod Q) - ∑ x : Fin η, (b[2 * i.1 * ↑η + ↑η + ↑x]!.toNat : ZMod Q) := by
-  rcases i with ⟨i, hi⟩
-  -- **TODO** Look at the proofs for similar functions to recall how to best do this induction/recursion
-  sorry
+  (rangeStart : ℕ)
+  (hf : ∀ i < rangeStart,
+    f[i]! = ∑ x : Fin η, (b[2 * i * ↑η + ↑x]!.toNat : ZMod Q) -
+            ∑ x : Fin η, (b[2 * i * ↑η + ↑η + ↑x]!.toNat : ZMod Q)) :
+  ∀ i : { x // x ∈ List.range' rangeStart (256 - rangeStart) },
+    (recBody b f rangeStart)[i.1]! =
+    -- (List.foldl (body b) f (List.range' rangeStart (256 - rangeStart)).attach)[i.1]! =
+    ∑ x : Fin η, (b[2 * i.1 * ↑η + ↑x]!.toNat : ZMod Q) -
+    ∑ x : Fin η, (b[2 * i.1 * ↑η + ↑η + ↑x]!.toNat : ZMod Q) := by
+  rintro ⟨i, hi⟩
+  dcases hRangeStart : rangeStart = 255
+  . simp only [hRangeStart, Nat.reduceSub, List.range'_one, List.mem_cons, List.not_mem_nil, or_false] at hi
+    simp only [Q, List.attach, hRangeStart, Nat.reduceSub, List.range'_one, List.attachWith_cons,
+      List.attachWith_nil, List.foldl_cons, body, Nat.reduceMul,
+      Vector.Inhabited_getElem_eq_getElem!, Nat.cast_sum, List.foldl_nil, hi, Nat.lt_add_one,
+      and_self, Vector.getElem!_set!, recBody]
+  . have recBodyUnfold : recBody b (body b f ⟨i, hi⟩) (rangeStart + 1) = recBody b f rangeStart := by
+      sorry
+    rw [← recBodyUnfold]
+    sorry -- exact spec_aux b (body b f ⟨i, hi⟩) (rangeStart + 1)
 
 def Target.samplePolyCBD.spec {η : Η} (B : Vector Byte (64 * η)) (i : ℕ) (hi : i < 256) :
   let b := Spec.bytesToBits B
@@ -65,6 +97,5 @@ def Target.samplePolyCBD.spec {η : Η} (B : Vector Byte (64 * η)) (i : ℕ) (h
   let x := ∑ (j : Fin η), Bool.toNat b[2 * i * η + j]
   let y := ∑ (j : Fin η), Bool.toNat b[2 * i * η + η + j]
   (samplePolyCBD B)[i]! = x - y := by
-  unfold samplePolyCBD recBody
-  simp only [Q, Nat.sub_zero, Vector.Inhabited_getElem_eq_getElem!, Nat.cast_sum]
-  rw [spec_aux (Spec.bytesToBits B) Polynomial.zero 0 ⟨i, by simp [hi]⟩]
+  simp only [Q, samplePolyCBD, spec_aux (Spec.bytesToBits B) Polynomial.zero 0 (by simp) ⟨i, by simp [hi]⟩,
+    Vector.Inhabited_getElem_eq_getElem!, Nat.cast_sum]
