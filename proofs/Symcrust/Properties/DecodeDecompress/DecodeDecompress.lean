@@ -42,7 +42,6 @@ lemma mod_two_pow (x y d : ℕ) (hxy : x = y) : x % 2 ^ d = y &&& ((1 <<< d) - 1
   intro i
   rw [Nat.testBit_mod_two_pow, Nat.testBit_and, Nat.one_shiftLeft, Nat.testBit_two_pow_sub_one, Bool.and_comm]
 
--- Automation note: Does this pattern come up enough to make it worth adding to `simp_lists`?
 lemma List.flatMap_eq_map {α β} (l : List α) (f : α → β) : l.flatMap (fun x => [f x]) = l.map f := by
   induction l <;> simp_all
 
@@ -117,9 +116,6 @@ theorem decode_coefficient.early_load_progress_spec (b : Slice U8) (d : U32) (f 
     omega
   let* ⟨accumulator1, haccumulator1⟩ ← slice_to_sub_array4_spec
   let* ⟨accumulator2, haccumulator2⟩ ← core.num.U32.from_le_bytes.progress_spec
-  have : 8 * num_bytes_read.val ≤ 12 * 256 := by
-    simp only [hinv.2.1, hn_bits_in_accumulator, UScalar.ofNat_val_eq, add_zero]
-    apply Nat.mul_le_mul <;> omega
   let* ⟨cb_src_read1, hsb_src_read1⟩ ← Usize.add_spec
   let* ⟨n_bits_to_decode, hn_bits_to_decode⟩ ← min_spec
   progress with massert_spec
@@ -288,27 +284,34 @@ theorem decode_coefficient.late_load_progress_spec (b : Slice U8) (d : U32) (f :
     ∑ (a : Fin d), (Bool.toNat (b[(d.val * i + a) / 8]!.val.testBit ((d * i + a) % 8))) * 2^a.val < Spec.m d)
   (hb2 : b.length = 32 * d.val) (hi : i.val < 256) (hd : 0 < d.val ∧ d.val ≤ 12)
   (hn_bits_in_accumulator : ¬n_bits_in_accumulator = 0#u32) (n_bits_to_decode : U32)
-  (__1 : [> let n_bits_to_decode ← min d n_bits_in_accumulator <])
   (hn_bits_to_decode : n_bits_to_decode.val = Min.min d.val n_bits_in_accumulator.val) (i' : U32)
-  (__2 : [> let i' ← 1#u32 <<< n_bits_to_decode <]) (__3 : i'.bv = U32.bv 1#u32 <<< n_bits_to_decode.val)
-  (hi' : ↑i' = 1 <<< ↑n_bits_to_decode % U32.size) (i1 : U32) (__4 : [> let i1 ← i' - 1#u32 <])
-  (__5 : i1.bv = i'.bv - U32.bv 1#u32) (hi1 : ↑i1 = i'.val - 1) (__6 : 1 ≤ i'.val) (bits_to_decode : U32)
-  (__7 : [> let bits_to_decode ← ↑(acc &&& i1) <]) (hbits_to_decode : bits_to_decode.val = (acc &&& i1).val)
-  (__8 : bits_to_decode.bv = acc.bv &&& i1.bv) (accumulator1 : U32)
-  (__9 : [> let accumulator1 ← acc >>> n_bits_to_decode <])
-  (__10 : accumulator1.bv = acc.bv >>> n_bits_to_decode.val) (n_bits_in_accumulator1 : U32)
-  (__11 : [> let n_bits_in_accumulator1 ← n_bits_in_accumulator - n_bits_to_decode <])
+  (hi' : ↑i' = 1 <<< ↑n_bits_to_decode % U32.size) (i1 : U32)
+  (hi1 : ↑i1 = i'.val - 1) (bits_to_decode : U32) (hbits_to_decode : bits_to_decode.val = (acc &&& i1).val)
+  (accumulator1 : U32) (n_bits_in_accumulator1 : U32)
   (hn_bits_in_accumulator1 : ↑n_bits_in_accumulator1 = n_bits_in_accumulator.val - ↑n_bits_to_decode)
+  (coefficient1 : U32) (h : d > n_bits_to_decode)
+  -- **TODO** Currently, the automation in this proof fails if I eliminate the following hypotheses, but
+  -- none of these hypotheses ought to be necessary (except for potentially `__6` and `__12`).
+  (__1 : [> let n_bits_to_decode ← min d n_bits_in_accumulator <])
+  (__2 : [> let i' ← 1#u32 <<< n_bits_to_decode <])
+  (__3 : i'.bv = U32.bv 1#u32 <<< n_bits_to_decode.val)
+  (__4 : [> let i1 ← i' - 1#u32 <])
+  (__5 : i1.bv = i'.bv - U32.bv 1#u32)
+  (__6 : 1 ≤ i'.val)
+  (__7 : [> let bits_to_decode ← ↑(acc &&& i1) <])
+  (__8 : bits_to_decode.bv = acc.bv &&& i1.bv)
+  (__9 : [> let accumulator1 ← acc >>> n_bits_to_decode <])
+  (__10 : accumulator1.bv = acc.bv >>> n_bits_to_decode.val)
+  (__11 : [> let n_bits_in_accumulator1 ← n_bits_in_accumulator - n_bits_to_decode <])
   (__12 : ↑n_bits_to_decode ≤ ↑n_bits_in_accumulator)
-  (__13 : n_bits_in_accumulator1.bv = n_bits_in_accumulator.bv - n_bits_to_decode.bv) (coefficient1 : U32)
+  (__13 : n_bits_in_accumulator1.bv = n_bits_in_accumulator.bv - n_bits_to_decode.bv)
   (_ : [> let coefficient1 ←
     ↑(@HOr.hOr U32 U32 U32 instHOrUScalar (UScalar.ofNat 0 (by decide)) bits_to_decode) <])
   (hcoefficient1 : ↑coefficient1 = @UScalar.val UScalarTy.U32
     (@HOr.hOr U32 U32 U32 instHOrUScalar (UScalar.ofNat 0 (by decide)) bits_to_decode))
   (__14 : coefficient1.bv =
     @HOr.hOr (BitVec UScalarTy.U32.numBits) (BitVec UScalarTy.U32.numBits) (BitVec UScalarTy.U32.numBits)
-      instHOrOfOrOp (UScalar.ofNat 0 (by decide)).bv bits_to_decode.bv)
-  (h : d > n_bits_to_decode) :
+      instHOrOfOrOp (UScalar.ofNat 0 (by decide)).bv bits_to_decode.bv) :
   ∃ num_bytes_read' acc' n_bits_in_accumulator' coefficient,
     (do
           massert (n_bits_in_accumulator1 = 0#u32)
@@ -688,12 +691,10 @@ def decode_coefficient.progress_spec (b : Slice U8) (d : U32) (f : Array U16 256
       let* ⟨coefficient1, hcoefficient1⟩ ← UScalar.or_spec
       split
       . simp only [mem_std_range_step_one]
-        exact decode_coefficient.late_load_progress_spec b d f num_bytes_read acc n_bits_in_accumulator i
-          hacc1 hinv hb1 hb2 hi hd (by assumption) n_bits_to_decode (by assumption) (by assumption)
-          i' (by assumption) (by assumption) (by assumption) i1 (by assumption) (by assumption) (by assumption)
-          (by assumption) bits_to_decode (by assumption) (by assumption) (by assumption) accumulator1
-          (by assumption) (by assumption) n_bits_in_accumulator1 (by assumption) (by assumption) (by assumption)
-          (by assumption) coefficient1 (by assumption) (by assumption) (by assumption) (by assumption)
+        apply decode_coefficient.late_load_progress_spec b d f num_bytes_read acc n_bits_in_accumulator i
+          hacc1 hinv hb1 hb2 hi hd hn_bits_in_accumulator n_bits_to_decode hn_bits_to_decode i' hi' i1
+          hi1 bits_to_decode hbits_to_decode accumulator1 n_bits_in_accumulator1 hn_bits_in_accumulator1
+          coefficient1 <;> assumption
       . next hd =>
         replace hd : d = n_bits_to_decode := by scalar_tac
         simp only [UScalar.neq_to_neq_val, UScalar.ofNat_val_eq] at hn_bits_in_accumulator

@@ -169,9 +169,7 @@ def ntt.poly_element_sample_cbd_from_bytes_eta2_loop_loop.spec (b : Slice U8) (f
         have : List.map U8.bv ↑a = List.slice (↑src_i) (↑src_i + 4) (List.map (fun x => x.bv) b.val) := by
           rw [List.eq_iff_forall_eq_getElem!]
           constructor
-          . simp only [List.length_map, List.Vector.length_val, UScalar.ofNat_val_eq,
-              List.slice_length, add_tsub_cancel_left, right_eq_inf]
-            scalar_tac
+          . simp_scalar
           . intro i hi
             simp only [Array.getElem!_Nat_eq, Slice.getElem!_Nat_eq] at ha
             rw [List.getElem!_map_eq, ha i (by omega), List.getElem!_slice, List.getElem!_map_eq] <;> scalar_tac
