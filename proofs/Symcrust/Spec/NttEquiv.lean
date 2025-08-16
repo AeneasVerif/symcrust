@@ -6,6 +6,7 @@ import Mathlib.RingTheory.Ideal.Span
 import Mathlib.RingTheory.Ideal.Quotient.Defs
 
 import Mathlib.Tactic.Ring
+import Mathlib.Tactic.Linarith
 
 set_option maxRecDepth 2000
 
@@ -122,16 +123,17 @@ namespace Poly
     simp [pow_add ζ x 128, zeta_128_eq, one]
 
   /- # Definition of the ring structure in the Kyber ring. -/
-  def TqAux (height baseLevel zetaPow: Nat) :=
-    match height with
+  def TqAux (splits baseLevel zetaPow: Nat) :=
+    match splits with
     | 0 => Zq[X] ⧸ Ideal.span {xn (2^(baseLevel + 1)) - ζ ^ (zetaPow)}
     | k + 1 =>
-      TqAux k baseLevel (zetaPow/2) × TqAux k baseLevel (zetaPow/2 + 128)
+      TqAux k (baseLevel-1) (zetaPow/2) × TqAux k (baseLevel-1) (zetaPow/2 + 128)
 
   #check TqAux 0 7 128 -- This is the ring Zq[X] ⧸ Ideal.span {xn 256 + 1}
   #check TqAux 0 6 64  -- This is the ring Zq[X] ⧸ Ideal.span {xn 128 - zeta ^ 64}
   #check TqAux 0 6 192  -- This is the ring Zq[X] ⧸ Ideal.span {xn 128 + zeta ^ 64}
-  #check TqAux 1 6 128 -- This is the product of (TqAux 0 6 64) × (TqAux 0 6 192)
+  example : TqAux 1 7 128 = ((TqAux 0 6 64) × (TqAux 0 6 192)) := by simp [TqAux]
+  example : TqAux 2 4 128 = (((TqAux 0 2 32) × (TqAux 0 2 160)) × ((TqAux 0 2 96) × (TqAux 0 2 224))) := by simp [TqAux]
 
 
   /- # The corresponding polynomials. -/
@@ -140,6 +142,13 @@ namespace Poly
     match level with
     | 0 => xn 2 - ζ ^ zetaPow
     | k + 1 => (PiAux k (zetaPow/2)) * (PiAux k ((zetaPow/2) + 128))
+
+  example : PiAux 0 1 = xn 2 - ζ := by simp [PiAux]
+  example : PiAux 1 2 = xn 4 - ζ ^ 2 := by
+    simp [PiAux, xn, Zq.one, zeta_exp_p_128_eq]
+    ring_nf
+    simp [sub_eq_add_neg, add_comm]
+
 
   /- # Explicit formula for the polynomials. -/
   theorem pi_lk (l k : Nat) (h₁ : (2 ^ l) ∣ k) (h₂ : l < 8): PiAux l k = xn (2 ^ (l + 1)) - ζ ^ k := by
@@ -164,33 +173,47 @@ namespace Poly
           apply Nat.le_of_lt
           apply Nat.lt_of_add_lt_add_right h₂
         apply Nat.pow_dvd_pow 2 this
-      have h₉ : m < 8 := by
-        calc
-          m = m + 1 - 1 := by rw[Nat.add_sub_cancel]
-          _ < 8 - 1 := by apply Nat.lt_of_add_lt_add_right h₂
-          _ < 8 := by simp
       simp [PiAux]
       rw [pi_lk m (k / 2), pi_lk m]
       ring_nf
       simp [PiAux, xn, one, Zq.one]
-      ring_nf
       simp [zeta_128_eq, monomial_pow, one]
       rw [Nat.div_mul_cancel]
+      ring_nf
+
       apply h₃
       apply Nat.dvd_add h₇ h₈
-      apply h₉
+      linarith
       apply h₇
-      apply h₉
+      linarith
 
-  theorem Tq_Pi_correspondence (l k : Nat) (h₁ : (2 ^ l) ∣ k) (h₂ : l < 8) :
+  theorem Tq_Pi_correspondence_0 (l k : Nat) (h₁ : (2 ^ l) ∣ k) (h₂ : l < 8) :
         (TqAux 0 l k) = (Zq[X] ⧸ Ideal.span {PiAux l k}) := by
     rw [TqAux, pi_lk l k h₁ h₂]
 
   example : TqAux 0 7 128 = (Zq[X] ⧸ Ideal.span {xn 256 + 1}) := by
-    simp [Tq_Pi_correspondence, pi_lk, zeta_128_eq, one]
+    simp [Tq_Pi_correspondence_0, pi_lk, zeta_128_eq, one]
 
   example : TqAux 0 6 64 = (Zq[X] ⧸ Ideal.span {xn 128 - ζ ^ 64}) := by
-    simp [Tq_Pi_correspondence, pi_lk]
+    simp [Tq_Pi_correspondence_0, pi_lk]
 
   example : TqAux 0 6 192 = (Zq[X] ⧸ Ideal.span {xn 128 + ζ ^ 64}) := by
-    simp [Tq_Pi_correspondence, pi_lk, zeta_exp_p_128_eq]
+    simp [Tq_Pi_correspondence_0, pi_lk, zeta_exp_p_128_eq]
+
+
+  theorem Tq_Pi_correspondence_1 (l k : Nat) (h₁ : (2 ^ (l+1)) ∣ k) (h₂ : l < 7) :
+        (TqAux 1 (l+1) k) = ((Zq[X] ⧸ Ideal.span {PiAux l (k/2)}) × (Zq[X] ⧸ Ideal.span {PiAux l (k/2 + 128)})) := by
+    have h₃ : 2 ^ l ∣ (k / 2) := by
+      refine (Nat.dvd_div_iff_mul_dvd ?_).mpr ?_
+      apply Nat.dvd_of_pow_dvd _ h₁
+      simp
+      rw [Eq.symm Nat.pow_succ']
+      apply h₁
+    simp [TqAux]
+    rw [pi_lk l (k/2), pi_lk l (k/2 + 128)]
+    · refine (Nat.dvd_add_iff_right ?_).mp ?_
+      exact h₃
+      apply Nat.pow_dvd_pow 2 (Nat.le_of_lt h₂)
+    · linarith
+    · exact h₃
+    · linarith
