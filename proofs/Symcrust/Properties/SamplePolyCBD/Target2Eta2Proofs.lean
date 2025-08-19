@@ -19,7 +19,7 @@ This file contains theorems about `Symcrust.Spec.samplePolyCBD` defined in Symcr
 
   `Target2.samplePolyCBD.eta2_loop.spec` (which is the critical theorem in this file) proves `⟷₃` when `η = 2`.
 
-  **Note** although the various `Target2.samplePolyCBD.eta2_loop.spec.aux` lemmas appear to be extremely similar,
+  **Note** although the various `Target2.samplePolyCBD.eta2_loop.spec.aux_` lemmas appear to be extremely similar,
   there are enough minor changes to the indices that appear in the arguments that there is not a convenient way
   to combine all of these lemmas into one parameterized theorem.
 -/
@@ -113,6 +113,14 @@ lemma shiftDistribMask1431655765 {x y shift k : ℕ} (hx : x < 2^64) (hy : y < 2
     ← BitVec.getElem!_eq_testBit_toNat, ← BitVec.getElem!_eq_testBit_toNat, BitVec.getElem!_eq_mask_ne_zero,
     BitVec.getElem!_eq_mask_ne_zero, shiftDistribMask1431655765Core] <;> omega
 
+/-- Each `Target2.samplePolyCBD.eta2_loop.spec.aux_` theorem is intended to prove the same basic result. The
+    difference between them is `hj3` and the index of `(Target.bytesToBits BVector)` referenced in the goal.
+    For `Target2.samplePolyCBD.eta2_loop.spec.aux_`, `hj3` states that `j = s.i + _` and the index of
+    `(Target.bytesToBits BVector)` referenced in the goal is `2 * (s.i + _) * ↑s.η + ↑x`
+
+    Because the indices change for each `Target2.samplePolyCBD.eta2_loop.spec.aux_`, the proofs themselves
+    have minor differences (such as the values which `hBytesToBits` is instantiated with) but the overall
+    structure of the proofs is shared. -/
 theorem Target2.samplePolyCBD.eta2_loop.spec.aux0 {s : samplePolyCBDState}
   (BVector : Vector Byte (64 * ↑s.η))
   (hBVector : BVector = ⟨s.B.take (64 * s.η), by have := s.hB; simp; omega⟩)
@@ -217,6 +225,14 @@ theorem Target2.samplePolyCBD.eta2_loop.spec.aux0 {s : samplePolyCBDState}
   revert sample_bits_slice
   brute
 
+/-- Each `Target2.samplePolyCBD.eta2_loop.spec.aux_` theorem is intended to prove the same basic result. The
+    difference between them is `hj3` and the index of `(Target.bytesToBits BVector)` referenced in the goal.
+    For `Target2.samplePolyCBD.eta2_loop.spec.aux_`, `hj3` states that `j = s.i + _` and the index of
+    `(Target.bytesToBits BVector)` referenced in the goal is `2 * (s.i + _) * ↑s.η + ↑x`
+
+    Because the indices change for each `Target2.samplePolyCBD.eta2_loop.spec.aux_`, the proofs themselves
+    have minor differences (such as the values which `hBytesToBits` is instantiated with) but the overall
+    structure of the proofs is shared. -/
 theorem Target2.samplePolyCBD.eta2_loop.spec.aux1 {s : samplePolyCBDState}
   (BVector : Vector Byte (64 * ↑s.η))
   (hBVector : BVector = ⟨s.B.take (64 * s.η), by have := s.hB; simp; omega⟩)
@@ -339,6 +355,14 @@ theorem Target2.samplePolyCBD.eta2_loop.spec.aux1 {s : samplePolyCBDState}
   revert sample_bits_slice
   brute
 
+/-- Each `Target2.samplePolyCBD.eta2_loop.spec.aux_` theorem is intended to prove the same basic result. The
+    difference between them is `hj3` and the index of `(Target.bytesToBits BVector)` referenced in the goal.
+    For `Target2.samplePolyCBD.eta2_loop.spec.aux_`, `hj3` states that `j = s.i + _` and the index of
+    `(Target.bytesToBits BVector)` referenced in the goal is `2 * (s.i + _) * ↑s.η + ↑x`
+
+    Because the indices change for each `Target2.samplePolyCBD.eta2_loop.spec.aux_`, the proofs themselves
+    have minor differences (such as the values which `hBytesToBits` is instantiated with) but the overall
+    structure of the proofs is shared. -/
 theorem Target2.samplePolyCBD.eta2_loop.spec.aux2 {s : samplePolyCBDState}
   (BVector : Vector Byte (64 * ↑s.η))
   (hBVector : BVector = ⟨s.B.take (64 * s.η), by have := s.hB; simp; omega⟩)
@@ -459,6 +483,14 @@ theorem Target2.samplePolyCBD.eta2_loop.spec.aux2 {s : samplePolyCBDState}
   revert sample_bits_slice
   brute
 
+/-- Each `Target2.samplePolyCBD.eta2_loop.spec.aux_` theorem is intended to prove the same basic result. The
+    difference between them is `hj3` and the index of `(Target.bytesToBits BVector)` referenced in the goal.
+    For `Target2.samplePolyCBD.eta2_loop.spec.aux_`, `hj3` states that `j = s.i + _` and the index of
+    `(Target.bytesToBits BVector)` referenced in the goal is `2 * (s.i + _) * ↑s.η + ↑x`
+
+    Because the indices change for each `Target2.samplePolyCBD.eta2_loop.spec.aux_`, the proofs themselves
+    have minor differences (such as the values which `hBytesToBits` is instantiated with) but the overall
+    structure of the proofs is shared. -/
 theorem Target2.samplePolyCBD.eta2_loop.spec.aux3 {s : samplePolyCBDState}
   (BVector : Vector Byte (64 * ↑s.η))
   (hBVector : BVector = ⟨s.B.take (64 * s.η), by have := s.hB; simp; omega⟩)
@@ -584,6 +616,14 @@ theorem Target2.samplePolyCBD.eta2_loop.spec.aux3 {s : samplePolyCBDState}
   revert sample_bits_slice
   brute
 
+/-- Each `Target2.samplePolyCBD.eta2_loop.spec.aux_` theorem is intended to prove the same basic result. The
+    difference between them is `hj3` and the index of `(Target.bytesToBits BVector)` referenced in the goal.
+    For `Target2.samplePolyCBD.eta2_loop.spec.aux_`, `hj3` states that `j = s.i + _` and the index of
+    `(Target.bytesToBits BVector)` referenced in the goal is `2 * (s.i + _) * ↑s.η + ↑x`
+
+    Because the indices change for each `Target2.samplePolyCBD.eta2_loop.spec.aux_`, the proofs themselves
+    have minor differences (such as the values which `hBytesToBits` is instantiated with) but the overall
+    structure of the proofs is shared. -/
 theorem Target2.samplePolyCBD.eta2_loop.spec.aux4 {s : samplePolyCBDState}
   (BVector : Vector Byte (64 * ↑s.η))
   (hBVector : BVector = ⟨s.B.take (64 * s.η), by have := s.hB; simp; omega⟩)
@@ -707,6 +747,14 @@ theorem Target2.samplePolyCBD.eta2_loop.spec.aux4 {s : samplePolyCBDState}
   revert sample_bits_slice
   brute
 
+/-- Each `Target2.samplePolyCBD.eta2_loop.spec.aux_` theorem is intended to prove the same basic result. The
+    difference between them is `hj3` and the index of `(Target.bytesToBits BVector)` referenced in the goal.
+    For `Target2.samplePolyCBD.eta2_loop.spec.aux_`, `hj3` states that `j = s.i + _` and the index of
+    `(Target.bytesToBits BVector)` referenced in the goal is `2 * (s.i + _) * ↑s.η + ↑x`
+
+    Because the indices change for each `Target2.samplePolyCBD.eta2_loop.spec.aux_`, the proofs themselves
+    have minor differences (such as the values which `hBytesToBits` is instantiated with) but the overall
+    structure of the proofs is shared. -/
 theorem Target2.samplePolyCBD.eta2_loop.spec.aux5 {s : samplePolyCBDState}
   (BVector : Vector Byte (64 * ↑s.η))
   (hBVector : BVector = ⟨s.B.take (64 * s.η), by have := s.hB; simp; omega⟩)
@@ -834,6 +882,14 @@ theorem Target2.samplePolyCBD.eta2_loop.spec.aux5 {s : samplePolyCBDState}
   revert sample_bits_slice
   brute
 
+/-- Each `Target2.samplePolyCBD.eta2_loop.spec.aux_` theorem is intended to prove the same basic result. The
+    difference between them is `hj3` and the index of `(Target.bytesToBits BVector)` referenced in the goal.
+    For `Target2.samplePolyCBD.eta2_loop.spec.aux_`, `hj3` states that `j = s.i + _` and the index of
+    `(Target.bytesToBits BVector)` referenced in the goal is `2 * (s.i + _) * ↑s.η + ↑x`
+
+    Because the indices change for each `Target2.samplePolyCBD.eta2_loop.spec.aux_`, the proofs themselves
+    have minor differences (such as the values which `hBytesToBits` is instantiated with) but the overall
+    structure of the proofs is shared. -/
 theorem Target2.samplePolyCBD.eta2_loop.spec.aux6 {s : samplePolyCBDState}
   (BVector : Vector Byte (64 * ↑s.η))
   (hBVector : BVector = ⟨s.B.take (64 * s.η), by have := s.hB; simp; omega⟩)
@@ -959,6 +1015,14 @@ theorem Target2.samplePolyCBD.eta2_loop.spec.aux6 {s : samplePolyCBDState}
   revert sample_bits_slice
   brute
 
+/-- Each `Target2.samplePolyCBD.eta2_loop.spec.aux_` theorem is intended to prove the same basic result. The
+    difference between them is `hj3` and the index of `(Target.bytesToBits BVector)` referenced in the goal.
+    For `Target2.samplePolyCBD.eta2_loop.spec.aux_`, `hj3` states that `j = s.i + _` and the index of
+    `(Target.bytesToBits BVector)` referenced in the goal is `2 * (s.i + _) * ↑s.η + ↑x`
+
+    Because the indices change for each `Target2.samplePolyCBD.eta2_loop.spec.aux_`, the proofs themselves
+    have minor differences (such as the values which `hBytesToBits` is instantiated with) but the overall
+    structure of the proofs is shared. -/
 theorem Target2.samplePolyCBD.eta2_loop.spec.aux7 {s : samplePolyCBDState}
   (BVector : Vector Byte (64 * ↑s.η))
   (hBVector : BVector = ⟨s.B.take (64 * s.η), by have := s.hB; simp; omega⟩)

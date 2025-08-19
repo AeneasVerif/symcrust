@@ -63,7 +63,7 @@ lemma Target.samplePolyCBD.recBody.preserves_below {η : Η} (b : Vector Bool (8
   . have hi2 : i ∈ List.range' i (256 - i) := by simp [hi]
     have recBodyUnfold :
       recBody b (body b f ⟨i, hi2⟩) (i + 1) = recBody b f i := by
-      simp [recBody, Nat.reduceSubDiff]
+      simp only [Q, recBody]
       have : 256 - i = (255 - i) + 1 := by omega
       rw [List.attach, List.attach]
       simp only [Nat.reduceSubDiff, List.foldl_attachWith, this, List.range'_succ,
@@ -114,11 +114,10 @@ def Target.samplePolyCBD.spec_aux {η : Η} (b : Vector Bool (8 * (64 * ↑η)))
     . rw [recBody.preserves_below b f rangeStart (by omega) i hi2, hf i hi2]
     . have hRangeStart : rangeStart ∈ List.range' rangeStart (256 - rangeStart) := by simp [hRangeStart]
       replace hi2 : i ∈ List.range' rangeStart (256 - rangeStart) := by
-        simp only [List.mem_range'_1]
-        omega
+        simp_lists_scalar [List.mem_range'_1]
       have recBodyUnfold :
         recBody b (body b f ⟨rangeStart, hRangeStart⟩) (rangeStart + 1) = recBody b f rangeStart := by
-        simp [recBody, Nat.reduceSubDiff]
+        simp only [Q, recBody]
         have : 256 - rangeStart = (255 - rangeStart) + 1 := by omega
         rw [List.attach, List.attach]
         simp only [Nat.reduceSubDiff, List.foldl_attachWith, this, List.range'_succ,
