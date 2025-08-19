@@ -49,6 +49,9 @@ lemma List.flatMap_eq_map {α β} (l : List α) (f : α → β) : l.flatMap (fun
 -- than generate a variable name that does not already appear in the context. I think it would be good if
 -- `progress*` always generated fresh names to avoid this issue (or at least had an option to always
 -- generate fresh names)
+/-- This function is meant to reason about the output of `decode_coefficient` when it is necessary to load
+    bits from the accumulator at the beginning of `decode_coefficient`. Note that `hn_bits_in_accumulator`
+    specifies that the initial number of bits in the accumulator is 0. -/
 theorem decode_coefficient.early_load_progress_spec (b : Slice U8) (d : U32) (f : Std.Array U16 256#usize)
   (num_bytes_read : Usize) (acc n_bits_in_accumulator : U32) (i' : Usize)
   (hinv : SpecAux.Stream.decode.length_inv (↑d) 4 ↑num_bytes_read ↑n_bits_in_accumulator ↑i')
@@ -260,6 +263,11 @@ theorem decode_coefficient.early_load_progress_spec (b : Slice U8) (d : U32) (f 
       rw [this]
       exact hb1 i'.val (by omega)
 
+/-- This function is meant to reason about the output of `decode_coefficient` when it is necessary to load
+    bits from the accumulator at the end of `decode_coefficient`. Note that `hn_bits_in_accumulator`
+    specifies that the initial number of bits in the accumulator is not 0 but `h` and `hn_bits_to_decode`
+    collectively state that `d > Min.min d.val n_bits_in_accumulator.val`, meaning there were not enough
+    bits in the accumulator to decode a full coefficient. -/
 theorem decode_coefficient.late_load_progress_spec (b : Slice U8) (d : U32) (f : Std.Array U16 256#usize)
   (num_bytes_read : Usize) (acc n_bits_in_accumulator : U32) (i : Usize)
   (hacc1 : (∀ j < n_bits_in_accumulator.val, acc.val.testBit j =
@@ -370,8 +378,6 @@ theorem decode_coefficient.late_load_progress_spec (b : Slice U8) (d : U32) (f :
       exact this d.val (by omega) n_bits_in_accumulator hn_bits_in_accumulator'
     have h1 : Min.min d.val n_bits_in_accumulator.val = n_bits_in_accumulator.val := by scalar_tac
     have h2 : 2 ^ n_bits_in_accumulator.val % 4294967296 = 2 ^ n_bits_in_accumulator.val := by
-      rw [Nat.mod_eq_of_lt]
-      rw [(by decide : 4294967296 = 2 ^ 32)]
       scalar_tac +nonLin
     have h3 :
       ∀ hCast : 8 * (List.map U8.bv ↑accumulator1).length = 32, accumulator2.val =
