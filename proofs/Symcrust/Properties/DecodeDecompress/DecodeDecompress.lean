@@ -120,17 +120,14 @@ theorem decode_coefficient.early_load_progress_spec (b : Slice U8) (d : U32) (f 
     omega
   progress*
   . rw [i_post_2, Nat.mod_eq_of_lt]
-    . simp only [UScalar.ofNat_val_eq]
-      exact Nat.le_shiftLeft
-    . have : Min.min d.val 32 = d.val := by omega
-      simp only [n_bits_to_decode_post, U32.size, U32.numBits, UScalarTy.U32_numBits_eq, this]
-      apply Nat.lt_of_le_of_lt _ (by scalar_tac +nonLin : 2 ^ d.val < 2 ^ 32)
-      have : ∀ x < 13, 1 <<< x ≤ 2 ^ x := by brute
-      exact this d.val (by omega)
+    . simp_scalar [Nat.le_shiftLeft]
+    . -- Both of the following `have` statements are necessary for `scalar_tac` to close the goal
+      have : Min.min d.val 32 = d.val := by omega
+      have : 2 ^ d.val < 2 ^ 32 := by scalar_tac +nonLin
+      scalar_tac
   . simp only [id_eq, Array.getElem!_Nat_eq, Slice.getElem!_Nat_eq] at a_post
     have h1 : (d > n_bits_to_decode) = False := by
-      simp only [gt_iff_lt, UScalar.lt_equiv, bits_to_decode_post_1, inf_lt_left, not_le, eq_iff_iff,
-        iff_false, not_lt]
+      simp [bits_to_decode_post_1]
       omega
     have h2 : Min.min d.val 32 = d.val := by scalar_tac
     have h3 :
@@ -142,6 +139,8 @@ theorem decode_coefficient.early_load_progress_spec (b : Slice U8) (d : U32) (f 
         (List.flatMap (fun (a : U8) => [BitVec.ofNat 8 ↑a]) b.val) =
         List.map U8.bv ↑a := by
       rw [List.eq_iff_forall_eq_getElem!]
+      -- This `simp` call has been manually curated. It does not just have the set of facts that would
+      -- be obtained by calling `simp?`
       simp only [Bvify.UScalar.BitVec_ofNat_setWidth, UScalarTy.U8_numBits_eq, Bvify.U8.UScalar_bv,
         BitVec.setWidth_eq, List.slice_length, List.length_flatMap, List.length_cons,
         List.length_nil, zero_add, List.map_const', List.sum_replicate, smul_eq_mul, mul_one,
@@ -185,10 +184,7 @@ theorem decode_coefficient.early_load_progress_spec (b : Slice U8) (d : U32) (f 
         simp only [Nat.mod_succ_eq_iff_lt, Nat.succ_eq_add_one, Nat.reduceAdd]
         rw [(by omega : 4294967296 = 2 ^ 32)]
         apply BitVec.toNat_lt_twoPow_of_le
-        simp only [Bvify.UScalar.BitVec_ofNat_setWidth, UScalarTy.U8_numBits_eq, Bvify.U8.UScalar_bv,
-          BitVec.setWidth_eq, List.flatMap_eq_map, List.slice_length, List.length_map,
-          add_tsub_cancel_left]
-        omega
+        simp_scalar
       have hmod3 : 1 <<< d.val % U32.size = 1 <<< d.val := by scalar_tac
       rw [hmod1, hmod2, hmod3]
       congr
@@ -203,9 +199,9 @@ theorem decode_coefficient.early_load_progress_spec (b : Slice U8) (d : U32) (f 
       simp only [Nat.reduceLeDiff, Nat.reduceMul]
       split_conjs
       . omega
-      . simp only [mul_add, hinv.2.1, hn_bits_in_accumulator, UScalar.ofNat_val_eq, add_zero,
+      . have := hinv.2.1
+        simp_scalar [mul_add, this, hn_bits_in_accumulator, UScalar.ofNat_val_eq, add_zero,
           Nat.reduceMul, mul_one]
-        omega
       . have : d.val + (32 - d.val) = 32 := by omega
         rw [mul_add, mul_one, add_assoc, this, Nat.add_mod_right, ← hinv.2.2, hn_bits_in_accumulator]
         simp
@@ -217,15 +213,12 @@ theorem decode_coefficient.early_load_progress_spec (b : Slice U8) (d : U32) (f 
           mul_add, Nat.reduceMul, this]
         congr
         omega
-      . simp only [List.length_map, List.Vector.length_val, UScalar.ofNat_val_eq, Nat.reduceMul]
-        omega
-      . simp only [List.length_map, List.Vector.length_val, UScalar.ofNat_val_eq, Nat.reduceMul]
-        omega
+      . simp_lists_scalar
+      . simp_lists_scalar [List.length_map]
     . intro j hj1 hj2
       apply Nat.testBit_eq_false_of_lt
       apply BitVec.toNat_lt_twoPow_of_le
-      simp only [List.length_map, List.Vector.length_val, UScalar.ofNat_val_eq, Nat.reduceMul]
-      omega
+      simp_lists_scalar [List.length_map]
     . have : 1 <<< d.val % U32.size = 1 <<< d.val := by
         have : ∀ x < 13, 1 <<< x % U32.size = 1 <<< x := by brute
         exact this _ (by scalar_tac)
@@ -283,23 +276,13 @@ theorem decode_coefficient.late_load_progress_spec (b : Slice U8) (d : U32) (f :
   (accumulator1 : U32) (n_bits_in_accumulator1 : U32)
   (hn_bits_in_accumulator1 : ↑n_bits_in_accumulator1 = n_bits_in_accumulator.val - ↑n_bits_to_decode)
   (coefficient1 : U32) (h : d > n_bits_to_decode)
-  -- **TODO** Currently, the automation in this proof fails if I eliminate the following hypotheses, but
-  -- none of these hypotheses ought to be necessary (except for potentially `__6` and `__12`).
-  (__1 : [> let n_bits_to_decode ← min d n_bits_in_accumulator <])
-  (__2 : [> let i' ← 1#u32 <<< n_bits_to_decode <])
   (__3 : i'.bv = U32.bv 1#u32 <<< n_bits_to_decode.val)
-  (__4 : [> let i1 ← i' - 1#u32 <])
   (__5 : i1.bv = i'.bv - U32.bv 1#u32)
   (__6 : 1 ≤ i'.val)
-  (__7 : [> let bits_to_decode ← ↑(acc &&& i1) <])
   (__8 : bits_to_decode.bv = acc.bv &&& i1.bv)
-  (__9 : [> let accumulator1 ← acc >>> n_bits_to_decode <])
   (__10 : accumulator1.bv = acc.bv >>> n_bits_to_decode.val)
-  (__11 : [> let n_bits_in_accumulator1 ← n_bits_in_accumulator - n_bits_to_decode <])
   (__12 : ↑n_bits_to_decode ≤ ↑n_bits_in_accumulator)
   (__13 : n_bits_in_accumulator1.bv = n_bits_in_accumulator.bv - n_bits_to_decode.bv)
-  (_ : [> let coefficient1 ←
-    ↑(@HOr.hOr U32 U32 U32 instHOrUScalar (UScalar.ofNat 0 (by decide)) bits_to_decode) <])
   (hcoefficient1 : ↑coefficient1 = @UScalar.val UScalarTy.U32
     (@HOr.hOr U32 U32 U32 instHOrUScalar (UScalar.ofNat 0 (by decide)) bits_to_decode))
   (__14 : coefficient1.bv =
@@ -380,10 +363,7 @@ theorem decode_coefficient.late_load_progress_spec (b : Slice U8) (d : U32) (f :
     let* ⟨coefficient2, hcoefficient2⟩ ← UScalar.or_spec
     simp only [UScalar.neq_to_neq_val, UScalar.ofNat_val_eq] at hn_bits_in_accumulator
     simp only [id_eq, Array.getElem!_Nat_eq, Slice.getElem!_Nat_eq] at haccumulator1
-    have hn_bits_in_accumulator' : ↑n_bits_in_accumulator < d.val := by
-      have : d.val > n_bits_to_decode.val := by scalar_tac
-      rw [hn_bits_to_decode] at this
-      scalar_tac
+    have hn_bits_in_accumulator' : ↑n_bits_in_accumulator < d.val := by scalar_tac
     have hmod_u32 : 1 <<< ↑n_bits_in_accumulator % U32.size = 1 <<< n_bits_in_accumulator.val := by
       rw [Nat.mod_eq_of_lt]
       have : ∀ x < 13, ∀ y < x, 1 <<< y < U32.size := by brute
