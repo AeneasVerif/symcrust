@@ -142,19 +142,17 @@ def ntt.poly_element_sample_cbd_from_bytes_eta2_loop_loop.spec (b : Slice U8) (f
     let* ⟨i4, hi4⟩ ← Usize.add_spec
     let* ⟨f'', hf''⟩ ← spec
     rw [hf'']
-    -- This goal is true (though `fcongr` yields a false goal). The LHS is one iteration ahead of the RHS
+    -- This goal is true (though `fcongr` yields a false goal). The LHS is one iteration ahead of the RHS,
+    -- so we unfold `Target2.samplePolyCBD.eta2_loop` on the RHS to show that it reduces to the LHS
     conv => rhs; unfold Target2.samplePolyCBD.eta2_loop
-    simp only [key.MLWE_POLYNOMIAL_COEFFICIENTS_eq, hi', ↓reduceIte, Spec.Q, UScalar.ofNat_val_eq,
-      Nat.cast_ofNat, BitVec.ofNat_eq_ofNat, BitVec.setWidth'_eq]
-    rw [hf', hsample_bits1, hi1, hi3]
-    simp only [Spec.Q, UScalar.val_and, UScalar.ofNat_val_eq, hi2, Nat.cast_add,
-      BitVec.natCast_eq_ofNat, BitVec.ofNat_and, Bvify.UScalar.BitVec_ofNat_setWidth,
-      UScalarTy.U32_numBits_eq, Bvify.U32.UScalar_bv, hsample_bits, BitVec.setWidth_eq,
-      Bvify.BitVec.ofNat_shift_U32_val]
+    simp only [Spec.Q, UScalar.val_and, UScalar.ofNat_val_eq, Nat.cast_add, BitVec.natCast_eq_ofNat,
+      BitVec.ofNat_and, Bvify.UScalar.BitVec_ofNat_setWidth, UScalarTy.U32_numBits_eq,
+      Bvify.U32.UScalar_bv, BitVec.setWidth_eq, Bvify.BitVec.ofNat_shift_U32_val,
+      key.MLWE_POLYNOMIAL_COEFFICIENTS_eq, ↓reduceIte, Nat.cast_ofNat, BitVec.ofNat_eq_ofNat,
+      BitVec.setWidth'_eq, hf', hsample_bits1, hi1, hi3, hi2, hsample_bits, hsrc_i1, hi4, hi']
     congr
     have h1 : 8 * (List.slice (↑src_i) (↑src_i + 4) (List.map (fun x => x.bv) b.val)).length = 32 := by
-      simp only [List.slice_length, List.length_map, add_tsub_cancel_left]
-      scalar_tac
+      simp_lists_scalar [List.length_map]
     rw [BitVec.setWidth_add, BitVec.setWidth_and, BitVec.setWidth_and, BitVec.setWidth_ushiftRight]
     . have h2 : ∀ h : 8 * (List.map U8.bv ↑a).length = 32,
         BitVec.cast h (BitVec.fromLEBytes (List.map U8.bv ↑a)) =
@@ -163,11 +161,7 @@ def ntt.poly_element_sample_cbd_from_bytes_eta2_loop_loop.spec (b : Slice U8) (f
         intro h
         have : List.map U8.bv ↑a = List.slice (↑src_i) (↑src_i + 4) (List.map (fun x => x.bv) b.val) := by
           rw [List.eq_iff_forall_eq_getElem!]
-          constructor
-          . simp_scalar
-          . intro i hi
-            simp only [Array.getElem!_Nat_eq, Slice.getElem!_Nat_eq] at ha
-            rw [List.getElem!_map_eq, ha i (by omega), List.getElem!_slice, List.getElem!_map_eq] <;> scalar_tac
+          simp_lists_scalar [*]
         rw [← BitVec.setWidth_eq (BitVec.fromLEBytes (List.map U8.bv ↑a)), BitVec.cast_setWidth, this]
       have h3 : 1431655765#32 =
         BitVec.setWidth 32 1431655765#(8 * (List.slice (↑src_i) (↑src_i + 4)
