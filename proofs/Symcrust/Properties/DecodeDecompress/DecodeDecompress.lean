@@ -424,7 +424,7 @@ theorem decode_coefficient.late_load_progress_spec (b : Slice U8) (d : U32) (f :
     . ext j hj
       simp only [Vector.Inhabited_getElem_eq_getElem!]
       dcases hij : i.val = j
-      . rw [← hij, Vector.getElem!_set! (by omega), Vector.getElem!_set! (by omega)]
+      . simp_lists
         congr 1
         . simp only [Nat.one_shiftLeft, Nat.and_two_pow_sub_one_eq_mod]
         . congr 1
@@ -480,7 +480,7 @@ theorem decode_coefficient.late_load_progress_spec (b : Slice U8) (d : U32) (f :
                   smul_eq_mul, mul_one, add_tsub_cancel_left]
                 omega
           . simp only [U32.size, U32.numBits, UScalarTy.U32_numBits_eq, Nat.reducePow]
-      . rw [Vector.getElem!_set!_ne (by omega), Vector.getElem!_set!_ne (by omega)]
+      . simp_lists
     . simp only [BitVec.cast, BitVec.setWidth, BitVec.setWidth']
       split
       . congr -- Difficult subgoals closed with `h4`
@@ -982,9 +982,8 @@ def poly_element_decode_and_decompress_loop.progress_spec (b : Slice U8) (d : U3
     next j hj =>
     dcases hij : i = j
     . simp only [hij, Vector.Inhabited_getElem_eq_getElem!, Vector.getElem!_map_eq _ _ j hj]
-      rw [Vector.getElem!_set! (by omega), Vector.getElem!_set! (by omega)]
-    . simp only [Vector.Inhabited_getElem_eq_getElem!, ne_eq, hij, not_false_eq_true,
-        Vector.getElem!_set!_ne, Vector.getElem!_map_eq _ _ j hj]
+      simp_lists
+    . simp_lists
   . replace hi : i.val = 256 := by scalar_tac
     unfold SpecAux.Stream.decode_decompressOpt.recBody
     simp [hi]

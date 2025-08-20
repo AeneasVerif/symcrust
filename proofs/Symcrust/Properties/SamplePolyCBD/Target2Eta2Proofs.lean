@@ -37,19 +37,13 @@ def Target2.samplePolyCBD.eta2_loop.inner_loop_unrolled.preserves_below (pe_dst 
   (sample_bits : BitVec 32) (k : ℕ) (hk : k < i) :
   (eta2_loop.inner_loop_unrolled pe_dst i sample_bits).1[k]! = pe_dst[k]! := by
   unfold inner_loop_unrolled
-  simp only [Q]
-  rw [Vector.getElem!_set!_ne, Vector.getElem!_set!_ne, Vector.getElem!_set!_ne, Vector.getElem!_set!_ne,
-    Vector.getElem!_set!_ne, Vector.getElem!_set!_ne, Vector.getElem!_set!_ne, Vector.getElem!_set!_ne]
-  all_goals omega
+  simp_lists [Q]
 
 def Target2.samplePolyCBD.eta2_loop.inner_loop_unrolled.preserves_above (pe_dst : Polynomial) (i : ℕ)
   (sample_bits : BitVec 32) (k : ℕ) (hk : i + 7 < k) :
   (eta2_loop.inner_loop_unrolled pe_dst i sample_bits).1[k]! = pe_dst[k]! := by
   unfold inner_loop_unrolled
-  simp only [Q]
-  rw [Vector.getElem!_set!_ne, Vector.getElem!_set!_ne, Vector.getElem!_set!_ne, Vector.getElem!_set!_ne,
-    Vector.getElem!_set!_ne, Vector.getElem!_set!_ne, Vector.getElem!_set!_ne, Vector.getElem!_set!_ne]
-  all_goals omega
+  simp_lists [Q]
 
 def Target2.samplePolyCBD.eta2_loop.inner_loop.equals_unrolled (pe_dst : Polynomial) (i : ℕ)
   (sample_bits : BitVec 32) : inner_loop pe_dst i 0 sample_bits = inner_loop_unrolled pe_dst i sample_bits := by
@@ -1195,33 +1189,21 @@ def Target2.samplePolyCBD.eta2_loop.spec {s : Target2.samplePolyCBDState}
         have hj3 : j = s.i ∨ j = s.i + 1 ∨ j = s.i + 2 ∨ j = s.i + 3 ∨
                    j = s.i + 4 ∨ j = s.i + 5 ∨ j = s.i + 6 ∨ j = s.i + 7 := by omega
         rcases hj3 with hj3 | hj3 | hj3 | hj3 | hj3 | hj3 | hj3 | hj3
-        . rw [hj3, Vector.getElem!_set!_ne (by omega), Vector.getElem!_set!_ne (by omega),
-            Vector.getElem!_set!_ne (by omega), Vector.getElem!_set!_ne (by omega),
-            Vector.getElem!_set!_ne (by omega), Vector.getElem!_set!_ne (by omega),
-            Vector.getElem!_set!_ne (by omega), Vector.getElem!_set! (by scalar_tac)]
+        . simp_lists [hj3]
           apply eta2_loop.spec.aux0 <;> assumption
-        . rw [hj3, Vector.getElem!_set!_ne (by omega), Vector.getElem!_set!_ne (by omega),
-            Vector.getElem!_set!_ne (by omega), Vector.getElem!_set!_ne (by omega),
-            Vector.getElem!_set!_ne (by omega), Vector.getElem!_set!_ne (by omega),
-            Vector.getElem!_set! (by scalar_tac)]
+        . simp_lists [hj3]
           apply eta2_loop.spec.aux1 <;> assumption
-        . rw [hj3, Vector.getElem!_set!_ne (by omega), Vector.getElem!_set!_ne (by omega),
-            Vector.getElem!_set!_ne (by omega), Vector.getElem!_set!_ne (by omega),
-            Vector.getElem!_set!_ne (by omega), Vector.getElem!_set! (by scalar_tac)]
+        . simp_lists [hj3]
           apply eta2_loop.spec.aux2 <;> assumption
-        . rw [hj3, Vector.getElem!_set!_ne (by omega), Vector.getElem!_set!_ne (by omega),
-            Vector.getElem!_set!_ne (by omega), Vector.getElem!_set!_ne (by omega),
-            Vector.getElem!_set! (by scalar_tac)]
+        . simp_lists [hj3]
           apply eta2_loop.spec.aux3 <;> assumption
-        . rw [hj3, Vector.getElem!_set!_ne (by omega), Vector.getElem!_set!_ne (by omega),
-            Vector.getElem!_set!_ne (by omega), Vector.getElem!_set! (by scalar_tac)]
+        . simp_lists [hj3]
           apply eta2_loop.spec.aux4 <;> assumption
-        . rw [hj3, Vector.getElem!_set!_ne (by omega), Vector.getElem!_set!_ne (by omega),
-            Vector.getElem!_set! (by scalar_tac)]
+        . simp_lists [hj3]
           apply eta2_loop.spec.aux5 <;> assumption
-        . rw [hj3, Vector.getElem!_set!_ne (by omega), Vector.getElem!_set! (by scalar_tac)]
+        . simp_lists [hj3]
           apply eta2_loop.spec.aux6 <;> assumption
-        . rw [hj3, Vector.getElem!_set! (by scalar_tac)]
+        . simp_lists [hj3]
           apply eta2_loop.spec.aux7 <;> assumption
     . intro j hj1 hj2
       simp only at hj2

@@ -37,15 +37,13 @@ def Target2.samplePolyCBD.eta3_loop.inner_loop_unrolled.preserves_below (pe_dst 
   (sample_bits : BitVec 32) (k : ℕ) (hk : k < i) :
   (eta3_loop.inner_loop_unrolled pe_dst i sample_bits).1[k]! = pe_dst[k]! := by
   unfold inner_loop_unrolled
-  simp only [Q]
-  rw [Vector.getElem!_set!_ne, Vector.getElem!_set!_ne, Vector.getElem!_set!_ne, Vector.getElem!_set!_ne] <;> omega
+  simp_lists [Q]
 
 def Target2.samplePolyCBD.eta3_loop.inner_loop_unrolled.preserves_above (pe_dst : Polynomial) (i : ℕ)
   (sample_bits : BitVec 32) (k : ℕ) (hk : i + 3 < k) :
   (eta3_loop.inner_loop_unrolled pe_dst i sample_bits).1[k]! = pe_dst[k]! := by
   unfold inner_loop_unrolled
-  simp only [Q]
-  rw [Vector.getElem!_set!_ne, Vector.getElem!_set!_ne, Vector.getElem!_set!_ne, Vector.getElem!_set!_ne] <;> omega
+  simp_lists [Q]
 
 def Target2.samplePolyCBD.eta3_loop.inner_loop.equals_unrolled (pe_dst : Polynomial) (i : ℕ)
   (sample_bits : BitVec 32) : inner_loop pe_dst i 0 sample_bits = inner_loop_unrolled pe_dst i sample_bits := by
@@ -156,8 +154,7 @@ theorem Target2.samplePolyCBD.eta3_loop.spec.aux0 (s : samplePolyCBDState)
                         (inner_loop.next_coefficient s.i 0 (BitVec.setWidth 32 sample_bits)).1).1).1).2)[j]! =
     ∑ (x : Fin s.η.val), ↑(Target.bytesToBits BVector)[2 * j * ↑s.η + ↑x]!.toNat -
       ∑ (x : Fin s.η.val), ↑(Target.bytesToBits BVector)[2 * j * ↑s.η + ↑s.η + ↑x]!.toNat := by
-  rw [Vector.getElem!_set!_ne (by omega), Vector.getElem!_set!_ne (by omega),
-    Vector.getElem!_set!_ne (by omega), Vector.getElem!_set! (by scalar_tac)]
+  simp_lists
   simp only [hj3, hη, Nat.mul_assoc 2 s.i 3, ← hs3, Nat.mul_comm s.src_i 4,
     ← Nat.mul_assoc 2 4 s.src_i, Nat.reduceMul, Fin.unfold3 hη]
   specialize hBytesToBits s.src_i (by scalar_tac)
@@ -307,8 +304,7 @@ theorem Target2.samplePolyCBD.eta3_loop.spec.aux1 {s : samplePolyCBDState}
                         (inner_loop.next_coefficient s.i 0 (BitVec.setWidth 32 sample_bits)).1).1).1).2)[j]! =
     ∑ (x : Fin s.η.val), ↑(Target.bytesToBits BVector)[2 * j * ↑s.η + ↑x]!.toNat -
       ∑ (x : Fin s.η.val), ↑(Target.bytesToBits BVector)[2 * j * ↑s.η + ↑s.η + ↑x]!.toNat := by
-  rw [Vector.getElem!_set!_ne (by omega), Vector.getElem!_set!_ne (by omega),
-    Vector.getElem!_set! (by scalar_tac)]
+  simp_lists
   simp only [hj3, hη, Nat.mul_assoc 2 (s.i + 1) 3, Nat.mul_comm (s.i + 1) 3,
     Nat.mul_add 3 s.i 1, Nat.mul_comm 3 s.i, ← hs3, Nat.mul_comm s.src_i 4, mul_one,
     Nat.mul_add 2 (4 * s.src_i) 3, ← Nat.mul_assoc 2 4 s.src_i, Nat.reduceMul,
@@ -501,7 +497,7 @@ theorem Target2.samplePolyCBD.eta3_loop.spec.aux2 {s : samplePolyCBDState}
                         (inner_loop.next_coefficient s.i 0 (BitVec.setWidth 32 sample_bits)).1).1).1).2)[j]! =
     ∑ (x : Fin s.η.val), ↑(Target.bytesToBits BVector)[2 * j * ↑s.η + ↑x]!.toNat -
       ∑ (x : Fin s.η.val), ↑(Target.bytesToBits BVector)[2 * j * ↑s.η + ↑s.η + ↑x]!.toNat := by
-  rw [Vector.getElem!_set!_ne (by omega), Vector.getElem!_set! (by scalar_tac)]
+  simp_lists
   simp only [hj3, hη, Nat.mul_assoc 2 (s.i + 2) 3, Nat.mul_comm (s.i + 2) 3,
     Nat.mul_add 3 s.i 2, Nat.mul_comm 3 s.i, ← hs3, Nat.mul_comm s.src_i 4, mul_one,
     Nat.mul_add 2 (4 * s.src_i) 6, ← Nat.mul_assoc 2 4 s.src_i, Nat.reduceMul,
@@ -702,7 +698,7 @@ theorem Target2.samplePolyCBD.eta3_loop.spec.aux3 {s : samplePolyCBDState}
                         (inner_loop.next_coefficient s.i 0 (BitVec.setWidth 32 sample_bits)).1).1).1).2)[j]! =
     ∑ (x : Fin s.η.val), ↑(Target.bytesToBits BVector)[2 * j * ↑s.η + ↑x]!.toNat -
       ∑ (x : Fin s.η.val), ↑(Target.bytesToBits BVector)[2 * j * ↑s.η + ↑s.η + ↑x]!.toNat := by
-  rw [Vector.getElem!_set! (by scalar_tac)]
+  simp_lists
   simp only [hj3, hη, Nat.mul_assoc 2 (s.i + 3) 3, Nat.mul_comm (s.i + 3) 3,
     Nat.mul_add 3 s.i 3, Nat.mul_comm 3 s.i, ← hs3, Nat.mul_comm s.src_i 4, mul_one,
     Nat.mul_add 2 (4 * s.src_i) 9, ← Nat.mul_assoc 2 4 s.src_i, Nat.reduceMul,
