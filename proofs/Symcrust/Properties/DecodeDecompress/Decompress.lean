@@ -81,13 +81,10 @@ lemma Stream.decode_decompressOpt.recBody.inv (d n : ℕ) (B : Vector Byte (32 *
     have : (recBody B.toList B.toList_length (body B.toList B.toList_length s1 i) (i + 1)).F[j]! = s2.F[j]! := by
       apply inv d n B _ _ _ _ (by omega) (by omega)
       unfold body decode.body
-      simp only [beq_iff_eq, gt_iff_lt, inf_lt_left, not_le, BitVec.toNat_or,
-        BitVec.toNat_shiftLeft]
+      simp only [beq_iff_eq, gt_iff_lt, inf_lt_left, not_le, BitVec.toNat_or, BitVec.toNat_shiftLeft]
       split
-      . rw [Vector.getElem!_set!_ne, Vector.getElem!_set!_ne] <;> omega
-      . split
-        . rw [Vector.getElem!_set!_ne, Vector.getElem!_set!_ne] <;> omega
-        . rw [Vector.getElem!_set!_ne, Vector.getElem!_set!_ne] <;> omega
+      . simp_lists_scalar
+      . split <;> simp_lists_scalar
     rw [← this]
     rfl
 
@@ -107,11 +104,9 @@ lemma Stream.decode.recBody.inv (d n : ℕ) (B : Vector Byte (32 * d)) (s1 s2 : 
     apply inv d n B _ _ _ _ (by omega) (by omega)
     unfold body
     split
-    . rw [Vector.getElem!_set!_ne] <;> omega
-    . simp only [gt_iff_lt, inf_lt_left, not_le, BitVec.toNat_or, BitVec.toNat_shiftLeft]
-      split
-      . rw [Vector.getElem!_set!_ne] <;> omega
-      . rw [Vector.getElem!_set!_ne] <;> omega
+    . simp_lists_scalar
+    . simp_lists_scalar
+      split <;> simp_lists_scalar
 
 def Stream.decode_decompress_eq_aux (d n : ℕ) (B : Vector Byte (32 * d)) (s1 s2 : Stream.DecodeState d n)
   (hd : d < 13) (hdn : d < 8 * n)
@@ -144,19 +139,15 @@ def Stream.decode_decompress_eq_aux (d n : ℕ) (B : Vector Byte (32 * d)) (s1 s
     simp only [h3, beq_iff_eq, h1, gt_iff_lt, inf_lt_left, not_le, h2, BitVec.toNat_or,
       BitVec.toNat_shiftLeft]
     split
-    . simp only
-      rw [Vector.getElem!_set!, Vector.getElem!_set!]
-      . -- This is an annoying goal because neither `rw [h1]` nor `simp [h1]` immediately work
-        congr 5
-        . congr
-        . simp [h1]
-        . rw [h1]
-      . simp only [hj, and_self]
-      . simp only [hj, and_self]
+    . simp_lists_scalar
+      congr 5
+      . congr
+      . simp [h1]
+      . rw [h1]
     . split
-      . simp only [BitVec.ofNat_eq_ofNat, BitVec.shiftLeft_sub_one_eq_mod, BitVec.toNat_umod,
+      . simp_lists_scalar [BitVec.ofNat_eq_ofNat, BitVec.shiftLeft_sub_one_eq_mod, BitVec.toNat_umod,
           BitVec.toNat_pow, BitVec.toNat_ofNat, BitVec.setWidth'_eq, BitVec.toNat_setWidth]
-        rw [h1, Vector.getElem!_set!, Vector.getElem!_set!] <;> omega
+        rw [h1]
       . simp_lists
   . rw [decode_decompress_eq_aux _ _ _ _ _ hd hdn hB (i + 1) j (by omega) hj]
     . simp only [decode_decompressOpt.body, decode.body, h3, beq_iff_eq, h1, gt_iff_lt, inf_lt_left,

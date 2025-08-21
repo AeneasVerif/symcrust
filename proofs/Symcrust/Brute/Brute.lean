@@ -39,6 +39,16 @@ structure BinderInfo where
 instance : ToMessageData BinderInfo where
   toMessageData := fun ⟨x, b, hxb, isNatLikeInst⟩ => m!"({Expr.fvar x}, {b}, {Expr.fvar hxb}, {isNatLikeInst})"
 
+/-- Retrieves the `UScalarTy` associated with a `U_` abbreviation -/
+def getSizeTyFromAbbrev (t : Expr) : Option Expr :=
+  match t with
+  | .const ``U8 _ => some $ mkConst ``UScalarTy.U8
+  | .const ``U16 _ => some $ mkConst ``UScalarTy.U16
+  | .const ``U32 _ => some $ mkConst ``UScalarTy.U32
+  | .const ``U64 _ => some $ mkConst ``UScalarTy.U64
+  | .const ``U128 _ => some $ mkConst ``UScalarTy.U128
+  | _ => none
+
 /-- If `t` is an Expr corresponding to `Nat`, `BitVec n`, or `UScalar t'`, then `getIsNatLike` returns
     an Expr whose type is `IsNatLike t`. Otherwise, `getIsNatLike` returns `none`. -/
 def getIsNatLikeInstance (t : Expr) : MetaM (Option Expr) := do
@@ -57,7 +67,42 @@ def getIsNatLikeInstance (t : Expr) : MetaM (Option Expr) := do
     let isBitVecPf ← mkAppOptM ``IsNatLikePf.isBitVecPf #[none, pSigmaPf]
     let inst ← mkAppM ``IsNatLike.mk #[isBitVecPf]
     return some inst
-  | _ => return none -- **TODO** UScalar support
+  | .app (.const ``UScalar _) (.const ``Usize _) => return none
+  | .app (.const ``UScalar _) sizeTy => -- Matches with all `UScalar` types except `Usize`
+    let rflPf ← mkAppOptM ``Eq.refl #[some (.sort 1), some t]
+    let sizeTyNeUsizePf ← mkAppOptM ``UScalarTy.noConfusion #[mkConst ``False, sizeTy, mkConst ``Usize]
+    let andPf ← mkAppM ``And.intro #[sizeTyNeUsizePf, rflPf]
+    let pSigmaβBody :=
+      mkApp2 (mkConst ``And)
+        (mkApp3 (mkConst ``Ne [2]) (.sort 1) (.bvar 0) (mkConst ``Usize))
+        (mkApp3 (mkConst ``Eq [2]) (.sort 1)
+          (.app (.const ``UScalar []) sizeTy)
+          (.app (.const ``UScalar []) (.bvar 0))
+        )
+    let pSigmaβ := Expr.lam `n (mkConst ``UScalarTy) pSigmaβBody .default
+    let pSigmaPf ← mkAppOptM ``PSigma.mk #[none, pSigmaβ, sizeTy, andPf]
+    let isUScalarPf ← mkAppOptM ``IsNatLikePf.isUScalarPf #[none, pSigmaPf]
+    let inst ← mkAppM ``IsNatLike.mk #[isUScalarPf]
+    return some inst
+  | .const ``U8 _ | .const ``U16 _ | .const ``U32 _ | .const ``U64 _ | .const ``U128 _ =>
+    let some sizeTy := getSizeTyFromAbbrev t
+      | return none
+    let rflPf ← mkAppOptM ``Eq.refl #[some (.sort 1), some t]
+    let sizeTyNeUsizePf ← mkAppOptM ``UScalarTy.noConfusion #[mkConst ``False, sizeTy, mkConst ``UScalarTy.Usize]
+    let andPf ← mkAppM ``And.intro #[sizeTyNeUsizePf, rflPf]
+    let pSigmaβBody :=
+      mkApp2 (mkConst ``And)
+        (mkApp3 (mkConst ``Ne [1]) (mkConst ``UScalarTy) (.bvar 0) (mkConst ``UScalarTy.Usize))
+        (mkApp3 (mkConst ``Eq [2]) (.sort 1)
+          (.app (.const ``UScalar []) sizeTy)
+          (.app (.const ``UScalar []) (.bvar 0))
+        )
+    let pSigmaβ := Expr.lam `n (mkConst ``UScalarTy) pSigmaβBody .default
+    let pSigmaPf ← mkAppOptM ``PSigma.mk #[none, pSigmaβ, sizeTy, andPf]
+    let isUScalarPf ← mkAppOptM ``IsNatLikePf.isUScalarPf #[none, pSigmaPf]
+    let inst ← mkAppM ``IsNatLike.mk #[isUScalarPf]
+    return some inst
+  | _ => return none
 
 /-- If `b1` has a NatLike type and `b2 : b1 < d` then returns a `BinderInfo` corresponding to
     `b1`, `b1`'s Natlike type, and `b2`. Otherwise returns `none` -/

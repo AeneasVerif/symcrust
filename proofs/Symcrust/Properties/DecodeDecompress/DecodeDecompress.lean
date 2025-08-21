@@ -34,13 +34,27 @@ open Result Symcrust.ntt
 attribute [-progress] UScalar.cast.progress_spec U32.sub_spec
 attribute [local progress] UScalar.cast_inBounds_spec U32.sub_bv_spec
 
+attribute [local simp_lists_simps] List.length_map
+attribute [local simp_lists_simps] List.length_flatMap
+attribute [local simp_lists_simps] List.length_cons
+attribute [local simp_lists_simps] List.length_nil -- Not needed for anything but added for symmetry with `List.length_cons`
+attribute [local simp_lists_simps] List.map_const'
+attribute [local simp_lists_simps] List.sum_replicate
+attribute [local simp_lists_simps] smul_eq_mul -- This might not be needed if we modify `List.sum_replicate`
+
+attribute [local simp_scalar_simps] Nat.testBit_mod_two_pow
+attribute [local simp_scalar_simps] Nat.testBit_and
+attribute [local simp_scalar_simps] Nat.one_shiftLeft
+attribute [local simp_scalar_simps] Nat.testBit_two_pow_sub_one
+attribute [local simp_scalar_simps] Bool.and_comm -- Needed for `mod_two_pow` (is that coincidental?)
+attribute [local simp_scalar_simps] Bool.or_comm -- Not needed for anything but added for symmetry with `Bool.and_comm`
+attribute [local simp_scalar_simps] mul_add -- I'm surprised this is needed but apparently it is?
+
 set_option maxHeartbeats 2000000
 
 lemma mod_two_pow (x y d : ℕ) (hxy : x = y) : x % 2 ^ d = y &&& ((1 <<< d) - 1) := by
-  rw [hxy]
   apply Nat.eq_of_testBit_eq
-  intro i
-  rw [Nat.testBit_mod_two_pow, Nat.testBit_and, Nat.one_shiftLeft, Nat.testBit_two_pow_sub_one, Bool.and_comm]
+  simp_scalar [hxy]
 
 lemma List.flatMap_eq_map {α β} (l : List α) (f : α → β) : l.flatMap (fun x => [f x]) = l.map f := by
   induction l <;> simp_all
@@ -123,15 +137,13 @@ theorem decode_coefficient.early_load_progress_spec (b : Slice U8) (d : U32) (f 
     omega
   progress*
   . rw [i_post_2, Nat.mod_eq_of_lt]
-    . simp_scalar [Nat.le_shiftLeft]
+    . simp_scalar
     . -- Both of the following `have` statements are necessary for `scalar_tac` to close the goal
       have : Min.min d.val 32 = d.val := by omega
       have : 2 ^ d.val < 2 ^ 32 := by scalar_tac +nonLin
       scalar_tac
   . simp only [id_eq, Array.getElem!_Nat_eq, Slice.getElem!_Nat_eq] at a_post
-    have h1 : (d > n_bits_to_decode) = False := by
-      simp [bits_to_decode_post_1]
-      omega
+    have h1 : (d > n_bits_to_decode) = False := by simp_scalar [*]
     have h2 : Min.min d.val 32 = d.val := by scalar_tac
     have h3 :
       ∀ hCast : 8 * (List.map U8.bv ↑a).length = 32, accumulator1.val =
@@ -157,9 +169,7 @@ theorem decode_coefficient.early_load_progress_spec (b : Slice U8) (d : U32) (f 
           rw [List.getElem!_slice]
           . rw [List.flatMap_eq_map, List.getElem!_map_eq]
             scalar_tac
-          . simp only [List.length_flatMap, List.length_cons, List.length_nil, zero_add,
-              List.map_const', List.sum_replicate, smul_eq_mul, mul_one, add_lt_add_iff_left]
-            scalar_tac
+          . simp_lists_scalar
         . scalar_tac
     simp only [gt_iff_lt, ↓reduceIte, ok.injEq, Prod.mk.injEq, SpecAux.Stream.decode.body,
       UScalar.ofNat_val_eq, beq_self_eq_true, Nat.reduceMul,
@@ -203,9 +213,9 @@ theorem decode_coefficient.early_load_progress_spec (b : Slice U8) (d : U32) (f 
       split_conjs
       . omega
       . have := hinv.2.1
-        simp_scalar [mul_add, this, hn_bits_in_accumulator, UScalar.ofNat_val_eq, add_zero,
-          Nat.reduceMul, mul_one]
-      . have : d.val + (32 - d.val) = 32 := by omega
+        simp_scalar [*] -- This is the goal that `mul_add` needs an attribute for
+      . -- **TODO** Not sure how to add lemmas to make `simp_scalar` handle this
+        have : d.val + (32 - d.val) = 32 := by omega
         rw [mul_add, mul_one, add_assoc, this, Nat.add_mod_right, ← hinv.2.2, hn_bits_in_accumulator]
         simp
     . intro j hj
@@ -217,11 +227,11 @@ theorem decode_coefficient.early_load_progress_spec (b : Slice U8) (d : U32) (f 
         congr
         omega
       . simp_lists_scalar
-      . simp_lists_scalar [List.length_map]
+      . simp_lists_scalar
     . intro j hj1 hj2
       apply Nat.testBit_eq_false_of_lt
       apply BitVec.toNat_lt_twoPow_of_le
-      simp_lists_scalar [List.length_map]
+      simp_lists_scalar
     . have : 1 <<< d.val % U32.size = 1 <<< d.val := by
         have : ∀ x < 13, 1 <<< x % U32.size = 1 <<< x := by brute
         exact this _ (by scalar_tac)
