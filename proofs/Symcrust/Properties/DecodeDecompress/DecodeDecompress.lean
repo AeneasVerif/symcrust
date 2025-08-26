@@ -52,6 +52,9 @@ attribute [local simp_scalar_simps] Nat.and_two_pow_sub_one_eq_mod
 attribute [local simp_scalar_simps] Nat.add_le_add_iff_right
 -- `Nat.add_le_add_iff_left` isn't used here, including it for symmetry with `Nat.add_le_add_iff_right`
 attribute [local simp_scalar_simps] Nat.add_le_add_iff_left
+-- Adding `mul_add` globally would probably break `simp_scalar` calls somewhere, but in this file, there
+-- are several locations where `mul_add` helps `simp_scalar` and no locations where it hinders it
+attribute [local simp_scalar_simps] mul_add
 
 theorem U8.mod_size_of_one_shiftLeft {n : ℕ} (h : n < 8) : 1 <<< n % U8.size = 1 <<< n := by
   apply Nat.mod_eq_of_lt
@@ -331,7 +334,7 @@ theorem decode_coefficient.early_load_progress_spec (b : Slice U8) (d : U32) (f 
       split_conjs
       . omega
       . have := hinv.2.1
-        simp_scalar [*, mul_add]
+        simp_scalar [*]
       . -- **TODO** Not sure how to add lemmas to make `simp_scalar` handle this
         have : d.val + (32 - d.val) = 32 := by omega
         rw [mul_add, mul_one, add_assoc, this, Nat.add_mod_right, ← hinv.2.2, hn_bits_in_accumulator]
@@ -450,7 +453,7 @@ theorem decode_coefficient.late_load_progress_spec (b : Slice U8) (d : U32) (f :
   have : 1 <<< ↑n_bits_to_decode1 % U32.size = 1 <<< n_bits_to_decode1.val := by
     simp_scalar [hn_bits_to_decode1]
   let* ⟨i3, hi3⟩ ← U32.sub_bv_spec
-  . simp_scalar [hi2] -- **TODO** Why doesn't `simp_scalar [*]` work here?
+  . simp_scalar [*, hi2]-- **TODO** Why doesn't `simp_scalar [*]` work here?
   . let* ⟨bits_to_decode1, hbits_to_decode1⟩ ← UScalar.and_spec
     let* ⟨accumulator3, haccumulator3⟩ ← U32.ShiftRight_spec
     let* ⟨n_bits_in_accumulator2, hn_bits_in_accumulator2⟩ ← U32.sub_bv_spec
@@ -519,6 +522,7 @@ theorem decode_coefficient.late_load_progress_spec (b : Slice U8) (d : U32) (f :
                 (List.slice (↑num_bytes_read) (↑num_bytes_read + 4)
                   (List.flatMap (fun (a : U8) => [BitVec.ofNat 8 ↑a]) b.val))).toNat := by
               simp_lists_scalar
+              -- **TODO** Experiment here to figure out how to remove this rewrite
               rw [(by decide : 4294967296 = 2 ^ 32)]
               simp_scalar
             rw [this]
@@ -546,9 +550,9 @@ theorem decode_coefficient.late_load_progress_spec (b : Slice U8) (d : U32) (f :
       split_conjs
       . omega
       . have := hinv.2.1
-        simp_scalar [*, mul_add]
+        simp_scalar [*]
       . have := hinv.2.2
-        simp_scalar [*, mul_add]
+        simp_scalar [*]
     . intro j hj
       have : @UScalar.val UScalarTy.U32 accumulator2 = accumulator2.bv.toNat := by simp
       simp only [this, haccumulator2, id_eq, BitVec.toNat_cast, BitVec.testBit_toNat]
@@ -717,9 +721,9 @@ theorem decode_coefficient.no_load_progress_spec (b : Slice U8) (d : U32) (f : S
     split_conjs
     . scalar_tac
     . have := hinv.2.1
-      simp_scalar [*, mul_add]
+      simp_scalar [*]
     . have := hinv.2.2
-      simp_scalar [*, mul_add]
+      simp_scalar [*]
   . simp only [UScalar.lt_equiv, hn_bits_in_accumulator1, haccumulator1,
       Nat.testBit_shiftRight, Slice.getElem!_Nat_eq]
     intro j hj
