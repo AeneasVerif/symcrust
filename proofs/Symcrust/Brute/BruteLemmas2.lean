@@ -484,7 +484,7 @@ theorem bruteTermProof3NoneNoneNone {t1 t2 t3 : Type} [IsNatLike t1] [IsNatLike 
           (fun x => mkFold1 none (fun y' => mkFold1 none (f x y') true) true)
           (fun x' => mkFold1 none (fun y' => mkFold1 none (f x' y') true) true)
           (fun _ h => Eq.mpr (id (congrArg (fun _a => _a = true) h)) (Eq.refl true))
-          sorry -- Proof by computation
+          (by sorry) -- Proof by computation
           x
         )
         y

@@ -61,6 +61,11 @@ def getSizeTyFromAbbrev (t : Expr) : Option Expr :=
   | .const ``U128 _ => some $ mkConst ``UScalarTy.U128
   | _ => none
 
+def typeFromInst (inst : Expr) : TacticM Expr :=
+  match inst with
+  | .app (.app (.const ``IsNatLike.mk _) t) _ => pure t
+  | _ => throwError "{decl_name%} :: Invalid IsNatLike instance {inst}"
+
 /-- If `t` is an Expr corresponding to `Nat`, `BitVec n`, or `UScalar t'`, then `getIsNatLike` returns
     an Expr whose type is `IsNatLike t`. Otherwise, `getIsNatLike` returns `none`. -/
 def getIsNatLikeInstance (t : Expr) : MetaM (Option Expr) := do
@@ -289,8 +294,42 @@ def buildBruteCase2ComputationRes (t1 t2 f : Expr) (b1 b2 : BoundType) (inst1 in
   let levelParams := levels.map .param
   return mkApp3 (mkConst ``Lean.ofReduceBool) (mkConst auxDeclName levelParams) (toExpr true) rflPrf
 
-def buildBruteBaseCaseComputationRes (t1 t2 f : Expr) (b1 b2 : BoundType) (inst1 inst2 : Expr) : TacticM Expr := do
-  let x' ← mkFreshExprMVar t1
+def buildBruteBaseCaseComputationRes_aux (prefixBoundTypes : Array BoundType) (prefixInsts : Array Expr)
+  (prefixTypes : Array Expr) (innerLam : Expr) : TacticM Expr := do
+  if h : prefixBoundTypes.size == 0 then return innerLam
+  else
+    let lastPrefixBoundType := prefixBoundTypes[prefixBoundTypes.size - 1]!
+    let prefixBoundTypes := prefixBoundTypes.take (prefixBoundTypes.size - 1)
+    let lastPrefixInst := prefixInsts[prefixInsts.size - 1]!
+    let prefixInsts := prefixInsts.take (prefixInsts.size - 1)
+    let lastPrefixType := prefixTypes[prefixTypes.size - 1]!
+    let prefixTypes := prefixTypes.take (prefixTypes.size - 1)
+
+    match lastPrefixBoundType with
+    | .noUpperBound =>
+      let innerLam ← buildBruteBaseCaseComputationRes_aux prefixBoundTypes prefixInsts prefixTypes innerLam
+      mkAppOptM ``mkFold1 #[none, lastPrefixInst, ← mkAppOptM ``none #[lastPrefixType], innerLam, mkConst ``true]
+    | .ltUpperBound b =>
+      let innerLam ← buildBruteBaseCaseComputationRes_aux prefixBoundTypes prefixInsts prefixTypes innerLam
+      mkAppOptM ``mkFold1 #[none, lastPrefixInst, ← mkAppM ``some #[b], innerLam, mkConst ``true]
+    | .leUpperBound b =>
+      let innerLam ← buildBruteBaseCaseComputationRes_aux prefixBoundTypes prefixInsts prefixTypes innerLam
+      mkAppOptM ``mkFold1 #[none, lastPrefixInst, ← mkAppM ``some #[b], innerLam, mkConst ``true]
+termination_by prefixBoundTypes.size
+decreasing_by simp only [beq_iff_eq] at h; simp; omega
+
+def buildBruteBaseCaseComputationRes (prefixBinderInfos : Array BinderInfo)
+  (t f : Expr) (b : BoundType) (inst : Expr) : TacticM Expr := do
+  let prefixTypes ← prefixBinderInfos.mapM (fun bInfo => typeFromInst bInfo.isNatLikeInst)
+  let prefixBoundTypes := prefixBinderInfos.map (fun bInfo => bInfo.b)
+  let prefixInsts := prefixBinderInfos.map (fun bInfo => bInfo.isNatLikeInst)
+
+  let freshPrefixMVars ← prefixTypes.mapM (fun t => mkFreshExprMVar (some t))
+
+  /- mkFold1 (none : Option t1)
+      (fun (x' : t1) => mkFold1 (none : Option t2)
+        (fun (y' : t2) => mkFold1 (none : Option t3) (f x' y') true) true) true = true`
+  -/
 
   -- `mkFold1 (some b1) (fun x' => mkFold1 (some (b2 x')) (f x') true) true = true`
   -- `mkFold1 (some b1) (fun x' => mkFold1 none (f x') true) true = true`
@@ -299,20 +338,16 @@ def buildBruteBaseCaseComputationRes (t1 t2 f : Expr) (b1 b2 : BoundType) (inst1
       - `(fun (x' : t1) => mkFold1 (none : Option t2) (f x') true)`
       - `(fun (x' : t1) => mkFold1 (some (b2 x')) (f x') true)` -/
   let innerLamBody ←
-    match b2 with
-    | .noUpperBound => mkAppOptM ``mkFold1 #[none, inst2, ← mkAppOptM ``none #[t2], ← mkAppM' f #[x'], mkConst ``true]
-    | .ltUpperBound b2 => mkAppOptM ``mkFold1 #[none, inst2, ← mkAppM ``some #[← mkAppM' b2 #[x']], ← mkAppM' f #[x'], mkConst ``true]
-    | .leUpperBound b2 => mkAppOptM ``mkFold1 #[none, inst2, ← mkAppM ``some #[← mkAppM' b2 #[x']], ← mkAppM' f #[x'], mkConst ``true]
-  let innerLam ← mkLambdaFVars #[x'] innerLamBody
+    match b with
+    | .noUpperBound => mkAppOptM ``mkFold1 #[none, inst, ← mkAppOptM ``none #[t], ← mkAppM' f freshPrefixMVars, mkConst ``true]
+    | .ltUpperBound b => mkAppOptM ``mkFold1 #[none, inst, ← mkAppM ``some #[← mkAppM' b freshPrefixMVars], ← mkAppM' f freshPrefixMVars, mkConst ``true]
+    | .leUpperBound b => mkAppOptM ``mkFold1 #[none, inst, ← mkAppM ``some #[← mkAppM' b freshPrefixMVars], ← mkAppM' f freshPrefixMVars, mkConst ``true]
+  let innerLam ← mkLambdaFVars freshPrefixMVars innerLamBody
 
   /- Depending on b1, `mkFold1Call` is:
     - `mkFold1 (none : Option t1) innerLam true`
     - `mkFold1 (some b1) innerLam true` -/
-  let mkFold1Call ←
-    match b1 with
-    | .noUpperBound => mkAppOptM ``mkFold1 #[none, inst1, ← mkAppOptM ``none #[t1], innerLam, mkConst ``true]
-    | .ltUpperBound b1 => mkAppOptM ``mkFold1 #[none, inst1, ← mkAppM ``some #[b1], innerLam, mkConst ``true]
-    | .leUpperBound b1 => mkAppOptM ``mkFold1 #[none, inst1, ← mkAppM ``some #[b1], innerLam, mkConst ``true]
+  let mkFold1Call ← buildBruteBaseCaseComputationRes_aux prefixBoundTypes prefixInsts prefixTypes innerLam
 
   let levels := (collectLevelParams {} mkFold1Call).params.toList
   let auxDeclName ← Term.mkAuxName `_brute
@@ -573,11 +608,6 @@ def bruteBaseCase2 (xs : Array Expr) (g : Expr) (x y : FVarId) (b1 b2 : BoundTyp
 
   return res
 
-def typeFromInst (inst : Expr) : TacticM Expr :=
-  match inst with
-  | .app (.app (.const ``IsNatLike.mk _) t) _ => pure t
-  | _ => throwError "{decl_name%} :: Invalid IsNatLike instance {inst}"
-
 #check Array.take
 #check Array.flatten
 /-
@@ -680,10 +710,11 @@ def bruteBaseCase (binderInfos : Array BinderInfo) (unboundBinders : Array Expr)
   trace[brute.debug] "bp5"
 
   -- **TODO** Generalize `buildBruteBaseCaseComputationRes` and `buildBruteCase2Arg3`
+  let computationRes ← buildBruteBaseCaseComputationRes binderInfosPrefix t f finalBinderInfo.b inst
+
   let t1 ← typeFromInst binderInfosPrefix[0]!.isNatLikeInst
   let b1 := binderInfosPrefix[0]!.b
   let inst1 := binderInfosPrefix[0]!.isNatLikeInst
-  let computationRes ← buildBruteBaseCaseComputationRes t1 t f b1 finalBinderInfo.b inst1 inst
   let arg3 ← buildBruteCase2Arg3 prefixFVars t1 t f b1 finalBinderInfo.b inst1 inst computationRes
 
   trace[brute.debug] "bp6"
