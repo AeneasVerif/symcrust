@@ -116,7 +116,8 @@ def getIsNatLikeInstance (t : Expr) : MetaM (Option Expr) := do
 
 /-- If `b1` has a NatLike type and `b2 : b1 < d` then returns a `BinderInfo` corresponding to
     `b1`, `b1`'s Natlike type, and `b2`. Otherwise returns `none`. -/
-def popBoundBinders (b1 b2 : FVarId) : TacticM (Option BinderInfo) := do
+def popBoundBinders (poppedNatLikeGoalBinders : Array Expr)
+  (b1 b2 : FVarId) : TacticM (Option BinderInfo) := do
   let lctx ← getLCtx
   let some b1LocalDecl := lctx.find? b1
     | throwError "{decl_name%} :: Unable to find type of goal binder {Expr.fvar b1}"
@@ -130,18 +131,25 @@ def popBoundBinders (b1 b2 : FVarId) : TacticM (Option BinderInfo) := do
     match b2Type with
     | .app (.app (.app (.app (.const ``LT.lt _) _) _) x) y =>
       if x != Expr.fvar b1 then return none
-      else pure (.ltUpperBound y, some b2)
+      else
+        let abstractedY ← mkLambdaFVars poppedNatLikeGoalBinders y
+        pure (.ltUpperBound abstractedY, some b2)
     | .app (.app (.app (.app (.const ``LE.le _) _) _) x) y =>
       if x != Expr.fvar b1 then return none
-      else pure (.leUpperBound y, some b2)
+      else
+        let abstractedY ← mkLambdaFVars poppedNatLikeGoalBinders y
+        pure (.leUpperBound abstractedY, some b2)
     | _ =>
       if b1Type == mkConst ``Nat then return none -- Brute can't support unbounded Nats
       else pure (.noUpperBound, none)
   return some ⟨b1, b1UpperBound, hxb, isNatLikeInst⟩
 
-/-- Recursively calls `popBoundBinders` as many times as `goalBinders` allows. -/
-def popAllBoundBinders (goalBinders : Array FVarId) (acc : Array BinderInfo) : TacticM (Array BinderInfo) := do
-  match goalBinders with
+/-- Recursively calls `popBoundBinders` as many times as `goalBinders` allows. `poppedNatLikeGoalBinders`
+    contains all of the `goalBinders` popped so far which contain fvars with Natlike types (these
+    are exactly the fvars that need to be abstracted out of future upper bounds). -/
+def popAllBoundBinders (poppedNatLikeGoalBinders : Array Expr) (remainingGoalBinders : Array FVarId)
+  (acc : Array BinderInfo) : TacticM (Array BinderInfo) := do
+  match remainingGoalBinders with
   | ⟨[b]⟩ =>
     let lctx ← getLCtx
     let some bLocalDecl := lctx.find? b
@@ -152,12 +160,12 @@ def popAllBoundBinders (goalBinders : Array FVarId) (acc : Array BinderInfo) : T
     let binderInfo := ⟨b, .noUpperBound, none, isNatLikeInst⟩
     return acc.push binderInfo
   | ⟨b1 :: b2 :: restBinders⟩ =>
-    let some binderInfo ← popBoundBinders b1 b2
+    let some binderInfo ← popBoundBinders poppedNatLikeGoalBinders b1 b2
       | return acc
     if binderInfo.hxb.isSome then -- Two binders (`x` and `hxb` were popped)
-      popAllBoundBinders ⟨restBinders⟩ $ acc.push binderInfo
+      popAllBoundBinders (poppedNatLikeGoalBinders.push (.fvar b1)) ⟨restBinders⟩ $ acc.push binderInfo
     else -- Only one binder was popped
-      popAllBoundBinders ⟨b2 :: restBinders⟩ $ acc.push binderInfo
+      popAllBoundBinders (poppedNatLikeGoalBinders.push (.fvar b1)) ⟨b2 :: restBinders⟩ $ acc.push binderInfo
   | _ => return acc
 
 /-- Determines the optional upper bound that needs to be passed into `mkFold1` based on the BoundType `b` and
@@ -255,8 +263,8 @@ def buildBruteCase2ComputationRes (t1 t2 f : Expr) (b1 b2 : BoundType) (inst1 in
   let innerLamBody ←
     match b2 with
     | .noUpperBound => mkAppOptM ``mkFold1 #[none, inst2, ← mkAppOptM ``none #[t2], ← mkAppM' f #[x'], mkConst ``true]
-    | .ltUpperBound b2x => mkAppOptM ``mkFold1 #[none, inst2, ← mkAppM ``some #[b2x], ← mkAppM' f #[x'], mkConst ``true]
-    | .leUpperBound b2x => mkAppOptM ``mkFold1 #[none, inst2, ← mkAppM ``some #[b2x], ← mkAppM' f #[x'], mkConst ``true]
+    | .ltUpperBound b2 => mkAppOptM ``mkFold1 #[none, inst2, ← mkAppM ``some #[← mkAppM' b2 #[x']], ← mkAppM' f #[x'], mkConst ``true]
+    | .leUpperBound b2 => mkAppOptM ``mkFold1 #[none, inst2, ← mkAppM ``some #[← mkAppM' b2 #[x']], ← mkAppM' f #[x'], mkConst ``true]
   let innerLam ← mkLambdaFVars #[x'] innerLamBody
 
   /- Depending on b1, `mkFold1Call` is:
@@ -321,24 +329,24 @@ def buildBruteCase2Arg3 (xFVars : Array Expr) (t1 t2 f : Expr) (b1 b2 : BoundTyp
     | .leUpperBound b1 =>
       let ofMkFold1Res ← mkAppOptM ``ofMkFold1SomeLe #[t1, inst1, b1, arg1, arg2, arg3, computationRes]
       mkAppM' ofMkFold1Res xFVars
-  | .ltUpperBound b2x => -- **TODO** Need to make `b2x` use `x'` rather than the loose bvar it currently has
+  | .ltUpperBound b2 =>
     let x' ← mkFreshExprMVar t1
 
     -- `arg1 = (fun (x' : t1) => mkFold1 (some (b2 x')) (fun (_ : t2) => mkFold1 (some (b2 x')) (f x') true) true)`
-    let arg1InnerLamBody ← mkAppOptM ``mkFold1 #[none, inst2, ← mkAppM ``some #[b2x], ← mkAppM' f #[x'], mkConst ``true]
+    let arg1InnerLamBody ← mkAppOptM ``mkFold1 #[none, inst2, ← mkAppM ``some #[← mkAppM' b2 #[x']], ← mkAppM' f #[x'], mkConst ``true]
     let arg1InnerLam ← mkLambdaFVars #[← mkFreshExprMVar t2] arg1InnerLamBody
-    let arg1LamBody ← mkAppOptM ``mkFold1 #[none, inst2, ← mkAppM ``some #[b2x], arg1InnerLam, mkConst ``true]
+    let arg1LamBody ← mkAppOptM ``mkFold1 #[none, inst2, ← mkAppM ``some #[← mkAppM' b2 #[x']], arg1InnerLam, mkConst ``true]
     let arg1 ← mkLambdaFVars #[x'] arg1LamBody
 
     -- `arg2 = (fun (x' : t1) => mkFold1 (some (b2 x')) (f x') true)`
-    let arg2LamBody ← mkAppOptM ``mkFold1 #[none, inst2, ← mkAppM ``some #[b2x], ← mkAppM' f #[x'], mkConst ``true]
+    let arg2LamBody ← mkAppOptM ``mkFold1 #[none, inst2, ← mkAppM ``some #[← mkAppM' b2 #[x']], ← mkAppM' f #[x'], mkConst ``true]
     let arg2 ← mkLambdaFVars #[x'] arg2LamBody
 
     /- Depending on `b1`, `arg3` is equal to:
       - `(fun (x' : t1) => ofMkFold1Triv f x' (some (b2 x')))`
       - `(fun (x' : t1) (hx' : x' < b1) => ofMkFold1Triv f x' (some (b2 x')))`
       - `(fun (x' : t1) (hx' : x' ≤ b1) => ofMkFold1Triv f x' (some (b2 x')))` -/
-    let arg3LamBody ← mkAppOptM ``ofMkFold1Triv #[none, none, inst1, inst2, f, x', ← mkAppM ``some #[b2x]]
+    let arg3LamBody ← mkAppOptM ``ofMkFold1Triv #[none, none, inst1, inst2, f, x', ← mkAppM ``some #[← mkAppM' b2 #[x']]]
     let arg3 ←
       match b1 with
       | .noUpperBound => mkLambdaFVars #[x'] arg3LamBody
@@ -359,26 +367,26 @@ def buildBruteCase2Arg3 (xFVars : Array Expr) (t1 t2 f : Expr) (b1 b2 : BoundTyp
     | .leUpperBound b1 =>
       let ofMkFold1Res ← mkAppOptM ``ofMkFold1SomeLe #[t1, inst1, b1, arg1, arg2, arg3, computationRes]
       mkAppM' ofMkFold1Res xFVars
-  | .leUpperBound b2x => -- **TODO** Need to make `b2x` use `x'` rather than the loose bvar it currently has
+  | .leUpperBound b2 =>
     let x' ← mkFreshExprMVar t1
 
     -- `arg1 = (fun (x' : t1) => mkFold1 (natLikeSucc (b2 x')) (fun (_ : t2) => mkFold1 (natLikeSucc (b2 x')) (f x') true) true)`
     let arg1InnerLamBody ←
-      mkAppOptM ``mkFold1 #[none, inst2, ← mkAppOptM ``natLikeSucc #[none, inst2, b2x], ← mkAppM' f #[x'], mkConst ``true]
+      mkAppOptM ``mkFold1 #[none, inst2, ← mkAppOptM ``natLikeSucc #[none, inst2, ← mkAppM' b2 #[x']], ← mkAppM' f #[x'], mkConst ``true]
     let arg1InnerLam ← mkLambdaFVars #[← mkFreshExprMVar t2] arg1InnerLamBody
     let arg1LamBody ←
-      mkAppOptM ``mkFold1 #[none, inst2, ← mkAppOptM ``natLikeSucc #[none, inst2, b2x], arg1InnerLam, mkConst ``true]
+      mkAppOptM ``mkFold1 #[none, inst2, ← mkAppOptM ``natLikeSucc #[none, inst2, ← mkAppM' b2 #[x']], arg1InnerLam, mkConst ``true]
     let arg1 ← mkLambdaFVars #[x'] arg1LamBody
 
     -- `arg2 = (fun (x' : t1) => mkFold1 (natLikeSucc (b2 x')) (f x') true)`
-    let arg2LamBody ← mkAppOptM ``mkFold1 #[none, inst2, ← mkAppOptM ``natLikeSucc #[none, inst2, b2x], ← mkAppM' f #[x'], mkConst ``true]
+    let arg2LamBody ← mkAppOptM ``mkFold1 #[none, inst2, ← mkAppOptM ``natLikeSucc #[none, inst2, ← mkAppM' b2 #[x']], ← mkAppM' f #[x'], mkConst ``true]
     let arg2 ← mkLambdaFVars #[x'] arg2LamBody
 
     /- Depending on `b1`, `arg3` is equal to:
       - `(fun (x' : t1) => ofMkFold1Triv f x' (natLikeSucc (b2 x')))`
       - `(fun (x' : t1) (hx' : x' < b1) => ofMkFold1Triv f x' (natLikeSucc (b2 x')))`
       - `(fun (x' : t1) (hx' : x' ≤ b1) => ofMkFold1Triv f x' (natLikeSucc (b2 x')))` -/
-    let arg3LamBody ← mkAppOptM ``ofMkFold1Triv #[none, none, inst1, inst2, f, x', ← mkAppOptM ``natLikeSucc #[none, inst2, b2x]]
+    let arg3LamBody ← mkAppOptM ``ofMkFold1Triv #[none, none, inst1, inst2, f, x', ← mkAppOptM ``natLikeSucc #[none, inst2, ← mkAppM' b2 #[x']]]
     let arg3 ←
       match b1 with
       | .noUpperBound => mkLambdaFVars #[x'] arg3LamBody
@@ -431,11 +439,11 @@ def bruteBaseCase2 (xs : Array Expr) (g : Expr) (x y : FVarId) (b1 b2 : BoundTyp
     | .noUpperBound =>
       let lamBody ← mkAppOptM ``mkFold1 #[none, inst2, ← mkAppOptM ``none #[t2], fx, mkConst ``true]
       pure $ Expr.lam `_ t2 lamBody .default
-    | .ltUpperBound b2x =>
-      let lamBody ← mkAppOptM ``mkFold1 #[none, inst2, ← mkAppM ``some #[b2x], fx, mkConst ``true]
+    | .ltUpperBound b2 =>
+      let lamBody ← mkAppOptM ``mkFold1 #[none, inst2, ← mkAppM ``some #[← mkAppM' b2 #[.fvar x]], fx, mkConst ``true]
       pure $ Expr.lam `_ t2 lamBody .default
-    | .leUpperBound b2x =>
-      let lamBody ← mkAppOptM ``mkFold1 #[none, inst2, ← mkAppOptM ``natLikeSucc #[none, inst2, b2x], fx, mkConst ``true]
+    | .leUpperBound b2 =>
+      let lamBody ← mkAppOptM ``mkFold1 #[none, inst2, ← mkAppOptM ``natLikeSucc #[none, inst2, ← mkAppM' b2 #[.fvar x]], fx, mkConst ``true]
       pure $ Expr.lam `_ t2 lamBody .default
 
   /- `arg2` is one of the following (depending on the bound type of b2)
@@ -454,25 +462,25 @@ def bruteBaseCase2 (xs : Array Expr) (g : Expr) (x y : FVarId) (b1 b2 : BoundTyp
       let innerLam ← mkLambdaFVars #[y', hf] hf
       let lamBody ← mkAppOptM ``ofMkFold1None #[none, inst2, fx, fx, innerLam, h, y]
       mkLambdaFVars #[y, h] lamBody
-    | .ltUpperBound b2x =>
+    | .ltUpperBound b2 =>
       let y ← mkFreshExprMVar t2
       let y' ← mkFreshExprMVar t2
-      let hy ← mkFreshExprMVar $ ← mkAppM ``LT.lt #[y, b2x]
-      let hy' ← mkFreshExprMVar $ ← mkAppM ``LT.lt #[y', b2x]
+      let hy ← mkFreshExprMVar $ ← mkAppM ``LT.lt #[y, ← mkAppM' b2 #[.fvar x]]
+      let hy' ← mkFreshExprMVar $ ← mkAppM ``LT.lt #[y', ← mkAppM' b2 #[.fvar x]]
       let h ← mkFreshExprMVar $ ← mkAppM ``Eq #[← mkAppM' arg1 #[y], mkConst ``true]
       let hf ← mkFreshExprMVar $ ← mkAppM ``Eq #[← mkAppM' fx #[y'], mkConst ``true]
       let innerLam ← mkLambdaFVars #[y', hy', hf] hf
-      let lamBody ← mkAppOptM ``ofMkFold1SomeLt #[none, inst2, b2x, fx, fx, innerLam, h, y, hy]
+      let lamBody ← mkAppOptM ``ofMkFold1SomeLt #[none, inst2, ← mkAppM' b2 #[.fvar x], fx, fx, innerLam, h, y, hy]
       mkLambdaFVars #[y, hy, h] lamBody
-    | .leUpperBound b2x =>
+    | .leUpperBound b2 =>
       let y ← mkFreshExprMVar t2
       let y' ← mkFreshExprMVar t2
-      let hy ← mkFreshExprMVar $ ← mkAppM ``LE.le #[y, b2x]
-      let hy' ← mkFreshExprMVar $ ← mkAppM ``LE.le #[y', b2x]
+      let hy ← mkFreshExprMVar $ ← mkAppM ``LE.le #[y, ← mkAppM' b2 #[.fvar x]]
+      let hy' ← mkFreshExprMVar $ ← mkAppM ``LE.le #[y', ← mkAppM' b2 #[.fvar x]]
       let h ← mkFreshExprMVar $ ← mkAppM ``Eq #[← mkAppM' arg1 #[y], mkConst ``true]
       let hf ← mkFreshExprMVar $ ← mkAppM ``Eq #[← mkAppM' fx #[y'], mkConst ``true]
       let innerLam ← mkLambdaFVars #[y', hy', hf] hf
-      let lamBody ← mkAppOptM ``ofMkFold1SomeLe #[none, inst2, b2x, fx, fx, innerLam, h, y, hy]
+      let lamBody ← mkAppOptM ``ofMkFold1SomeLe #[none, inst2, ← mkAppM' b2 #[.fvar x], fx, fx, innerLam, h, y, hy]
       mkLambdaFVars #[y, hy, h] lamBody
 
   let computationRes ← buildBruteCase2ComputationRes t1 t2 f b1 b2 inst1 inst2
@@ -501,12 +509,12 @@ def bruteBaseCase2 (xs : Array Expr) (g : Expr) (x y : FVarId) (b1 b2 : BoundTyp
       let ofMkFold1Call ← mkAppOptM ``ofMkFold1None #[none, inst2, fx, arg1, arg2, arg3]
       let lamBody ← mkAppOptM ``of_decide_eq_true #[none, none, ← mkAppM' ofMkFold1Call yFVars]
       mkLambdaFVars (xFVars ++ yFVars) lamBody
-    | .ltUpperBound b2x =>
-      let ofMkFold1Call ← mkAppOptM ``ofMkFold1SomeLt #[none, inst2, b2x, fx, arg1, arg2, arg3]
+    | .ltUpperBound b2 =>
+      let ofMkFold1Call ← mkAppOptM ``ofMkFold1SomeLt #[none, inst2, ← mkAppM' b2 #[.fvar x], fx, arg1, arg2, arg3]
       let lamBody ← mkAppOptM ``of_decide_eq_true #[none, none, ← mkAppM' ofMkFold1Call yFVars]
       mkLambdaFVars (xFVars ++ yFVars) lamBody
-    | .leUpperBound b2x =>
-      let ofMkFold1Call ← mkAppOptM ``ofMkFold1SomeLe #[none, inst2, b2x, fx, arg1, arg2, arg3]
+    | .leUpperBound b2 =>
+      let ofMkFold1Call ← mkAppOptM ``ofMkFold1SomeLe #[none, inst2, ← mkAppM' b2 #[.fvar x], fx, arg1, arg2, arg3]
       let lamBody ← mkAppOptM ``of_decide_eq_true #[none, none, ← mkAppM' ofMkFold1Call yFVars]
       mkLambdaFVars (xFVars ++ yFVars) lamBody
 
@@ -540,7 +548,7 @@ def evalBrute : Tactic
 | `(tactic| brute) => withMainContext do
   let pf ← forallTelescope (← getMainTarget).consumeMData (cleanupAnnotations := true) $ fun xs g => do
     trace[brute.debug] "xs: {xs}, g: {g}"
-    let boundBinders ← popAllBoundBinders (xs.map Expr.fvarId!) #[]
+    let boundBinders ← popAllBoundBinders #[] (xs.map Expr.fvarId!) #[]
     bruteCore xs g boundBinders.toList
   trace[brute.debug] "pf: {pf}"
   trace[brute.debug] "pf type: {← inferType pf}"

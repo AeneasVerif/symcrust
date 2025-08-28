@@ -365,21 +365,6 @@ theorem bruteTermProof1SomeLt {t1 : Type} [IsNatLike t1] (b : t1) (f : t1 → Bo
       sorry
       x hx
 
-theorem bruteTermProof2NoneNone {t1 t2 : Type} [IsNatLike t1] [IsNatLike t2] (f : t1 → t2 → Bool) :
-  ∀ x : t1, ∀ y : t2, f x y :=
-  fun x =>
-    ofMkFold1None
-      (f x)
-      (fun x_1 => mkFold1 none (f x) true)
-      (fun y h => ofMkFold1None (f x) (f x) (fun y' hf => hf) h y)
-      (ofMkFold1None
-        (fun x' => mkFold1 none (fun x_1 => mkFold1 none (f x') true) true)
-        (fun x' => mkFold1 none (f x') true)
-        (fun x' => ofMkFold1Triv f x' none)
-        (by sorry)
-        x
-      )
-
 theorem bruteTermProof2SomeLtNone {t1 t2 : Type} [IsNatLike t1] [IsNatLike t2] (b1 : t1) (f : t1 → t2 → Bool) :
   ∀ x < b1, ∀ y : t2, f x y :=
   fun x hx =>
@@ -468,13 +453,29 @@ theorem bruteTermProof2SomeLeLe {t1 t2 : Type} [IsNatLike t1] [IsNatLike t2] (b1
         x hx
       )
 
-theorem bruteTermProof3 {t1 t2 t3 : Type} [IsNatLike t1] [IsNatLike t2] [IsNatLike t3] (f : t1 → t2 → t3 → Bool) :
+theorem bruteTermProof2NoneNone {t1 t2 : Type} [IsNatLike t1] [IsNatLike t2] (f : t1 → t2 → Bool) :
+  ∀ x : t1, ∀ y : t2, f x y :=
+  fun x =>
+    ofMkFold1None
+      (f x)
+      (fun x_1 => mkFold1 none (f x) true)
+      (fun y h => ofMkFold1None (f x) (f x) (fun y' hf => hf) h y)
+      (ofMkFold1None
+        (fun x' => mkFold1 none (fun x_1 => mkFold1 none (f x') true) true)
+        (fun x' => mkFold1 none (f x') true)
+        (fun x' => ofMkFold1Triv f x' none)
+        sorry -- Proof by computation
+        x
+      )
+
+theorem bruteTermProof3NoneNoneNone {t1 t2 t3 : Type} [IsNatLike t1] [IsNatLike t2] [IsNatLike t3]
+  (f : t1 → t2 → t3 → Bool) :
   ∀ x : t1, ∀ y : t2, ∀ z : t3, f x y z :=
   fun x y =>
     ofMkFold1None
       (f x y)
       (fun x_1 => mkFold1 none (f x y) true)
-      (fun z h => ofMkFold1None (f x y) (f x y) (fun y_1 h => h) h z)
+      (fun z h => ofMkFold1None (f x y) (f x y) (fun z' h => h) h z)
       (ofMkFold1None
         (fun y' => mkFold1 none (fun x_1 => mkFold1 none (f x y') true) true)
         (fun y' => mkFold1 none (f x y') true)
@@ -482,12 +483,12 @@ theorem bruteTermProof3 {t1 t2 t3 : Type} [IsNatLike t1] [IsNatLike t2] [IsNatLi
         (ofMkFold1None
           (fun x => mkFold1 none (fun y' => mkFold1 none (f x y') true) true)
           (fun x' => mkFold1 none (fun y' => mkFold1 none (f x' y') true) true)
-          (fun x h => Eq.mpr (id (congrArg (fun _a => _a = true) h)) (Eq.refl true))
-          sorry
+          (fun _ h => Eq.mpr (id (congrArg (fun _a => _a = true) h)) (Eq.refl true))
+          sorry -- Proof by computation
           x
         )
         y
-      ) -- Can prove via computation
+      )
 
 theorem bruteTermProof4 {t1 t2 t3 t4 : Type} [IsNatLike t1] [IsNatLike t2] [IsNatLike t3] [IsNatLike t4]
   (f : t1 → t2 → t3 → t4 → Bool) : ∀ x : t1, ∀ y : t2, ∀ z : t3, ∀ a : t4, f x y z a :=
@@ -497,20 +498,20 @@ theorem bruteTermProof4 {t1 t2 t3 t4 : Type} [IsNatLike t1] [IsNatLike t2] [IsNa
       (fun x_1 => mkFold1 none (f x y z) true)
       (fun a h => ofMkFold1None (f x y z) (f x y z) (fun a h => h) h a)
       (ofMkFold1None
-        (fun x_1 => mkFold1 none (fun x_2 => mkFold1 none (f x y x_1) true) true)
+        (fun z' => mkFold1 none (fun x_2 => mkFold1 none (f x y z') true) true)
         (fun z' => mkFold1 none (f x y z') true)
         (fun z' => ofMkFold1Triv (f x y) z' none)
         (ofMkFold1None
           (fun x_1 => mkFold1 none (fun z' => mkFold1 none (f x x_1 z') true) true)
           (fun y' => mkFold1 none (fun z' => mkFold1 none (f x y' z') true) true)
-          (fun y h => Eq.mpr (id (congrArg (fun _a => _a = true) h)) (Eq.refl true))
+          (fun _ h => Eq.mpr (id (congrArg (fun _a => _a = true) h)) (Eq.refl true))
           (ofMkFold1None
             (fun x =>
               mkFold1 none (fun y' => mkFold1 none (fun z' => mkFold1 none (f x y' z') true) true) true)
             (fun x' =>
               mkFold1 none (fun y' => mkFold1 none (fun z' => mkFold1 none (f x' y' z') true) true) true)
-            (fun x h => Eq.mpr (id (congrArg (fun _a => _a = true) h)) (Eq.refl true))
-            sorry
+            (fun _ h => Eq.mpr (id (congrArg (fun _a => _a = true) h)) (Eq.refl true))
+            sorry -- Proof by computation
             x
           )
           y
