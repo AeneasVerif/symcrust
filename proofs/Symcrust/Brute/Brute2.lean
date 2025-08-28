@@ -294,29 +294,31 @@ def buildBruteCase2ComputationRes (t1 t2 f : Expr) (b1 b2 : BoundType) (inst1 in
   let levelParams := levels.map .param
   return mkApp3 (mkConst ``Lean.ofReduceBool) (mkConst auxDeclName levelParams) (toExpr true) rflPrf
 
-def buildBruteBaseCaseComputationRes_aux (prefixBoundTypes : Array BoundType) (prefixInsts : Array Expr)
-  (prefixTypes : Array Expr) (innerLam : Expr) : TacticM Expr := do
-  if h : prefixBoundTypes.size == 0 then return innerLam
-  else
-    let lastPrefixBoundType := prefixBoundTypes[prefixBoundTypes.size - 1]!
-    let prefixBoundTypes := prefixBoundTypes.take (prefixBoundTypes.size - 1)
-    let lastPrefixInst := prefixInsts[prefixInsts.size - 1]!
-    let prefixInsts := prefixInsts.take (prefixInsts.size - 1)
-    let lastPrefixType := prefixTypes[prefixTypes.size - 1]!
-    let prefixTypes := prefixTypes.take (prefixTypes.size - 1)
+def buildBruteBaseCaseComputationRes_aux (prefixBoundTypes : List BoundType) (prefixInsts : Array Expr)
+  (usedPrefixMVars : Array Expr) (unusedPrefixMVars : Array Expr) (innerLamBody : Expr) : TacticM Expr := do
+  match prefixBoundTypes with
+  | [] => return innerLamBody
+  | nextPrefixBoundType :: prefixBoundTypes =>
+    let nextPrefixInst := prefixInsts[0]!
+    let prefixInsts := prefixInsts.drop 1
+    let nextPrefixMVar := unusedPrefixMVars[0]!
+    let unusedPrefixMVars := unusedPrefixMVars.drop 1
 
-    match lastPrefixBoundType with
+    trace[brute.debug] "nextPrefixMVar type: {← inferType nextPrefixMVar}"
+
+    match nextPrefixBoundType with
     | .noUpperBound =>
-      let innerLam ← buildBruteBaseCaseComputationRes_aux prefixBoundTypes prefixInsts prefixTypes innerLam
-      mkAppOptM ``mkFold1 #[none, lastPrefixInst, ← mkAppOptM ``none #[lastPrefixType], innerLam, mkConst ``true]
+      let innerLamBody ← buildBruteBaseCaseComputationRes_aux prefixBoundTypes prefixInsts (usedPrefixMVars.push nextPrefixMVar) unusedPrefixMVars innerLamBody
+      let innerLam ← mkLambdaFVars #[nextPrefixMVar] innerLamBody
+      mkAppOptM ``mkFold1 #[none, nextPrefixInst, ← mkAppOptM ``none #[← inferType nextPrefixMVar], innerLam, mkConst ``true]
     | .ltUpperBound b =>
-      let innerLam ← buildBruteBaseCaseComputationRes_aux prefixBoundTypes prefixInsts prefixTypes innerLam
-      mkAppOptM ``mkFold1 #[none, lastPrefixInst, ← mkAppM ``some #[b], innerLam, mkConst ``true]
+      let innerLamBody ← buildBruteBaseCaseComputationRes_aux prefixBoundTypes prefixInsts (usedPrefixMVars.push nextPrefixMVar) unusedPrefixMVars innerLamBody
+      let innerLam ← mkLambdaFVars #[nextPrefixMVar] innerLamBody
+      mkAppOptM ``mkFold1 #[none, nextPrefixInst, ← mkAppM ``some #[← mkAppM' b usedPrefixMVars], innerLam, mkConst ``true]
     | .leUpperBound b =>
-      let innerLam ← buildBruteBaseCaseComputationRes_aux prefixBoundTypes prefixInsts prefixTypes innerLam
-      mkAppOptM ``mkFold1 #[none, lastPrefixInst, ← mkAppM ``some #[b], innerLam, mkConst ``true]
-termination_by prefixBoundTypes.size
-decreasing_by simp only [beq_iff_eq] at h; simp; omega
+      let innerLamBody ← buildBruteBaseCaseComputationRes_aux prefixBoundTypes prefixInsts (usedPrefixMVars.push nextPrefixMVar) unusedPrefixMVars innerLamBody
+      let innerLam ← mkLambdaFVars #[nextPrefixMVar] innerLamBody
+      mkAppOptM ``mkFold1 #[none, nextPrefixInst, ← mkAppM ``some #[← mkAppM' b usedPrefixMVars], innerLam, mkConst ``true]
 
 def buildBruteBaseCaseComputationRes (prefixBinderInfos : Array BinderInfo)
   (t f : Expr) (b : BoundType) (inst : Expr) : TacticM Expr := do
@@ -331,23 +333,31 @@ def buildBruteBaseCaseComputationRes (prefixBinderInfos : Array BinderInfo)
         (fun (y' : t2) => mkFold1 (none : Option t3) (f x' y') true) true) true = true`
   -/
 
+  trace[brute.debug] "{decl_name%} :: bp1"
+
   -- `mkFold1 (some b1) (fun x' => mkFold1 (some (b2 x')) (f x') true) true = true`
   -- `mkFold1 (some b1) (fun x' => mkFold1 none (f x') true) true = true`
 
   /- Depending on b2, `innerLam` is either:
       - `(fun (x' : t1) => mkFold1 (none : Option t2) (f x') true)`
       - `(fun (x' : t1) => mkFold1 (some (b2 x')) (f x') true)` -/
-  let innerLamBody ←
+  let innerLamBody ← -- **TODO** Rename innerMostLam?
     match b with
     | .noUpperBound => mkAppOptM ``mkFold1 #[none, inst, ← mkAppOptM ``none #[t], ← mkAppM' f freshPrefixMVars, mkConst ``true]
     | .ltUpperBound b => mkAppOptM ``mkFold1 #[none, inst, ← mkAppM ``some #[← mkAppM' b freshPrefixMVars], ← mkAppM' f freshPrefixMVars, mkConst ``true]
     | .leUpperBound b => mkAppOptM ``mkFold1 #[none, inst, ← mkAppM ``some #[← mkAppM' b freshPrefixMVars], ← mkAppM' f freshPrefixMVars, mkConst ``true]
-  let innerLam ← mkLambdaFVars freshPrefixMVars innerLamBody
+  -- let innerLam ← mkLambdaFVars #[(freshPrefixMVars[freshPrefixMVars.size - 1]!)] innerLamBody
+
+  trace[brute.debug] "{decl_name%} :: bp2"
+  trace[brute.debug] "{decl_name%} :: innerLamBody: {innerLamBody}"
+  trace[brute.debug] "{decl_name%} :: innerLamBody type: {← inferType innerLamBody}"
 
   /- Depending on b1, `mkFold1Call` is:
     - `mkFold1 (none : Option t1) innerLam true`
     - `mkFold1 (some b1) innerLam true` -/
-  let mkFold1Call ← buildBruteBaseCaseComputationRes_aux prefixBoundTypes prefixInsts prefixTypes innerLam
+  let mkFold1Call ← buildBruteBaseCaseComputationRes_aux prefixBoundTypes.toList prefixInsts #[] freshPrefixMVars innerLamBody
+
+  trace[brute.debug] "{decl_name%} :: bp3"
 
   let levels := (collectLevelParams {} mkFold1Call).params.toList
   let auxDeclName ← Term.mkAuxName `_brute
@@ -709,9 +719,11 @@ def bruteBaseCase (binderInfos : Array BinderInfo) (unboundBinders : Array Expr)
 
   trace[brute.debug] "bp5"
 
-  -- **TODO** Generalize `buildBruteBaseCaseComputationRes` and `buildBruteCase2Arg3`
   let computationRes ← buildBruteBaseCaseComputationRes binderInfosPrefix t f finalBinderInfo.b inst
 
+  trace[brute.debug] "bp5.5"
+
+  -- **TODO** Generalize `buildBruteCase2Arg3`
   let t1 ← typeFromInst binderInfosPrefix[0]!.isNatLikeInst
   let b1 := binderInfosPrefix[0]!.b
   let inst1 := binderInfosPrefix[0]!.isNatLikeInst
@@ -774,16 +786,14 @@ def bruteCore (xs : Array Expr) (g : Expr) (binderInfos : List BinderInfo) : Tac
   match binderInfos with
   | [] => throwError "Goal does not match the form required by brute, consider trying native_decide instead"
   | [⟨x, b, hxbOpt, inst⟩] => bruteBaseCase1 xs g x b hxbOpt inst
-  | [⟨x, b1, hxb1Opt, inst1⟩, ⟨y, b2, hyb2Opt, inst2⟩] =>
+  | _ =>
     let unboundFVars := xs.filter
       (fun fvar =>
         !(binderInfos.map (fun b => Expr.fvar b.x)).contains fvar &&
         !((binderInfos.filterMap (fun b => b.hxb)).map Expr.fvar).contains fvar
       )
     bruteBaseCase binderInfos.toArray unboundFVars g
-    -- bruteBaseCase2 xs g x y b1 b2 hxb1Opt hyb2Opt inst1 inst2
-  | ⟨x, b, hxbOpt, inst⟩ :: restBoundBinders =>
-    throwError "Not implemented yet"
+    -- Rename bruteBaseCase to bruteCoreCore
 
 @[tactic brute]
 def evalBrute : Tactic
