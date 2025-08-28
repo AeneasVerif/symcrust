@@ -461,12 +461,14 @@ theorem bruteTermProof2NoneNone {t1 t2 : Type} [IsNatLike t1] [IsNatLike t2] (f 
       (fun x_1 => mkFold1 none (f x) true)
       (fun y h => ofMkFold1None (f x) (f x) (fun y' hf => hf) h y)
       (ofMkFold1None
-        (fun x' => mkFold1 none (fun x_1 => mkFold1 none (f x') true) true)
-        (fun x' => mkFold1 none (f x') true)
+        (fun x' => mkFold1 (none : Option t2) (fun x_1 => mkFold1 (none : Option t2) (f x') true) true)
+        (fun x' => mkFold1 (none : Option t2) (f x') true)
         (fun x' => ofMkFold1Triv f x' none)
         sorry -- Proof by computation
         x
       )
+
+#print bruteTermProof2NoneNone
 
 theorem bruteTermProof3NoneNoneNone {t1 t2 t3 : Type} [IsNatLike t1] [IsNatLike t2] [IsNatLike t3]
   (f : t1 → t2 → t3 → Bool) :
