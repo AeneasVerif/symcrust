@@ -32,6 +32,7 @@ inductive BoundType where
   | ltUpperBound (b : Expr)
   | leUpperBound (b : Expr)
   | noUpperBound
+deriving Inhabited
 
 instance : ToMessageData BoundType where
   toMessageData := fun
@@ -45,6 +46,7 @@ structure BinderInfo where
   b : BoundType -- The value that the variable is upper bounded by
   hxb : Option FVarId -- The variable whose type is `x < b` or `x ≤ b` (if present)
   isNatLikeInst : Expr -- An Expr whose type is `IsNatLike t` where `x : t` and `b : t`
+deriving Inhabited
 
 instance : ToMessageData BinderInfo where
   toMessageData := fun ⟨x, b, hxb, isNatLikeInst⟩ => m!"({Expr.fvar x}, {b}, {hxb.map Expr.fvar}, {isNatLikeInst})"
@@ -250,8 +252,44 @@ def bruteBaseCase1 (xs : Array Expr) (g : Expr) (x : FVarId) (b : BoundType)
   let pf ← mkAppOptM' ofMkFoldProof $ Array.append #[foldResPf] (boundFVars.map some)
   mkLambdaFVars boundFVars $ ← mkAppOptM ``of_decide_eq_true #[none, none, pf]
 
--- **TODO** Modify depending on `b1` and `b2` (currently assume both are `.noUpperBound`)
 def buildBruteCase2ComputationRes (t1 t2 f : Expr) (b1 b2 : BoundType) (inst1 inst2 : Expr) : TacticM Expr := do
+  let x' ← mkFreshExprMVar t1
+
+  -- `mkFold1 (some b1) (fun x' => mkFold1 (some (b2 x')) (f x') true) true = true`
+  -- `mkFold1 (some b1) (fun x' => mkFold1 none (f x') true) true = true`
+
+  /- Depending on b2, `innerLam` is either:
+      - `(fun (x' : t1) => mkFold1 (none : Option t2) (f x') true)`
+      - `(fun (x' : t1) => mkFold1 (some (b2 x')) (f x') true)` -/
+  let innerLamBody ←
+    match b2 with
+    | .noUpperBound => mkAppOptM ``mkFold1 #[none, inst2, ← mkAppOptM ``none #[t2], ← mkAppM' f #[x'], mkConst ``true]
+    | .ltUpperBound b2 => mkAppOptM ``mkFold1 #[none, inst2, ← mkAppM ``some #[← mkAppM' b2 #[x']], ← mkAppM' f #[x'], mkConst ``true]
+    | .leUpperBound b2 => mkAppOptM ``mkFold1 #[none, inst2, ← mkAppM ``some #[← mkAppM' b2 #[x']], ← mkAppM' f #[x'], mkConst ``true]
+  let innerLam ← mkLambdaFVars #[x'] innerLamBody
+
+  /- Depending on b1, `mkFold1Call` is:
+    - `mkFold1 (none : Option t1) innerLam true`
+    - `mkFold1 (some b1) innerLam true` -/
+  let mkFold1Call ←
+    match b1 with
+    | .noUpperBound => mkAppOptM ``mkFold1 #[none, inst1, ← mkAppOptM ``none #[t1], innerLam, mkConst ``true]
+    | .ltUpperBound b1 => mkAppOptM ``mkFold1 #[none, inst1, ← mkAppM ``some #[b1], innerLam, mkConst ``true]
+    | .leUpperBound b1 => mkAppOptM ``mkFold1 #[none, inst1, ← mkAppM ``some #[b1], innerLam, mkConst ``true]
+
+  let levels := (collectLevelParams {} mkFold1Call).params.toList
+  let auxDeclName ← Term.mkAuxName `_brute
+  let decl := Declaration.defnDecl $
+    mkDefinitionValEx auxDeclName levels (mkConst ``Bool) mkFold1Call .abbrev .safe [auxDeclName]
+  addAndCompile decl
+
+  trace[brute.debug] "{decl_name%} :: decl to be compiled: {mkFold1Call}"
+
+  let rflPrf ← mkEqRefl (toExpr true)
+  let levelParams := levels.map .param
+  return mkApp3 (mkConst ``Lean.ofReduceBool) (mkConst auxDeclName levelParams) (toExpr true) rflPrf
+
+def buildBruteBaseCaseComputationRes (t1 t2 f : Expr) (b1 b2 : BoundType) (inst1 inst2 : Expr) : TacticM Expr := do
   let x' ← mkFreshExprMVar t1
 
   -- `mkFold1 (some b1) (fun x' => mkFold1 (some (b2 x')) (f x') true) true = true`
@@ -535,11 +573,184 @@ def bruteBaseCase2 (xs : Array Expr) (g : Expr) (x y : FVarId) (b1 b2 : BoundTyp
 
   return res
 
-def bruteCore (xs : Array Expr) (g : Expr) (boundBinders : List BinderInfo) : TacticM Expr := do
-  match boundBinders with
+def typeFromInst (inst : Expr) : TacticM Expr :=
+  match inst with
+  | .app (.app (.const ``IsNatLike.mk _) t) _ => pure t
+  | _ => throwError "{decl_name%} :: Invalid IsNatLike instance {inst}"
+
+#check Array.take
+#check Array.flatten
+/-
+structure BinderInfo where
+  x : FVarId -- The universally quantified variable
+  b : BoundType -- The value that the variable is upper bounded by
+  hxb : Option FVarId -- The variable whose type is `x < b` or `x ≤ b` (if present)
+  isNatLikeInst : Expr -- An Expr whose type is `IsNatLike t` where `x : t` and `b : t`
+-/
+
+def bruteBaseCase (binderInfos : Array BinderInfo) (unboundBinders : Array Expr) (g : Expr) : TacticM Expr := do
+  let finalBinderInfo := binderInfos[binderInfos.size - 1]!
+  let finalBinderFVars :=
+    match finalBinderInfo.hxb with
+    | some hxb => #[Expr.fvar finalBinderInfo.x, Expr.fvar hxb]
+    | none => #[Expr.fvar finalBinderInfo.x]
+  let t ← typeFromInst finalBinderInfo.isNatLikeInst
+  let inst := finalBinderInfo.isNatLikeInst
+
+  trace[brute.debug] "bp1"
+
+  let binderInfosPrefix := binderInfos.take (binderInfos.size - 1)
+  let natLikeFVars := binderInfos.map (fun bInfo => Expr.fvar bInfo.x)
+  let prefixNatLikeFVars := binderInfosPrefix.map (fun bInfo => Expr.fvar bInfo.x)
+  let prefixFVars := Array.flatten $
+    binderInfosPrefix.map
+    (fun bInfo =>
+      match bInfo.hxb with
+      | some hxb => #[Expr.fvar bInfo.x, Expr.fvar hxb]
+      | none => #[Expr.fvar bInfo.x])
+
+  trace[brute.debug] "bp2"
+
+  let f ← mkLambdaFVars natLikeFVars (← mkDecide (← mkForallFVars unboundBinders g))
+  let fWithPrefix ← mkAppM' f prefixNatLikeFVars
+
+  trace[brute.debug] "bp3"
+
+  /- `arg1` is one of the following (depending on the bound type of finalBinderInfo)
+      - `(fun (_ : t) => mkFold1 (none : Option t) fWithPrefix true) : t → Bool`
+      - `(fun (_ : t) => mkFold1 (some (finalBinderInfo.b prefixNatLikeFVars)) fWithPrefix true)`
+      - `(fun (_ : t) => mkFold1 (natLikeSucc (finalBinderInfo.b prefixNatLikeFVars)) fWithPrefix true)` -/
+  let arg1 ←
+    match finalBinderInfo.b with
+    | .noUpperBound =>
+      let lamBody ←
+        mkAppOptM ``mkFold1
+          #[none, inst, ← mkAppOptM ``none #[t], fWithPrefix, mkConst ``true]
+      pure $ Expr.lam `_ t lamBody .default
+    | .ltUpperBound b =>
+      let lamBody ←
+        mkAppOptM ``mkFold1
+          #[none, inst, ← mkAppM ``some #[← mkAppM' b prefixNatLikeFVars], fWithPrefix, mkConst ``true]
+      pure $ Expr.lam `_ t lamBody .default
+    | .leUpperBound b =>
+      let lamBody ←
+        mkAppOptM ``mkFold1
+          #[none, inst, ← mkAppOptM ``natLikeSucc #[none, inst, ← mkAppM' b prefixNatLikeFVars], fWithPrefix, mkConst ``true]
+      pure $ Expr.lam `_ t lamBody .default
+
+  trace[brute.debug] "bp4"
+
+  /- `arg2` is one of the following (depending on the bound type of finalBinderInfo)
+      - `(fun (y : t) (h : arg1 y = true) => ofMkFold1None (f x) (f x) (fun (y' : t) (hf : f x y' = true) => hf) h y)`
+      - `(fun (y : t) (hy : y < (b2 x)) (h : arg1 y = true) =>`
+            `ofMkFold1SomeLt (b2 x) (f x) (f x) (fun (y' : t) (hy' : y' < b2 x) (hf : f x y' = true) => hf) h y hy)`
+      - `(fun (y : t) (hy : y ≤ (b2 x)) (h : arg1 y = true) =>`
+            `ofMkFold1SomeLe (b2 x) (f x) (f x) (fun (y' : t) (hy' : y' ≤ b2 x) (hf : f x y' = true) => hf) h y hy)` -/
+  let arg2 ←
+    match finalBinderInfo.b with
+    | .noUpperBound =>
+      let y ← mkFreshExprMVar t
+      let y' ← mkFreshExprMVar t
+      let h ← mkFreshExprMVar $ ← mkAppM ``Eq #[← mkAppM' arg1 #[y], mkConst ``true]
+      let hf ← mkFreshExprMVar $ ← mkAppM ``Eq #[← mkAppM' fWithPrefix #[y'], mkConst ``true]
+      let innerLam ← mkLambdaFVars #[y', hf] hf
+      let lamBody ← mkAppOptM ``ofMkFold1None #[none, inst, fWithPrefix, fWithPrefix, innerLam, h, y]
+      mkLambdaFVars #[y, h] lamBody
+    | .ltUpperBound b =>
+      let y ← mkFreshExprMVar t
+      let y' ← mkFreshExprMVar t
+      let hy ← mkFreshExprMVar $ ← mkAppM ``LT.lt #[y, ← mkAppM' b prefixNatLikeFVars]
+      let hy' ← mkFreshExprMVar $ ← mkAppM ``LT.lt #[y', ← mkAppM' b prefixNatLikeFVars]
+      let h ← mkFreshExprMVar $ ← mkAppM ``Eq #[← mkAppM' arg1 #[y], mkConst ``true]
+      let hf ← mkFreshExprMVar $ ← mkAppM ``Eq #[← mkAppM' fWithPrefix #[y'], mkConst ``true]
+      let innerLam ← mkLambdaFVars #[y', hy', hf] hf
+      let lamBody ← mkAppOptM ``ofMkFold1SomeLt #[none, inst, ← mkAppM' b prefixNatLikeFVars, fWithPrefix, fWithPrefix, innerLam, h, y, hy]
+      mkLambdaFVars #[y, hy, h] lamBody
+    | .leUpperBound b =>
+      let y ← mkFreshExprMVar t
+      let y' ← mkFreshExprMVar t
+      let hy ← mkFreshExprMVar $ ← mkAppM ``LE.le #[y, ← mkAppM' b prefixNatLikeFVars]
+      let hy' ← mkFreshExprMVar $ ← mkAppM ``LE.le #[y', ← mkAppM' b prefixNatLikeFVars]
+      let h ← mkFreshExprMVar $ ← mkAppM ``Eq #[← mkAppM' arg1 #[y], mkConst ``true]
+      let hf ← mkFreshExprMVar $ ← mkAppM ``Eq #[← mkAppM' fWithPrefix #[y'], mkConst ``true]
+      let innerLam ← mkLambdaFVars #[y', hy', hf] hf
+      let lamBody ← mkAppOptM ``ofMkFold1SomeLe #[none, inst, ← mkAppM' b prefixNatLikeFVars, fWithPrefix, fWithPrefix, innerLam, h, y, hy]
+      mkLambdaFVars #[y, hy, h] lamBody
+
+  trace[brute.debug] "bp5"
+
+  -- **TODO** Generalize `buildBruteBaseCaseComputationRes` and `buildBruteCase2Arg3`
+  let t1 ← typeFromInst binderInfosPrefix[0]!.isNatLikeInst
+  let b1 := binderInfosPrefix[0]!.b
+  let inst1 := binderInfosPrefix[0]!.isNatLikeInst
+  let computationRes ← buildBruteBaseCaseComputationRes t1 t f b1 finalBinderInfo.b inst1 inst
+  let arg3 ← buildBruteCase2Arg3 prefixFVars t1 t f b1 finalBinderInfo.b inst1 inst computationRes
+
+  trace[brute.debug] "bp6"
+
+  -- trace[brute.debug] "x : {Expr.fvar x}"
+  -- trace[brute.debug] "y : {Expr.fvar y}"
+  -- trace[brute.debug] "t1 : {t1}"
+  -- trace[brute.debug] "t2 : {t2}"
+  -- trace[brute.debug] "f : {f}"
+  -- trace[brute.debug] "f type: {← inferType f}"
+  -- trace[brute.debug] "fx : {fx}"
+  -- trace[brute.debug] "fx type: {← inferType fx}"
+  -- trace[brute.debug] "arg1: {arg1}"
+  -- trace[brute.debug] "arg1 type: {← inferType arg1}"
+  -- trace[brute.debug] "arg2: {arg2}"
+  -- trace[brute.debug] "arg2 type: {← inferType arg2}"
+  -- trace[brute.debug] "computationRes: {computationRes}"
+  -- trace[brute.debug] "computationRes type: {← inferType computationRes}"
+  -- trace[brute.debug] "arg3: {arg3}"
+  -- trace[brute.debug] "arg3 type: {← inferType arg3}"
+
+  let res ←
+    match finalBinderInfo.b with
+    | .noUpperBound =>
+      let ofMkFold1Call ← mkAppOptM ``ofMkFold1None #[none, inst, fWithPrefix, arg1, arg2, arg3]
+      let lamBody ← mkAppOptM ``of_decide_eq_true #[none, none, ← mkAppM' ofMkFold1Call finalBinderFVars]
+      mkLambdaFVars (prefixFVars ++ finalBinderFVars) lamBody
+    | .ltUpperBound b =>
+      let ofMkFold1Call ← mkAppOptM ``ofMkFold1SomeLt #[none, inst, ← mkAppM' b prefixNatLikeFVars, fWithPrefix, arg1, arg2, arg3]
+      let lamBody ← mkAppOptM ``of_decide_eq_true #[none, none, ← mkAppM' ofMkFold1Call finalBinderFVars]
+      mkLambdaFVars (prefixFVars ++ finalBinderFVars) lamBody
+    | .leUpperBound b =>
+      let ofMkFold1Call ← mkAppOptM ``ofMkFold1SomeLe #[none, inst, ← mkAppM' b prefixNatLikeFVars, fWithPrefix, arg1, arg2, arg3]
+      let lamBody ← mkAppOptM ``of_decide_eq_true #[none, none, ← mkAppM' ofMkFold1Call finalBinderFVars]
+      mkLambdaFVars (prefixFVars ++ finalBinderFVars) lamBody
+
+  trace[brute.debug] "bp7"
+
+  -- trace[brute.debug] "x : {Expr.fvar x}"
+  -- trace[brute.debug] "y : {Expr.fvar y}"
+  -- trace[brute.debug] "t1 : {t1}"
+  -- trace[brute.debug] "t2 : {t2}"
+  -- trace[brute.debug] "f : {f}"
+  -- trace[brute.debug] "f type: {← inferType f}"
+  -- trace[brute.debug] "fx : {fx}"
+  -- trace[brute.debug] "fx type: {← inferType fx}"
+  -- trace[brute.debug] "arg1: {arg1}"
+  -- trace[brute.debug] "arg1 type: {← inferType arg1}"
+  -- trace[brute.debug] "arg2: {arg2}"
+  -- trace[brute.debug] "arg2 type: {← inferType arg2}"
+  -- trace[brute.debug] "arg3: {arg3}"
+  -- trace[brute.debug] "arg3 type: {← inferType arg3}"
+
+  return res
+
+def bruteCore (xs : Array Expr) (g : Expr) (binderInfos : List BinderInfo) : TacticM Expr := do
+  match binderInfos with
   | [] => throwError "Goal does not match the form required by brute, consider trying native_decide instead"
   | [⟨x, b, hxbOpt, inst⟩] => bruteBaseCase1 xs g x b hxbOpt inst
-  | [⟨x, b1, hxb1Opt, inst1⟩, ⟨y, b2, hyb2Opt, inst2⟩] => bruteBaseCase2 xs g x y b1 b2 hxb1Opt hyb2Opt inst1 inst2
+  | [⟨x, b1, hxb1Opt, inst1⟩, ⟨y, b2, hyb2Opt, inst2⟩] =>
+    let unboundFVars := xs.filter
+      (fun fvar =>
+        !(binderInfos.map (fun b => Expr.fvar b.x)).contains fvar &&
+        !((binderInfos.filterMap (fun b => b.hxb)).map Expr.fvar).contains fvar
+      )
+    bruteBaseCase binderInfos.toArray unboundFVars g
+    -- bruteBaseCase2 xs g x y b1 b2 hxb1Opt hyb2Opt inst1 inst2
   | ⟨x, b, hxbOpt, inst⟩ :: restBoundBinders =>
     throwError "Not implemented yet"
 
