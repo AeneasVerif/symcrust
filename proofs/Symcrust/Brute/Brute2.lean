@@ -365,21 +365,26 @@ def buildComputationResFinalRecursive (prefixFVars natLikeFVars : Array Expr) (p
 def buildComputationResRecursive (prefixFVars natLikeFVars : Array Expr) (prefixBinderInfos : Array BinderInfo)
   (t f : Expr) (b : BoundType) (inst : Expr) (computationInnerLamOpt : Option Expr)
   (computationRes computationResIsTrue : Expr) : TacticM Expr := do -- **TODO** Generalize based on `b`
-  if hsize0 : natLikeFVars.size == 0 then
+  trace[brute.debug] "{decl_name%} :: natLikeFVars at start: {natLikeFVars}"
+  if hsize0 : natLikeFVars.size <= 1 then
     return computationResIsTrue
   else
-    if hsize1 : natLikeFVars.size == 1 then
+    if hsize1 : natLikeFVars.size == 2 then
       return ← buildComputationResFinalRecursive prefixFVars natLikeFVars prefixBinderInfos computationInnerLamOpt computationResIsTrue
     else
-      let natLikeFVarsOriginal := natLikeFVars
-
       let lastPrefixFVars :=
         if prefixBinderInfos[prefixBinderInfos.size - 1]!.hxb.isSome then
           #[prefixFVars[prefixFVars.size - 2]!, prefixFVars[prefixFVars.size - 1]!]
         else
           #[prefixFVars[prefixFVars.size - 1]!]
-      let prefixFVars := prefixFVars.take (prefixFVars.size - lastPrefixFVars.size)
-      let natLikeFVars := natLikeFVars.take (natLikeFVars.size - 1)
+      let secondLastPrefixFVars :=
+        if prefixBinderInfos[prefixBinderInfos.size - 2]!.hxb.isSome then
+          #[prefixFVars[prefixFVars.size - lastPrefixFVars.size - 2]!, prefixFVars[prefixFVars.size - lastPrefixFVars.size - 1]!]
+        else
+          #[prefixFVars[prefixFVars.size - lastPrefixFVars.size - 1]!]
+      let prefixFVarsTaken := prefixFVars.take (prefixFVars.size - lastPrefixFVars.size)
+      let natLikeFVarsTaken := natLikeFVars.take (natLikeFVars.size - 1)
+      let natLikeFVarsTake2 := natLikeFVars.take (natLikeFVars.size - 2)
 
       let prefixTypes ← prefixBinderInfos.mapM (fun bInfo => typeFromInst bInfo.isNatLikeInst)
       let prefixBoundTypes := prefixBinderInfos.map (fun bInfo => bInfo.b)
@@ -396,20 +401,35 @@ def buildComputationResRecursive (prefixFVars natLikeFVars : Array Expr) (prefix
       let y' ← mkFreshExprMVar secondLastPrefixType
       let z' ← mkFreshExprMVar lastPrefixType
 
+      trace[brute.debug] "{decl_name%} :: bp1"
+
       -- `arg1 = (fun y' => mkFold1 none (fun z' => mkFold1 none (f x y' z') true) true)`
-      let arg1InnerLamBody ← mkAppOptM ``mkFold1 #[none, inst, ← mkAppOptM ``none #[t], ← mkAppM' f (natLikeFVars ++ #[y', z']), mkConst ``true]
+      let arg1InnerLamBody ← mkAppOptM ``mkFold1 #[none, inst, ← mkAppOptM ``none #[t], ← mkAppM' f (natLikeFVarsTake2 ++ #[y', z']), mkConst ``true]
       let arg1InnerLam ← mkLambdaFVars #[z'] arg1InnerLamBody
       let arg1LamBody ← mkAppOptM ``mkFold1 #[none, lastPrefixInst, ← mkAppOptM ``none #[lastPrefixType], arg1InnerLam, mkConst ``true]
-      let arg1 ← mkLambdaFVars #[y'] arg1LamBody
+      let arg1 ← mkLambdaFVars #[y'] arg1LamBody (binderInfoForMVars := .default)
       let arg2 := arg1 -- `arg2` is identical to `arg1`
+
+      trace[brute.debug] "{decl_name%} :: bp2"
+      trace[brute.debug] "{decl_name%} :: b: {b}"
 
       -- `h : (fun y' => mkFold1 none (fun z' => mkFold1 none (f x y' z') true) true) y' = true`
       let h ← mkFreshExprMVar $ ← mkAppM ``Eq #[← mkAppOptM' arg1 #[y'], mkConst ``true]
-      -- `arg3 = (fun _ h => h)`
-      let arg3 ← mkLambdaFVars #[y', h] h
+      -- `arg3 = (fun _ h => h)` or `arg3 = (fun y' hy' h => h)`
+      let arg3 ←
+        match prefixBinderInfos[prefixBinderInfos.size - 1]!.b with
+        | .noUpperBound => mkLambdaFVars #[y', h] h
+        | .ltUpperBound b =>
+          let hy' ← mkFreshExprMVar $ ← mkAppM ``LT.lt #[y', ← mkAppM' b natLikeFVars]
+          mkLambdaFVars #[y', hy', h] h
+        | .leUpperBound b =>
+          let hy' ← mkFreshExprMVar $ ← mkAppM ``LE.le #[y', ← mkAppM' b natLikeFVars]
+          mkLambdaFVars #[y', hy', h] h
+
+      trace[brute.debug] "{decl_name%} :: bp3"
 
       let arg4 ←
-        buildComputationResRecursive prefixFVars natLikeFVars prefixBinderInfos lastPrefixType f
+        buildComputationResRecursive prefixFVarsTaken natLikeFVarsTaken prefixBinderInfos lastPrefixType f
           lastPrefixBoundType lastPrefixInst computationInnerLamOpt computationRes computationResIsTrue
 
       trace[brute.debug] "{decl_name%} :: arg1: {arg1}"
@@ -418,18 +438,19 @@ def buildComputationResRecursive (prefixFVars natLikeFVars : Array Expr) (prefix
       trace[brute.debug] "{decl_name%} :: arg4: {arg4}"
       trace[brute.debug] "{decl_name%} :: secondLastPrefixInst: {secondLastPrefixInst}"
       trace[brute.debug] "{decl_name%} :: lastPrefixFVars: {lastPrefixFVars}"
+      trace[brute.debug] "{decl_name%} :: b: {b}"
       -- **TODO** Fix naming confusion where `lastPrefixFVars` aligns with `secondLastPrefixInst` (this is caused by the fact that
       -- in `buildArg3`, `prefixFVars` is set to `prefixFVars.take (prefixFVars.size - lastPrefixFVars.size)` but nothing analogous is
       -- done to `prefixBinderInfos`)
 
       match b with
-      | .noUpperBound => mkAppOptM ``ofMkFold1None $ #[none, secondLastPrefixInst, arg1, arg2, arg3, arg4] ++ (lastPrefixFVars.map some)
+      | .noUpperBound => mkAppOptM ``ofMkFold1None $ #[none, secondLastPrefixInst, arg1, arg2, arg3, arg4] ++ (secondLastPrefixFVars.map some)
       | .ltUpperBound b =>
         mkAppOptM ``ofMkFold1SomeLt $
-          #[none, secondLastPrefixInst, ← mkAppM ``some #[← mkAppM' b natLikeFVarsOriginal], arg1, arg2, arg3, arg4] ++ (lastPrefixFVars.map some)
+          #[none, inst, ← mkAppM' b natLikeFVars, arg1, arg2, arg3, arg4] ++ (secondLastPrefixFVars.map some)
       | .leUpperBound b =>
-        mkAppOptM ``ofMkFold1SomeLt $
-          #[none, secondLastPrefixInst, ← mkAppM ``natLikeSucc #[← mkAppM' b natLikeFVarsOriginal], arg1, arg2, arg3, arg4] ++ (lastPrefixFVars.map some)
+        mkAppOptM ``ofMkFold1SomeLe $
+          #[none, inst, ← mkAppM' b natLikeFVars, arg1, arg2, arg3, arg4] ++ (secondLastPrefixFVars.map some)
 termination_by natLikeFVars.size
 decreasing_by
   simp only [beq_iff_eq] at hsize0 hsize1
@@ -444,8 +465,7 @@ def buildArg3 (prefixFVars natLikeFVars : Array Expr) (prefixBinderInfos : Array
       #[prefixFVars[prefixFVars.size - 2]!, prefixFVars[prefixFVars.size - 1]!]
     else
       #[prefixFVars[prefixFVars.size - 1]!]
-  let prefixFVars := prefixFVars.take (prefixFVars.size - lastPrefixFVars.size)
-  let natLikeFVars := natLikeFVars.take (natLikeFVars.size - 1)
+  let natLikeFVarsTaken := natLikeFVars.take (natLikeFVars.size - 1)
 
   let prefixTypes ← prefixBinderInfos.mapM (fun bInfo => typeFromInst bInfo.isNatLikeInst)
   let prefixBoundTypes := prefixBinderInfos.map (fun bInfo => bInfo.b)
@@ -465,7 +485,7 @@ def buildArg3 (prefixFVars natLikeFVars : Array Expr) (prefixBinderInfos : Array
     trace[brute.debug] "natLikeFVars: {natLikeFVars}"
 
     -- `arg1 = (fun (x' : t1) => mkFold1 (none : Option t2) (fun (_ : t2) => mkFold1 none (f x') true) true)`
-    let arg1InnerLamBody ← mkAppOptM ``mkFold1 #[none, inst, ← mkAppOptM ``none #[t], ← mkAppM' f (natLikeFVars.push x'), mkConst ``true]
+    let arg1InnerLamBody ← mkAppOptM ``mkFold1 #[none, inst, ← mkAppOptM ``none #[t], ← mkAppM' f (natLikeFVarsTaken.push x'), mkConst ``true]
     let arg1InnerLam ← mkLambdaFVars #[← mkFreshExprMVar t] arg1InnerLamBody
     let arg1LamBody ← mkAppOptM ``mkFold1 #[none, inst, ← mkAppOptM ``none #[t], arg1InnerLam, mkConst ``true]
     let arg1 ← mkLambdaFVars #[x'] arg1LamBody
@@ -473,7 +493,7 @@ def buildArg3 (prefixFVars natLikeFVars : Array Expr) (prefixBinderInfos : Array
     trace[brute.debug] "{decl_name%} :: bp2"
 
     -- `arg2 = (fun (x' : t1) => mkFold1 none (f x') true)`
-    let arg2LamBody ← mkAppOptM ``mkFold1 #[none, inst, ← mkAppOptM ``none #[t], ← mkAppM' f (natLikeFVars.push x'), mkConst ``true]
+    let arg2LamBody ← mkAppOptM ``mkFold1 #[none, inst, ← mkAppOptM ``none #[t], ← mkAppM' f (natLikeFVarsTaken.push x'), mkConst ``true]
     let arg2 ← mkLambdaFVars #[x'] arg2LamBody
 
     trace[brute.debug] "{decl_name%} :: bp3"
@@ -482,15 +502,15 @@ def buildArg3 (prefixFVars natLikeFVars : Array Expr) (prefixBinderInfos : Array
       - `(fun (x' : t1) => ofMkFold1Triv f x' (none : Option t2))`
       - `(fun (x' : t1) (hx' : x' < b1) => ofMkFold1Triv f x' (none : Option t2))`
       - `(fun (x' : t1) (hx' : x' ≤ b1) => ofMkFold1Triv f x' (none : Option t2))` -/
-    let arg3LamBody ← mkAppOptM ``ofMkFold1Triv #[none, none, lastPrefixInst, inst, ← mkAppM' f natLikeFVars, x', ← mkAppOptM ``none #[t]]
+    let arg3LamBody ← mkAppOptM ``ofMkFold1Triv #[none, none, lastPrefixInst, inst, ← mkAppM' f natLikeFVarsTaken, x', ← mkAppOptM ``none #[t]]
     let arg3 ←
       match lastPrefixBoundType with
       | .noUpperBound => mkLambdaFVars #[x'] arg3LamBody
       | .ltUpperBound b1 =>
-        let hx' ← mkFreshExprMVar $ ← mkAppOptM ``LT.lt #[lastPrefixType, none, x', ← mkAppM' b1 natLikeFVars]
+        let hx' ← mkFreshExprMVar $ ← mkAppOptM ``LT.lt #[lastPrefixType, none, x', ← mkAppM' b1 natLikeFVarsTaken]
         mkLambdaFVars #[x', hx'] arg3LamBody
       | .leUpperBound b1 =>
-        let hx' ← mkFreshExprMVar $ ← mkAppOptM ``LE.le #[lastPrefixType, none, x', ← mkAppM' b1 natLikeFVars]
+        let hx' ← mkFreshExprMVar $ ← mkAppOptM ``LE.le #[lastPrefixType, none, x', ← mkAppM' b1 natLikeFVarsTaken]
         mkLambdaFVars #[x', hx'] arg3LamBody
 
     trace[brute.debug] "{decl_name%} :: bp4"
@@ -506,24 +526,24 @@ def buildArg3 (prefixFVars natLikeFVars : Array Expr) (prefixBinderInfos : Array
       let ofMkFold1Res ← mkAppOptM ``ofMkFold1None #[lastPrefixType, lastPrefixInst, arg1, arg2, arg3, computationResIsTrue]
       mkAppM' ofMkFold1Res lastPrefixFVars
     | .ltUpperBound b1 =>
-      let ofMkFold1Res ← mkAppOptM ``ofMkFold1SomeLt #[lastPrefixType, lastPrefixInst, ← mkAppM' b1 natLikeFVars, arg1, arg2, arg3, computationResIsTrue]
+      let ofMkFold1Res ← mkAppOptM ``ofMkFold1SomeLt #[lastPrefixType, lastPrefixInst, ← mkAppM' b1 natLikeFVarsTaken, arg1, arg2, arg3, computationResIsTrue]
       mkAppM' ofMkFold1Res lastPrefixFVars
     | .leUpperBound b1 =>
-      let ofMkFold1Res ← mkAppOptM ``ofMkFold1SomeLe #[lastPrefixType, lastPrefixInst, ← mkAppM' b1 natLikeFVars, arg1, arg2, arg3, computationResIsTrue]
+      let ofMkFold1Res ← mkAppOptM ``ofMkFold1SomeLe #[lastPrefixType, lastPrefixInst, ← mkAppM' b1 natLikeFVarsTaken, arg1, arg2, arg3, computationResIsTrue]
       mkAppM' ofMkFold1Res lastPrefixFVars
   | .ltUpperBound b =>
     trace[brute.debug] "{decl_name%} :: bp1"
 
     -- `arg1 = (fun (x' : t1) => mkFold1 (some (b x')) (fun (_ : t2) => mkFold1 (some (b x')) (f x') true) true)`
-    let arg1InnerLamBody ← mkAppOptM ``mkFold1 #[none, inst, ← mkAppM ``some #[← mkAppM' b (natLikeFVars.push x')], ← mkAppM' f (natLikeFVars.push x'), mkConst ``true]
+    let arg1InnerLamBody ← mkAppOptM ``mkFold1 #[none, inst, ← mkAppM ``some #[← mkAppM' b (natLikeFVarsTaken.push x')], ← mkAppM' f (natLikeFVarsTaken.push x'), mkConst ``true]
     let arg1InnerLam ← mkLambdaFVars #[← mkFreshExprMVar t] arg1InnerLamBody
-    let arg1LamBody ← mkAppOptM ``mkFold1 #[none, inst, ← mkAppM ``some #[← mkAppM' b (natLikeFVars.push x')], arg1InnerLam, mkConst ``true]
+    let arg1LamBody ← mkAppOptM ``mkFold1 #[none, inst, ← mkAppM ``some #[← mkAppM' b (natLikeFVarsTaken.push x')], arg1InnerLam, mkConst ``true]
     let arg1 ← mkLambdaFVars #[x'] arg1LamBody
 
     trace[brute.debug] "{decl_name%} :: bp2"
 
     -- `arg2 = (fun (x' : t1) => mkFold1 (some (b2 x')) (f x') true)`
-    let arg2LamBody ← mkAppOptM ``mkFold1 #[none, inst, ← mkAppM ``some #[← mkAppM' b (natLikeFVars.push x')], ← mkAppM' f (natLikeFVars.push x'), mkConst ``true]
+    let arg2LamBody ← mkAppOptM ``mkFold1 #[none, inst, ← mkAppM ``some #[← mkAppM' b (natLikeFVarsTaken.push x')], ← mkAppM' f (natLikeFVarsTaken.push x'), mkConst ``true]
     let arg2 ← mkLambdaFVars #[x'] arg2LamBody
 
     trace[brute.debug] "{decl_name%} :: bp3"
@@ -533,15 +553,15 @@ def buildArg3 (prefixFVars natLikeFVars : Array Expr) (prefixBinderInfos : Array
       - `(fun (x' : t1) (hx' : x' < b1) => ofMkFold1Triv f x' (some (b2 x')))`
       - `(fun (x' : t1) (hx' : x' ≤ b1) => ofMkFold1Triv f x' (some (b2 x')))` -/
     let arg3LamBody ←
-      mkAppOptM ``ofMkFold1Triv #[none, none, lastPrefixInst, inst, ← mkAppM' f natLikeFVars, x', ← mkAppM ``some #[← mkAppM' b (natLikeFVars.push x')]]
+      mkAppOptM ``ofMkFold1Triv #[none, none, lastPrefixInst, inst, ← mkAppM' f natLikeFVarsTaken, x', ← mkAppM ``some #[← mkAppM' b (natLikeFVarsTaken.push x')]]
     let arg3 ←
       match lastPrefixBoundType with
       | .noUpperBound => mkLambdaFVars #[x'] arg3LamBody
       | .ltUpperBound b1 =>
-        let hx' ← mkFreshExprMVar $ ← mkAppOptM ``LT.lt #[lastPrefixType, none, x', ← mkAppM' b1 natLikeFVars]
+        let hx' ← mkFreshExprMVar $ ← mkAppOptM ``LT.lt #[lastPrefixType, none, x', ← mkAppM' b1 natLikeFVarsTaken]
         mkLambdaFVars #[x', hx'] arg3LamBody
       | .leUpperBound b1 =>
-        let hx' ← mkFreshExprMVar $ ← mkAppOptM ``LE.le #[lastPrefixType, none, x', ← mkAppM' b1 natLikeFVars]
+        let hx' ← mkFreshExprMVar $ ← mkAppOptM ``LE.le #[lastPrefixType, none, x', ← mkAppM' b1 natLikeFVarsTaken]
         mkLambdaFVars #[x', hx'] arg3LamBody
 
     trace[brute.debug] "{decl_name%} :: bp4"
@@ -555,23 +575,23 @@ def buildArg3 (prefixFVars natLikeFVars : Array Expr) (prefixBinderInfos : Array
       let ofMkFold1Res ← mkAppOptM ``ofMkFold1None #[lastPrefixType, lastPrefixInst, arg1, arg2, arg3, computationResIsTrue]
       mkAppM' ofMkFold1Res lastPrefixFVars
     | .ltUpperBound b1 =>
-      let ofMkFold1Res ← mkAppOptM ``ofMkFold1SomeLt #[lastPrefixType, lastPrefixInst, ← mkAppM' b1 natLikeFVars, arg1, arg2, arg3, computationResIsTrue]
+      let ofMkFold1Res ← mkAppOptM ``ofMkFold1SomeLt #[lastPrefixType, lastPrefixInst, ← mkAppM' b1 natLikeFVarsTaken, arg1, arg2, arg3, computationResIsTrue]
       mkAppM' ofMkFold1Res lastPrefixFVars
     | .leUpperBound b1 =>
-      let ofMkFold1Res ← mkAppOptM ``ofMkFold1SomeLe #[lastPrefixType, lastPrefixInst, ← mkAppM' b1 natLikeFVars, arg1, arg2, arg3, computationResIsTrue]
+      let ofMkFold1Res ← mkAppOptM ``ofMkFold1SomeLe #[lastPrefixType, lastPrefixInst, ← mkAppM' b1 natLikeFVarsTaken, arg1, arg2, arg3, computationResIsTrue]
       mkAppM' ofMkFold1Res lastPrefixFVars
   | .leUpperBound b =>
     -- `arg1 = (fun (x' : t1) => mkFold1 (natLikeSucc (b2 x')) (fun (_ : t2) => mkFold1 (natLikeSucc (b2 x')) (f x') true) true)`
     let arg1InnerLamBody ←
-      mkAppOptM ``mkFold1 #[none, inst, ← mkAppOptM ``natLikeSucc #[none, inst, ← mkAppM' b (natLikeFVars.push x')], ← mkAppM' f (natLikeFVars.push x'), mkConst ``true]
+      mkAppOptM ``mkFold1 #[none, inst, ← mkAppOptM ``natLikeSucc #[none, inst, ← mkAppM' b (natLikeFVarsTaken.push x')], ← mkAppM' f (natLikeFVarsTaken.push x'), mkConst ``true]
     let arg1InnerLam ← mkLambdaFVars #[← mkFreshExprMVar t] arg1InnerLamBody
     let arg1LamBody ←
-      mkAppOptM ``mkFold1 #[none, inst, ← mkAppOptM ``natLikeSucc #[none, inst, ← mkAppM' b (natLikeFVars.push x')], arg1InnerLam, mkConst ``true]
+      mkAppOptM ``mkFold1 #[none, inst, ← mkAppOptM ``natLikeSucc #[none, inst, ← mkAppM' b (natLikeFVarsTaken.push x')], arg1InnerLam, mkConst ``true]
     let arg1 ← mkLambdaFVars #[x'] arg1LamBody
 
     -- `arg2 = (fun (x' : t1) => mkFold1 (natLikeSucc (b2 x')) (f x') true)`
     let arg2LamBody ←
-      mkAppOptM ``mkFold1 #[none, inst, ← mkAppOptM ``natLikeSucc #[none, inst, ← mkAppM' b (natLikeFVars.push x')], ← mkAppM' f (natLikeFVars.push x'), mkConst ``true]
+      mkAppOptM ``mkFold1 #[none, inst, ← mkAppOptM ``natLikeSucc #[none, inst, ← mkAppM' b (natLikeFVarsTaken.push x')], ← mkAppM' f (natLikeFVarsTaken.push x'), mkConst ``true]
     let arg2 ← mkLambdaFVars #[x'] arg2LamBody
 
     /- Depending on `b1`, `arg3` is equal to:
@@ -580,15 +600,15 @@ def buildArg3 (prefixFVars natLikeFVars : Array Expr) (prefixBinderInfos : Array
       - `(fun (x' : t1) (hx' : x' ≤ b1) => ofMkFold1Triv f x' (natLikeSucc (b2 x')))` -/
     let arg3LamBody ←
       mkAppOptM ``ofMkFold1Triv
-        #[none, none, lastPrefixInst, inst, ← mkAppM' f natLikeFVars, x', ← mkAppOptM ``natLikeSucc #[none, inst, ← mkAppM' b (natLikeFVars.push x')]]
+        #[none, none, lastPrefixInst, inst, ← mkAppM' f natLikeFVarsTaken, x', ← mkAppOptM ``natLikeSucc #[none, inst, ← mkAppM' b (natLikeFVarsTaken.push x')]]
     let arg3 ←
       match lastPrefixBoundType with
       | .noUpperBound => mkLambdaFVars #[x'] arg3LamBody
       | .ltUpperBound b1 =>
-        let hx' ← mkFreshExprMVar $ ← mkAppOptM ``LT.lt #[lastPrefixType, none, x', ← mkAppM' b1 natLikeFVars]
+        let hx' ← mkFreshExprMVar $ ← mkAppOptM ``LT.lt #[lastPrefixType, none, x', ← mkAppM' b1 natLikeFVarsTaken]
         mkLambdaFVars #[x', hx'] arg3LamBody
       | .leUpperBound b1 =>
-        let hx' ← mkFreshExprMVar $ ← mkAppOptM ``LE.le #[lastPrefixType, none, x', ← mkAppM' b1 natLikeFVars]
+        let hx' ← mkFreshExprMVar $ ← mkAppOptM ``LE.le #[lastPrefixType, none, x', ← mkAppM' b1 natLikeFVarsTaken]
         mkLambdaFVars #[x', hx'] arg3LamBody
 
     let computationResIsTrue ←
@@ -600,10 +620,10 @@ def buildArg3 (prefixFVars natLikeFVars : Array Expr) (prefixBinderInfos : Array
       let ofMkFold1Res ← mkAppOptM ``ofMkFold1None #[lastPrefixType, lastPrefixInst, arg1, arg2, arg3, computationResIsTrue]
       mkAppM' ofMkFold1Res lastPrefixFVars
     | .ltUpperBound b1 =>
-      let ofMkFold1Res ← mkAppOptM ``ofMkFold1SomeLt #[lastPrefixType, lastPrefixInst, ← mkAppM' b1 natLikeFVars, arg1, arg2, arg3, computationResIsTrue]
+      let ofMkFold1Res ← mkAppOptM ``ofMkFold1SomeLt #[lastPrefixType, lastPrefixInst, ← mkAppM' b1 natLikeFVarsTaken, arg1, arg2, arg3, computationResIsTrue]
       mkAppM' ofMkFold1Res lastPrefixFVars
     | .leUpperBound b1 =>
-      let ofMkFold1Res ← mkAppOptM ``ofMkFold1SomeLe #[lastPrefixType, lastPrefixInst, ← mkAppM' b1 natLikeFVars, arg1, arg2, arg3, computationResIsTrue]
+      let ofMkFold1Res ← mkAppOptM ``ofMkFold1SomeLe #[lastPrefixType, lastPrefixInst, ← mkAppM' b1 natLikeFVarsTaken, arg1, arg2, arg3, computationResIsTrue]
       mkAppM' ofMkFold1Res lastPrefixFVars
 
 def bruteCore (binderInfos : Array BinderInfo) (unboundBinders : Array Expr) (g : Expr) : TacticM Expr := do
