@@ -288,6 +288,29 @@ theorem bruteTacticProof3 {t1 t2 t3 : Type} [IsNatLike t1] [IsNatLike t2] [IsNat
         rw [h]
       . sorry -- Can prove via computation
 
+theorem bruteTacticProof3SomeLtLtLt {t1 t2 t3 : Type} [IsNatLike t1] [IsNatLike t2] [IsNatLike t3] (b1 : t1)
+  (b2 : t1 → t2) (b3 : t1 → t2 → t3) (f : t1 → t2 → t3 → Bool) :
+  ∀ x < b1, ∀ y < (b2 x), ∀ z < (b3 x y), f x y z := by
+  intro x hx y hy
+  apply ofMkFold1SomeLt (b3 x y) (f x y) (fun _ => (mkFold1 (some (b3 x y)) (f x y) true))
+  . intro z hz h
+    apply ofMkFold1SomeLt (b3 x y) (f x y) (f x y)
+    . exact fun y hy h => h
+    . exact h
+    . exact hz
+  . revert y
+    apply ofMkFold1SomeLt
+      (b2 x)
+      _
+      (fun y' => mkFold1 (some (b3 x y')) (f x y') true)
+    . intro y hy
+      exact ofMkFold1Triv (f x) y (some (b3 x y))
+    . revert x
+      apply ofMkFold1SomeLt _ _ (fun x' => mkFold1 (some (b2 x')) (fun y' => mkFold1 (some (b3 x' y')) (f x' y') true) true)
+      . intro x hx h
+        rw [h]
+      . sorry -- Can prove via computation
+
 theorem bruteTacticProof4 {t1 t2 t3 t4 : Type} [IsNatLike t1] [IsNatLike t2] [IsNatLike t3] [IsNatLike t4]
   (f : t1 → t2 → t3 → t4 → Bool) :
   ∀ x : t1, ∀ y : t2, ∀ z : t3, ∀ a : t4, f x y z a := by
@@ -493,6 +516,31 @@ theorem bruteTermProof3NoneNoneNone {t1 t2 t3 : Type} [IsNatLike t1] [IsNatLike 
 
         y
       )
+
+theorem bruteTermProof3SomeLtLtLt {t1 t2 t3 : Type} [IsNatLike t1] [IsNatLike t2] [IsNatLike t3] (b1 : t1)
+  (b2 : t1 → t2) (b3 : t1 → t2 → t3) (f : t1 → t2 → t3 → Bool) :
+  ∀ x < b1, ∀ y < (b2 x), ∀ z < (b3 x y), f x y z :=
+  fun x hx y hy =>
+    ofMkFold1SomeLt
+      (b3 x y)
+      (f x y)
+      (fun x_1 => mkFold1 (some (b3 x y)) (f x y) true)
+      (fun z hz h => ofMkFold1SomeLt (b3 x y) (f x y) (f x y) (fun y_1 hy h => h) h z hz)
+      (ofMkFold1SomeLt (b2 x)
+        (fun x_1 =>
+          mkFold1 (some (b3 x x_1)) (fun x_2 => mkFold1 (some (b3 x x_1)) (f x x_1) true) true)
+        (fun y' => mkFold1 (some (b3 x y')) (f x y') true)
+        (fun y hy => ofMkFold1Triv (f x) y (some (b3 x y)))
+        (ofMkFold1SomeLt b1
+          (fun x => mkFold1 (some (b2 x)) (fun y' => mkFold1 (some (b3 x y')) (f x y') true) true)
+          (fun x' =>
+            mkFold1 (some (b2 x')) (fun y' => mkFold1 (some (b3 x' y')) (f x' y') true) true)
+          (fun x hx h => h)
+          sorry
+          x hx
+        )
+        y hy
+      ) -- Can prove via computation
 
 theorem bruteTermProof4 {t1 t2 t3 t4 : Type} [IsNatLike t1] [IsNatLike t2] [IsNatLike t3] [IsNatLike t4]
   (f : t1 → t2 → t3 → t4 → Bool) : ∀ x : t1, ∀ y : t2, ∀ z : t3, ∀ a : t4, f x y z a :=

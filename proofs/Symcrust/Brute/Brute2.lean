@@ -272,17 +272,17 @@ def buildComputationResBase_aux (prefixBoundTypes : List BoundType) (prefixInsts
     match nextPrefixBoundType with
     | .noUpperBound =>
       let (_, innerLamBody) ← buildComputationResBase_aux prefixBoundTypes prefixInsts (usedPrefixMVars.push nextPrefixMVar) unusedPrefixMVars innerLamBody
-      let innerLam ← mkLambdaFVars #[nextPrefixMVar] innerLamBody
+      let innerLam ← mkLambdaFVars #[nextPrefixMVar] innerLamBody (binderInfoForMVars := .default)
       let res ← mkAppOptM ``mkFold1 #[none, nextPrefixInst, ← mkAppOptM ``none #[← inferType nextPrefixMVar], innerLam, mkConst ``true]
       return (some innerLam, res)
     | .ltUpperBound b =>
       let (_, innerLamBody) ← buildComputationResBase_aux prefixBoundTypes prefixInsts (usedPrefixMVars.push nextPrefixMVar) unusedPrefixMVars innerLamBody
-      let innerLam ← mkLambdaFVars #[nextPrefixMVar] innerLamBody
+      let innerLam ← mkLambdaFVars #[nextPrefixMVar] innerLamBody (binderInfoForMVars := .default)
       let res ← mkAppOptM ``mkFold1 #[none, nextPrefixInst, ← mkAppM ``some #[← mkAppM' b usedPrefixMVars], innerLam, mkConst ``true]
       return (some innerLam, res)
     | .leUpperBound b =>
       let (_, innerLamBody) ← buildComputationResBase_aux prefixBoundTypes prefixInsts (usedPrefixMVars.push nextPrefixMVar) unusedPrefixMVars innerLamBody
-      let innerLam ← mkLambdaFVars #[nextPrefixMVar] innerLamBody
+      let innerLam ← mkLambdaFVars #[nextPrefixMVar] innerLamBody (binderInfoForMVars := .default)
       let res ← mkAppOptM ``mkFold1 #[none, nextPrefixInst, ← mkAppM ``some #[← mkAppM' b usedPrefixMVars], innerLam, mkConst ``true]
       return (some innerLam, res)
 
@@ -340,16 +340,32 @@ def buildComputationResBase (prefixBinderInfos : Array BinderInfo)
 def buildComputationResRecursive (prefixFVars natLikeFVars : Array Expr) (prefixBinderInfos : Array BinderInfo)
   (t f : Expr) (b : BoundType) (inst : Expr) (computationInnerLamOpt : Option Expr)
   (computationRes computationResIsTrue : Expr) : TacticM Expr := do -- **TODO** Generalize based on `b`
-  if hsize0 : prefixFVars.size == 0 then
+  if hsize0 : natLikeFVars.size == 0 then
     return computationResIsTrue
   else
-    if hsize1 : prefixFVars.size == 1 then
+    if hsize1 : natLikeFVars.size == 1 then
       let computationInnerLam := computationInnerLamOpt.get!
       let x' ← mkFreshExprMVar $ ← inferType natLikeFVars[0]!
-      let h ← mkFreshExprMVar $ ← mkAppM ``Eq #[← mkAppOptM' computationInnerLam #[x'], mkConst ``true]
-      let arg3 ← mkLambdaFVars #[x', h] h
-      return ← mkAppOptM ``ofMkFold1None
-        #[none, prefixBinderInfos[0]!.isNatLikeInst, computationInnerLam, computationInnerLam, arg3, computationResIsTrue, natLikeFVars[0]!]
+      let h ← mkFreshExprMVar $
+        ← mkAppM ``Eq #[← mkAppOptM' computationInnerLam #[x'], mkConst ``true]
+
+      match prefixBinderInfos[0]!.b with
+      | .noUpperBound =>
+        let arg3 ← mkLambdaFVars #[x', h] h
+        return ← mkAppOptM ``ofMkFold1None
+          #[none, prefixBinderInfos[0]!.isNatLikeInst, computationInnerLam, computationInnerLam, arg3, computationResIsTrue, natLikeFVars[0]!]
+      | .ltUpperBound b =>
+        let hx' ← mkFreshExprMVar $ ← mkAppM ``LT.lt #[x', b]
+        let arg3 ← mkLambdaFVars #[x', hx', h] h
+        return ← mkAppOptM ``ofMkFold1SomeLt
+          #[none, prefixBinderInfos[0]!.isNatLikeInst, b, computationInnerLam,
+            computationInnerLam, arg3, computationResIsTrue, natLikeFVars[0]!, prefixFVars[1]!]
+      | .leUpperBound b =>
+        let hx' ← mkFreshExprMVar $ ← mkAppM ``LT.lt #[x', b]
+        let arg3 ← mkLambdaFVars #[x', hx', h] h
+        return ← mkAppOptM ``ofMkFold1SomeLe
+          #[none, prefixBinderInfos[0]!.isNatLikeInst, b, computationInnerLam,
+            computationInnerLam, arg3, computationResIsTrue, natLikeFVars[0]!, prefixFVars[1]!]
     else
       let lastPrefixFVars :=
         if prefixBinderInfos[prefixBinderInfos.size - 1]!.hxb.isSome then
@@ -399,10 +415,11 @@ def buildComputationResRecursive (prefixFVars natLikeFVars : Array Expr) (prefix
       -- **TODO** Fix naming confusion where `lastPrefixFVars` aligns with `secondLastPrefixInst`
 
       mkAppOptM ``ofMkFold1None $ #[none, secondLastPrefixInst, arg1, arg2, arg3, arg4] ++ (lastPrefixFVars.map some)
-termination_by prefixFVars.size
+termination_by natLikeFVars.size
 decreasing_by
   simp only [beq_iff_eq] at hsize0 hsize1
-  split <;> (simp; omega)
+  simp
+  omega
 
 def buildArg3 (prefixFVars natLikeFVars : Array Expr) (prefixBinderInfos : Array BinderInfo)
   (t f : Expr) (b : BoundType) (inst : Expr) (computationInnerLamOpt : Option Expr)
