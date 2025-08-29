@@ -1,6 +1,11 @@
 import Lean
 import Aeneas
 
+/-  This file contains helper lemmas for the implementation of `brute` defined in Brute2.lean. Note that
+    Brute2.lean is not yet functional, and relatedly, this file is not yet complete. Some of the functions
+    in this file are intended to be called by Brute2, while others serve as examples for the proof terms
+    that Brute2 is meant to generate. -/
+
 open Lean Meta Parser Elab Tactic Aeneas Aeneas.Std
 
 namespace Brute

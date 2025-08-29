@@ -2,8 +2,11 @@ import Lean
 import Aeneas
 import Symcrust.Brute.BruteLemmas2
 
--- This file defines `brute`, a terminal tactic for brute force enumeration. It doesn't make sense to leave
--- this file here in the long term, but I am putting it here for now to make it easy to test on SymCrust proofs
+/-  This file contains an experimental tactic which generalizes `brute` to allow arbitrary universal quantifiers
+    and more forms of upper bounds (rather than just `< b`, this `brute` is meant to support `≤ b` and even no upper
+    bound for finite types).
+
+    Note that this tactic is not yet functional, hence why it has not replaced the implementation defined in Brute.lean. -/
 
 open Lean Meta Parser Elab Tactic Aeneas Aeneas.Std
 
@@ -393,6 +396,7 @@ def buildComputationResRecursive (prefixFVars natLikeFVars : Array Expr) (prefix
       let lastPrefixType := prefixTypes[prefixTypes.size - 1]!
       let secondLastPrefixType := prefixTypes[prefixTypes.size - 2]!
       let lastPrefixBoundType := prefixBoundTypes[prefixBoundTypes.size - 1]!
+      let secondLastPrefixBoundType := prefixBoundTypes[prefixBoundTypes.size - 2]!
       let lastPrefixInst := prefixInsts[prefixInsts.size - 1]!
       let secondLastPrefixInst := prefixInsts[prefixInsts.size - 2]!
 
@@ -411,7 +415,7 @@ def buildComputationResRecursive (prefixFVars natLikeFVars : Array Expr) (prefix
       let arg2 := arg1 -- `arg2` is identical to `arg1`
 
       trace[brute.debug] "{decl_name%} :: bp2"
-      trace[brute.debug] "{decl_name%} :: b: {b}"
+      -- trace[brute.debug] "{decl_name%} :: b: {b}"
 
       -- `h : (fun y' => mkFold1 none (fun z' => mkFold1 none (f x y' z') true) true) y' = true`
       let h ← mkFreshExprMVar $ ← mkAppM ``Eq #[← mkAppOptM' arg1 #[y'], mkConst ``true]
@@ -443,14 +447,14 @@ def buildComputationResRecursive (prefixFVars natLikeFVars : Array Expr) (prefix
       -- in `buildArg3`, `prefixFVars` is set to `prefixFVars.take (prefixFVars.size - lastPrefixFVars.size)` but nothing analogous is
       -- done to `prefixBinderInfos`)
 
-      match b with
+      match secondLastPrefixBoundType with
       | .noUpperBound => mkAppOptM ``ofMkFold1None $ #[none, secondLastPrefixInst, arg1, arg2, arg3, arg4] ++ (secondLastPrefixFVars.map some)
       | .ltUpperBound b =>
         mkAppOptM ``ofMkFold1SomeLt $
-          #[none, inst, ← mkAppM' b natLikeFVars, arg1, arg2, arg3, arg4] ++ (secondLastPrefixFVars.map some)
+          #[none, secondLastPrefixInst, ← mkAppM' b natLikeFVars, arg1, arg2, arg3, arg4] ++ (secondLastPrefixFVars.map some)
       | .leUpperBound b =>
         mkAppOptM ``ofMkFold1SomeLe $
-          #[none, inst, ← mkAppM' b natLikeFVars, arg1, arg2, arg3, arg4] ++ (secondLastPrefixFVars.map some)
+          #[none, secondLastPrefixInst, ← mkAppM' b natLikeFVars, arg1, arg2, arg3, arg4] ++ (secondLastPrefixFVars.map some)
 termination_by natLikeFVars.size
 decreasing_by
   simp only [beq_iff_eq] at hsize0 hsize1

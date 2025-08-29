@@ -1,6 +1,18 @@
 import Lean
 import Aeneas
 
+/-  This file contains various types and definitions used by `brute`. The important ones are:
+    - `IsNatLike`: A typeclass which defines the set of types that `brute` supports. Currently,
+      it is possible to build `IsNatLike t` instances for the types `Nat`, `BitVec n` and
+      `UScalar t'` where `t' ≠ UScalarTy.Usize`.
+    - `mkFoldN` for `N ∈ [1, 2, 3, 4, 5]`: These are the functions that `brute` evaluates to
+      confirm that `f` (the decidable function obtained by extracting all of the original goal's
+      supported universal quantifiers) is true for all applicable inputs. For example, if given
+      the original goal `∀ x < b, ∀ y < x, f x y`, `brute` would confirm that the goal holds
+      by evaluating `mkFold2 b (fun x => x) f true`.
+    - `ofMkFoldNEqTrue` for `N ∈ [1, 2, 3, 4, 5]`: These are the lemmas relating `mkFoldN` to the
+      original goal that `brute` builds a proof term for. -/
+
 open Lean Meta Parser Elab Tactic Aeneas Aeneas.Std
 
 namespace Brute
