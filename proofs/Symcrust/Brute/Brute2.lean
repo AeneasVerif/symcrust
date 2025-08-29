@@ -337,6 +337,31 @@ def buildComputationResBase (prefixBinderInfos : Array BinderInfo)
   let levelParams := levels.map .param
   return (fold1InnerLamOpt, mkFold1Call, mkApp3 (mkConst ``Lean.ofReduceBool) (mkConst auxDeclName levelParams) (toExpr true) rflPrf)
 
+def buildComputationResFinalRecursive (prefixFVars natLikeFVars : Array Expr) (prefixBinderInfos : Array BinderInfo)
+  (computationInnerLamOpt : Option Expr) (computationResIsTrue : Expr) : TacticM Expr := do
+  let computationInnerLam := computationInnerLamOpt.get!
+  let x' ← mkFreshExprMVar $ ← inferType natLikeFVars[0]!
+  let h ← mkFreshExprMVar $
+    ← mkAppM ``Eq #[← mkAppOptM' computationInnerLam #[x'], mkConst ``true]
+
+  match prefixBinderInfos[0]!.b with
+  | .noUpperBound =>
+    let arg3 ← mkLambdaFVars #[x', h] h
+    return ← mkAppOptM ``ofMkFold1None
+      #[none, prefixBinderInfos[0]!.isNatLikeInst, computationInnerLam, computationInnerLam, arg3, computationResIsTrue, natLikeFVars[0]!]
+  | .ltUpperBound b =>
+    let hx' ← mkFreshExprMVar $ ← mkAppM ``LT.lt #[x', b]
+    let arg3 ← mkLambdaFVars #[x', hx', h] h
+    return ← mkAppOptM ``ofMkFold1SomeLt
+      #[none, prefixBinderInfos[0]!.isNatLikeInst, b, computationInnerLam,
+        computationInnerLam, arg3, computationResIsTrue, natLikeFVars[0]!, prefixFVars[1]!]
+  | .leUpperBound b =>
+    let hx' ← mkFreshExprMVar $ ← mkAppM ``LT.lt #[x', b]
+    let arg3 ← mkLambdaFVars #[x', hx', h] h
+    return ← mkAppOptM ``ofMkFold1SomeLe
+      #[none, prefixBinderInfos[0]!.isNatLikeInst, b, computationInnerLam,
+        computationInnerLam, arg3, computationResIsTrue, natLikeFVars[0]!, prefixFVars[1]!]
+
 def buildComputationResRecursive (prefixFVars natLikeFVars : Array Expr) (prefixBinderInfos : Array BinderInfo)
   (t f : Expr) (b : BoundType) (inst : Expr) (computationInnerLamOpt : Option Expr)
   (computationRes computationResIsTrue : Expr) : TacticM Expr := do -- **TODO** Generalize based on `b`
@@ -344,29 +369,10 @@ def buildComputationResRecursive (prefixFVars natLikeFVars : Array Expr) (prefix
     return computationResIsTrue
   else
     if hsize1 : natLikeFVars.size == 1 then
-      let computationInnerLam := computationInnerLamOpt.get!
-      let x' ← mkFreshExprMVar $ ← inferType natLikeFVars[0]!
-      let h ← mkFreshExprMVar $
-        ← mkAppM ``Eq #[← mkAppOptM' computationInnerLam #[x'], mkConst ``true]
-
-      match prefixBinderInfos[0]!.b with
-      | .noUpperBound =>
-        let arg3 ← mkLambdaFVars #[x', h] h
-        return ← mkAppOptM ``ofMkFold1None
-          #[none, prefixBinderInfos[0]!.isNatLikeInst, computationInnerLam, computationInnerLam, arg3, computationResIsTrue, natLikeFVars[0]!]
-      | .ltUpperBound b =>
-        let hx' ← mkFreshExprMVar $ ← mkAppM ``LT.lt #[x', b]
-        let arg3 ← mkLambdaFVars #[x', hx', h] h
-        return ← mkAppOptM ``ofMkFold1SomeLt
-          #[none, prefixBinderInfos[0]!.isNatLikeInst, b, computationInnerLam,
-            computationInnerLam, arg3, computationResIsTrue, natLikeFVars[0]!, prefixFVars[1]!]
-      | .leUpperBound b =>
-        let hx' ← mkFreshExprMVar $ ← mkAppM ``LT.lt #[x', b]
-        let arg3 ← mkLambdaFVars #[x', hx', h] h
-        return ← mkAppOptM ``ofMkFold1SomeLe
-          #[none, prefixBinderInfos[0]!.isNatLikeInst, b, computationInnerLam,
-            computationInnerLam, arg3, computationResIsTrue, natLikeFVars[0]!, prefixFVars[1]!]
+      return ← buildComputationResFinalRecursive prefixFVars natLikeFVars prefixBinderInfos computationInnerLamOpt computationResIsTrue
     else
+      let natLikeFVarsOriginal := natLikeFVars
+
       let lastPrefixFVars :=
         if prefixBinderInfos[prefixBinderInfos.size - 1]!.hxb.isSome then
           #[prefixFVars[prefixFVars.size - 2]!, prefixFVars[prefixFVars.size - 1]!]
@@ -412,9 +418,18 @@ def buildComputationResRecursive (prefixFVars natLikeFVars : Array Expr) (prefix
       trace[brute.debug] "{decl_name%} :: arg4: {arg4}"
       trace[brute.debug] "{decl_name%} :: secondLastPrefixInst: {secondLastPrefixInst}"
       trace[brute.debug] "{decl_name%} :: lastPrefixFVars: {lastPrefixFVars}"
-      -- **TODO** Fix naming confusion where `lastPrefixFVars` aligns with `secondLastPrefixInst`
+      -- **TODO** Fix naming confusion where `lastPrefixFVars` aligns with `secondLastPrefixInst` (this is caused by the fact that
+      -- in `buildArg3`, `prefixFVars` is set to `prefixFVars.take (prefixFVars.size - lastPrefixFVars.size)` but nothing analogous is
+      -- done to `prefixBinderInfos`)
 
-      mkAppOptM ``ofMkFold1None $ #[none, secondLastPrefixInst, arg1, arg2, arg3, arg4] ++ (lastPrefixFVars.map some)
+      match b with
+      | .noUpperBound => mkAppOptM ``ofMkFold1None $ #[none, secondLastPrefixInst, arg1, arg2, arg3, arg4] ++ (lastPrefixFVars.map some)
+      | .ltUpperBound b =>
+        mkAppOptM ``ofMkFold1SomeLt $
+          #[none, secondLastPrefixInst, ← mkAppM ``some #[← mkAppM' b natLikeFVarsOriginal], arg1, arg2, arg3, arg4] ++ (lastPrefixFVars.map some)
+      | .leUpperBound b =>
+        mkAppOptM ``ofMkFold1SomeLt $
+          #[none, secondLastPrefixInst, ← mkAppM ``natLikeSucc #[← mkAppM' b natLikeFVarsOriginal], arg1, arg2, arg3, arg4] ++ (lastPrefixFVars.map some)
 termination_by natLikeFVars.size
 decreasing_by
   simp only [beq_iff_eq] at hsize0 hsize1
@@ -531,7 +546,9 @@ def buildArg3 (prefixFVars natLikeFVars : Array Expr) (prefixBinderInfos : Array
 
     trace[brute.debug] "{decl_name%} :: bp4"
 
-    if prefixFVars.size != 0 then throwError "recursion on computationRes not implemented yet"
+    let computationResIsTrue ←
+      buildComputationResRecursive prefixFVars natLikeFVars prefixBinderInfos t f (.ltUpperBound b)
+        inst computationInnerLamOpt computationRes computationResIsTrue
 
     match lastPrefixBoundType with
     | .noUpperBound =>
@@ -574,7 +591,9 @@ def buildArg3 (prefixFVars natLikeFVars : Array Expr) (prefixBinderInfos : Array
         let hx' ← mkFreshExprMVar $ ← mkAppOptM ``LE.le #[lastPrefixType, none, x', ← mkAppM' b1 natLikeFVars]
         mkLambdaFVars #[x', hx'] arg3LamBody
 
-    if prefixFVars.size != 0 then throwError "recursion on computationRes not implemented yet"
+    let computationResIsTrue ←
+      buildComputationResRecursive prefixFVars natLikeFVars prefixBinderInfos t f (.leUpperBound b)
+        inst computationInnerLamOpt computationRes computationResIsTrue
 
     match lastPrefixBoundType with
     | .noUpperBound =>

@@ -531,7 +531,8 @@ theorem bruteTermProof3SomeLtLtLt {t1 t2 t3 : Type} [IsNatLike t1] [IsNatLike t2
           mkFold1 (some (b3 x x_1)) (fun x_2 => mkFold1 (some (b3 x x_1)) (f x x_1) true) true)
         (fun y' => mkFold1 (some (b3 x y')) (f x y') true)
         (fun y hy => ofMkFold1Triv (f x) y (some (b3 x y)))
-        (ofMkFold1SomeLt b1
+        (ofMkFold1SomeLt
+          b1
           (fun x => mkFold1 (some (b2 x)) (fun y' => mkFold1 (some (b3 x y')) (f x y') true) true)
           (fun x' =>
             mkFold1 (some (b2 x')) (fun y' => mkFold1 (some (b3 x' y')) (f x' y') true) true)
