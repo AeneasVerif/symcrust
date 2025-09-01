@@ -538,7 +538,7 @@ theorem bruteTermProof3SomeLtLtLt {t1 t2 t3 : Type} [IsNatLike t1] [IsNatLike t2
         (fun y hy => ofMkFold1Triv (f x) y (some (b3 x y)))
         (ofMkFold1SomeLt
           b1
-          (fun x => mkFold1 (some (b2 x)) (fun y' => mkFold1 (some (b3 x y')) (f x y') true) true)
+          (fun x' => mkFold1 (some (b2 x')) (fun y' => mkFold1 (some (b3 x' y')) (f x' y') true) true)
           (fun x' =>
             mkFold1 (some (b2 x')) (fun y' => mkFold1 (some (b3 x' y')) (f x' y') true) true)
           (fun x hx h => h)
@@ -602,19 +602,19 @@ theorem bruteTermProof5 {t1 t2 t3 t4 t5 : Type}
           (fun z' => mkFold1 none (fun a' => mkFold1 none (f x y z' a') true) true)
           (fun z h => Eq.mpr (id (congrArg (fun _a => _a = true) h)) (Eq.refl true))
           (ofMkFold1None
-            (fun x_1 =>
+            (fun y' =>
               mkFold1 none
-                (fun z' => mkFold1 none (fun a' => mkFold1 none (f x x_1 z' a') true) true) true)
+                (fun z' => mkFold1 none (fun a' => mkFold1 none (f x y' z' a') true) true) true)
             (fun y' =>
               mkFold1 none
                 (fun z' => mkFold1 none (fun a' => mkFold1 none (f x y' z' a') true) true) true)
             (fun y h => h)
             (ofMkFold1None
-              (fun x =>
+              (fun x' =>
                 mkFold1 none
                   (fun y' =>
                     mkFold1 none
-                      (fun z' => mkFold1 none (fun a' => mkFold1 none (f x y' z' a') true) true)
+                      (fun z' => mkFold1 none (fun a' => mkFold1 none (f x' y' z' a') true) true)
                       true)
                   true)
               (fun x' =>

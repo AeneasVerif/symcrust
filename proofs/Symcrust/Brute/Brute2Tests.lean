@@ -47,4 +47,26 @@ set_option trace.brute.debug true in
 example : ∀ a : BitVec 4, ∀ x : BitVec 3, ∀ y : BitVec 2, ∀ z < 1, x = x := by brute
 
 set_option trace.brute.debug true in
-example : ∀ a < 4, ∀ x < 5, ∀ y < x, ∀ z < y, x = x := by brute
+example :
+  ∀ b : BitVec 5, b < 5#5 →
+  ∀ a : BitVec 4, a < 4#4 →
+  ∀ x : BitVec 3, x < 3#3 →
+  ∀ y : BitVec 2, y < 2#2 →
+  ∀ z : BitVec 1, z < 1#1 →
+  x = x := by brute
+
+set_option trace.brute.debug true in
+example :
+  ∀ a : BitVec 4, a ≤ 4#4 →
+  ∀ x : BitVec 3, x < 3#3 →
+  ∀ y : BitVec 2, y ≤ 2#2 →
+  ∀ z : BitVec 1, z ≤ 1#1 →
+  x = x := by brute
+
+set_option trace.brute.debug true in
+example :
+  ∀ a : BitVec 4, a ≤ 4#4 →
+  ∀ x : BitVec 2, x < 2#2 →
+  ∀ y : BitVec 2, y ≤ x →
+  ∀ z : BitVec 1, z ≤ 1#1 →
+  x = x := by brute
