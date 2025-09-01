@@ -66,7 +66,7 @@ example :
 set_option trace.brute.debug true in
 example :
   ∀ a : BitVec 4, a ≤ 4#4 →
-  ∀ x : BitVec 2, x < 2#2 →
+  ∀ x : BitVec 2,
   ∀ y : BitVec 2, y ≤ x →
   ∀ z : BitVec 1, z ≤ 1#1 →
   x = x := by brute

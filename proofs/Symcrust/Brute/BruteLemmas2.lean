@@ -594,13 +594,13 @@ theorem bruteTermProof5 {t1 t2 t3 t4 t5 : Type}
       (fun x_1 => mkFold1 none (f x y z a) true)
       (fun b h => ofMkFold1None (f x y z a) (f x y z a) (fun b h => h) h b)
       (ofMkFold1None
-        (fun x_1 => mkFold1 none (fun x_2 => mkFold1 none (f x y z x_1) true) true)
+        (fun a' => mkFold1 none (fun x_2 => mkFold1 none (f x y z a') true) true)
         (fun a' => mkFold1 none (f x y z a') true)
         (fun a' => ofMkFold1Triv (f x y z) a' none)
         (ofMkFold1None
-          (fun x_1 => mkFold1 none (fun a' => mkFold1 none (f x y x_1 a') true) true)
           (fun z' => mkFold1 none (fun a' => mkFold1 none (f x y z' a') true) true)
-          (fun z h => Eq.mpr (id (congrArg (fun _a => _a = true) h)) (Eq.refl true))
+          (fun z' => mkFold1 none (fun a' => mkFold1 none (f x y z' a') true) true)
+          (fun z h => h)
           (ofMkFold1None
             (fun y' =>
               mkFold1 none
