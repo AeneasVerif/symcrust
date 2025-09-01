@@ -568,9 +568,9 @@ theorem bruteTermProof4 {t1 t2 t3 t4 : Type} [IsNatLike t1] [IsNatLike t2] [IsNa
 
           (ofMkFold1None
             (fun x' =>
-              mkFold1 none (fun y' => mkFold1 none (fun z' => mkFold1 none (f x' y' z') true) true) true)
+              mkFold1 none (fun y' => mkFold1 none (fun z' => mkFold1 (none : Option t4) (f x' y' z') true) true) true)
             (fun x' =>
-              mkFold1 none (fun y' => mkFold1 none (fun z' => mkFold1 none (f x' y' z') true) true) true)
+              mkFold1 none (fun y' => mkFold1 none (fun z' => mkFold1 (none : Option t4) (f x' y' z') true) true) true)
             (fun x' h => h)
             sorry -- Proof by computation
             x
