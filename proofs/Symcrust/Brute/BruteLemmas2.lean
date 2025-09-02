@@ -155,17 +155,71 @@ theorem ofMkFold1UpperBoundedEqTrue {t : Type} [h : IsNatLike t] (b : t) (f f' :
         . omega
         . simp only [← ih.2.1, ne_eq, ← hx, UScalar.ofNat'_val_eq ht.2.1, cast_cast, cast_eq]
 
-------------------------------------------------------------------------------------------------------------------
-
 theorem ofMkFold1SomeLt {t : Type} [h : IsNatLike t] (b : t) (f f' : t → Bool) :
   (∀ x < b, f' x → f x) → mkFold1 (some b) f' true → ∀ x < b, f x := by
   simp only [mkFold1]
   intro hf h' x hx
   exact (ofMkFold1UpperBoundedEqTrue b f f' true hf h').2 x hx
 
+theorem ofMkFold1NoneEqTrue {t : Type} [h : IsNatLike t] (f f' : t → Bool)
+  (acc : Bool) : (∀ x : t, f' x → f x) → mkFold1NoUpperBound f' acc → (acc ∧ ∀ x : t, f x) := by
+  unfold mkFold1NoUpperBound
+  split
+  . simp
+  . next ht hpf =>
+    simp only [BitVec.natCast_eq_ofNat]
+    intro hf
+    conv => intro h; rhs; intro x; rw [← true_implies (f x = true), ← eq_true (BitVec.isLt (cast ht.snd x))]
+    induction 2^ht.1 generalizing acc
+    . simp
+    . next b ih =>
+      intro h
+      simp only [Fin.foldr_succ_last, Fin.coe_castSucc, Fin.val_last] at h
+      specialize ih (acc && f' (cast ht.2.symm (BitVec.ofNat ht.fst b))) h
+      simp only [Bool.and_eq_true, and_assoc] at ih
+      simp only [ih, true_and]
+      intro x hx
+      rw [Nat.lt_succ_iff, Nat.le_iff_lt_or_eq] at hx
+      rcases hx with hx | hx
+      . exact ih.2.2 x hx
+      . simp only [← hx, BitVec.ofNat_toNat, BitVec.setWidth_eq, cast_cast, cast_eq] at ih
+        exact hf x ih.2.1
+  . next ht hpf =>
+    simp only [ne_eq]
+    intro hf
+    conv => intro h; rhs; intro x; rw [← true_implies (f x = true), ← eq_true (UScalar.hmax (cast ht.snd.right x))]
+    induction 2^ht.1.numBits generalizing acc
+    . simp
+    . next b ih =>
+      intro h
+      simp only [Fin.foldr_succ_last, Fin.coe_castSucc, Fin.val_last] at h
+      specialize ih (acc && f' (cast ht.2.2.symm (UScalar.ofNat' b))) h
+      simp only [ne_eq, Bool.and_eq_true, and_assoc] at ih
+      simp only [ih, ne_eq, true_and]
+      intro x hx
+      rw [Nat.lt_succ_iff, Nat.le_iff_lt_or_eq] at hx
+      rcases hx with hx | hx
+      . exact ih.2.2 x hx
+      . simp only [UScalar.ofNat', ← hx] at ih
+        conv at ih =>
+          arg 2; arg 1; arg 1; arg 1; arg 2; arg 1
+          rw [Nat.mod_eq_of_lt (by
+            simp only [UScalar.cMax]
+            split
+            . next heq =>
+              exfalso
+              exact ht.2.1 heq
+            . rw [Nat.lt_succ_iff]
+              exact UScalar.hrBounds (cast ht.snd.right x)
+          )]
+        simp only [UScalar.ofNat_val, cast_cast, cast_eq] at ih
+        exact hf x ih.2.1
+
 theorem ofMkFold1None {t : Type} [h : IsNatLike t] (f f' : t → Bool) :
   (∀ x : t, f' x → f x) → mkFold1 none f' true → ∀ x : t, f x := by
-  sorry
+  simp only [mkFold1]
+  intro hf h' x
+  exact (ofMkFold1NoneEqTrue f f' true hf h').2 x
 
 /-- Examines `b` and checks whether it can be incremented by 1. If it can, `some (b + 1)`
     is returned. Otherwise, `none` is returned. -/
@@ -183,13 +237,49 @@ def natLikeSucc {t : Type} [h : IsNatLike t] (b : t) : Option t :=
 
 theorem ofMkFold1SomeLe {t : Type} [h : IsNatLike t] (b : t) (f f' : t → Bool) :
   (∀ x ≤ b, f' x → f x) → mkFold1 (natLikeSucc b) f' true → ∀ x ≤ b, f x := by
-  sorry
+  unfold mkFold1
+  split
+  . next b' hb' =>
+    sorry
+  . sorry
 
-theorem ofMkFold1Triv {t1 t2 : Type} [IsNatLike t1] [IsNatLike t2] (f : t1 → t2 → Bool) (x : t1)
+theorem ofMkFold1Triv {t1 t2 : Type} [h1 : IsNatLike t1] [h2 : IsNatLike t2] (f : t1 → t2 → Bool) (x : t1)
   (b : Option t2) (h : mkFold1 b (f x) true = true) :
   mkFold1 b (fun x_1 => mkFold1 b (f x) true) true = true := by
   rw [h]
-  sorry
+  simp only [mkFold1, mkFold1UpperBounded, Bool.and_true, ne_eq, mkFold1NoUpperBound]
+  split
+  . next b' =>
+    rcases @IsNatLike.pf t2 h2 with h2 | h2 | h2
+    . simp only
+      induction (cast h2 b')
+      . simp
+      . next b' ih =>
+        simp [Fin.foldr_succ_last, ih]
+    . simp only
+      induction (cast h2.2 b').toNat
+      . simp
+      . next b' ih =>
+        simp [Fin.foldr_succ_last, ih]
+    . simp only
+      induction (cast h2.2.2 b').val
+      . simp
+      . next b' ih =>
+        simp [Fin.foldr_succ_last, ih]
+  . rcases heq : @IsNatLike.pf t2 h2 with h2 | h2 | h2
+    . simp [mkFold1, mkFold1NoUpperBound, heq] at h
+    . simp only
+      induction 2 ^ h2.1
+      . simp
+      . next b' ih =>
+        simp [Fin.foldr_succ_last, ih]
+    . simp only
+      induction 2 ^ h2.1.numBits
+      . simp
+      . next b' ih =>
+        simp [Fin.foldr_succ_last, ih]
+
+
 
 ------------------------------------------------------------------------------------------------------------------
 

@@ -47,13 +47,15 @@ set_option trace.brute.debug true in
 example : ∀ a : BitVec 4, ∀ x : BitVec 3, ∀ y : BitVec 2, ∀ z < 1, x = x := by brute
 
 set_option trace.brute.debug true in
-example :
+theorem test2 :
   ∀ b : BitVec 5, b < 5#5 →
-  ∀ a : BitVec 4, a < 4#4 →
-  ∀ x : BitVec 3, x < 3#3 →
-  ∀ y : BitVec 2, y < 2#2 →
+  ∀ a : BitVec 3,
+  ∀ x : BitVec 3, x < a →
+  ∀ y : BitVec 3, y < a →
   ∀ z : BitVec 1, z < 1#1 →
   x = x := by brute
+
+#print axioms test2
 
 set_option trace.brute.debug true in
 example :
