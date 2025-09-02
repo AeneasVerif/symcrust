@@ -235,17 +235,76 @@ def natLikeSucc {t : Type} [h : IsNatLike t] (b : t) : Option t :=
       let sum := (cast pf.2.2 b).val + (@UScalar.ofNat pf.1 1 (by cases pf.1 <;> decide)).val
       some $ cast pf.2.2.symm $ UScalar.mk sum
 
-theorem ofMkFold1SomeLe {t : Type} [h : IsNatLike t] (b : t) (f f' : t → Bool) :
+lemma le_iff_lt_natLikeSucc_some {t : Type} [ht : IsNatLike t] {x b b' : t} (hb : natLikeSucc b = some b') : x ≤ b ↔ x < b' := by
+  rw [LE.le, LT.lt, instLEOfIsNatLike, instLTOfIsNatLike]
+  unfold natLikeSucc at hb
+  rcases heq : @IsNatLike.pf t ht with ht | ht | ht
+  . simp only [ge_iff_le, gt_iff_lt]
+    simp only [heq, Option.some.injEq] at hb
+    rw [← hb]
+    simp only [cast_cast, cast_eq]
+    omega
+  . simp only [ge_iff_le, gt_iff_lt]
+    simp only [heq, beq_iff_eq, BitVec.ofNat_eq_ofNat, Option.ite_none_left_eq_some, Option.some.injEq] at hb
+    rw [← hb.2, LT.lt, instLTBitVec, LE.le, instLEBitVec]
+    simp only [heq, BitVec.lt_def, gt_iff_lt, cast_cast, cast_eq, BitVec.toNat_add,
+      BitVec.toNat_ofNat, Nat.add_mod_mod]
+    rw [Nat.mod_eq_of_lt] <;> omega
+  . simp only [ne_eq, UScalar.le_equiv, ge_iff_le, UScalar.lt_equiv, gt_iff_lt]
+    simp only [heq, ne_eq, beq_iff_eq, UScalar.ofNat_val_eq, Nat.cast_add, BitVec.natCast_eq_ofNat,
+      Bvify.UScalar.BitVec_ofNat_setWidth, BitVec.setWidth_eq, Nat.cast_one, BitVec.ofNat_eq_ofNat,
+      dite_eq_ite, Option.ite_none_left_eq_some, Option.some.injEq, UScalar.max] at hb
+    rw [← hb.2]
+    simp only [heq, ne_eq, UScalar.lt_equiv, gt_iff_lt, cast_cast, cast_eq]
+    rw [BitVec.add_def]
+    simp only [UScalar.bv_toNat, BitVec.toNat_ofNat]
+    rw [Nat.mod_eq_of_lt]
+    . conv => rhs; rhs; rw [UScalar.val, BitVec.toNat_ofNat]
+      rw [Nat.mod_eq_of_lt]
+      . omega
+      . have : (cast ht.2.2 b).val < 2^ht.1.numBits := UScalar.hmax (cast ht.snd.right b)
+        omega
+    . cases heq : ht.1 <;> try decide -- `decide` covers all cases except `UScalarTy.Usize`
+      exfalso
+      exact ht.2.1 heq
+
+lemma le_iff_lt_natLikeSucc_none {t : Type} [ht : IsNatLike t] {x b : t} (hb : natLikeSucc b = none) : x ≤ b := by
+  rw [LE.le, instLEOfIsNatLike]
+  unfold natLikeSucc at hb
+  rcases heq : @IsNatLike.pf t ht with ht | ht | ht
+  . simp [heq] at hb
+  . simp only [ge_iff_le]
+    simp only [heq, beq_iff_eq, BitVec.ofNat_eq_ofNat, ite_eq_left_iff, reduceCtorEq, imp_false, Decidable.not_not] at hb
+    rw [BitVec.le_def, hb, Nat.le_iff_lt_add_one]
+    simp only [Nat.ofNat_pos, SimpScalar.one_le_pow, Nat.sub_add_cancel]
+    exact BitVec.isLt (cast (instLTOfIsNatLike._proof_1 t ht) x)
+  . simp only [ne_eq, UScalar.le_equiv, ge_iff_le]
+    simp only [heq, ne_eq, beq_iff_eq, UScalar.ofNat_val_eq, Nat.cast_add, BitVec.natCast_eq_ofNat,
+      Bvify.UScalar.BitVec_ofNat_setWidth, BitVec.setWidth_eq, Nat.cast_one, BitVec.ofNat_eq_ofNat,
+      dite_eq_ite, ite_eq_left_iff, reduceCtorEq, imp_false, Decidable.not_not] at hb
+    rw [hb]
+    exact ScalarTac.UScalar.bounds (cast (instLTOfIsNatLike._proof_2 t ht) x)
+
+theorem ofMkFold1SomeLe {t : Type} [ht : IsNatLike t] (b : t) (f f' : t → Bool) :
   (∀ x ≤ b, f' x → f x) → mkFold1 (natLikeSucc b) f' true → ∀ x ≤ b, f x := by
   unfold mkFold1
   split
-  . next b' hb' =>
-    sorry
-  . sorry
+  . next b' hb =>
+    intro hf h x hx
+    have : ∀ x < b', f' x = true → f x = true := by
+      intro x hx h
+      rw [← le_iff_lt_natLikeSucc_some hb] at hx
+      exact hf x hx h
+    rw [le_iff_lt_natLikeSucc_some hb] at hx
+    exact (ofMkFold1UpperBoundedEqTrue b' f f' true this h).2 x hx
+  . next hb =>
+    intro hf h x hx
+    simp only [eq_true (le_iff_lt_natLikeSucc_none hb), forall_const] at hf
+    exact (ofMkFold1NoneEqTrue f f' true hf h).2 x
 
-theorem ofMkFold1Triv {t1 t2 : Type} [h1 : IsNatLike t1] [h2 : IsNatLike t2] (f : t1 → t2 → Bool) (x : t1)
+theorem ofMkFold1Triv {t1 t2 : Type} [IsNatLike t1] [h2 : IsNatLike t2] (f : t1 → t2 → Bool) (x : t1)
   (b : Option t2) (h : mkFold1 b (f x) true = true) :
-  mkFold1 b (fun x_1 => mkFold1 b (f x) true) true = true := by
+  mkFold1 b (fun _ => mkFold1 b (f x) true) true = true := by
   rw [h]
   simp only [mkFold1, mkFold1UpperBounded, Bool.and_true, ne_eq, mkFold1NoUpperBound]
   split
@@ -278,8 +337,6 @@ theorem ofMkFold1Triv {t1 t2 : Type} [h1 : IsNatLike t1] [h2 : IsNatLike t2] (f 
       . simp
       . next b' ih =>
         simp [Fin.foldr_succ_last, ih]
-
-
 
 ------------------------------------------------------------------------------------------------------------------
 
