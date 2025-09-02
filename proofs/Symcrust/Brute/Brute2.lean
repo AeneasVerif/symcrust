@@ -270,7 +270,8 @@ def buildComputationResBase_aux (prefixBoundTypes : List BoundType) (prefixInsts
     let nextPrefixMVar := unusedPrefixMVars[0]!
     let unusedPrefixMVars := unusedPrefixMVars.drop 1
 
-    trace[brute.debug] "nextPrefixMVar type: {← inferType nextPrefixMVar}"
+    trace[brute.debug] "{decl_name%} :: nextPrefixMVar: {nextPrefixMVar}"
+    trace[brute.debug] "{decl_name%} :: nextPrefixMVar type: {← inferType nextPrefixMVar}"
 
     match nextPrefixBoundType with
     | .noUpperBound =>
@@ -398,6 +399,7 @@ def buildComputationResRecursive (allPrefixFVars natLikePrefixFVars : Array Expr
       let secondLastPrefixBoundType := prefixBoundTypes[prefixBoundTypes.size - 2]!
       let lastPrefixInst := prefixInsts[prefixInsts.size - 1]!
       let secondLastPrefixInst := prefixInsts[prefixInsts.size - 2]!
+      let lastPrefixBoundType := prefixBoundTypes[prefixBoundTypes.size - 1]!
 
       let lastSuffixType := suffixTypes[suffixTypes.size - 1]!
       let lastSuffixBoundType := suffixBoundTypes[suffixBoundTypes.size - 1]!
@@ -412,7 +414,6 @@ def buildComputationResRecursive (allPrefixFVars natLikePrefixFVars : Array Expr
 
       trace[brute.debug] "{decl_name%} :: bp1"
 
-      /- Will work on this once suffixBinderInfos refactor is complete
       trace[brute.debug] "{decl_name%} :: t: {t}"
       trace[brute.debug] "{decl_name%} :: b: {b}"
       trace[brute.debug] "{decl_name%} :: lastSuffixBoundType: {lastSuffixBoundType}"
@@ -420,20 +421,21 @@ def buildComputationResRecursive (allPrefixFVars natLikePrefixFVars : Array Expr
       trace[brute.debug] "{decl_name%} :: lastSuffixInst: {lastSuffixInst}"
 
       -- Test fails because `prefixBoundTypes` and `prefixInsts` don't have everything (the end was chopped off)
-      let freshPrefixMVars ← (prefixTypes ++ suffixTypes).mapM (fun t => mkFreshExprMVar (some t))
+      let freshPrefixMVars ← (prefixTypes ++ (suffixTypes.take (suffixTypes.size - 1))).mapM (fun t => mkFreshExprMVar (some t))
       let innerLamBody ← -- **TODO** Rename innerMostLam?
       match lastSuffixBoundType with
       | .noUpperBound => mkAppOptM ``mkFold1 #[none, lastSuffixInst, ← mkAppOptM ``none #[lastSuffixType], ← mkAppM' f freshPrefixMVars, mkConst ``true]
       | .ltUpperBound b => mkAppOptM ``mkFold1 #[none, lastSuffixInst, ← mkAppM ``some #[← mkAppM' b freshPrefixMVars], ← mkAppM' f freshPrefixMVars, mkConst ``true]
       | .leUpperBound b => mkAppOptM ``mkFold1 #[none, lastSuffixInst, ← mkAppM ``some #[← mkAppM' b freshPrefixMVars], ← mkAppM' f freshPrefixMVars, mkConst ``true]
-      let test ← buildComputationResBase_aux (prefixBoundTypes.toList ++ suffixBoundTypes.toList) (prefixInsts ++ suffixInsts) #[] freshPrefixMVars innerLamBody
+      let test ←
+        buildComputationResBase_aux (prefixBoundTypes.toList ++ (suffixBoundTypes.take (suffixBoundTypes.size - 1)).toList)
+        (prefixInsts ++ (suffixInsts.take (suffixInsts.size - 1))) #[] freshPrefixMVars innerLamBody
 
       trace[brute.debug] "{decl_name%} :: test: {test}"
-      -/
 
       -- **TODO** `arg1` does not always consist of exactly 2 `mkFold1` calls. See `bruteTermProof5`
       let arg1 ←
-        match prefixBinderInfos[prefixBinderInfos.size - 1]!.b with
+        match lastPrefixBoundType with
         | .noUpperBound =>
           let arg1InnerLamBody ←
             match b with
@@ -470,6 +472,7 @@ def buildComputationResRecursive (allPrefixFVars natLikePrefixFVars : Array Expr
       let arg2 := arg1 -- `arg2` is identical to `arg1`
 
       trace[brute.debug] "{decl_name%} :: bp2"
+      trace[brute.debug] "{decl_name%} :: arg1: {arg1}"
 
       -- `h : (fun y' => mkFold1 none (fun z' => mkFold1 none (f x y' z') true) true) y' = true`
       let h ← mkFreshExprMVar $ ← mkAppM ``Eq #[← mkAppOptM' arg1 #[y'], mkConst ``true]
