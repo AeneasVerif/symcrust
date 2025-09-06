@@ -1,14 +1,18 @@
 import Lean
 import Mathlib.Data.ZMod.Basic
 import Mathlib.Algebra.Polynomial.Basic
---import Mathlib.RingTheory.Ideal.Defs
+import Mathlib.RingTheory.Coprime.Basic
+import Mathlib.RingTheory.Ideal.Defs
 import Mathlib.RingTheory.Ideal.Span
 import Mathlib.RingTheory.Ideal.Quotient.Defs
+import Mathlib.Algebra.Group.Invertible.Basic
+import Mathlib.RingTheory.ZMod.UnitsCyclic
+import Mathlib.GroupTheory.OrderOfElement
 
 import Mathlib.Tactic.Ring
 import Mathlib.Tactic.Linarith
 
-set_option maxRecDepth 2000
+set_option maxRecDepth 2500
 
 
 /- In this file, "the thesis" refers to https://kannwischer.eu/thesis/phd-thesis-2023-01-03.pdf -/
@@ -18,17 +22,26 @@ set_option maxRecDepth 2000
 @[simp]
 def q := 3329
 
+@[simp]
+lemma q_isPrime : Nat.Prime q := by native_decide
+
 lemma q_nonzero : q ≠ 0 := by trivial
+lemma q_minus_one_fact : (q - 1) = 2^8 * 13 := rfl
+
+example : (q-2)*q = 2^16 * 169 - 1 := by simp
 
 def zeta := 17
 
-example : (q - 1) = 2^8 * 13 := rfl
-example : (q-2)*q = 2^16 * 169 - 1 := by simp
+instance : Fact (Nat.Prime q) := ⟨q_isPrime⟩
 
 /-- Finite ring Zq --/
 
 @[reducible]
 def Zq := ZMod q
+lemma Zq_cyclic : IsCyclic Zqˣ := by
+  apply ZMod.isCyclic_units_prime q_isPrime
+
+def Fq := Field Zq
 
 namespace Zq
   open scoped ZMod
@@ -45,6 +58,7 @@ namespace Zq
     exact zeta_coprime
 
   theorem zeta_ne_one : ζ ≠ 1 := by trivial
+  theorem zeta_ne_zero : ζ ≠ 0 := by trivial
 
   theorem zeta_mul_inv_zeta_eq_one : ζ * ζ⁻¹ = 1 := by
     simp
@@ -75,29 +89,102 @@ namespace Zq
 
   theorem zeta_2_eq : ζ ^ 2 = 289 := by rfl
 
-  -- zeta ^ m ≠ 0
-  theorem zeta_pow_non_zero_aux (m : Nat) (hm : m ≤ 256) : ζ ^ m ≠ 0 := by
-    intro h
-    have pow_eq : (ζ ^ m) * ζ ^ (256 - m) = 0 * zeta ^ (256 - m) := by simp [h]
-    ring_nf at pow_eq
-    simp [← pow_add] at pow_eq
-    have hm : m + (256 - m) = 256 := by
-      simp [← Nat.add_sub_assoc hm m]
-    simp [hm] at pow_eq
-    rw [zeta_256_eq] at pow_eq
-    trivial
+  theorem zeta_13_eq : ζ ^ 13 = 939 := by rfl
+
+  lemma zeta_order_div_256 :  orderOf ζ ∣ 256 := by
+    apply orderOf_dvd_of_pow_eq_one zeta_256_eq
+
+  theorem zeta_order_eq_256 : orderOf ζ = 256 := by
+    have : 0 < 256 := by decide
+    apply (orderOf_eq_iff this).mpr
+    constructor
+    · exact zeta_256_eq
+    · intro m hlt hgt
+      decide +revert
 
   theorem zeta_pow_non_zero (m : Nat) : ζ ^ m ≠ 0 := by
     intro h
     rw [← mod_add_div m 256] at h
     simp [pow_add] at h
-    -- Get rid of zeta ^ (256 * ...)
-    simp [pow_mul, zeta_256_eq] at h
-    -- Finish the proof by using the fact that: m % 256 < 256
-    have h_256_pos : 256 > 0 := by simp
-    have h_lt := mod_lt m h_256_pos
-    have h_lt := le_of_lt h_lt
-    simp [zeta_pow_non_zero_aux _ h_lt] at h
+    apply zeta_ne_zero
+    cases h with
+    | inl hl => exact hl.left
+    | inr hr => exact hr.left
+
+  theorem zeta_pow_m_neq_one (m : Nat) (hl : 0 < m) (hu : m < 256) : ζ ^ m ≠ 1 := by
+    have : 0 < 256 := by decide
+    apply ((orderOf_eq_iff this).mp zeta_order_eq_256).right
+    repeat linarith
+
+  lemma diff_mod (m k : Nat) (h₀ : m ≥ k) (h₁ : (m - k) % 256 = 0) : (m % 256) = (k % 256) := by
+    grind
+
+  lemma zeta_pow_sub_zeta_pow_ne_zero (m k : Nat) (h : (m % 256) ≠ (k % 256)) : ζ^m - ζ^k ≠ 0 := by
+    intro hyp
+    by_cases h₀ : k ≤ m
+    · have hmk : k + (m - k) = m := by
+        rw [← Nat.add_sub_assoc h₀ k, Nat.add_sub_cancel_left]
+      have hmkmod : (m - k) % 256 < 256 := by
+        apply Nat.mod_lt
+        decide
+      have hzpow : ζ ^ ((m-k) % 256) ≠ 1 := by
+        apply zeta_pow_m_neq_one (((m-k) % 256))
+        · by_contra h0
+          simp at h0
+          apply diff_mod at h0
+          contradiction
+          apply h₀
+        exact hmkmod
+      have : ζ^k * (ζ^(m-k) - 1) = 0 := by
+        calc
+          ζ^k * (ζ^(m-k) - 1 ) = ζ^(k + (m-k)) - ζ^k := by ring
+          _ = ζ^m - ζ^k := by rw [hmk]
+          _ = 0 := by exact hyp
+      have hzk : ζ^k ≠ 0 := by apply zeta_pow_non_zero
+      apply eq_zero_or_eq_zero_of_mul_eq_zero at this
+      cases this with
+      | inl ll => contradiction
+      | inr rr =>
+        apply sub_eq_zero.mp at rr
+        rw [← pow_mod_orderOf ζ (m-k)] at rr
+        simp [Zq.zeta_order_eq_256] at rr
+        contradiction
+    · simp at h₀
+      have hkm : m + (k - m ) = k := by
+        rw [← Nat.add_sub_assoc (le_of_lt h₀) m, Nat.add_sub_cancel_left]
+      have hkmmod : (k - m) % 256 < 256 := by
+        apply Nat.mod_lt
+        decide
+      have hzpow : ζ ^ ((k-m) % 256) ≠ 1 := by
+        apply zeta_pow_m_neq_one (((k-m) % 256))
+        · by_contra h0
+          simp at h0
+          apply diff_mod at h0 ; symm at h0
+          contradiction
+          apply (le_of_lt h₀)
+        exact hkmmod
+      have : ζ^m * (1-ζ^(k-m)) = 0 := by
+        calc
+          ζ^m * (1-ζ^(k-m)) = ζ^m - ζ^(m + (k-m)) := by ring
+          _ = ζ^m - ζ^k := by rw [hkm]
+          _ = 0 := by exact hyp
+      have hzm : ζ^m ≠ 0 := by apply zeta_pow_non_zero
+      apply eq_zero_or_eq_zero_of_mul_eq_zero at this
+      cases this with
+      | inl ll => contradiction
+      | inr rr =>
+        apply sub_eq_zero.mp at rr
+        rw [← pow_mod_orderOf ζ (k-m)] at rr
+        simp [Zq.zeta_order_eq_256] at rr ; symm at rr
+        contradiction
+
+  theorem zeta_pow_sub_zeta_pow_isUnit (m k : Nat) (h : (m % 256) ≠ (k % 256)) : IsUnit (ζ^m - ζ^k) := by
+    have q_isPrime_fact : Fact (Nat.Prime q) := ⟨q_isPrime⟩
+    have : (ζ^m - ζ^k) ^ (q-1) = 1 := by
+      apply ZMod.pow_card_sub_one_eq_one (zeta_pow_sub_zeta_pow_ne_zero m k h)
+    apply IsUnit.of_pow_eq_one this
+    decide
+
 
 end Zq
 
@@ -148,7 +235,6 @@ namespace Poly
     simp [PiAux, xn, Zq.one, zeta_exp_p_128_eq]
     ring_nf
     simp [sub_eq_add_neg, add_comm]
-
 
   /- # Explicit formula for the polynomials. -/
   theorem pi_lk (l k : Nat) (h₁ : (2 ^ l) ∣ k) (h₂ : l < 8): PiAux l k = xn (2 ^ (l + 1)) - ζ ^ k := by
@@ -217,3 +303,26 @@ namespace Poly
     · linarith
     · exact h₃
     · linarith
+
+
+#check IsCoprime
+  theorem PiAux_coprime (l k m: Nat) (h₀ : (2 ^ l) ∣ k) (h₁ : (2 ^ l) ∣ m) (h₂ : l < 8) (h₃: m % 256 ≠ k % 256):
+      IsCoprime (PiAux l k) (PiAux l m) := by
+    have diffUnit : IsUnit (Zq.ζ^m - Zq.ζ^k) := by
+      apply Zq.zeta_pow_sub_zeta_pow_isUnit
+      exact h₃
+    rw [pi_lk, pi_lk]
+    rw [IsCoprime]
+    use monomial 0 (Ring.inverse (Zq.ζ^m - Zq.ζ^k))
+    use -monomial 0 (Ring.inverse (Zq.ζ^m - Zq.ζ^k))
+    rw [mul_sub, mul_sub, xn]
+    simp [monomial_mul_monomial, mul_one, add_zero, one_mul]
+    ring_nf
+    rw [← mul_sub_left_distrib, ζ]
+    simp
+    rw [← C.map_pow (Zq.ζ) m, ← C.map_pow (Zq.ζ), ← C.map_sub (Zq.ζ^m), ← C.map_mul, ← C.map_one]
+    have : (Zq.ζ^m - Zq.ζ^k)⁻¹ * (Zq.ζ^m - Zq.ζ^k) = 1 := by
+      exact ZMod.inv_mul_of_unit (Zq.ζ ^ m - Zq.ζ ^ k) diffUnit
+    rw [this]
+    tauto
+    repeat assumption
