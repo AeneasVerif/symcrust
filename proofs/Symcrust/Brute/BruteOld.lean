@@ -1,6 +1,6 @@
 import Lean
 import Aeneas
-import Symcrust.Brute.BruteLemmas
+import Symcrust.Brute.BruteLemmasOld
 
 open Lean Meta Parser Elab Tactic Aeneas Aeneas.Std
 

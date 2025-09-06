@@ -1,4 +1,4 @@
-import Symcrust.Brute.Brute2
+import Symcrust.Brute
 
 open Aeneas Std
 
@@ -76,4 +76,6 @@ theorem test3 :
 #print axioms test3
 
 example : ∀ {x : Nat}, x < 5 → x = x := by
+  intro x hx
+  revert x
   brute
