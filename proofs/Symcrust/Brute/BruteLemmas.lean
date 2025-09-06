@@ -1,17 +1,10 @@
 import Lean
 import Aeneas
 
-/-  This file contains various types and definitions used by `brute`. The important ones are:
-    - `IsNatLike`: A typeclass which defines the set of types that `brute` supports. Currently,
-      it is possible to build `IsNatLike t` instances for the types `Nat`, `BitVec n` and
-      `UScalar t'` where `t' ≠ UScalarTy.Usize`.
-    - `mkFoldN` for `N ∈ [1, 2, 3, 4, 5]`: These are the functions that `brute` evaluates to
-      confirm that `f` (the decidable function obtained by extracting all of the original goal's
-      supported universal quantifiers) is true for all applicable inputs. For example, if given
-      the original goal `∀ x < b, ∀ y < x, f x y`, `brute` would confirm that the goal holds
-      by evaluating `mkFold2 b (fun x => x) f true`.
-    - `ofMkFoldNEqTrue` for `N ∈ [1, 2, 3, 4, 5]`: These are the lemmas relating `mkFoldN` to the
-      original goal that `brute` builds a proof term for. -/
+/-  This file contains helper lemmas for the implementation of `brute` defined in Brute2.lean. Note that
+    Brute2.lean is not yet functional, and relatedly, this file is not yet complete. Some of the functions
+    in this file are intended to be called by Brute2, while others serve as examples for the proof terms
+    that Brute2 is meant to generate. -/
 
 open Lean Meta Parser Elab Tactic Aeneas Aeneas.Std
 
@@ -32,6 +25,20 @@ instance (t : Type) [h : IsNatLike t] : LT t where
     | .isBitVecPf pf => fun x y => cast pf.2 x < cast pf.2 y
     | .isUScalarPf pf => fun x y => cast pf.2.2 x < cast pf.2.2 y
 
+instance (t : Type) [h : IsNatLike t] : LE t where
+  le :=
+    match h.pf with
+    | .isNatPf pf => fun x y => cast pf x ≤ cast pf y
+    | .isBitVecPf pf => fun x y => cast pf.2 x ≤ cast pf.2 y
+    | .isUScalarPf pf => fun x y => cast pf.2.2 x ≤ cast pf.2.2 y
+
+instance (t : Type) [h : IsNatLike t] : Inhabited t where
+  default :=
+    match h.pf with
+    | .isNatPf pf => cast pf.symm 0
+    | .isBitVecPf pf => cast pf.2.symm 0
+    | .isUScalarPf pf => cast pf.2.2.symm (UScalar.ofNat 0 (Nat.zero_le _))
+
 def UScalar.ofNat' {t : UScalarTy} (x : Nat) : UScalar t :=
   UScalar.ofNat (x % (UScalar.cMax t + 1)) (Nat.le_of_lt_succ (Nat.mod_lt _ (by simp)))
 
@@ -47,7 +54,7 @@ lemma UScalar.ofNat'_val_eq {t : UScalarTy} (ht : t ≠ UScalarTy.Usize) (x : US
     . exact ht
   simp [this]
 
-def mkFold1 {t : Type} [h : IsNatLike t] (b : t) (f : t → Bool) (acc : Bool) : Bool :=
+def mkFold1UpperBounded {t : Type} [h : IsNatLike t] (b : t) (f : t → Bool) (acc : Bool) : Bool :=
   match h.pf with
   | .isNatPf pf =>
     Fin.foldr (cast pf b)
@@ -60,9 +67,25 @@ def mkFold1 {t : Type} [h : IsNatLike t] (b : t) (f : t → Bool) (acc : Bool) :
       (fun (x : Fin (cast pf.2.2 b).val) (acc : Bool) => acc && f
         (cast pf.2.2.symm (UScalar.ofNat' x.1))) acc
 
-theorem ofMkFold1EqTrueAux {t : Type} [h : IsNatLike t] (b : t) (f : t → Bool)
-  (acc : Bool) : mkFold1 b f acc = (acc ∧ ∀ x < b, f x) := by
-  unfold mkFold1
+def mkFold1NoUpperBound {t : Type} [h : IsNatLike t] (f : t → Bool) (acc : Bool) : Bool :=
+  match h.pf with
+  | .isNatPf _ => false -- Cannot fold over all Nats without an upper bound
+  | .isBitVecPf pf => -- Use `2 ^ {size of the bitvector}` as an upper bound
+    Fin.foldr (2 ^ pf.1)
+      (fun (x : Fin (2 ^ pf.1)) (acc : Bool) => acc && f (cast pf.2.symm x.1)) acc
+  | .isUScalarPf pf => -- Use `2 ^ {number of bits in the UScalar}` as an upper bound
+    Fin.foldr (2 ^ pf.1.numBits)
+      (fun (x : Fin (2 ^ pf.1.numBits)) (acc : Bool) => acc && f
+        (cast pf.2.2.symm (UScalar.ofNat' x.1))) acc
+
+def mkFold1 {t : Type} [h : IsNatLike t] (bOpt : Option t) (f : t → Bool) (acc : Bool) : Bool :=
+  match bOpt with
+  | some b => mkFold1UpperBounded b f acc
+  | none => mkFold1NoUpperBound f acc
+
+theorem ofMkFold1UpperBoundedEqTrue {t : Type} [h : IsNatLike t] (b : t) (f f' : t → Bool)
+  (acc : Bool) : (∀ x < b, f' x → f x) → mkFold1UpperBounded b f' acc → (acc ∧ ∀ x < b, f x) := by
+  unfold mkFold1UpperBounded
   split
   . next ht hpf =>
     rw [LT.lt, instLTOfIsNatLike, hpf]
@@ -71,26 +94,20 @@ theorem ofMkFold1EqTrueAux {t : Type} [h : IsNatLike t] (b : t) (f : t → Bool)
     . simp
     . next b' ih =>
       simp only [Fin.foldr_succ_last, Fin.coe_castSucc, Fin.val_last]
-      rw [ih (acc && f (cast ht.symm b'))]
-      constructor
-      . simp only [Bool.and_eq_true, and_assoc, and_imp]
-        intro h1 h2 h3
-        simp only [h1, true_and]
-        intro x hx
-        rcases Nat.lt_or_eq_of_le $ Nat.le_of_lt_succ hx with hx | hx
-        . exact h3 x hx
-        . rw [← hx] at h2
-          simp only [cast_cast, cast_eq] at h2
-          exact h2
-      . simp only [Bool.and_eq_true, and_assoc, and_imp]
-        intro h1 h2
-        simp only [h1, true_and]
-        constructor
-        . specialize h2 (cast ht.symm b')
-          simp only [cast_cast, cast_eq, lt_add_iff_pos_right, zero_lt_one, forall_const] at h2
-          exact h2
-        . intro x hx
-          exact h2 x (by omega)
+      intro h hb'
+      let h' : ∀ (x : t), cast ht x < b' → f' x = true → f x = true := by
+        intro x hx hf
+        exact h x (by omega) hf
+      specialize ih (acc && f' (cast ht.symm b')) h' hb'
+      simp only [Bool.and_eq_true, and_assoc] at ih
+      simp only [ih, true_and]
+      intro x hx
+      rw [Nat.lt_succ_iff, Nat.le_iff_lt_or_eq] at hx
+      rcases hx with hx | hx
+      . exact ih.2.2 x hx
+      . apply h
+        . omega
+        . simp only [← ih.2.1, ← hx, cast_cast, cast_eq]
   . next ht hpf =>
     rw [LT.lt, instLTOfIsNatLike, hpf]
     simp only [BitVec.natCast_eq_ofNat, gt_iff_lt, eq_iff_iff]
@@ -100,554 +117,225 @@ theorem ofMkFold1EqTrueAux {t : Type} [h : IsNatLike t] (b : t) (f : t → Bool)
     . simp
     . next b' ih =>
       simp only [Fin.foldr_succ_last, Fin.coe_castSucc, Fin.val_last]
-      rw [ih (acc && f (@cast (BitVec ht.fst) t ht.2.symm (BitVec.ofNat ht.fst b')))]
-      constructor
-      . simp only [Bool.and_eq_true, and_assoc, and_imp]
-        intro h1 h2 h3
-        simp only [h1, true_and]
-        intro x hx
-        rcases Nat.lt_or_eq_of_le $ Nat.le_of_lt_succ hx with hx | hx
-        . exact h3 x hx
-        . rw [← hx] at h2
-          simp only [BitVec.ofNat_toNat, BitVec.setWidth_eq, cast_cast, cast_eq] at h2
-          exact h2
-      . simp only [Bool.and_eq_true, and_assoc, and_imp]
-        intro h1 h2
-        simp only [h1, true_and]
-        constructor
-        . specialize h2 (cast ht.2.symm ((BitVec.ofNat ht.fst b')))
-          simp only [cast_cast, cast_eq, BitVec.toNat_ofNat] at h2
-          exact h2 $ Nat.lt_of_le_of_lt (Nat.mod_le _ _) (Nat.lt_succ_self b')
-        . intro x hx
-          exact h2 x (by omega)
+      intro h hb'
+      let h' : ∀ (x : t), (cast ht.2 x).toNat < b' → f' x = true → f x = true := by
+        intro x hx hf
+        exact h x (by omega) hf
+      specialize ih (acc && f' (@cast (BitVec ht.fst) t ht.2.symm (BitVec.ofNat ht.fst b'))) h' hb'
+      simp only [Bool.and_eq_true, and_assoc] at ih
+      simp only [ih, true_and]
+      intro x hx
+      rw [Nat.lt_succ_iff, Nat.le_iff_lt_or_eq] at hx
+      rcases hx with hx | hx
+      . exact ih.2.2 x hx
+      . apply h
+        . omega
+        . simp only [← ih.2.1, ← hx, BitVec.ofNat_toNat, BitVec.setWidth_eq, cast_cast, cast_eq]
   . next ht hpf =>
     rw [LT.lt, instLTOfIsNatLike, hpf]
-    simp only [ne_eq, UScalar.lt_equiv, gt_iff_lt, eq_iff_iff]
+    simp only [BitVec.natCast_eq_ofNat, gt_iff_lt, eq_iff_iff]
+    rw [LT.lt, instLTUScalar]
+    simp only [gt_iff_lt]
     induction (cast ht.2.2 b).val generalizing acc
     . simp
     . next b' ih =>
       simp only [Fin.foldr_succ_last, Fin.coe_castSucc, Fin.val_last]
-      rw [ih (acc && f (@cast (UScalar ht.fst) t ht.2.2.symm (UScalar.ofNat' b')))]
-      constructor
-      . simp only [ne_eq, Bool.and_eq_true, and_assoc, and_imp]
-        intro h1 h2 h3
-        simp only [h1, true_and]
-        intro x hx
-        rcases Nat.lt_or_eq_of_le $ Nat.le_of_lt_succ hx with hx | hx
-        . exact h3 x hx
-        . rw [← h2, ← hx, UScalar.ofNat'_val_eq ht.2.1, cast_cast, cast_eq]
-      . simp only [ne_eq, Bool.and_eq_true, and_assoc, and_imp]
-        intro h1 h2
-        simp only [h1, true_and]
-        constructor
-        . specialize h2 (cast ht.2.2.symm ((UScalar.ofNat' b')))
-          simp only [cast_cast, cast_eq, BitVec.toNat_ofNat] at h2
-          exact h2 $ Nat.lt_of_le_of_lt (Nat.mod_le _ _) (Nat.lt_succ_self b')
-        . intro x hx
-          exact h2 x (by omega)
+      intro h hb'
+      let h' : ∀ (x : t), (cast ht.2.2 x).val < b' → f' x = true → f x = true := by
+        intro x hx hf
+        exact h x (by omega) hf
+      specialize ih (acc && f' (@cast (UScalar ht.fst) t ht.2.2.symm (UScalar.ofNat' b'))) h' hb'
+      simp only [Bool.and_eq_true, and_assoc] at ih
+      simp only [ih, true_and]
+      intro x hx
+      rw [Nat.lt_succ_iff, Nat.le_iff_lt_or_eq] at hx
+      rcases hx with hx | hx
+      . exact ih.2.2 x hx
+      . apply h
+        . omega
+        . simp only [← ih.2.1, ne_eq, ← hx, UScalar.ofNat'_val_eq ht.2.1, cast_cast, cast_eq]
 
-theorem ofMkFold1EqTrue {t : Type} [h : IsNatLike t] (b : t) (f : t → Bool) :
-  mkFold1 b f true → ∀ x < b, f x := by
-  simp only [ofMkFold1EqTrueAux, true_and, imp_self]
+theorem ofMkFold1SomeLt {t : Type} [h : IsNatLike t] (b : t) (f f' : t → Bool) :
+  (∀ x < b, f' x → f x) → mkFold1 (some b) f' true → ∀ x < b, f x := by
+  simp only [mkFold1]
+  intro hf h' x hx
+  exact (ofMkFold1UpperBoundedEqTrue b f f' true hf h').2 x hx
 
-def mkFold2 {t1 t2 : Type} [h1 : IsNatLike t1] [h2 : IsNatLike t2] (b1 : t1) (b2 : t1 → t2)
-  (f : t1 → t2 → Bool) (acc : Bool) : Bool :=
-  match h1.pf with
-  | .isNatPf pf =>
-    Fin.foldr (cast pf b1)
-      (fun (x : Fin (cast pf b1)) (acc : Bool) =>
-        mkFold1 (b2 (cast pf.symm x.1)) (f (cast pf.symm x.1)) acc) acc
-  | .isBitVecPf pf =>
-    Fin.foldr (cast pf.2 b1).toNat
-      (fun (x : Fin (cast pf.2 b1).toNat) (acc : Bool) =>
-        mkFold1 (b2 (cast pf.2.symm x.1)) (f (cast pf.2.symm x.1)) acc) acc
-  | .isUScalarPf pf =>
-    Fin.foldr (cast pf.2.2 b1).val
-      (fun (x : Fin (cast pf.2.2 b1).val) (acc : Bool) =>
-        mkFold1 (b2 (cast pf.2.2.symm (UScalar.ofNat' x.1)))
-          (f (cast pf.2.2.symm (UScalar.ofNat' x.1))) acc) acc
-
-theorem ofMkFold2EqTrueAux {t1 t2 : Type} [h1 : IsNatLike t1] [h2 : IsNatLike t2] (b1 : t1)
-  (b2 : t1 → t2) (f : t1 → t2 → Bool) (acc : Bool) :
-  mkFold2 b1 b2 f acc = (acc ∧ ∀ x < b1, ∀ y < b2 x, f x y) := by
-  unfold mkFold2
+theorem ofMkFold1NoneEqTrue {t : Type} [h : IsNatLike t] (f f' : t → Bool)
+  (acc : Bool) : (∀ x : t, f' x → f x) → mkFold1NoUpperBound f' acc → (acc ∧ ∀ x : t, f x) := by
+  unfold mkFold1NoUpperBound
   split
+  . simp
   . next ht hpf =>
-    rw [LT.lt, instLTOfIsNatLike, hpf]
-    simp only [gt_iff_lt, eq_iff_iff]
-    induction (cast ht b1) generalizing acc
+    simp only [BitVec.natCast_eq_ofNat]
+    intro hf
+    conv => intro h; rhs; intro x; rw [← true_implies (f x = true), ← eq_true (BitVec.isLt (cast ht.snd x))]
+    induction 2^ht.1 generalizing acc
     . simp
-    . next b1' ih =>
-      simp only [Fin.foldr_succ_last, Fin.coe_castSucc, Fin.val_last]
-      tlet acc' := mkFold1 (b2 (cast ht.symm b1')) (f (cast ht.symm b1')) acc
-      rw [ih acc', ofMkFold1EqTrueAux (b2 (cast ht.symm b1')) (f (cast ht.symm b1')) acc]
-      constructor
-      . simp only [Bool.and_eq_true, and_assoc, and_imp]
-        intro h1 h2 h3
-        simp only [h1, true_and]
-        intro x hx
-        rcases Nat.lt_or_eq_of_le $ Nat.le_of_lt_succ hx with hx | hx
-        . exact h3 x hx
-        . rw [← hx] at h2
-          simp only [cast_cast, cast_eq] at h2
-          exact h2
-      . simp only [Bool.and_eq_true, and_assoc, and_imp]
-        intro h1 h2
-        simp only [h1, true_and]
-        constructor
-        . specialize h2 (cast ht.symm b1')
-          simp only [cast_cast, cast_eq, lt_add_iff_pos_right, zero_lt_one, forall_const] at h2
-          exact h2
-        . intro x hx
-          exact h2 x (by omega)
+    . next b ih =>
+      intro h
+      simp only [Fin.foldr_succ_last, Fin.coe_castSucc, Fin.val_last] at h
+      specialize ih (acc && f' (cast ht.2.symm (BitVec.ofNat ht.fst b))) h
+      simp only [Bool.and_eq_true, and_assoc] at ih
+      simp only [ih, true_and]
+      intro x hx
+      rw [Nat.lt_succ_iff, Nat.le_iff_lt_or_eq] at hx
+      rcases hx with hx | hx
+      . exact ih.2.2 x hx
+      . simp only [← hx, BitVec.ofNat_toNat, BitVec.setWidth_eq, cast_cast, cast_eq] at ih
+        exact hf x ih.2.1
   . next ht hpf =>
-    rw [LT.lt, instLTOfIsNatLike, hpf]
-    simp only [BitVec.natCast_eq_ofNat, gt_iff_lt, eq_iff_iff]
-    rw [LT.lt, instLTBitVec]
-    simp only [gt_iff_lt]
-    induction (cast ht.2 b1).toNat generalizing acc
+    simp only [ne_eq]
+    intro hf
+    conv => intro h; rhs; intro x; rw [← true_implies (f x = true), ← eq_true (UScalar.hmax (cast ht.snd.right x))]
+    induction 2^ht.1.numBits generalizing acc
     . simp
-    . next b' ih =>
-      simp only [Fin.foldr_succ_last, Fin.coe_castSucc, Fin.val_last]
-      tlet acc' :=
-        @mkFold1 t2 h2 (b2 (cast ht.2.symm (BitVec.ofNat ht.1 b')))
-          (f (cast ht.2.symm (BitVec.ofNat ht.1 b'))) acc
-      rw [ih acc', ofMkFold1EqTrueAux (b2 (cast ht.2.symm (BitVec.ofNat ht.1 b')))]
-      constructor
-      . simp only [Bool.and_eq_true, and_assoc, and_imp]
-        intro h1 h2 h3
-        simp only [h1, true_and]
-        intro x hx
-        rcases Nat.lt_or_eq_of_le $ Nat.le_of_lt_succ hx with hx | hx
-        . exact h3 x hx
-        . rw [← hx] at h2
-          simp only [BitVec.ofNat_toNat, BitVec.setWidth_eq, cast_cast, cast_eq] at h2
-          exact h2
-      . simp only [Bool.and_eq_true, and_assoc, and_imp]
-        intro h1 h2
-        simp only [h1, true_and]
-        constructor
-        . specialize h2 (cast ht.2.symm ((BitVec.ofNat ht.fst b')))
-          simp only [cast_cast, cast_eq, BitVec.toNat_ofNat] at h2
-          exact h2 $ Nat.lt_of_le_of_lt (Nat.mod_le _ _) (Nat.lt_succ_self b')
-        . intro x hx
-          exact h2 x (by omega)
-  . next ht hpf =>
-    rw [LT.lt, instLTOfIsNatLike, hpf]
-    simp only [ne_eq, UScalar.lt_equiv, gt_iff_lt, eq_iff_iff]
-    induction (cast ht.2.2 b1).val generalizing acc
-    . simp
-    . next b' ih =>
-      simp only [Fin.foldr_succ_last, Fin.coe_castSucc, Fin.val_last]
-      tlet acc' :=
-        mkFold1 (b2 (cast ht.2.2.symm (UScalar.ofNat' b')))
-          (f (cast ht.2.2.symm (UScalar.ofNat' b'))) acc
-      rw [ih acc', ofMkFold1EqTrueAux (b2 (cast ht.2.2.symm (UScalar.ofNat' b')))]
-      constructor
-      . simp only [ne_eq, Bool.and_eq_true, and_assoc, and_imp]
-        intro h1 h2 h3
-        simp only [h1, true_and]
-        intro x hx
-        rcases Nat.lt_or_eq_of_le $ Nat.le_of_lt_succ hx with hx | hx
-        . exact h3 x hx
-        . rw [← hx] at h2
-          simp only [UScalar.ofNat'_val_eq ht.2.1, cast_cast, cast_eq] at h2
-          exact h2
-      . simp only [ne_eq, Bool.and_eq_true, and_assoc, and_imp]
-        intro h1 h2
-        simp only [h1, true_and]
-        constructor
-        . specialize h2 (cast ht.2.2.symm ((UScalar.ofNat' b')))
-          simp only [cast_cast, cast_eq, BitVec.toNat_ofNat] at h2
-          exact h2 $ Nat.lt_of_le_of_lt (Nat.mod_le _ _) (Nat.lt_succ_self b')
-        . intro x hx
-          exact h2 x (by omega)
+    . next b ih =>
+      intro h
+      simp only [Fin.foldr_succ_last, Fin.coe_castSucc, Fin.val_last] at h
+      specialize ih (acc && f' (cast ht.2.2.symm (UScalar.ofNat' b))) h
+      simp only [ne_eq, Bool.and_eq_true, and_assoc] at ih
+      simp only [ih, ne_eq, true_and]
+      intro x hx
+      rw [Nat.lt_succ_iff, Nat.le_iff_lt_or_eq] at hx
+      rcases hx with hx | hx
+      . exact ih.2.2 x hx
+      . simp only [UScalar.ofNat', ← hx] at ih
+        conv at ih =>
+          arg 2; arg 1; arg 1; arg 1; arg 2; arg 1
+          rw [Nat.mod_eq_of_lt (by
+            simp only [UScalar.cMax]
+            split
+            . next heq =>
+              exfalso
+              exact ht.2.1 heq
+            . rw [Nat.lt_succ_iff]
+              exact UScalar.hrBounds (cast ht.snd.right x)
+          )]
+        simp only [UScalar.ofNat_val, cast_cast, cast_eq] at ih
+        exact hf x ih.2.1
 
-theorem ofMkFold2EqTrue {t1 t2 : Type} [h1 : IsNatLike t1] [h2 : IsNatLike t2] (b1 : t1) (b2 : t1 → t2)
-  (f : t1 → t2 → Bool) : mkFold2 b1 b2 f true → ∀ x < b1, ∀ y < b2 x, f x y := by
-  simp only [ofMkFold2EqTrueAux, true_and, imp_self]
+theorem ofMkFold1None {t : Type} [h : IsNatLike t] (f f' : t → Bool) :
+  (∀ x : t, f' x → f x) → mkFold1 none f' true → ∀ x : t, f x := by
+  simp only [mkFold1]
+  intro hf h' x
+  exact (ofMkFold1NoneEqTrue f f' true hf h').2 x
 
-def mkFold3 {t1 t2 t3 : Type} [h1 : IsNatLike t1] [h2 : IsNatLike t2] [h3 : IsNatLike t3] (b1 : t1)
-  (b2 : t1 → t2) (b3 : t1 → t2 → t3) (f : t1 → t2 → t3 → Bool) (acc : Bool) : Bool :=
-  match h1.pf with
-  | .isNatPf pf =>
-    Fin.foldr (cast pf b1)
-      (fun (x : Fin (cast pf b1)) (acc : Bool) =>
-        mkFold2 (b2 (cast pf.symm x.1)) (b3 (cast pf.symm x.1)) (f (cast pf.symm x.1)) acc) acc
+/-- Examines `b` and checks whether it can be incremented by 1. If it can, `some (b + 1)`
+    is returned. Otherwise, `none` is returned. -/
+def natLikeSucc {t : Type} [h : IsNatLike t] (b : t) : Option t :=
+  match h.pf with
+  | .isNatPf pf => some $ cast pf.symm $ (cast pf b) + 1
   | .isBitVecPf pf =>
-    Fin.foldr (cast pf.2 b1).toNat
-      (fun (x : Fin (cast pf.2 b1).toNat) (acc : Bool) =>
-        mkFold2 (b2 (cast pf.2.symm x.1)) (b3 (cast pf.2.symm x.1)) (f (cast pf.2.symm x.1)) acc) acc
+    if (cast pf.2 b).toNat == 2 ^ pf.1 - 1 then none
+    else some $ cast pf.2.symm $ (cast pf.2 b) + 1
   | .isUScalarPf pf =>
-    Fin.foldr (cast pf.2.2 b1).val
-      (fun (x : Fin (cast pf.2.2 b1).val) (acc : Bool) =>
-        mkFold2 (b2 (cast pf.2.2.symm (UScalar.ofNat' x.1))) (b3 (cast pf.2.2.symm (UScalar.ofNat' x.1)))
-          (f (cast pf.2.2.symm (UScalar.ofNat' x.1))) acc) acc
+    if h : cast pf.2.2 b == UScalar.max pf.1 then none
+    else
+      let sum := (cast pf.2.2 b).val + (@UScalar.ofNat pf.1 1 (by cases pf.1 <;> decide)).val
+      some $ cast pf.2.2.symm $ UScalar.mk sum
 
-theorem ofMkFold3EqTrueAux {t1 t2 t3 : Type} [h1 : IsNatLike t1] [h2 : IsNatLike t2] [h3 : IsNatLike t3]
-  (b1 : t1) (b2 : t1 → t2) (b3 : t1 → t2 → t3) (f : t1 → t2 → t3 → Bool) (acc : Bool) :
-  mkFold3 b1 b2 b3 f acc = (acc ∧ ∀ x < b1, ∀ y < b2 x, ∀ z < b3 x y, f x y z) := by
-  unfold mkFold3
+lemma le_iff_lt_natLikeSucc_some {t : Type} [ht : IsNatLike t] {x b b' : t} (hb : natLikeSucc b = some b') : x ≤ b ↔ x < b' := by
+  rw [LE.le, LT.lt, instLEOfIsNatLike, instLTOfIsNatLike]
+  unfold natLikeSucc at hb
+  rcases heq : @IsNatLike.pf t ht with ht | ht | ht
+  . simp only [ge_iff_le, gt_iff_lt]
+    simp only [heq, Option.some.injEq] at hb
+    rw [← hb]
+    simp only [cast_cast, cast_eq]
+    omega
+  . simp only [ge_iff_le, gt_iff_lt]
+    simp only [heq, beq_iff_eq, BitVec.ofNat_eq_ofNat, Option.ite_none_left_eq_some, Option.some.injEq] at hb
+    rw [← hb.2, LT.lt, instLTBitVec, LE.le, instLEBitVec]
+    simp only [heq, BitVec.lt_def, gt_iff_lt, cast_cast, cast_eq, BitVec.toNat_add,
+      BitVec.toNat_ofNat, Nat.add_mod_mod]
+    rw [Nat.mod_eq_of_lt] <;> omega
+  . simp only [ne_eq, UScalar.le_equiv, ge_iff_le, UScalar.lt_equiv, gt_iff_lt]
+    simp only [heq, ne_eq, beq_iff_eq, UScalar.ofNat_val_eq, Nat.cast_add, BitVec.natCast_eq_ofNat,
+      Bvify.UScalar.BitVec_ofNat_setWidth, BitVec.setWidth_eq, Nat.cast_one, BitVec.ofNat_eq_ofNat,
+      dite_eq_ite, Option.ite_none_left_eq_some, Option.some.injEq, UScalar.max] at hb
+    rw [← hb.2]
+    simp only [heq, ne_eq, UScalar.lt_equiv, gt_iff_lt, cast_cast, cast_eq]
+    rw [BitVec.add_def]
+    simp only [UScalar.bv_toNat, BitVec.toNat_ofNat]
+    rw [Nat.mod_eq_of_lt]
+    . conv => rhs; rhs; rw [UScalar.val, BitVec.toNat_ofNat]
+      rw [Nat.mod_eq_of_lt]
+      . omega
+      . have : (cast ht.2.2 b).val < 2^ht.1.numBits := UScalar.hmax (cast ht.snd.right b)
+        omega
+    . cases heq : ht.1 <;> try decide -- `decide` covers all cases except `UScalarTy.Usize`
+      exfalso
+      exact ht.2.1 heq
+
+lemma le_iff_lt_natLikeSucc_none {t : Type} [ht : IsNatLike t] {x b : t} (hb : natLikeSucc b = none) : x ≤ b := by
+  rw [LE.le, instLEOfIsNatLike]
+  unfold natLikeSucc at hb
+  rcases heq : @IsNatLike.pf t ht with ht | ht | ht
+  . simp [heq] at hb
+  . simp only [ge_iff_le]
+    simp only [heq, beq_iff_eq, BitVec.ofNat_eq_ofNat, ite_eq_left_iff, reduceCtorEq, imp_false, Decidable.not_not] at hb
+    rw [BitVec.le_def, hb, Nat.le_iff_lt_add_one]
+    simp only [Nat.ofNat_pos, SimpScalar.one_le_pow, Nat.sub_add_cancel]
+    exact BitVec.isLt (cast (instLTOfIsNatLike._proof_1 t ht) x)
+  . simp only [ne_eq, UScalar.le_equiv, ge_iff_le]
+    simp only [heq, ne_eq, beq_iff_eq, UScalar.ofNat_val_eq, Nat.cast_add, BitVec.natCast_eq_ofNat,
+      Bvify.UScalar.BitVec_ofNat_setWidth, BitVec.setWidth_eq, Nat.cast_one, BitVec.ofNat_eq_ofNat,
+      dite_eq_ite, ite_eq_left_iff, reduceCtorEq, imp_false, Decidable.not_not] at hb
+    rw [hb]
+    exact ScalarTac.UScalar.bounds (cast (instLTOfIsNatLike._proof_2 t ht) x)
+
+theorem ofMkFold1SomeLe {t : Type} [ht : IsNatLike t] (b : t) (f f' : t → Bool) :
+  (∀ x ≤ b, f' x → f x) → mkFold1 (natLikeSucc b) f' true → ∀ x ≤ b, f x := by
+  unfold mkFold1
   split
-  . next ht hpf =>
-    rw [LT.lt, instLTOfIsNatLike, hpf]
-    simp only [gt_iff_lt, eq_iff_iff]
-    induction (cast ht b1) generalizing acc
-    . simp
-    . next b1' ih =>
-      simp only [Fin.foldr_succ_last, Fin.coe_castSucc, Fin.val_last]
-      tlet acc' := mkFold2 (b2 (cast ht.symm b1')) (b3 (cast ht.symm b1')) (f (cast ht.symm b1')) acc
-      rw [ih acc', ofMkFold2EqTrueAux (b2 (cast ht.symm b1'))]
-      constructor
-      . simp only [Bool.and_eq_true, and_assoc, and_imp]
-        intro h1 h2 h3
-        simp only [h1, true_and]
-        intro x hx
-        rcases Nat.lt_or_eq_of_le $ Nat.le_of_lt_succ hx with hx | hx
-        . exact h3 x hx
-        . rw [← hx] at h2
-          simp only [cast_cast, cast_eq] at h2
-          exact h2
-      . simp only [Bool.and_eq_true, and_assoc, and_imp]
-        intro h1 h2
-        simp only [h1, true_and]
-        constructor
-        . specialize h2 (cast ht.symm b1')
-          simp only [cast_cast, cast_eq, lt_add_iff_pos_right, zero_lt_one, forall_const] at h2
-          exact h2
-        . intro x hx
-          exact h2 x (by omega)
-  . next ht hpf =>
-    rw [LT.lt, instLTOfIsNatLike, hpf]
-    simp only [BitVec.natCast_eq_ofNat, gt_iff_lt, eq_iff_iff]
-    rw [LT.lt, instLTBitVec]
-    simp only [gt_iff_lt]
-    induction (cast ht.2 b1).toNat generalizing acc
-    . simp
-    . next b' ih =>
-      simp only [Fin.foldr_succ_last, Fin.coe_castSucc, Fin.val_last]
-      tlet acc' :=
-        mkFold2 (b2 (cast ht.2.symm (BitVec.ofNat ht.fst b')))
-          (b3 (cast ht.2.symm (BitVec.ofNat ht.fst b')))
-          (f (cast ht.2.symm (BitVec.ofNat ht.fst b'))) acc
-      rw [ih acc', ofMkFold2EqTrueAux (b2 (cast ht.2.symm (BitVec.ofNat ht.1 b')))]
-      constructor
-      . simp only [Bool.and_eq_true, and_assoc, and_imp]
-        intro h1 h2 h3
-        simp only [h1, true_and]
-        intro x hx
-        rcases Nat.lt_or_eq_of_le $ Nat.le_of_lt_succ hx with hx | hx
-        . exact h3 x hx
-        . rw [← hx] at h2
-          simp only [BitVec.ofNat_toNat, BitVec.setWidth_eq, cast_cast, cast_eq] at h2
-          exact h2
-      . simp only [Bool.and_eq_true, and_assoc, and_imp]
-        intro h1 h2
-        simp only [h1, true_and]
-        constructor
-        . specialize h2 (cast ht.2.symm ((BitVec.ofNat ht.fst b')))
-          simp only [cast_cast, cast_eq, BitVec.toNat_ofNat] at h2
-          exact h2 $ Nat.lt_of_le_of_lt (Nat.mod_le _ _) (Nat.lt_succ_self b')
-        . intro x hx
-          exact h2 x (by omega)
-  . next ht hpf =>
-    rw [LT.lt, instLTOfIsNatLike, hpf]
-    simp only [ne_eq, UScalar.lt_equiv, gt_iff_lt, eq_iff_iff]
-    induction (cast ht.2.2 b1).val generalizing acc
-    . simp
-    . next b' ih =>
-      simp only [Fin.foldr_succ_last, Fin.coe_castSucc, Fin.val_last]
-      tlet acc' :=
-        mkFold2 (b2 (cast ht.2.2.symm (UScalar.ofNat' b'))) (b3 (cast ht.2.2.symm (UScalar.ofNat' b')))
-          (f (cast ht.2.2.symm (UScalar.ofNat' b'))) acc
-      rw [ih acc', ofMkFold2EqTrueAux (b2 (cast ht.2.2.symm (UScalar.ofNat' b')))]
-      constructor
-      . simp only [ne_eq, Bool.and_eq_true, and_assoc, and_imp]
-        intro h1 h2 h3
-        simp only [h1, true_and]
-        intro x hx
-        rcases Nat.lt_or_eq_of_le $ Nat.le_of_lt_succ hx with hx | hx
-        . exact h3 x hx
-        . rw [← hx] at h2
-          simp only [UScalar.ofNat'_val_eq ht.2.1, cast_cast, cast_eq] at h2
-          exact h2
-      . simp only [ne_eq, Bool.and_eq_true, and_assoc, and_imp]
-        intro h1 h2
-        simp only [h1, true_and]
-        constructor
-        . specialize h2 (cast ht.2.2.symm ((UScalar.ofNat' b')))
-          simp only [cast_cast, cast_eq, BitVec.toNat_ofNat] at h2
-          exact h2 $ Nat.lt_of_le_of_lt (Nat.mod_le _ _) (Nat.lt_succ_self b')
-        . intro x hx
-          exact h2 x (by omega)
+  . next b' hb =>
+    intro hf h x hx
+    have : ∀ x < b', f' x = true → f x = true := by
+      intro x hx h
+      rw [← le_iff_lt_natLikeSucc_some hb] at hx
+      exact hf x hx h
+    rw [le_iff_lt_natLikeSucc_some hb] at hx
+    exact (ofMkFold1UpperBoundedEqTrue b' f f' true this h).2 x hx
+  . next hb =>
+    intro hf h x hx
+    simp only [eq_true (le_iff_lt_natLikeSucc_none hb), forall_const] at hf
+    exact (ofMkFold1NoneEqTrue f f' true hf h).2 x
 
-theorem ofMkFold3EqTrue {t1 t2 t3 : Type} [h1 : IsNatLike t1] [h2 : IsNatLike t2] [h3 : IsNatLike t3]
-  (b1 : t1) (b2 : t1 → t2) (b3 : t1 → t2 → t3) (f : t1 → t2 → t3 → Bool) :
-  mkFold3 b1 b2 b3 f true →  ∀ x < b1, ∀ y < b2 x, ∀ z < b3 x y, f x y z := by
-  simp only [ofMkFold3EqTrueAux, true_and, imp_self]
-
-def mkFold4 {t1 t2 t3 t4 : Type} [h1 : IsNatLike t1] [h2 : IsNatLike t2] [h3 : IsNatLike t3]
-  [h4 : IsNatLike t4] (b1 : t1) (b2 : t1 → t2) (b3 : t1 → t2 → t3) (b4 : t1 → t2 → t3 → t4)
-  (f : t1 → t2 → t3 → t4 → Bool) (acc : Bool) : Bool :=
-  match h1.pf with
-  | .isNatPf pf =>
-    Fin.foldr (cast pf b1)
-      (fun (x : Fin (cast pf b1)) (acc : Bool) =>
-        mkFold3 (b2 (cast pf.symm x.1)) (b3 (cast pf.symm x.1)) (b4 (cast pf.symm x.1))
-          (f (cast pf.symm x.1)) acc) acc
-  | .isBitVecPf pf =>
-    Fin.foldr (cast pf.2 b1).toNat
-      (fun (x : Fin (cast pf.2 b1).toNat) (acc : Bool) =>
-        mkFold3 (b2 (cast pf.2.symm x.1)) (b3 (cast pf.2.symm x.1)) (b4 (cast pf.2.symm x.1))
-          (f (cast pf.2.symm x.1)) acc) acc
-  | .isUScalarPf pf =>
-    Fin.foldr (cast pf.2.2 b1).val
-      (fun (x : Fin (cast pf.2.2 b1).val) (acc : Bool) =>
-        mkFold3 (b2 (cast pf.2.2.symm (UScalar.ofNat' x.1))) (b3 (cast pf.2.2.symm (UScalar.ofNat' x.1)))
-          (b4 (cast pf.2.2.symm (UScalar.ofNat' x.1))) (f (cast pf.2.2.symm (UScalar.ofNat' x.1))) acc) acc
-
-theorem ofMkFold4EqTrueAux {t1 t2 t3 t4 : Type} [h1 : IsNatLike t1] [h2 : IsNatLike t2] [h3 : IsNatLike t3]
-  [h4 : IsNatLike t4] (b1 : t1) (b2 : t1 → t2) (b3 : t1 → t2 → t3) (b4 : t1 → t2 → t3 → t4)
-  (f : t1 → t2 → t3 → t4 → Bool) (acc : Bool) :
-  mkFold4 b1 b2 b3 b4 f acc = (acc ∧ ∀ x < b1, ∀ y < b2 x, ∀ z < b3 x y, ∀ a < b4 x y z, f x y z a) := by
-  unfold mkFold4
+theorem ofMkFold1Triv {t1 t2 : Type} [IsNatLike t1] [h2 : IsNatLike t2] (f : t1 → t2 → Bool) (x : t1)
+  (b : Option t2) (h : mkFold1 b (f x) true = true) :
+  mkFold1 b (fun _ => mkFold1 b (f x) true) true = true := by
+  rw [h]
+  simp only [mkFold1, mkFold1UpperBounded, Bool.and_true, ne_eq, mkFold1NoUpperBound]
   split
-  . next ht hpf =>
-    rw [LT.lt, instLTOfIsNatLike, hpf]
-    simp only [gt_iff_lt, eq_iff_iff]
-    induction (cast ht b1) generalizing acc
-    . simp
-    . next b1' ih =>
-      simp only [Fin.foldr_succ_last, Fin.coe_castSucc, Fin.val_last]
-      tlet acc' :=
-        mkFold3 (b2 (cast ht.symm b1')) (b3 (cast ht.symm b1')) (b4 (cast ht.symm b1'))
-          (f (cast ht.symm b1')) acc
-      rw [ih acc', ofMkFold3EqTrueAux (b2 (cast ht.symm b1'))]
-      constructor
-      . simp only [Bool.and_eq_true, and_assoc, and_imp]
-        intro h1 h2 h3
-        simp only [h1, true_and]
-        intro x hx
-        rcases Nat.lt_or_eq_of_le $ Nat.le_of_lt_succ hx with hx | hx
-        . exact h3 x hx
-        . rw [← hx] at h2
-          simp only [cast_cast, cast_eq] at h2
-          exact h2
-      . simp only [Bool.and_eq_true, and_assoc, and_imp]
-        intro h1 h2
-        simp only [h1, true_and]
-        constructor
-        . specialize h2 (cast ht.symm b1')
-          simp only [cast_cast, cast_eq, lt_add_iff_pos_right, zero_lt_one, forall_const] at h2
-          exact h2
-        . intro x hx
-          exact h2 x (by omega)
-  . next ht hpf =>
-    rw [LT.lt, instLTOfIsNatLike, hpf]
-    simp only [BitVec.natCast_eq_ofNat, gt_iff_lt, eq_iff_iff]
-    rw [LT.lt, instLTBitVec]
-    simp only [gt_iff_lt]
-    induction (cast ht.2 b1).toNat generalizing acc
-    . simp
-    . next b' ih =>
-      simp only [Fin.foldr_succ_last, Fin.coe_castSucc, Fin.val_last]
-      tlet acc' :=
-        mkFold3 (b2 (cast ht.2.symm (BitVec.ofNat ht.fst b')))
-          (b3 (cast ht.2.symm (BitVec.ofNat ht.fst b')))
-          (b4 (cast ht.2.symm (BitVec.ofNat ht.fst b')))
-          (f (cast ht.2.symm (BitVec.ofNat ht.fst b'))) acc
-      rw [ih acc', ofMkFold3EqTrueAux (b2 (cast ht.2.symm (BitVec.ofNat ht.1 b')))]
-      constructor
-      . simp only [Bool.and_eq_true, and_assoc, and_imp]
-        intro h1 h2 h3
-        simp only [h1, true_and]
-        intro x hx
-        rcases Nat.lt_or_eq_of_le $ Nat.le_of_lt_succ hx with hx | hx
-        . exact h3 x hx
-        . rw [← hx] at h2
-          simp only [BitVec.ofNat_toNat, BitVec.setWidth_eq, cast_cast, cast_eq] at h2
-          exact h2
-      . simp only [Bool.and_eq_true, and_assoc, and_imp]
-        intro h1 h2
-        simp only [h1, true_and]
-        constructor
-        . specialize h2 (cast ht.2.symm ((BitVec.ofNat ht.fst b')))
-          simp only [cast_cast, cast_eq, BitVec.toNat_ofNat] at h2
-          exact h2 $ Nat.lt_of_le_of_lt (Nat.mod_le _ _) (Nat.lt_succ_self b')
-        . intro x hx
-          exact h2 x (by omega)
-  . next ht hpf =>
-    rw [LT.lt, instLTOfIsNatLike, hpf]
-    simp only [ne_eq, UScalar.lt_equiv, gt_iff_lt, eq_iff_iff]
-    induction (cast ht.2.2 b1).val generalizing acc
-    . simp
-    . next b' ih =>
-      simp only [Fin.foldr_succ_last, Fin.coe_castSucc, Fin.val_last]
-      tlet acc' :=
-        mkFold3 (b2 (cast ht.2.2.symm (UScalar.ofNat' b'))) (b3 (cast ht.2.2.symm (UScalar.ofNat' b')))
-          (b4 (cast ht.2.2.symm (UScalar.ofNat' b'))) (f (cast ht.2.2.symm (UScalar.ofNat' b'))) acc
-      rw [ih acc', ofMkFold3EqTrueAux (b2 (cast ht.2.2.symm (UScalar.ofNat' b')))]
-      constructor
-      . simp only [ne_eq, Bool.and_eq_true, and_assoc, and_imp]
-        intro h1 h2 h3
-        simp only [h1, true_and]
-        intro x hx
-        rcases Nat.lt_or_eq_of_le $ Nat.le_of_lt_succ hx with hx | hx
-        . exact h3 x hx
-        . rw [← hx] at h2
-          simp only [UScalar.ofNat'_val_eq ht.2.1, cast_cast, cast_eq] at h2
-          exact h2
-      . simp only [ne_eq, Bool.and_eq_true, and_assoc, and_imp]
-        intro h1 h2
-        simp only [h1, true_and]
-        constructor
-        . specialize h2 (cast ht.2.2.symm ((UScalar.ofNat' b')))
-          simp only [cast_cast, cast_eq, BitVec.toNat_ofNat] at h2
-          exact h2 $ Nat.lt_of_le_of_lt (Nat.mod_le _ _) (Nat.lt_succ_self b')
-        . intro x hx
-          exact h2 x (by omega)
-
-theorem ofMkFold4EqTrue {t1 t2 t3 t4 : Type} [h1 : IsNatLike t1] [h2 : IsNatLike t2] [h3 : IsNatLike t3]
-  [h4 : IsNatLike t4] (b1 : t1) (b2 : t1 → t2) (b3 : t1 → t2 → t3) (b4 : t1 → t2 → t3 → t4)
-  (f : t1 → t2 → t3 → t4 → Bool) :
-  mkFold4 b1 b2 b3 b4 f true → ∀ x < b1, ∀ y < b2 x, ∀ z < b3 x y, ∀ a < b4 x y z, f x y z a := by
-  simp only [ofMkFold4EqTrueAux, true_and, imp_self]
-
-def mkFold5 {t1 t2 t3 t4 t5 : Type} [h1 : IsNatLike t1] [h2 : IsNatLike t2] [h3 : IsNatLike t3]
-  [h4 : IsNatLike t4] [h5 : IsNatLike t5] (b1 : t1) (b2 : t1 → t2) (b3 : t1 → t2 → t3)
-  (b4 : t1 → t2 → t3 → t4) (b5 : t1 → t2 → t3 → t4 → t5) (f : t1 → t2 → t3 → t4 → t5 → Bool) (acc : Bool) : Bool :=
-  match h1.pf with
-  | .isNatPf pf =>
-    Fin.foldr (cast pf b1)
-      (fun (x : Fin (cast pf b1)) (acc : Bool) =>
-        mkFold4 (b2 (cast pf.symm x.1)) (b3 (cast pf.symm x.1)) (b4 (cast pf.symm x.1))
-          (b5 (cast pf.symm x.1)) (f (cast pf.symm x.1)) acc) acc
-  | .isBitVecPf pf =>
-    Fin.foldr (cast pf.2 b1).toNat
-      (fun (x : Fin (cast pf.2 b1).toNat) (acc : Bool) =>
-        mkFold4 (b2 (cast pf.2.symm x.1)) (b3 (cast pf.2.symm x.1)) (b4 (cast pf.2.symm x.1))
-          (b5 (cast pf.2.symm x.1)) (f (cast pf.2.symm x.1)) acc) acc
-  | .isUScalarPf pf =>
-    Fin.foldr (cast pf.2.2 b1).val
-      (fun (x : Fin (cast pf.2.2 b1).val) (acc : Bool) =>
-        mkFold4 (b2 (cast pf.2.2.symm (UScalar.ofNat' x.1)))
-          (b3 (cast pf.2.2.symm (UScalar.ofNat' x.1)))
-          (b4 (cast pf.2.2.symm (UScalar.ofNat' x.1)))
-          (b5 (cast pf.2.2.symm (UScalar.ofNat' x.1)))
-          (f (cast pf.2.2.symm (UScalar.ofNat' x.1))) acc) acc
-
-theorem ofMkFold5EqTrueAux {t1 t2 t3 t4 t5 : Type} [h1 : IsNatLike t1] [h2 : IsNatLike t2] [h3 : IsNatLike t3]
-  [h4 : IsNatLike t4] [h5 : IsNatLike t5] (b1 : t1) (b2 : t1 → t2) (b3 : t1 → t2 → t3)
-  (b4 : t1 → t2 → t3 → t4) (b5 : t1 → t2 → t3 → t4 → t5) (f : t1 → t2 → t3 → t4 → t5 → Bool) (acc : Bool) :
-  mkFold5 b1 b2 b3 b4 b5 f acc =
-  (acc ∧ ∀ x < b1, ∀ y < b2 x, ∀ z < b3 x y, ∀ a < b4 x y z, ∀ b < b5 x y z a, f x y z a b) := by
-  unfold mkFold5
-  split
-  . next ht hpf =>
-    rw [LT.lt, instLTOfIsNatLike, hpf]
-    simp only [gt_iff_lt, eq_iff_iff]
-    induction (cast ht b1) generalizing acc
-    . simp
-    . next b1' ih =>
-      simp only [Fin.foldr_succ_last, Fin.coe_castSucc, Fin.val_last]
-      tlet acc' :=
-        mkFold4 (b2 (cast ht.symm b1')) (b3 (cast ht.symm b1')) (b4 (cast ht.symm b1'))
-          (b5 (cast ht.symm b1')) (f (cast ht.symm b1')) acc
-      rw [ih acc', ofMkFold4EqTrueAux (b2 (cast ht.symm b1'))]
-      constructor
-      . simp only [Bool.and_eq_true, and_assoc, and_imp]
-        intro h1 h2 h3
-        simp only [h1, true_and]
-        intro x hx
-        rcases Nat.lt_or_eq_of_le $ Nat.le_of_lt_succ hx with hx | hx
-        . exact h3 x hx
-        . rw [← hx] at h2
-          simp only [cast_cast, cast_eq] at h2
-          exact h2
-      . simp only [Bool.and_eq_true, and_assoc, and_imp]
-        intro h1 h2
-        simp only [h1, true_and]
-        constructor
-        . specialize h2 (cast ht.symm b1')
-          simp only [cast_cast, cast_eq, lt_add_iff_pos_right, zero_lt_one, forall_const] at h2
-          exact h2
-        . intro x hx
-          exact h2 x (by omega)
-  . next ht hpf =>
-    rw [LT.lt, instLTOfIsNatLike, hpf]
-    simp only [BitVec.natCast_eq_ofNat, gt_iff_lt, eq_iff_iff]
-    rw [LT.lt, instLTBitVec]
-    simp only [gt_iff_lt]
-    induction (cast ht.2 b1).toNat generalizing acc
-    . simp
-    . next b' ih =>
-      simp only [Fin.foldr_succ_last, Fin.coe_castSucc, Fin.val_last]
-      tlet acc' :=
-        mkFold4 (b2 (cast ht.2.symm (BitVec.ofNat ht.fst b')))
-          (b3 (cast ht.2.symm (BitVec.ofNat ht.fst b')))
-          (b4 (cast ht.2.symm (BitVec.ofNat ht.fst b')))
-          (b5 (cast ht.2.symm (BitVec.ofNat ht.fst b')))
-          (f (cast ht.2.symm (BitVec.ofNat ht.fst b'))) acc
-      rw [ih acc', ofMkFold4EqTrueAux (b2 (cast ht.2.symm (BitVec.ofNat ht.1 b')))]
-      constructor
-      . simp only [Bool.and_eq_true, and_assoc, and_imp]
-        intro h1 h2 h3
-        simp only [h1, true_and]
-        intro x hx
-        rcases Nat.lt_or_eq_of_le $ Nat.le_of_lt_succ hx with hx | hx
-        . exact h3 x hx
-        . rw [← hx] at h2
-          simp only [BitVec.ofNat_toNat, BitVec.setWidth_eq, cast_cast, cast_eq] at h2
-          exact h2
-      . simp only [Bool.and_eq_true, and_assoc, and_imp]
-        intro h1 h2
-        simp only [h1, true_and]
-        constructor
-        . specialize h2 (cast ht.2.symm ((BitVec.ofNat ht.fst b')))
-          simp only [cast_cast, cast_eq, BitVec.toNat_ofNat] at h2
-          exact h2 $ Nat.lt_of_le_of_lt (Nat.mod_le _ _) (Nat.lt_succ_self b')
-        . intro x hx
-          exact h2 x (by omega)
-  . next ht hpf =>
-    rw [LT.lt, instLTOfIsNatLike, hpf]
-    simp only [ne_eq, UScalar.lt_equiv, gt_iff_lt, eq_iff_iff]
-    induction (cast ht.2.2 b1).val generalizing acc
-    . simp
-    . next b' ih =>
-      simp only [Fin.foldr_succ_last, Fin.coe_castSucc, Fin.val_last]
-      tlet acc' :=
-        mkFold4
-          (b2 (cast ht.2.2.symm (UScalar.ofNat' b')))
-          (b3 (cast ht.2.2.symm (UScalar.ofNat' b')))
-          (b4 (cast ht.2.2.symm (UScalar.ofNat' b')))
-          (b5 (cast ht.2.2.symm (UScalar.ofNat' b')))
-          (f (cast ht.2.2.symm (UScalar.ofNat' b'))) acc
-      rw [ih acc', ofMkFold4EqTrueAux (b2 (cast ht.2.2.symm (UScalar.ofNat' b')))]
-      constructor
-      . simp only [ne_eq, Bool.and_eq_true, and_assoc, and_imp]
-        intro h1 h2 h3
-        simp only [h1, true_and]
-        intro x hx
-        rcases Nat.lt_or_eq_of_le $ Nat.le_of_lt_succ hx with hx | hx
-        . exact h3 x hx
-        . rw [← hx] at h2
-          simp only [UScalar.ofNat'_val_eq ht.2.1, cast_cast, cast_eq] at h2
-          exact h2
-      . simp only [ne_eq, Bool.and_eq_true, and_assoc, and_imp]
-        intro h1 h2
-        simp only [h1, true_and]
-        constructor
-        . specialize h2 (cast ht.2.2.symm ((UScalar.ofNat' b')))
-          simp only [cast_cast, cast_eq, BitVec.toNat_ofNat] at h2
-          exact h2 $ Nat.lt_of_le_of_lt (Nat.mod_le _ _) (Nat.lt_succ_self b')
-        . intro x hx
-          exact h2 x (by omega)
-
-theorem ofMkFold5EqTrue {t1 t2 t3 t4 t5 : Type} [h1 : IsNatLike t1] [h2 : IsNatLike t2] [h3 : IsNatLike t3]
-  [h4 : IsNatLike t4] [h5 : IsNatLike t5] (b1 : t1) (b2 : t1 → t2) (b3 : t1 → t2 → t3)
-  (b4 : t1 → t2 → t3 → t4) (b5 : t1 → t2 → t3 → t4 → t5) (f : t1 → t2 → t3 → t4 → t5 → Bool) :
-  mkFold5 b1 b2 b3 b4 b5 f true →
-  ∀ x < b1, ∀ y < b2 x, ∀ z < b3 x y, ∀ a < b4 x y z, ∀ b < b5 x y z a, f x y z a b := by
-  simp only [ofMkFold5EqTrueAux, true_and, imp_self]
+  . next b' =>
+    rcases @IsNatLike.pf t2 h2 with h2 | h2 | h2
+    . simp only
+      induction (cast h2 b')
+      . simp
+      . next b' ih =>
+        simp [Fin.foldr_succ_last, ih]
+    . simp only
+      induction (cast h2.2 b').toNat
+      . simp
+      . next b' ih =>
+        simp [Fin.foldr_succ_last, ih]
+    . simp only
+      induction (cast h2.2.2 b').val
+      . simp
+      . next b' ih =>
+        simp [Fin.foldr_succ_last, ih]
+  . rcases heq : @IsNatLike.pf t2 h2 with h2 | h2 | h2
+    . simp [mkFold1, mkFold1NoUpperBound, heq] at h
+    . simp only
+      induction 2 ^ h2.1
+      . simp
+      . next b' ih =>
+        simp [Fin.foldr_succ_last, ih]
+    . simp only
+      induction 2 ^ h2.1.numBits
+      . simp
+      . next b' ih =>
+        simp [Fin.foldr_succ_last, ih]
 
 end Brute

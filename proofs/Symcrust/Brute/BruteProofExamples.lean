@@ -67,7 +67,7 @@ theorem bruteTacticProof2NoneNone {t1 t2 : Type} [IsNatLike t1] [IsNatLike t2] (
       (fun x' => (mkFold1 none (f x') true))
     . intro x
       exact ofMkFold1Triv f x none
-    . sorry -- Can prove via computation
+    . sorry
 
 theorem bruteTacticProof2LtLt {t1 t2 : Type} [IsNatLike t1] [IsNatLike t2] (b1 : t1) (b2 : t1 → t2)
   (f : t1 → t2 → Bool) :
@@ -83,7 +83,7 @@ theorem bruteTacticProof2LtLt {t1 t2 : Type} [IsNatLike t1] [IsNatLike t2] (b1 :
     apply ofMkFold1SomeLt b1 _ (fun x' => (mkFold1 (some (b2 x')) (f x') true))
     . intro x hx
       exact ofMkFold1Triv f x (some (b2 x))
-    . sorry -- Can prove via computation
+    . sorry
 
 theorem bruteTacticProof2LtLe {t1 t2 : Type} [IsNatLike t1] [IsNatLike t2] (b1 : t1) (b2 : t1 → t2)
   (f : t1 → t2 → Bool) :
@@ -99,7 +99,7 @@ theorem bruteTacticProof2LtLe {t1 t2 : Type} [IsNatLike t1] [IsNatLike t2] (b1 :
     apply ofMkFold1SomeLt b1 _ (fun x' => (mkFold1 (natLikeSucc (b2 x')) (f x') true))
     . intro x hx
       exact ofMkFold1Triv f x (natLikeSucc (b2 x))
-    . sorry -- Can prove via computation
+    . sorry
 
 theorem bruteTacticProof2LeLt {t1 t2 : Type} [IsNatLike t1] [IsNatLike t2] (b1 : t1) (b2 : t1 → t2)
   (f : t1 → t2 → Bool) :
@@ -115,7 +115,7 @@ theorem bruteTacticProof2LeLt {t1 t2 : Type} [IsNatLike t1] [IsNatLike t2] (b1 :
     apply ofMkFold1SomeLe b1 _ (fun x' => (mkFold1 (some (b2 x')) (f x') true))
     . intro x hx
       exact ofMkFold1Triv f x (some (b2 x))
-    . sorry -- Can prove via computation
+    . sorry
 
 theorem bruteTacticProof2LeLe {t1 t2 : Type} [IsNatLike t1] [IsNatLike t2] (b1 : t1) (b2 : t1 → t2)
   (f : t1 → t2 → Bool) :
@@ -131,7 +131,7 @@ theorem bruteTacticProof2LeLe {t1 t2 : Type} [IsNatLike t1] [IsNatLike t2] (b1 :
     apply ofMkFold1SomeLe b1 _ (fun x' => (mkFold1 (natLikeSucc (b2 x')) (f x') true))
     . intro x hx
       exact ofMkFold1Triv f x (natLikeSucc (b2 x))
-    . sorry -- Can prove via computation
+    . sorry
 
 theorem bruteTacticProof2LtNone {t1 t2 : Type} [IsNatLike t1] [IsNatLike t2] (b1 : t1) (f : t1 → t2 → Bool) :
   ∀ x < b1, ∀ y : t2, f x y := by
@@ -145,7 +145,7 @@ theorem bruteTacticProof2LtNone {t1 t2 : Type} [IsNatLike t1] [IsNatLike t2] (b1
     apply ofMkFold1SomeLt b1 _ (fun x' => (mkFold1 none (f x') true))
     . intro x hx
       exact ofMkFold1Triv f x none
-    . sorry -- Can prove via computation
+    . sorry
 
 theorem bruteTacticProof2NoneLt {t1 t2 : Type} [IsNatLike t1] [IsNatLike t2] (b2 : t1 → t2) (f : t1 → t2 → Bool) :
   ∀ x : t1, ∀ y < b2 x, f x y := by
@@ -160,7 +160,7 @@ theorem bruteTacticProof2NoneLt {t1 t2 : Type} [IsNatLike t1] [IsNatLike t2] (b2
     apply ofMkFold1None _ (fun x' => (mkFold1 (some (b2 x')) (f x') true))
     . intro x
       exact ofMkFold1Triv f x (some (b2 x))
-    . sorry -- Can prove via computation
+    . sorry
 
 theorem bruteTacticProof3NoneNoneNone {t1 t2 t3 : Type} [IsNatLike t1] [IsNatLike t2] [IsNatLike t3] (f : t1 → t2 → t3 → Bool) :
   ∀ x : t1, ∀ y : t2, ∀ z : t3, f x y z := by
@@ -180,7 +180,7 @@ theorem bruteTacticProof3NoneNoneNone {t1 t2 t3 : Type} [IsNatLike t1] [IsNatLik
       apply ofMkFold1None _ (fun x' => mkFold1 none (fun y' => mkFold1 none (f x' y') true) true)
       . intro x h
         exact h
-      . sorry -- Can prove via computation
+      . sorry
 
 theorem bruteTacticProof3LtLtLt {t1 t2 t3 : Type} [IsNatLike t1] [IsNatLike t2] [IsNatLike t3] (b1 : t1)
   (b2 : t1 → t2) (b3 : t1 → t2 → t3) (f : t1 → t2 → t3 → Bool) :
@@ -203,7 +203,7 @@ theorem bruteTacticProof3LtLtLt {t1 t2 t3 : Type} [IsNatLike t1] [IsNatLike t2] 
       apply ofMkFold1SomeLt _ _ (fun x' => mkFold1 (some (b2 x')) (fun y' => mkFold1 (some (b3 x' y')) (f x' y') true) true)
       . intro x hx h
         exact h
-      . sorry -- Can prove via computation
+      . sorry
 
 theorem bruteTacticProof4NoneNoneNoneNone {t1 t2 t3 t4 : Type} [IsNatLike t1] [IsNatLike t2] [IsNatLike t3] [IsNatLike t4]
   (f : t1 → t2 → t3 → t4 → Bool) :
@@ -227,7 +227,7 @@ theorem bruteTacticProof4NoneNoneNoneNone {t1 t2 t3 t4 : Type} [IsNatLike t1] [I
           (fun x' => mkFold1 none (fun y' => mkFold1 none (fun z' => mkFold1 none (f x' y' z') true) true) true)
         . intro x
           exact fun h => h
-        . sorry -- Can prove via computation
+        . sorry
 
 theorem bruteTacticProof5NoneNoneNoneNoneNone {t1 t2 t3 t4 t5 : Type}
   [IsNatLike t1] [IsNatLike t2] [IsNatLike t3] [IsNatLike t4] [IsNatLike t5]
@@ -259,7 +259,7 @@ theorem bruteTacticProof5NoneNoneNoneNoneNone {t1 t2 t3 t4 t5 : Type}
                 mkFold1 none (fun z' => mkFold1 none (fun a' => mkFold1 none (f x' y' z' a') true) true) true) true)
           . intro x h
             rw [h]
-          . sorry -- Can prove via computation
+          . sorry
 
 theorem bruteTermProof2LtNone {t1 t2 : Type} [IsNatLike t1] [IsNatLike t2] (b1 : t1) (f : t1 → t2 → Bool) :
   ∀ x < b1, ∀ y : t2, f x y :=
@@ -273,7 +273,7 @@ theorem bruteTermProof2LtNone {t1 t2 : Type} [IsNatLike t1] [IsNatLike t2] (b1 :
         (fun x' => mkFold1 none (fun x_1 => mkFold1 none (f x') true) true)
         (fun x' => mkFold1 none (f x') true)
         (fun x' hx' => ofMkFold1Triv f x' none)
-        (by sorry)
+        sorry
         x hx
       )
 
@@ -289,7 +289,7 @@ theorem bruteTermProof2NoneLt {t1 t2 : Type} [IsNatLike t1] [IsNatLike t2] (b2 :
         (fun x' => mkFold1 (some (b2 x')) (fun x_1 => mkFold1 (some (b2 x')) (f x') true) true)
         (fun x' => mkFold1 (some (b2 x')) (f x') true)
         (fun x' => ofMkFold1Triv f x' (some (b2 x')))
-        (by sorry)
+        sorry
         x
       )
 
@@ -307,7 +307,7 @@ theorem bruteTermProof2LtLt {t1 t2 : Type} [IsNatLike t1] [IsNatLike t2] (b1 : t
         (fun x' => mkFold1 (some (b2 x')) (fun x_1 => mkFold1 (some (b2 x')) (f x') true) true)
         (fun x' => mkFold1 (some (b2 x')) (f x') true)
         (fun x' hx' => ofMkFold1Triv f x' (some (b2 x')))
-        (by sorry)
+        sorry
         x hx
       )
 
@@ -378,7 +378,7 @@ theorem bruteTermProof2NoneNone {t1 t2 : Type} [IsNatLike t1] [IsNatLike t2] (f 
         (fun x' => mkFold1 (none : Option t2) (fun x_1 => mkFold1 (none : Option t2) (f x') true) true)
         (fun x' => mkFold1 (none : Option t2) (f x') true)
         (fun x' => ofMkFold1Triv f x' none)
-        sorry -- Proof by computation
+        sorry
         x
       )
 
@@ -398,7 +398,7 @@ theorem bruteTermProof3NoneNoneNone {t1 t2 t3 : Type} [IsNatLike t1] [IsNatLike 
           (fun x' => mkFold1 none (fun y' => mkFold1 none (f x' y') true) true)
           (fun x' => mkFold1 none (fun y' => mkFold1 none (f x' y') true) true)
           (fun _ h => h)
-          sorry -- Proof by computation
+          sorry
           x
         )
         y
@@ -424,7 +424,7 @@ theorem bruteTermProof3LtLtLt {t1 t2 t3 : Type} [IsNatLike t1] [IsNatLike t2] [I
           (fun x' =>
             mkFold1 (some (b2 x')) (fun y' => mkFold1 (some (b3 x' y')) (f x' y') true) true)
           (fun x hx h => h)
-          sorry -- Can prove via computation
+          sorry
           x hx
         )
         y hy
@@ -451,7 +451,7 @@ theorem bruteTermProof4NoneNoneNoneNone {t1 t2 t3 t4 : Type} [IsNatLike t1] [IsN
             (fun x' =>
               mkFold1 none (fun y' => mkFold1 none (fun z' => mkFold1 (none : Option t4) (f x' y' z') true) true) true)
             (fun x' h => h)
-            sorry -- Proof by computation
+            sorry
             x
           )
           y
