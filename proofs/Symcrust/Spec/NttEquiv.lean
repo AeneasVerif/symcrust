@@ -316,13 +316,10 @@ namespace Poly
     use monomial 0 (Ring.inverse (Zq.ζ^m - Zq.ζ^k))
     use -monomial 0 (Ring.inverse (Zq.ζ^m - Zq.ζ^k))
     rw [mul_sub, mul_sub, xn]
-    simp [monomial_mul_monomial, mul_one, add_zero, one_mul]
     ring_nf
     rw [← mul_sub_left_distrib, ζ]
     simp
-    rw [← C.map_pow (Zq.ζ) m, ← C.map_pow (Zq.ζ), ← C.map_sub (Zq.ζ^m), ← C.map_mul, ← C.map_one]
-    have : (Zq.ζ^m - Zq.ζ^k)⁻¹ * (Zq.ζ^m - Zq.ζ^k) = 1 := by
-      exact ZMod.inv_mul_of_unit (Zq.ζ ^ m - Zq.ζ ^ k) diffUnit
-    rw [this]
+    rw [← C.map_pow (Zq.ζ) m, ← C.map_pow (Zq.ζ), ← C.map_sub (Zq.ζ^m), ← C.map_mul]
+    rw [ZMod.inv_mul_of_unit (Zq.ζ ^ m - Zq.ζ ^ k) diffUnit]
     tauto
     repeat assumption
