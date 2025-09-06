@@ -68,29 +68,42 @@ def typeFromInst (inst : Expr) : TacticM Expr :=
   | .app (.app (.const ``IsNatLike.mk _) t) _ => pure t
   | _ => throwError "{decl_name%} :: Invalid IsNatLike instance {inst}"
 
-/-- If `t` is an Expr corresponding to `Nat`, `BitVec n`, or `UScalar t'`, then `getIsNatLike` returns
-    an Expr whose type is `IsNatLike t`. Otherwise, `getIsNatLike` returns `none`. -/
+/-- If `t` is an Expr corresponding to `Nat`, `BitVec n`, or `UScalar t'` (where `t' ≠ Usize`), then
+    `getIsNatLike` returns an Expr whose type is `IsNatLike t`. Otherwise, `getIsNatLike` returns `none`. -/
 def getIsNatLikeInstance (t : Expr) : MetaM (Option Expr) := do
   match t with
   | .const ``Nat _ =>
+    -- `rflPf := (rfl : t = Nat)`
     let rflPf ← mkAppOptM ``Eq.refl #[some (.sort 1), some t]
+    -- `isNatPf := (isNatPf rflPf : IsNatLikePf t)`
     let isNatPf ← mkAppOptM ``IsNatLikePf.isNatPf #[none, rflPf]
+    -- `inst := (IsNatLike.mk isNatPf : IsNatLike t)`
     let inst ← mkAppM ``IsNatLike.mk #[isNatPf]
     return some inst
   | .app (.const ``BitVec _) n =>
+    -- `rflPf := (rfl : t = t)`
     let rflPf ← mkAppOptM ``Eq.refl #[some (.sort 1), some t]
+    -- `pSigmaβBody := (t = BitVec (Expr.bvar 0))`. This is not well typed until enclosed in a lambda
     let pSigmaβBody :=
       mkApp3 (mkConst ``Eq [2]) (.sort 1) (.app (.const ``BitVec []) n) (.app (.const ``BitVec []) (.bvar 0))
+    -- `pSigmaβ := (λ (n : Nat) => pSigmaβBody : ∀ n, Sort _)`
     let pSigmaβ := Expr.lam `n (mkConst ``Nat) pSigmaβBody .default
+    -- `pSigmaPf := (PSigma.mk n rflPf : PSigma pSigmaβ`
     let pSigmaPf ← mkAppOptM ``PSigma.mk #[none, some pSigmaβ, n, rflPf]
+    -- `isBitVecPf := (IsNatLikePf.isBitVecPf pSigmaPf : IsNatLikePf t)`
     let isBitVecPf ← mkAppOptM ``IsNatLikePf.isBitVecPf #[none, pSigmaPf]
+    -- `inst := (IsNatLike.mk isBitVecPf : IsNatLike t)`
     let inst ← mkAppM ``IsNatLike.mk #[isBitVecPf]
     return some inst
   | .app (.const ``UScalar _) (.const ``Usize _) => return none
   | .app (.const ``UScalar _) sizeTy => -- Matches with all `UScalar` types except `Usize`
+    -- `rflPf := (rfl : t = t)`
     let rflPf ← mkAppOptM ``Eq.refl #[some (.sort 1), some t]
+    -- `sizeTyNeUsizePf := (UScalarTy.noConfusion : sizeTy = Usize → False)`
     let sizeTyNeUsizePf ← mkAppOptM ``UScalarTy.noConfusion #[mkConst ``False, sizeTy, mkConst ``Usize]
+    -- `andPf : (⟨sizeTyNeUsizePf, rflPf⟩ : sizeTy = Usize → False ∧ t = t`
     let andPf ← mkAppM ``And.intro #[sizeTyNeUsizePf, rflPf]
+    -- `pSigmaβBody := (((Expr.bvar 0) ≠ Usize) ∧ (UScalar sizeTy = UScalar (Expr.bvar 0)))`. This is not well typed until enclosed in a lambda
     let pSigmaβBody :=
       mkApp2 (mkConst ``And)
         (mkApp3 (mkConst ``Ne [2]) (.sort 1) (.bvar 0) (mkConst ``Usize))
@@ -98,12 +111,17 @@ def getIsNatLikeInstance (t : Expr) : MetaM (Option Expr) := do
           (.app (.const ``UScalar []) sizeTy)
           (.app (.const ``UScalar []) (.bvar 0))
         )
-    let pSigmaβ := Expr.lam `n (mkConst ``UScalarTy) pSigmaβBody .default
+    -- `pSigmaβ := ((λ t' : UScalarTy => pSigmaβBody) : ∀ t', Sort _)`
+    let pSigmaβ := Expr.lam `t' (mkConst ``UScalarTy) pSigmaβBody .default
+    -- `pSigmaPf := (PSigma.mk sizeTy andPf : PSigma pSigmaβ)`
     let pSigmaPf ← mkAppOptM ``PSigma.mk #[none, pSigmaβ, sizeTy, andPf]
+    -- `isUScalarPf := (IsNatLikePf.isUScalarPf pSigmaPf : IsNatLikePf t)`
     let isUScalarPf ← mkAppOptM ``IsNatLikePf.isUScalarPf #[none, pSigmaPf]
+    -- `inst := (IsNatLike.mk isUScalarPf : IsNatLike t)`
     let inst ← mkAppM ``IsNatLike.mk #[isUScalarPf]
     return some inst
   | .const ``U8 _ | .const ``U16 _ | .const ``U32 _ | .const ``U64 _ | .const ``U128 _ =>
+    -- This code is identical to the preceding case except that `getSizeTyFromAbbrev` is called to obtain `sizeTy`
     let some sizeTy := getSizeTyFromAbbrev t
       | return none
     let rflPf ← mkAppOptM ``Eq.refl #[some (.sort 1), some t]
@@ -116,7 +134,7 @@ def getIsNatLikeInstance (t : Expr) : MetaM (Option Expr) := do
           (.app (.const ``UScalar []) sizeTy)
           (.app (.const ``UScalar []) (.bvar 0))
         )
-    let pSigmaβ := Expr.lam `n (mkConst ``UScalarTy) pSigmaβBody .default
+    let pSigmaβ := Expr.lam `t' (mkConst ``UScalarTy) pSigmaβBody .default
     let pSigmaPf ← mkAppOptM ``PSigma.mk #[none, pSigmaβ, sizeTy, andPf]
     let isUScalarPf ← mkAppOptM ``IsNatLikePf.isUScalarPf #[none, pSigmaPf]
     let inst ← mkAppM ``IsNatLike.mk #[isUScalarPf]
@@ -135,7 +153,7 @@ def popBoundBinders (poppedNatLikeGoalBinders : Array Expr)
   let b1Type := b1LocalDecl.type
   let b2Type := b2LocalDecl.type
   let some isNatLikeInst ← getIsNatLikeInstance b1Type
-    | return none -- Don't pop any binders if `b1`
+    | return none -- Don't pop any binders if `b1` is not NatLike
   let (b1UpperBound, hxb) ←
     match b2Type with
     | .app (.app (.app (.app (.const ``LT.lt _) _) _) x) y =>
@@ -191,7 +209,7 @@ def upperBoundExprFromBoundType (b : BoundType) (inst : Expr) : TacticM Expr := 
       mkAppOptM ``none #[t]
     | _ => throwError "{decl_name%} :: Invalid IsNatLike instance {inst}"
 
-/-- Applies the appropriate to derive the original goal from the successful computation of the fold function. -/
+/-- Applies the appropriate lemma to derive the original goal from the successful computation of the fold function. -/
 def buildOfMkFoldProof (b : BoundType) (inst f f' hf : Expr) : TacticM Expr := do
   match b with
   | .ltUpperBound b => mkAppOptM ``ofMkFold1SomeLt #[none, inst, b, f, f', hf]
@@ -201,6 +219,9 @@ def buildOfMkFoldProof (b : BoundType) (inst f f' hf : Expr) : TacticM Expr := d
     | .app (.app (.const ``IsNatLike.mk _) t) _ => mkAppOptM ``ofMkFold1None #[t, inst, f, f', hf]
     | _ => throwError "{decl_name%} :: Invalid IsNatLike instance {inst}"
 
+/-- This function is used to construct the proof term `brute` produces when given a goal with exactly one NatLike
+    universal quantifier. Note that this code is entirely distinct from the code that handles goals with multiple
+    NatLike universal quantifiers (meaning that `bruteCore` does not ever call this function). -/
 def bruteBaseCase1 (xs : Array Expr) (g : Expr) (x : FVarId) (b : BoundType)
   (hxbOpt : Option FVarId) (inst : Expr) : TacticM Expr := do
   let boundFVars :=
@@ -246,6 +267,10 @@ def bruteBaseCase1 (xs : Array Expr) (g : Expr) (x : FVarId) (b : BoundType)
   let mkFold1Call ← mkAppOptM ``mkFold1 #[none, inst, ← upperBoundExprFromBoundType b inst, f, mkConst ``true]
   let ofMkFoldProof ← buildOfMkFoldProof b inst f f hfPf
 
+  /-  The following code is adapted from `native_decide`'s implementation, and is used to create and compile a
+      constant whose definition is the expression in `mkFold1Call`. This step is required because `Lean.ofReduceBool`,
+      the axiom which allows `brute` and `native_decide` to trust the compiler's evaluation, requires that the argument
+      it is provided is a constant. See the docstrings for `Lean.ofReduceBool` and `Lean.reduceBool` for more details. -/
   let levels := (collectLevelParams {} mkFold1Call).params.toList
   let auxDeclName ← Term.mkAuxName `_brute
   let decl := Declaration.defnDecl $
@@ -269,9 +294,6 @@ def buildComputationResBase_aux (prefixBoundTypes : List BoundType) (prefixInsts
     let prefixInsts := prefixInsts.drop 1
     let nextPrefixMVar := unusedPrefixMVars[0]!
     let unusedPrefixMVars := unusedPrefixMVars.drop 1
-
-    trace[brute.debug] "{decl_name%} :: nextPrefixMVar: {nextPrefixMVar}"
-    trace[brute.debug] "{decl_name%} :: nextPrefixMVar type: {← inferType nextPrefixMVar}"
 
     match nextPrefixBoundType with
     | .noUpperBound =>
