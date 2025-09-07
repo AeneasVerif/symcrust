@@ -284,8 +284,21 @@ def bruteBaseCase1 (xs : Array Expr) (g : Expr) (x : FVarId) (b : BoundType)
   let pf ← mkAppOptM' ofMkFoldProof $ Array.append #[foldResPf] (boundFVars.map some)
   mkLambdaFVars boundFVars (binderInfoForMVars := .default) $ ← mkAppOptM ``of_decide_eq_true #[none, none, pf]
 
--- **TODO** Modify names to make it clear that prefixBoundTypes, prefixInsts, and unusedPrefixMVars should have one-to-one correspondences with each other
-def buildComputationResBase_aux (prefixBoundTypes : List BoundType) (prefixInsts : Array Expr)
+/-- `buildMkFold1Composition` produces a computation consisting of nested `mkFold1` calls which verifies that the goal originally
+    given to `brute` is true. For example, from the original goal `∀ x < 3, ∀ y : BitVec 4, f x y`, `buildMkFold1Composition`
+    would yield the computation `mkFold1 (some 3) (fun (x' : Nat) => mkFold1 (none : BitVec 4) (f x') true) true`.
+
+    Additionally, `buildMkFold1Composition` also returns the inner lambda expression used in this computation (in the above
+    example, this would correspond to `fun (x' : Nat) => mkFold1 (none : BitVec 4) (f x') true`).
+
+    `buildMkFold1Composition` assumes that `prefixBoundTypes.length = prefixInsts.size = unusedPrefixMVars.size` and more broadly,
+    that the elements in each of these are in one-to-one correspondence. As `buildMkFold1Composition` recurses, elements are removed
+    from `unusedPrefixMVars` and placed into `usedPrefixMVars` so that over all recursive calls, `usedPrefixMVars ++ unusedPrefixMVars`
+    is constant.
+
+    `innerLamBody` is the argument used to specify what computation `mkFold1` should iterate over. It should be an expression with
+    uninstantiated mvars from `unusedPrefixMVars`. -/
+def buildMkFold1Composition (prefixBoundTypes : List BoundType) (prefixInsts : Array Expr)
   (usedPrefixMVars : Array Expr) (unusedPrefixMVars : Array Expr) (innerLamBody : Expr) : TacticM (Option Expr × Expr) := do
   match prefixBoundTypes with
   | [] => return (none, innerLamBody)
@@ -297,22 +310,31 @@ def buildComputationResBase_aux (prefixBoundTypes : List BoundType) (prefixInsts
 
     match nextPrefixBoundType with
     | .noUpperBound =>
-      let (_, innerLamBody) ← buildComputationResBase_aux prefixBoundTypes prefixInsts (usedPrefixMVars.push nextPrefixMVar) unusedPrefixMVars innerLamBody
+      let (_, innerLamBody) ← buildMkFold1Composition prefixBoundTypes prefixInsts (usedPrefixMVars.push nextPrefixMVar) unusedPrefixMVars innerLamBody
       let innerLam ← mkLambdaFVars #[nextPrefixMVar] innerLamBody (binderInfoForMVars := .default)
       let res ← mkAppOptM ``mkFold1 #[none, nextPrefixInst, ← mkAppOptM ``none #[← inferType nextPrefixMVar], innerLam, mkConst ``true]
       return (some innerLam, res)
     | .ltUpperBound b =>
-      let (_, innerLamBody) ← buildComputationResBase_aux prefixBoundTypes prefixInsts (usedPrefixMVars.push nextPrefixMVar) unusedPrefixMVars innerLamBody
+      let (_, innerLamBody) ← buildMkFold1Composition prefixBoundTypes prefixInsts (usedPrefixMVars.push nextPrefixMVar) unusedPrefixMVars innerLamBody
       let innerLam ← mkLambdaFVars #[nextPrefixMVar] innerLamBody (binderInfoForMVars := .default)
       let res ← mkAppOptM ``mkFold1 #[none, nextPrefixInst, ← mkAppM ``some #[← mkAppM' b usedPrefixMVars], innerLam, mkConst ``true]
       return (some innerLam, res)
     | .leUpperBound b =>
-      let (_, innerLamBody) ← buildComputationResBase_aux prefixBoundTypes prefixInsts (usedPrefixMVars.push nextPrefixMVar) unusedPrefixMVars innerLamBody
+      let (_, innerLamBody) ← buildMkFold1Composition prefixBoundTypes prefixInsts (usedPrefixMVars.push nextPrefixMVar) unusedPrefixMVars innerLamBody
       let innerLam ← mkLambdaFVars #[nextPrefixMVar] innerLamBody (binderInfoForMVars := .default)
       let res ← mkAppOptM ``mkFold1 #[none, nextPrefixInst, ← mkAppOptM ``natLikeSucc #[none, nextPrefixInst, ← mkAppM' b usedPrefixMVars], innerLam, mkConst ``true]
       return (some innerLam, res)
 
-def buildComputationResBase (prefixBinderInfos : Array BinderInfo)
+/-- Calls `buildMkFold1Composition`, compiles the result, and uses `Lean.ofReduceBool` to obtain a proof that the built computation evaluates to `true`.
+    Returns the proof that the build computation evaluates to `true` as well as the inner lambda returned by `buildMkFold1Composition`.
+
+    `buildAndCompileMkFold1Composition` expects that if the original goal given to `brute` has `n` NatLike binders:
+    - `prefixBinderInfos` contains the binder infos for the first `n - 1` NatLike binders
+    - `t` is the NatLike type of the `n`th and final NatLike binder
+    - `b` is the BoundType of the `n`th and final NatLike binder
+    - `inst` is an expression with the type `IsNatLike t`
+    - `f` is a lambda expression that takes as input all `n` NatLike binders and outputs the inner body of the original goal given to `brute` -/
+def buildAndCompileMkFold1Composition (prefixBinderInfos : Array BinderInfo)
   (t f : Expr) (b : BoundType) (inst : Expr) : TacticM (Option Expr × Expr × Expr) := do
   let prefixTypes ← prefixBinderInfos.mapM (fun bInfo => typeFromInst bInfo.isNatLikeInst)
   let prefixBoundTypes := prefixBinderInfos.map (fun bInfo => bInfo.b)
@@ -320,42 +342,30 @@ def buildComputationResBase (prefixBinderInfos : Array BinderInfo)
 
   let freshPrefixMVars ← prefixTypes.mapM (fun t => mkFreshExprMVar (some t))
 
-  trace[brute.debug] "{decl_name%} :: bp1"
-
-  -- `mkFold1 (some b1) (fun x' => mkFold1 (some (b2 x')) (f x') true) true = true`
-  -- `mkFold1 (some b1) (fun x' => mkFold1 none (f x') true) true = true`
-
-  /- Depending on b2, `innerLam` is either:
-      - `(fun (x' : t1) => mkFold1 (none : Option t2) (f x') true)`
-      - `(fun (x' : t1) => mkFold1 (some (b2 x')) (f x') true)` -/
-  let innerLamBody ← -- **TODO** Rename innerMostLam?
+  /- Depending on `b`, `innerMostLamBody` is either:
+      - `mkFold1 (none : Option t) (f [freshPrefixMVars]) true`
+      - `mkFold1 (some (b [freshPrefixMVars])) (f [freshPrefixMVars]) true` -/
+  let innerMostLamBody ←
     match b with
     | .noUpperBound => mkAppOptM ``mkFold1 #[none, inst, ← mkAppOptM ``none #[t], ← mkAppM' f freshPrefixMVars, mkConst ``true]
     | .ltUpperBound b => mkAppOptM ``mkFold1 #[none, inst, ← mkAppM ``some #[← mkAppM' b freshPrefixMVars], ← mkAppM' f freshPrefixMVars, mkConst ``true]
     | .leUpperBound b => mkAppOptM ``mkFold1 #[none, inst, ← mkAppOptM ``natLikeSucc #[none, inst, ← mkAppM' b freshPrefixMVars], ← mkAppM' f freshPrefixMVars, mkConst ``true]
 
-  trace[brute.debug] "{decl_name%} :: bp2"
-  trace[brute.debug] "{decl_name%} :: innerLamBody: {innerLamBody}"
-  trace[brute.debug] "{decl_name%} :: innerLamBody type: {← inferType innerLamBody}"
+  let (mkFold1InnerLamOpt, mkFold1Call) ← buildMkFold1Composition prefixBoundTypes.toList prefixInsts #[] freshPrefixMVars innerMostLamBody
 
-  /- Depending on b1, `mkFold1Call` is:
-    - `mkFold1 (none : Option t1) innerLam true`
-    - `mkFold1 (some b1) innerLam true` -/
-  let (fold1InnerLamOpt, mkFold1Call) ← buildComputationResBase_aux prefixBoundTypes.toList prefixInsts #[] freshPrefixMVars innerLamBody
-
-  trace[brute.debug] "{decl_name%} :: bp3"
-
+  /- The following code is adapted from `native_decide`'s implementation, and is used to create and compile a
+     constant whose definition is the expression in `mkFold1Call`. This step is required because `Lean.ofReduceBool`,
+     the axiom which allows `brute` and `native_decide` to trust the compiler's evaluation, requires that the argument
+     it is provided is a constant. See the docstrings for `Lean.ofReduceBool` and `Lean.reduceBool` for more details. -/
   let levels := (collectLevelParams {} mkFold1Call).params.toList
   let auxDeclName ← Term.mkAuxName `_brute
   let decl := Declaration.defnDecl $
     mkDefinitionValEx auxDeclName levels (mkConst ``Bool) mkFold1Call .abbrev .safe [auxDeclName]
   addAndCompile decl
 
-  trace[brute.debug] "{decl_name%} :: decl to be compiled: {mkFold1Call}"
-
   let rflPrf ← mkEqRefl (toExpr true)
   let levelParams := levels.map .param
-  return (fold1InnerLamOpt, mkFold1Call, mkApp3 (mkConst ``Lean.ofReduceBool) (mkConst auxDeclName levelParams) (toExpr true) rflPrf)
+  return (mkFold1InnerLamOpt, mkFold1Call, mkApp3 (mkConst ``Lean.ofReduceBool) (mkConst auxDeclName levelParams) (toExpr true) rflPrf)
 
 def buildComputationResFinalRecursive (prefixFVars natLikeFVars : Array Expr) (prefixBinderInfos : Array BinderInfo)
   (computationInnerLamOpt : Option Expr) (computationResIsTrue : Expr) : TacticM Expr := do
@@ -450,7 +460,7 @@ def buildComputationResRecursive (allPrefixFVars natLikePrefixFVars : Array Expr
       | .ltUpperBound b => mkAppOptM ``mkFold1 #[none, lastSuffixInst, ← mkAppM ``some #[← mkAppM' b args], ← mkAppM' f args, mkConst ``true]
       | .leUpperBound b => mkAppOptM ``mkFold1 #[none, lastSuffixInst, ← mkAppOptM ``natLikeSucc #[none, lastSuffixInst, ← mkAppM' b args], ← mkAppM' f args, mkConst ``true]
       let (arg1Opt, _) ←
-        buildComputationResBase_aux ([secondLastPrefixBoundType, lastPrefixBoundType] ++ (suffixBoundTypes.take (suffixBoundTypes.size - 1)).toList)
+        buildMkFold1Composition ([secondLastPrefixBoundType, lastPrefixBoundType] ++ (suffixBoundTypes.take (suffixBoundTypes.size - 1)).toList)
         (#[secondLastPrefixInst, lastPrefixInst] ++ (suffixInsts.take (suffixInsts.size - 1))) natLikePrefixFVarsTake2 freshMVars innerLamBody
 
       let arg1 := arg1Opt.get!
@@ -757,7 +767,7 @@ def bruteCore (binderInfos : Array BinderInfo) (unboundBinders : Array Expr) (g 
 
   trace[brute.debug] "bp5"
 
-  let (computationInnerLamOpt, computationRes, computationResIsTrue) ← buildComputationResBase binderInfosPrefix t f finalBinderInfo.b inst
+  let (computationInnerLamOpt, computationRes, computationResIsTrue) ← buildAndCompileMkFold1Composition binderInfosPrefix t f finalBinderInfo.b inst
 
   trace[brute.debug] "bp5.5"
 
