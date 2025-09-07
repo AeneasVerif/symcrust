@@ -1,4 +1,4 @@
-import Symcrust.Brute.BruteLemmas2
+import Symcrust.Brute.BruteLemmas
 
 /- This file contains examples of the proof terms that `brute` is meant to generate. Nothing is intended to depend on this file,
    it is only meant to serve as documentation for the proof terms that `brute` is meant to generate. Only examples with two or more

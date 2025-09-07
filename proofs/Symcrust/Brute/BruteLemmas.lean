@@ -1,10 +1,23 @@
 import Lean
 import Aeneas
 
-/-  This file contains helper lemmas for the implementation of `brute` defined in Brute2.lean. Note that
-    Brute2.lean is not yet functional, and relatedly, this file is not yet complete. Some of the functions
-    in this file are intended to be called by Brute2, while others serve as examples for the proof terms
-    that Brute2 is meant to generate. -/
+/-  This file contains various types and definitions used by `brute`. The important ones are:
+    - `IsNatLike`: A typeclass which defines the set of types that `brute` supports. Currently,
+      it is possible to build `IsNatLike t` instances for the types `Nat`, `BitVec n` and
+      `UScalar t'` where `t' ≠ UScalarTy.Usize`.
+    - `mkFold1`: The primary function that `brute` uses to build the computation verifying
+      the correctness of `brute`'s given goal. Depending on whether the first explicit argument
+      passed to `mkFold1` is `none`, it either evaluates to `mkFold1UpperBounded` or
+      `mkFold1NoUpperBound`.
+    - `natLikeSucc`: A function that takes in a NatLike value `b` and either returns `none` if it
+      is the maximal value of its type (e.g. `15#4 ↦ none`), or `some (b + 1)` if there is a
+      value of the same type as `b` which is one greater than `b`. This function is used to
+      obtain an exclusive upper (e.g. `< 5`) from an inclusive upper bound (e.g. `≤ 4`).
+    - `ofMkFold1None`/`ofMkFold1SomeLt`/`ofMkFold1SomeLe`: The lemmas that `brute` uses
+      to derive `brute`'s given goal from a successful evaluation of the `mkFold1` calls.
+    - `ofMkFold1Triv`: This is a lemma used by `brute` on goals with two or more NatLike
+      universal quantifiers. The easiest way to understand how this lemma is used is to
+      look at examples in BruteProofExamples.lean. -/
 
 open Lean Meta Parser Elab Tactic Aeneas Aeneas.Std
 
