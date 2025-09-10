@@ -5,9 +5,7 @@ import Mathlib.RingTheory.Coprime.Basic
 import Mathlib.RingTheory.Ideal.Defs
 import Mathlib.RingTheory.Ideal.Span
 import Mathlib.RingTheory.Ideal.Quotient.Defs
-import Mathlib.Algebra.Group.Invertible.Basic
 import Mathlib.RingTheory.ZMod.UnitsCyclic
-import Mathlib.GroupTheory.OrderOfElement
 
 import Mathlib.Tactic.Ring
 import Mathlib.Tactic.Linarith
@@ -24,6 +22,7 @@ def q := 3329
 
 @[simp]
 lemma q_isPrime : Nat.Prime q := by native_decide
+instance : Fact (Nat.Prime q) := ⟨q_isPrime⟩
 
 lemma q_nonzero : q ≠ 0 := by trivial
 lemma q_minus_one_fact : (q - 1) = 2^8 * 13 := rfl
@@ -31,8 +30,8 @@ lemma q_minus_one_fact : (q - 1) = 2^8 * 13 := rfl
 example : (q-2)*q = 2^16 * 169 - 1 := by simp
 
 def zeta := 17
+theorem zeta_coprime : Nat.Coprime zeta q := by rfl
 
-instance : Fact (Nat.Prime q) := ⟨q_isPrime⟩
 
 /-- Finite ring Zq --/
 
@@ -51,70 +50,42 @@ namespace Zq
   def one : Zq := 1
   def ζ : Zq := zeta
 
-  theorem zeta_coprime : Nat.Coprime ζ.val q := by rfl
+  lemma zeta_ne_one : ζ ≠ 1 := by trivial
+  lemma zeta_ne_zero : ζ ≠ 0 := by trivial
 
   theorem zeta_isUnit : IsUnit ζ := by
-    apply (ZMod.isUnit_iff_coprime ζ.val q).mpr
-    exact zeta_coprime
+    rw [isUnit_iff_ne_zero]
+    exact zeta_ne_zero
 
-  theorem zeta_ne_one : ζ ≠ 1 := by trivial
-  theorem zeta_ne_zero : ζ ≠ 0 := by trivial
+  lemma zeta_mul_inv_zeta_eq_one : ζ * ζ⁻¹ = 1 := by
+    apply div_self zeta_ne_zero
 
-  theorem zeta_mul_inv_zeta_eq_one : ζ * ζ⁻¹ = 1 := by
-    simp
-    rw [ZMod.mul_inv_eq_gcd]
-    have : ↑((gcd) ζ.val q) = (1 : Zq) := rfl
-    apply this
-
-  theorem inv_zeta_mul_zeta_eq_one : ζ⁻¹ * ζ = 1 := by
+  lemma inv_zeta_mul_zeta_eq_one : ζ⁻¹ * ζ = 1 := by
     rw [mul_comm]
     exact zeta_mul_inv_zeta_eq_one
 
-  theorem inv_zeta_val : ζ⁻¹ = 1175 := by
-    have h : ζ * 1175 = 1 := by rfl
-    calc
-      ζ⁻¹ = ζ⁻¹ * 1 := by simp
-      _ = ζ⁻¹ * ζ * 1175 := by rw [← h, mul_assoc]
-      _ = 1 * 1175 := by rw [inv_zeta_mul_zeta_eq_one]
-      _ = 1175 := by simp
+  lemma inv_zeta_val : ζ⁻¹ = 1175 := by
+    exact ZMod.inv_eq_of_mul_eq_one q ζ 1175 (by rfl : ζ * 1175 = 1)
 
-  theorem inv_zeta_eq_zeta_pow : ζ⁻¹ = ζ ^ 255 := by
-    rw [inv_zeta_val]
-    rfl
+  lemma inv_zeta_eq_zeta_pow : ζ⁻¹ = ζ ^ 255 := by
+    rw [inv_zeta_val] ; rfl
 
-  -- zeta ^ 256 = 1
   theorem zeta_256_eq : ζ ^ 256 = 1 := by rfl
 
   theorem zeta_128_eq : ζ ^ 128 = - 1 := by rfl
 
-  theorem zeta_2_eq : ζ ^ 2 = 289 := by rfl
+  example : ζ ^ 2 = 289 := by rfl
 
-  theorem zeta_13_eq : ζ ^ 13 = 939 := by rfl
+  example : ζ ^ 13 = 939 := by rfl
 
-  lemma zeta_order_div_256 :  orderOf ζ ∣ 256 := by
-    apply orderOf_dvd_of_pow_eq_one zeta_256_eq
+  lemma zeta_pow_m_neq_one (m : Nat) (hu : m < 256) (hl : 0 < m) : ζ ^ m ≠ 1 := by
+    decide +revert
 
   theorem zeta_order_eq_256 : orderOf ζ = 256 := by
-    have : 0 < 256 := by decide
-    apply (orderOf_eq_iff this).mpr
+    apply (orderOf_eq_iff (by decide)).mpr
     constructor
     · exact zeta_256_eq
-    · intro m hlt hgt
-      decide +revert
-
-  theorem zeta_pow_non_zero (m : Nat) : ζ ^ m ≠ 0 := by
-    intro h
-    rw [← mod_add_div m 256] at h
-    simp [pow_add] at h
-    apply zeta_ne_zero
-    cases h with
-    | inl hl => exact hl.left
-    | inr hr => exact hr.left
-
-  theorem zeta_pow_m_neq_one (m : Nat) (hl : 0 < m) (hu : m < 256) : ζ ^ m ≠ 1 := by
-    have : 0 < 256 := by decide
-    apply ((orderOf_eq_iff this).mp zeta_order_eq_256).right
-    repeat linarith
+    · exact zeta_pow_m_neq_one
 
   lemma diff_mod (m k : Nat) (h₀ : m ≥ k) (h₁ : (m - k) % 256 = 0) : (m % 256) = (k % 256) := by
     grind
@@ -122,25 +93,21 @@ namespace Zq
   lemma zeta_pow_sub_zeta_pow_ne_zero (m k : Nat) (h : (m % 256) ≠ (k % 256)) : ζ^m - ζ^k ≠ 0 := by
     intro hyp
     by_cases h₀ : k ≤ m
-    · have hmk : k + (m - k) = m := by
-        rw [← Nat.add_sub_assoc h₀ k, Nat.add_sub_cancel_left]
-      have hmkmod : (m - k) % 256 < 256 := by
-        apply Nat.mod_lt
-        decide
+    · have hmk : k + (m - k) = m := by grind
       have hzpow : ζ ^ ((m-k) % 256) ≠ 1 := by
         apply zeta_pow_m_neq_one (((m-k) % 256))
+        · grind
         · by_contra h0
           simp at h0
           apply diff_mod at h0
           contradiction
           apply h₀
-        exact hmkmod
       have : ζ^k * (ζ^(m-k) - 1) = 0 := by
         calc
           ζ^k * (ζ^(m-k) - 1 ) = ζ^(k + (m-k)) - ζ^k := by ring
           _ = ζ^m - ζ^k := by rw [hmk]
           _ = 0 := by exact hyp
-      have hzk : ζ^k ≠ 0 := by apply zeta_pow_non_zero
+      have hzk : ζ^k ≠ 0 := by apply pow_ne_zero k zeta_ne_zero
       apply eq_zero_or_eq_zero_of_mul_eq_zero at this
       cases this with
       | inl ll => contradiction
@@ -150,25 +117,21 @@ namespace Zq
         simp [Zq.zeta_order_eq_256] at rr
         contradiction
     · simp at h₀
-      have hkm : m + (k - m ) = k := by
-        rw [← Nat.add_sub_assoc (le_of_lt h₀) m, Nat.add_sub_cancel_left]
-      have hkmmod : (k - m) % 256 < 256 := by
-        apply Nat.mod_lt
-        decide
+      have hkm : m + (k - m ) = k := by grind
       have hzpow : ζ ^ ((k-m) % 256) ≠ 1 := by
         apply zeta_pow_m_neq_one (((k-m) % 256))
+        · grind
         · by_contra h0
           simp at h0
           apply diff_mod at h0 ; symm at h0
           contradiction
           apply (le_of_lt h₀)
-        exact hkmmod
       have : ζ^m * (1-ζ^(k-m)) = 0 := by
         calc
           ζ^m * (1-ζ^(k-m)) = ζ^m - ζ^(m + (k-m)) := by ring
           _ = ζ^m - ζ^k := by rw [hkm]
           _ = 0 := by exact hyp
-      have hzm : ζ^m ≠ 0 := by apply zeta_pow_non_zero
+      have hzm : ζ^m ≠ 0 := by apply pow_ne_zero m zeta_ne_zero
       apply eq_zero_or_eq_zero_of_mul_eq_zero at this
       cases this with
       | inl ll => contradiction
@@ -273,6 +236,24 @@ namespace Poly
       apply h₇
       linarith
 
+
+  theorem PiAux_coprime (l k m: Nat) (h₀ : (2 ^ l) ∣ k) (h₁ : (2 ^ l) ∣ m) (h₂ : l < 8) (h₃: m % 256 ≠ k % 256):
+      IsCoprime (PiAux l k) (PiAux l m) := by
+    have diffUnit : IsUnit (Zq.ζ^m - Zq.ζ^k) := by
+      apply Zq.zeta_pow_sub_zeta_pow_isUnit
+      exact h₃
+    rw [pi_lk, pi_lk, IsCoprime]
+    use monomial 0 (Ring.inverse (Zq.ζ^m - Zq.ζ^k))
+    use -monomial 0 (Ring.inverse (Zq.ζ^m - Zq.ζ^k))
+    rw [mul_sub, mul_sub, xn]
+    ring_nf
+    rw [← mul_sub_left_distrib, ζ]
+    simp
+    rw [← C.map_pow (Zq.ζ) m, ← C.map_pow (Zq.ζ), ← C.map_sub (Zq.ζ^m), ← C.map_mul, ← C.map_one]
+    rw [ZMod.inv_mul_of_unit (Zq.ζ ^ m - Zq.ζ ^ k) diffUnit]
+    repeat assumption
+
+
   theorem Tq_Pi_correspondence_0 (l k : Nat) (h₁ : (2 ^ l) ∣ k) (h₂ : l < 8) :
         (TqAux 0 l k) = (Zq[X] ⧸ Ideal.span {PiAux l k}) := by
     rw [TqAux, pi_lk l k h₁ h₂]
@@ -303,23 +284,3 @@ namespace Poly
     · linarith
     · exact h₃
     · linarith
-
-
-#check IsCoprime
-  theorem PiAux_coprime (l k m: Nat) (h₀ : (2 ^ l) ∣ k) (h₁ : (2 ^ l) ∣ m) (h₂ : l < 8) (h₃: m % 256 ≠ k % 256):
-      IsCoprime (PiAux l k) (PiAux l m) := by
-    have diffUnit : IsUnit (Zq.ζ^m - Zq.ζ^k) := by
-      apply Zq.zeta_pow_sub_zeta_pow_isUnit
-      exact h₃
-    rw [pi_lk, pi_lk]
-    rw [IsCoprime]
-    use monomial 0 (Ring.inverse (Zq.ζ^m - Zq.ζ^k))
-    use -monomial 0 (Ring.inverse (Zq.ζ^m - Zq.ζ^k))
-    rw [mul_sub, mul_sub, xn]
-    ring_nf
-    rw [← mul_sub_left_distrib, ζ]
-    simp
-    rw [← C.map_pow (Zq.ζ) m, ← C.map_pow (Zq.ζ), ← C.map_sub (Zq.ζ^m), ← C.map_mul]
-    rw [ZMod.inv_mul_of_unit (Zq.ζ ^ m - Zq.ζ ^ k) diffUnit]
-    tauto
-    repeat assumption
