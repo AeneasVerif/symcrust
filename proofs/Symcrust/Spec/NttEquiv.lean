@@ -253,6 +253,10 @@ namespace Poly
     rw [ZMod.inv_mul_of_unit (Zq.ζ ^ m - Zq.ζ ^ k) diffUnit]
     repeat assumption
 
+  theorem PiAuxIdeals_coprime (l k m: Nat) (h₀ : (2 ^ l) ∣ k) (h₁ : (2 ^ l) ∣ m) (h₂ : l < 8) (h₃: m % 256 ≠ k % 256):
+      IsCoprime (Ideal.span {PiAux l k}) (Ideal.span {PiAux l m}) := by
+    apply (Ideal.isCoprime_span_singleton_iff (PiAux l k) (PiAux l m)).mpr
+    exact PiAux_coprime l k m h₀ h₁ h₂ h₃
 
   theorem Tq_Pi_correspondence_0 (l k : Nat) (h₁ : (2 ^ l) ∣ k) (h₂ : l < 8) :
         (TqAux 0 l k) = (Zq[X] ⧸ Ideal.span {PiAux l k}) := by
