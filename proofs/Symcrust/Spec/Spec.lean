@@ -41,11 +41,11 @@ open Notations
 
 @[reducible] def Q : Nat := 3329
 @[reducible] def Zq := ZMod Q
-@[reducible] def Polynomial (n : ℕ) := Vector (ZMod n) 256
+@[reducible] def Polynomial (n : ℕ := Q) := Vector (ZMod n) 256
 
 abbrev Polynomial.length {m : ℕ} (p : Polynomial m) : ℕ := p.size
 
-def Polynomial.zero (n) : Polynomial n := Vector.replicate 256 0
+def Polynomial.zero (n := Q) : Polynomial n := Vector.replicate 256 0
 
 instance {m} : HAdd (Polynomial m) (Polynomial m) (Polynomial m) where
   hAdd f g := Vector.map (fun i => f[i]! + g[i]!) (Vector.range 256)
@@ -90,23 +90,23 @@ def bytesToBits {l : Nat} (B : Vector Byte l) : Vector Bool (8 * l) := Id.run do
          true, false, false, false, false, false, false, false] ⟩, by simp ⟩
   bytesToBits (bitsToBytes b) = b
 
-abbrev mComp (d : ℕ) : ℕ := if d < 12 then 2^d else Q
-
 /-- # Compress -/
-def compress (d : {d: ℕ // d < 12}) (x : Zq) : ZMod (mComp d) := ⌈ ((2^d.val : ℚ) / (Q : ℚ)) * x.val⌋
 
-def compressPoly (d : {d: ℕ // d < 12}) (f : Polynomial Q) : Polynomial (mComp d) :=
+abbrev m (d : ℕ) : ℕ := if d < 12 then 2^d else Q
+
+def compress (d : {d: ℕ // d < 12}) (x : Zq) : ZMod (m d) := ⌈ ((2^d.val : ℚ) / (Q : ℚ)) * x.val⌋
+
+def compressPoly (d : {d: ℕ // d < 12}) (f : Polynomial Q) : Polynomial (m d) :=
   Vector.ofFn fun i => compress d f[i]
 
 /-- # Decompress -/
-def decompress (d : {d: ℕ // d < 12}) (y : ZMod (mComp d)) : Zq := ⌈ ((Q : ℚ) / (2^d.val : ℚ)) * y.val⌋
+def decompress (d : {d: ℕ // d < 12}) (y : ZMod (m d)) : Zq := ⌈ ((Q : ℚ) / (2^d.val : ℚ)) * y.val⌋
 
-def decompressPoly (d : {d: ℕ // d < 12}) (f : Polynomial (mComp d)) : Polynomial Q :=
+def decompressPoly (d : {d: ℕ // d < 12}) (f : Polynomial (m d)) : Polynomial Q :=
   Vector.ofFn fun i => decompress d f[i]
 
 /-- # Algorithm 5 -/
-
-def byteEncode (d : ℕ) (F : Polynomial (mComp d)) : Vector Byte (32 * d) := Id.run do
+def byteEncode (d : ℕ) (F : Polynomial (m d)) : Vector Byte (32 * d) := Id.run do
   let mut b := Vector.replicate (256 * d) false
   for hi: i in [0:256] do
     have : i * d ≤ 255 * d := by scalar_tac +nonLin
@@ -118,9 +118,9 @@ def byteEncode (d : ℕ) (F : Polynomial (mComp d)) : Vector Byte (32 * d) := Id
   pure B
 
 /-- # Algorithm 6 -/
-def byteDecode {d : ℕ} (B : Vector Byte (32 * d)) : Polynomial (mComp d) := Id.run do
+def byteDecode {d : ℕ} (B : Vector Byte (32 * d)) : Polynomial (m d) := Id.run do
   let b ← bytesToBits B
-  let mut F := Polynomial.zero (mComp d)
+  let mut F := Polynomial.zero (m d)
   for hi: i in [0:256] do
     have : i * d ≤ 255 * d := by scalar_tac +nonLin
     F := F.set i (∑ (j : Fin d), (Bool.toNat b[i * d + j]) * 2^j.val)
@@ -169,8 +169,6 @@ def XOF.absorb (ctx : Spec.Bitstring (Spec.b 6)) (B : Array Byte) : Spec.Bitstri
 def XOF.squeeze (ctx : Spec.Bitstring (Spec.b 6)) (z : ℕ) : Spec.Bitstring (Spec.b 6) × Vector Byte z :=
   let (ctx, B) := Spec.SHAKE128Squeeze ctx (8 * z)
   (ctx, bitsToBytes B)
-
-
 
 /-- # Algorithm 7 -/
 noncomputable -- TODO: remove the noncomputable
@@ -256,9 +254,6 @@ def multiplyNTTs (f g : Polynomial Q) : Polynomial Q := Id.run do
     h := h.set (2 * i + 1) c1
   pure h
 
-
-
-
 /- # ML-KEM parameter sets -/
 
 abbrev K := {k : ℕ // k ∈ ({2, 3, 4}: Set ℕ)}
@@ -299,8 +294,7 @@ def η₂ : Η := ⟨ 2, by scalar_tac ⟩
   | .MLKEM768 => 4
   | .MLKEM1024 => 5
 
-
-/- # Vectors and Matrices of Polynomials -/
+/-! # Vectors and Matrices of Polynomials -/
 
 @[reducible] def PolyVector (m : ℕ) (k : K) := Vector (Polynomial m) k
 def PolyVector.zero (m : ℕ) (k : K) := Vector.replicate k (Polynomial.zero m)
@@ -324,17 +318,17 @@ def PolyVector.NTT {k : K} (v : PolyVector Q k) : (PolyVector Q k) :=
 def PolyVector.invNTT {k : K} (v : PolyVector Q k) : (PolyVector Q k) :=
   Vector.ofFn fun i => invNtt v[i]
 
-def PolyVector.compressVec {k : K} (d : {d: ℕ // d < 12}) (v : PolyVector Q k) : PolyVector (mComp d) k :=
+def PolyVector.compressVec {k : K} (d : {d: ℕ // d < 12}) (v : PolyVector Q k) : PolyVector (m d) k :=
   Vector.ofFn fun i => compressPoly d v[i]
 
-def PolyVector.decompressVec {k : K} (d : {d: ℕ // d < 12}) (v : PolyVector (mComp d) k) : PolyVector Q k :=
+def PolyVector.decompressVec {k : K} (d : {d: ℕ // d < 12}) (v : PolyVector (m d) k) : PolyVector Q k :=
   Vector.ofFn fun i => decompressPoly d v[i]
 
-def PolyVector.byteEncodeVec {k : K} (d : ℕ) (v : PolyVector (mComp d) k) : Vector Byte (k * (32 * d)) := Id.run do
+def PolyVector.byteEncodeVec {k : K} (d : ℕ) (v : PolyVector (m d) k) : Vector Byte (k * (32 * d)) := Id.run do
   (Vector.flatten (Vector.ofFn fun i => (byteEncode d v[i]))).cast (by scalar_tac)
 
-def PolyVector.byteDecodeVec {k : K} (d : ℕ) (bytes : Vector Byte (32 * d * k)) : PolyVector (mComp d) k := Id.run do
-  let mut v := PolyVector.zero (mComp d) k
+def PolyVector.byteDecodeVec {k : K} (d : ℕ) (bytes : Vector Byte (32 * d * k)) : PolyVector (m d) k := Id.run do
+  let mut v := PolyVector.zero (m d) k
   for hi: i in [0:k] do
     have : 32 * d * (i + 1) ≤ 32 * d * k := by simp_scalar
     let bytes_i : Vector Byte (32 * d) := (bytes.extract (32 * d * i) (32 * d * (i + 1))).cast (by simp_scalar; ring_nf; scalar_tac)

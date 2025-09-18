@@ -3,6 +3,13 @@
  "packages":
  [{"type": "path",
    "scope": "",
+   "name": "sha3",
+   "manifestFile": "lake-manifest.json",
+   "inherited": false,
+   "dir": "../../sha3/Sha3",
+   "configFile": "lakefile.lean"},
+  {"type": "path",
+   "scope": "",
    "name": "aeneas",
    "manifestFile": "lake-manifest.json",
    "inherited": false,
