@@ -23,10 +23,20 @@ open Aeneas Aeneas.SRRange
 
 set_option maxHeartbeats 1000000
 
+-- TODO: move
+attribute [simp_scalar_simps] BitVec.toNat_pow BitVec.toNat_ofNat
+
+-- TODO: move
+@[simp_scalar_simps]
+theorem Nat.pow_lt_of_mod (a n m : Nat) (h : 1 < a ∧ n < m) :
+  a ^ n % a ^m = a ^n := by
+  apply Nat.mod_eq_of_lt
+  apply Nat.pow_lt_pow_of_lt <;> omega
+
 def Target.bitsToBytes.body
   {l:Nat} (b : Vector Bool (8 * l)) (B : Vector Byte l) (i : ℕ) :
   Vector Byte l :=
-  B.set! (i/8) (B[i/8]!  + BitVec.ofNat 8 (Bool.toNat b[i]!) * BitVec.ofNat 8 (2 ^(i%8)))
+  B.set! (i/8) (B[i/8]!  + (b[i]!.toNat * 2 ^(i%8) : BitVec 8))
 
 def Target.bitsToBytes.recBody
   {l:Nat} (b : Vector Bool (8 * l)) (B : Vector Byte l) (i : ℕ) :
@@ -42,6 +52,7 @@ theorem Target.bitsToBytes.eq_spec {l : Nat} (b : Vector Bool (8 * l)) :
   simp only [BitVec.ofNat_eq_ofNat, tsub_zero, Vector.Inhabited_getElem_eq_getElem!,
     Vector.set_eq_set!, bind_pure_comp, map_pure, forIn'_eq_forIn, forIn_eq_forIn_range', size,
     add_tsub_cancel_right, Nat.div_one, List.forIn_pure_yield_eq_foldl, bind_pure, Id.run_pure]
+
 
 theorem Target.bitsToBytes.recBody.step_eq
   {l:Nat} (b : Vector Bool (8 * l)) (B : Vector Byte l) (i : ℕ)
