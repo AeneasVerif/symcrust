@@ -27,7 +27,9 @@ extract: symcrust-aeneas.llbc proofs/Symcrust/Code/Funs.lean proofs/Symcrust/Cod
 # Alternatively, this could be marked as a phony target, since cargo (and hence
 # charon) can skip recompilations if the sources have not changed.
 symcrust.llbc: $(wildcard */*.rs)
-	RUSTFLAGS="--cfg eurydice" $(CHARON_EXE) --preset=aeneas --hide-marker-traits --exclude=core::fmt::Debug::fmt --opaque=core::fmt::Formatter
+	RUSTFLAGS="--cfg eurydice" $(CHARON_EXE) --hide-marker-traits \
+	  --exclude=core::fmt::Debug::fmt --opaque=core::fmt::Formatter --preset=eurydice \
+	  --include=alloc::collections::*  --include=core::alloc::* --include=core::ptr::*
 
 symcrust-aeneas.llbc: $(wildcard */*.rs)
 	RUSTFLAGS="--cfg eurydice" \
@@ -65,7 +67,7 @@ transpile: c/symcrust.c
 
 c/symcrust.c: symcrust.llbc
 	mkdir -p $(dir $@)
-	$(EURYDICE_HOME)/eurydice $< --output $(dir $@) -fcomments
+	$(EURYDICE_HOME)/eurydice $< --output $(dir $@) -fcomments --config c.yaml
 
 # Replaying the proofs
 .PHONY: build-proofs

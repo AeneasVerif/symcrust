@@ -46,10 +46,11 @@ def Target.samplePolyCBD {η : Η} (B : Vector Byte (64 * η)) : Polynomial :=
 def Target.samplePolyCBD.eq_spec {η : Η} (B : Vector Byte (64 * η)) :
   samplePolyCBD B = Spec.samplePolyCBD B := by
   unfold samplePolyCBD samplePolyCBD.recBody samplePolyCBD.body Spec.samplePolyCBD
-  simp only [Nat.sub_zero, Vector.Inhabited_getElem_eq_getElem!, Nat.cast_sum, List.mem_range'_1,
-    zero_le, zero_add, true_and, List.foldl_subtype, List.unattach_attach, bind_pure_comp, map_pure,
-    forIn'_eq_forIn, forIn_eq_forIn_range', size, tsub_zero, Nat.reduceAdd, Nat.add_one_sub_one,
-    Nat.div_one, List.forIn_pure_yield_eq_foldl, bind_pure, Id.run_pure]
+  simp only [Q, Nat.sub_zero, Vector.Inhabited_getElem_eq_getElem!, Nat.cast_sum, List.mem_range'_1,
+    zero_le, zero_add, true_and, List.foldl_subtype, List.unattach_attach, Vector.set_eq_set!,
+    bind_pure_comp, map_pure, forIn'_eq_forIn, forIn_eq_forIn_range', size, tsub_zero,
+    Nat.reduceAdd, Nat.add_one_sub_one, Nat.div_one, List.forIn_pure_yield_eq_foldl, bind_pure,
+    Id.run_pure]
 
 lemma Target.samplePolyCBD.recBody.preserves_below {η : Η} (b : Vector Bool (8 * (64 * ↑η)))
   (f : Polynomial) (i : Nat) (hi : i < 256) : ∀ j < i, (recBody b f i)[j]! = f[j]! := by

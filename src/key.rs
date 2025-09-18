@@ -457,7 +457,7 @@ impl Key3 {
 
 // Pick your favorite option here for the sake of benchmarking.
 
-pub(crate) type Key = Key2; // EDIT HERE
+pub type Key = Key2; // EDIT HERE
 
 pub(crate) type Matrix = Matrix2; // EDIT HERE
 

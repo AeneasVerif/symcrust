@@ -32,13 +32,13 @@ def Target.byteDecode.decodeCoefficient {m d : ℕ} (b : Vector Bool (8 * (32 * 
 def Target.byteDecode.recBody {m d : ℕ} (b : Vector Bool (8 * (32 * d))) (F : Polynomial m) (i : Nat) : Polynomial m :=
   List.foldl (byteDecode.decodeCoefficient b) F (List.range' i (256 - i))
 
-def Target.byteDecode (m d : ℕ) (B : Vector Byte (32 * d)) : Polynomial m :=
+def Target.byteDecode (d : ℕ) (B : Vector Byte (32 * d)) : Polynomial (m d) :=
   let b := bytesToBits B
-  let F := Polynomial.zero m
+  let F := Polynomial.zero (m d)
   byteDecode.recBody b F 0
 
-def Target.byteDecode.eq_spec {m d : ℕ} (B : Vector Byte (32 * d)) :
-  byteDecode m d B = Spec.byteDecode B := by
+def Target.byteDecode.eq_spec {d : ℕ} (B : Vector Byte (32 * d)) :
+  byteDecode d B = Spec.byteDecode B := by
   unfold byteDecode recBody byteDecode.decodeCoefficient Spec.byteDecode
   simp only [bytesToBits.eq_spec, tsub_zero, Vector.Inhabited_getElem_eq_getElem!,
     Vector.set_eq_set!, bind_pure_comp, map_pure, forIn'_eq_forIn, forIn_eq_forIn_range', size,
@@ -88,16 +88,16 @@ def Target.byteDecode.recBody.spec {m d i : ℕ} (b : Vector Bool (8 * (32 * d))
     rw [← recBodyUnfold]
     exact @spec m d (i+1) b (decodeCoefficient b F i) this (by omega)
 
-def Target.byteDecode.decodeCoefficient.inv_0 {m d : ℕ} (b : Vector Bool (8 * (32 * d))) :
-  decodeCoefficient.inv b (Polynomial.zero m) 0 := by simp [inv]
+def Target.byteDecode.decodeCoefficient.inv_0 {d : ℕ} (b : Vector Bool (8 * (32 * d))) :
+  decodeCoefficient.inv b (Polynomial.zero (m d)) 0 := by simp [inv]
 
-def Target.byteDecode.spec_aux {m d : ℕ} (B : Vector Byte (32 * d)) :
-  ∀ i < 256, (byteDecode m d B)[i]! = ((∑ (j : Fin d), (Bool.toNat (bytesToBits B)[i * d + j]!) * 2^j.val) : ZMod m) := by
+def Target.byteDecode.spec_aux {d : ℕ} (B : Vector Byte (32 * d)) :
+  ∀ i < 256, (byteDecode d B)[i]! = ((∑ (j : Fin d), (Bool.toNat (bytesToBits B)[i * d + j]!) * 2^j.val) : ZMod (m d)) := by
   unfold byteDecode
   intro i i_lt_256
   simp only
-  have h0 := @decodeCoefficient.inv_0 m d (bytesToBits B)
-  have h := recBody.spec (bytesToBits B) (Polynomial.zero m) h0 (by omega : 0 < 256)
+  have h0 := @decodeCoefficient.inv_0 d (bytesToBits B)
+  have h := recBody.spec (bytesToBits B) (Polynomial.zero (m d)) h0 (by omega : 0 < 256)
   rw [decodeCoefficient.inv] at h
   simp [h.1 i i_lt_256]
 
@@ -105,10 +105,10 @@ def Target.byteDecode.spec {d : ℕ} (B : Vector Byte (32 * d)) (hd : d < 13)
   (hB : ∀ i < 256, ∑ (a : Fin d),
     Bool.toNat (B[(d * i + a) / 8]!.testBit ((d * i + a) % 8)) * 2 ^ a.val < m d) :
   ∀ i < 256,
-    (∀ j < d, (byteDecode (m d) d B)[i]!.val.testBit j = B[(d * i + j) / 8]!.testBit ((d * i + j) % 8)) ∧
-    (∀ j : Nat, d ≤ j → (byteDecode (m d) d B)[i]!.val.testBit j = false) := by
+    (∀ j < d, (byteDecode d B)[i]!.val.testBit j = B[(d * i + j) / 8]!.testBit ((d * i + j) % 8)) ∧
+    (∀ j : Nat, d ≤ j → (byteDecode d B)[i]!.val.testBit j = false) := by
   intro i i_lt_256
-  rw [@spec_aux (m d) d B i i_lt_256]
+  rw [@spec_aux d B i i_lt_256]
   constructor
   . intro j j_lt_d
     have : B[(d * i + j) / 8]!.testBit ((d * i + j) % 8) = (bytesToBits B)[d * i + j]! := by
