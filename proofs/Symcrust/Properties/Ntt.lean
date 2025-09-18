@@ -2,7 +2,6 @@ import Symcrust.Code
 import Symcrust.Properties.BarrettReduction
 import Symcrust.Properties.MontReduction
 import Symcrust.Properties.NttSpecAux
-import Symcrust.Properties.NormMod
 import Symcrust.Properties.Basic
 
 open Aeneas
@@ -107,7 +106,7 @@ theorem mod_add_spec (a : U32) (b : U32)
   (c.val : Spec.Zq) = (a.val : Spec.Zq) + (b.val : Spec.Zq) ∧
   c.val < Spec.Q := by
   unfold mod_add
-  progress*; bv_tac 32
+  progress*
 
 /-!
 # Subtraction Modulo
@@ -291,16 +290,7 @@ def poly_element_ntt_layer_c.inner_loop_loop_spec
   to_poly peSrc' = SpecAux.nttLayerInner (to_poly peSrc) k.val len.val start.val j.val ∧
   wfArray peSrc' := by
   unfold inner_loop_loop
-  progress*
-  -- TODO: this should be automatic
-  . unfold SpecAux.nttLayerInner
-    have : j.val < len.val := by scalar_tac
-    fsimp only [this]; clear this
-    fsimp [*]
-  . unfold SpecAux.nttLayerInner
-    have : ¬ j.val < len.val := by scalar_tac
-    fsimp only [this]; clear this
-    fsimp [*]
+  progress* <;> unfold SpecAux.nttLayerInner <;> simp_ifs <;> simp [*]
 termination_by len.val - j.val
 decreasing_by scalar_decr_tac
 
@@ -649,7 +639,7 @@ theorem poly_element_intt_and_mul_r_loop_spec (peSrc : Std.Array U16 256#usize)
   . fsimp [Spec.Polynomial.eq_iff]
     intro i hi
     fsimp at h
-    simp_lists [h]
+    simp_lists_scalar [h]
   . fsimp [*]
 
 @[progress]
@@ -671,7 +661,7 @@ theorem poly_element_intt_and_mul_r_spec (peSrc : Std.Array U16 256#usize)
 -- TODO: move
 -- TODO: an annoying point is that we simplify before saturating, so it's not always easy
 -- to properly write the scalar_tac lemmas so that they get applied properly.
--- Maybe we should saturate twice.
+-- Maybe we should saturate twice?
 -- TODO: if we don't put the type annotation, the type inference fails but it doesn't
 -- get detected by `scalar_tac`, leading to failures afterwards
 @[local scalar_tac x.val &&& (65535 : ℕ)]
@@ -683,18 +673,8 @@ private theorem and_RMASK (x : U32) : x.val &&& 65535 ≤ 65535 := by
     nat_and_65535_eq_mod, BitVec.ofNat_eq_ofNat, BitVec.toNat_ofNat, ge_iff_le] at *
   assumption
 
--- TODO: we need to make this more convenient, and improve reasoning about non linear arithmetic
-private theorem U16_Zq_mul_in_bounds (a b : U16) :
-  a.val ≥ 3329 ∨ b.val ≥ 3329 ∨ a.val * b.val ≤ 3328 * 3328 := by
-  simp only [Classical.or_iff_not_imp_left]
-  intros
-  scalar_tac +nonLin
-
 section
   -- TODO: failure cases of scalar_tac +nonLin
-
-  -- TODO: make this more convenient
-  attribute [local scalar_tac a.val * b.val] U16_Zq_mul_in_bounds
 
   /- TODO: we should implement tactics to automatically refold parts of the code back into
      functions. -/
@@ -815,7 +795,7 @@ section
   def wfAcc (f g : Array U16 256#usize) (B0 B1 : Nat) (i : Nat) (acc0 acc : Array U32 256#usize) : Prop :=
     -- The bounds
     (∀ j < i, acc[2 * j]! ≤ B0 + B1 ∧ acc[2 * j + 1]! ≤ B0 + B1) ∧
-    (∀ j, i ≤ j → j < 128 → acc[2 * j]! ≤ B0 ∧ acc[2 * j + 1]! ≤ B0) ∧
+    (∀ j, i ≤ j → j < 128 → acc0[2 * j]! ≤ B0 ∧ acc0[2 * j + 1]! ≤ B0) ∧
     -- The values
     (∀ j < i, (acc[2 * j]! : Spec.Zq) = acc0[2 * j]! + SpecAux.baseCaseMultiply0 (to_poly f) (to_poly g) j ∧
               (acc[2 * j + 1]! : Spec.Zq) = acc0[2 * j + 1]! + SpecAux.baseCaseMultiply1 (to_poly f) (to_poly g) j) ∧
@@ -831,13 +811,8 @@ section
     (h : wfAcc f g B0 B1 i acc0 acc) (hi : 128 ≤ i) :
     wfAcc f g B0 B1 128 acc0 acc := by
     fsimp [wfAcc] at *
-    -- TODO: this should be automated
-    obtain ⟨ h0, h1, h2, h3 ⟩ := h
-    split_conjs <;> intro j hj
-    . apply h0; omega
-    . intros; omega -- contradiction
-    . apply h2; omega
-    . intros; omega -- contradiction
+    simp_lists [h]
+    omega
 
   @[local progress]
   theorem wfAcc_index {f g : Array U16 256#usize} {B0 B1 : Nat} {i0 : Nat}
@@ -857,7 +832,7 @@ section
     fsimp [heq] at h0 h1 <;>
     scalar_tac
 
-  @[local progress]
+  @[progress] -- TODO: `local` doesn't work
   theorem update_acc_spec {f g : Array U16 256#usize} {B0 B1 : Nat} {i0 : Nat} {i : Usize} {c0 c1 : U32}
     {paDst0 paDst : Array U32 256#usize}
     {a1b1zetapow : U32}
@@ -879,20 +854,10 @@ section
     -- TODO: this should be mostly automated
     split_conjs <;> intro j hj
     . dcases hjeq : j = i0
-      . fsimp [*]
-        simp_lists
-        scalar_tac
-      . have hj'' : j < i0 := by omega
-        have := h0 j hj''
-        fsimp [*]
-        simp_lists
-        scalar_tac
+      . simp_lists_scalar [*]
+      . simp_lists_scalar [*]
     . intro hj'
-      have : i0 < j := by omega
-      fsimp [*]
-      have := h1 j (by omega) (by omega)
-      simp_lists
-      scalar_tac
+      simp_lists_scalar [*]
     . dcases hjeq : j = i0
       . fsimp [*]
         simp_lists
@@ -900,18 +865,9 @@ section
         fsimp [hi0, hc0, hc1, SpecAux.baseCaseMultiply0 , SpecAux.baseCaseMultiply1]
         ring_nf
         fsimp
-      . have hj'' : j < i0 := by omega
-        have := h2 j hj''
-        fsimp [*]
-        simp_lists
-        fsimp at this
-        fsimp [this]
+      . simp_lists [*]
     . intro hj'
-      have : i0 < j := by omega
-      have := h3 j (by omega) (by omega)
-      fsimp [*]
-      simp_lists
-      fsimp at this; fsimp [this]
+      simp_lists [*]
 
   -- TODO: no post-processing of the post-conditions in progress
 
@@ -932,12 +888,9 @@ section
     := by
     unfold poly_element_mul_and_accumulate_loop
     fsimp only [fold_mul_acc_mont_reduce, fold_update_acc]
-    fsimp -- TODO: why is this call to `simp` so slow? (1.1s, and 3.1s if the maxDischargeDepth := 2)
+    fsimp
     progress* by (fsimp [*]; ring_nf)
-    . -- TODO: why does sassumption fail?
-      assumption
-    . fsimp
-      apply wfAcc_128 hwf3 (by scalar_tac)
+    apply wfAcc_128 (by assumption) (by scalar_tac)
   termination_by 128 - i.val
   decreasing_by scalar_decr_tac
 end
@@ -970,10 +923,6 @@ theorem poly_element_mul_and_accumulate_spec
 
 
 section
-
-  -- TODO: make this more convenient
-  attribute [local scalar_tac a.val * b.val] U16_Zq_mul_in_bounds
-
   /-- Auxiliary helper: the reduced multiplication performed by reduce and add.
 
       This computes:
@@ -1094,7 +1043,6 @@ section
   attribute [local progress] Array.index_usize_spec Array.update_spec
 
   -- TODO: better elaboration of let (x, y) ← ...
-
   theorem montgomery_reduce_and_add_poly_element_accumulator_to_poly_element_loop_spec
     (paSrc0 paSrc : Array U32 256#usize)
     (paDst0 paDst : Array U16 256#usize)
@@ -1102,11 +1050,11 @@ section
     -- Assumptions about the source
     (hsrcBeg : ∀ j < i.val, paSrc[j]! = 0#u32)
     (hsrcEndEq : ∀ j ≥ i.val, j < 256 → paSrc[j]! = paSrc0[j]!)
-    (hsrcEndIneq : ∀ j ≥ i.val, j < 256 → paSrc[j]! ≤ reduceAddInputBound)
+    (hsrcEndIneq : ∀ j ≥ i.val, j < 256 → paSrc0[j]! ≤ reduceAddInputBound)
     -- Assumptions about the destination
     (hdstBegIneq : ∀ j < i.val, paDst[j]!.val ≤ 3328)
     (hdstBegEq : ∀ j < i.val, (paDst[j]! : Spec.Zq) = (paDst0[j]! : Spec.Zq) + (paSrc0[j]! : Spec.Zq) * 169)
-    (hdstEndIneq : ∀ j ≥ i.val, j < 256 → paDst[j]!.val ≤ 3328)
+    (hdstEndIneq : ∀ j ≥ i.val, j < 256 → paDst0[j]!.val ≤ 3328)
     (hdstEndEq : ∀ j ≥ i.val, j < 256 → paDst[j]!.val = paDst0[j]!)
     --
     :
@@ -1118,62 +1066,48 @@ section
     := by
     unfold montgomery_reduce_and_add_poly_element_accumulator_to_poly_element_loop
     fsimp only [fold_reduce_add_mont_reduce, fold_reduce_add_normalize]
-    fsimp -- TODO: why is this call to `simp` so slow? (1.1s, and 3.1s if the maxDischargeDepth := 2)
+    fsimp
 
     split
     . let* ⟨ a, a_post ⟩ ← Array.index_usize_spec
-      have : a.val ≤ reduceAddInputBound := by have := hsrcEndIneq i (by scalar_tac); scalar_tac
+      have : a.val ≤ reduceAddInputBound := by simp_lists_scalar [*]
       let* ⟨ paSrc1, paSrc1_post ⟩ ← Array.update_spec
       let* ⟨ i1, i1_post_1 ⟩ ← Array.index_usize_spec
-      have : i1.val ≤ 3328 := by have := hdstEndIneq i (by scalar_tac); scalar_tac
+      have : i1.val ≤ 3328 := by simp_lists_scalar [*]
       let* ⟨ a1, a1_post_1, a1_post_2 ⟩ ← reduce_add_mont_reduce_spec
       let* ⟨ c1, c1_post_1, c1_post_2 ⟩ ← U32.add_bv_spec
-
       let* ⟨ c4, c4_post_1, c4_post_2 ⟩ ← reduce_add_normalize_spec
-      have : (c4.val : Spec.Zq) = (paDst[i]!.val : Spec.Zq) +  (a.val : Spec.Zq) * 169 := by fsimp [*]
-
       let* ⟨ i10, i10_post ⟩ ← UScalar.cast_inBounds_spec
       let* ⟨ paDst1, paDst1_post ⟩ ← Array.update_spec
       let* ⟨ i11, i11_post ⟩ ← Usize.add_spec
 
       -- TODO: this should be automated
       have : ∀ j < i11.val, paSrc1[j]! = 0#u32 := by
-        intro j hj
-        fsimp at *
-        dcases hji : j = i.val <;> fsimp [*]
-        simp_lists [hsrcBeg]
+        intro j hj; dcases hji : j = i.val <;> simp_lists [*]
 
       have : ∀ j ≥ i11.val, j < 256 → paSrc1[j]! = paSrc0[j]! := by
         intro j hj0 hj1
-        fsimp at *
-        dcases hji : j = i.val + 1 <;> fsimp [*] <;> simp_lists [hsrcEndEq]
+        dcases hji : j = i.val + 1 <;> simp_lists [*]
 
-      have : ∀ j ≥ i11.val, j < 256 → paSrc1[j]!.val ≤ reduceAddInputBound := by
+      have : ∀ j ≥ i11.val, j < 256 → paSrc0[j]!.val ≤ reduceAddInputBound := by
         intro j hj0 hj1
-        fsimp at *
-        dcases hji : j = i.val + 1 <;> fsimp [*] <;> simp_lists [hsrcEndIneq]
+        dcases hji : j = i.val + 1 <;> simp_lists [*]
 
       have : ∀ j < i11.val, paDst1[j]!.val ≤ 3328 := by
         intro j hj0
-        fsimp at *
-        dcases hji : j = i.val <;> fsimp [*]
-        simp_lists [hdstBegIneq]
+        dcases hji : j = i.val <;> simp_lists [*]
 
       have : ∀ j < i11.val, (paDst1[j]!.val : Spec.Zq) = ↑↑paDst0[j]! + ↑↑paSrc0[j]! * 169 := by
         intro j hj
-        fsimp at *
-        dcases hji : j = i.val <;> fsimp [*]
-        simp_lists [hdstBegEq, hsrcEndEq]
+        dcases hji : j = i.val <;> simp_lists_scalar [*]
 
-      have : ∀ j ≥ i11.val, j < 256 → paDst1[j]!.val ≤ 3328 := by
+      have : ∀ j ≥ i11.val, j < 256 → paDst0[j]!.val ≤ 3328 := by
         intro j hj0 hj1
-        fsimp at *
-        dcases hji : j = i.val + 1 <;> fsimp [*] <;> simp_lists [hdstEndIneq]
+        dcases hji : j = i.val + 1 <;> simp_lists [*]
 
       have : ∀ j ≥ i11.val, j < 256 → paDst1[j]!.val = ↑paDst0[j]! := by
         intro j hj0 hj1
-        fsimp at *
-        dcases hji : j = i.val + 1 <;> fsimp [*] <;> simp_lists [hdstEndEq]
+        dcases hji : j = i.val + 1 <;> simp_lists [*]
 
       let* ⟨ res_1, res_2, res_post_1, res_post_2, res_post_3 ⟩ ←
         montgomery_reduce_and_add_poly_element_accumulator_to_poly_element_loop_spec paSrc0 paSrc1 paDst0 paDst1
@@ -1254,7 +1188,7 @@ theorem poly_element_mul_r_loop_spec
       . fsimp [*]
         ring_nf
         fsimp
-      . simp_lists [res_post_2]
+      . simp_lists_scalar [res_post_2]
   . fsimp
     intro j hj0 hj1
     -- Contradiction
@@ -1277,10 +1211,6 @@ theorem poly_element_mul_r_spec
 /-!
 # Add
 -/
--- TODO: move
-attribute [scalar_tac_simps] Nat.not_eq Int.not_eq
-attribute [simp_lists_simps] Array.set_val_eq
-
 @[local progress]
 def poly_element_add_loop_spec
   (peSrc1 : Array U16 256#usize) (peSrc2 : Array U16 256#usize)
@@ -1311,7 +1241,7 @@ def poly_element_add_loop_spec
     . intro j hj0 hj1
       dcases hji : i.val = j
       . fsimp [*]
-      . simp_lists [peDst2_post_3]
+      . simp_lists_scalar [peDst2_post_3]
   . fsimp at *
     split_conjs <;> intros <;> scalar_tac -- Contradiction
 termination_by 256 - i.val
@@ -1364,7 +1294,7 @@ def poly_element_sub_loop_spec
     . intro j hj0 hj1
       dcases hji : i.val = j
       . fsimp [*]
-      . simp_lists [peDst2_post_3]
+      . simp_lists_scalar [peDst2_post_3]
   . fsimp at *
     split_conjs <;> intros <;> scalar_tac -- Contradiction
 termination_by 256 - i.val

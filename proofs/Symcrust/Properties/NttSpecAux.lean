@@ -60,9 +60,9 @@ namespace Target
     rw [ntt, Spec.ntt]
     unfold nttLayer
     unfold nttLayerInner
-    simp only [Id.run, pure]
-    simp only [Id.bind_eq, forIn_eq_forIn_range', size, add_tsub_cancel_left, add_tsub_cancel_right,
-      Nat.div_one, List.forIn_yield_eq_foldl, tsub_zero, Nat.succ_add_sub_one, forIn'_eq_forIn,
+    simp only [MProd_mk_eq, bind_pure_comp, map_pure, forIn_eq_forIn_range', size,
+      add_tsub_cancel_left, add_tsub_cancel_right, Nat.div_one, List.forIn_pure_yield_eq_foldl,
+      bind_pure, Id.run_pure, tsub_zero, Nat.succ_add_sub_one, forIn'_eq_forIn,
       Aeneas.DivRange.forIn_eq_forIn_divRange, Nat.one_lt_ofNat,
       Aeneas.DivRange.foldl_divRange_foldWhile, Aeneas.DivRange.foldWhile_step, Nat.reduceDiv,
       ne_eq, Nat.add_eq_left, OfNat.ofNat_ne_zero, not_false_eq_true, Vector.getElem!_set!_ne,
@@ -99,16 +99,16 @@ namespace Target
     rw [invNtt, Spec.invNtt]
     unfold invNttLayer
     unfold invNttLayerInner
-    simp only [pure, bind, Id.run]
-    simp only [forIn_eq_forIn_range', size, add_tsub_cancel_left, add_tsub_cancel_right,
-      Nat.div_one, List.forIn_yield_eq_foldl, tsub_zero, Nat.succ_add_sub_one,
-      Aeneas.MulRange.forIn'_eq_forIn_MulRange, List.forIn'_yield_eq_foldl,
-      Aeneas.ReduceZMod.reduceZMod, MProd_mk_eq, Vector.Inhabited_getElem_eq_getElem!,
-      Vector.set_eq_set!, forIn'_eq_forIn, Aeneas.MulRange.forIn_eq_forIn_MulRange,
-      Aeneas.MulRange.foldl_MulRange_foldWhile, Nat.reduceLT, Aeneas.MulRange.foldWhile_step,
-      Nat.reduceMul, ne_eq, left_eq_add, OfNat.ofNat_ne_zero, not_false_eq_true,
-      Vector.getElem!_set!_ne, Nat.reduceAdd, Nat.reduceDiv, List.range'_one, List.foldl_cons,
-      List.foldl_nil, lt_self_iff_false, Aeneas.MulRange.foldWhile_id]
+    simp only [bind_pure_comp, map_pure, forIn_eq_forIn_range', size, add_tsub_cancel_left,
+      add_tsub_cancel_right, Nat.div_one, List.forIn_pure_yield_eq_foldl, bind_pure, Id.run_pure,
+      tsub_zero, Nat.succ_add_sub_one, Aeneas.MulRange.forIn'_eq_forIn_MulRange,
+      List.forIn'_pure_yield_eq_foldl, Aeneas.ReduceZMod.reduceZMod, MProd_mk_eq,
+      Vector.Inhabited_getElem_eq_getElem!, Vector.set_eq_set!, forIn'_eq_forIn,
+      Aeneas.MulRange.forIn_eq_forIn_MulRange, Aeneas.MulRange.foldl_MulRange_foldWhile,
+      Nat.reduceLT, Aeneas.MulRange.foldWhile_step, Nat.reduceMul, ne_eq, Nat.left_eq_add,
+      OfNat.ofNat_ne_zero, not_false_eq_true, Vector.getElem!_set!_ne, Nat.reduceAdd, Nat.reduceDiv,
+      List.range'_one, List.foldl_cons, List.foldl_nil, lt_self_iff_false,
+      Aeneas.MulRange.foldWhile_id]
 
 end Target
 
@@ -197,9 +197,9 @@ private theorem nttLayerInner_eq
   simp at this
   rw [this]; clear this
   unfold Target.nttLayerInner
-  simp only [Id.run, Id.pure_eq, Id.bind_eq, forIn_eq_forIn_range', size, add_tsub_cancel_left,
-    add_tsub_cancel_right, Nat.div_one, List.forIn_yield_eq_foldl, zero_lt_one, foldl_range'_eq_foldWhile,
-    mul_one]
+  simp only [bind_pure_comp, map_pure, forIn_eq_forIn_range', size, add_tsub_cancel_left,
+    add_tsub_cancel_right, Nat.div_one, List.forIn_pure_yield_eq_foldl, bind_pure, Id.run_pure]
+  simp only [zero_lt_one, foldl_range'_eq_foldWhile, mul_one]
   conv => rhs; rw [foldWhile_shift_start]
   have : start + len - start = len := by omega
   rw [this]; clear this
@@ -236,9 +236,10 @@ private theorem nttLayer_eq_fst (f : Polynomial) (i len : Nat)
   (hLen : 0 < len) (hkLen : ∃ k, k ≤ 7 ∧ len = 2 ^ k) :
   nttLayer f i len 0 hLen = (Target.nttLayer f i len).fst := by
   unfold Target.nttLayer
-  simp only [Id.run, Id.pure_eq, Id.bind_eq, forIn_eq_forIn_range', size, tsub_zero,
-    Nat.succ_add_sub_one, Nat.ofNat_pos, mul_pos_iff_of_pos_left, hLen, Nat.add_div_right,
-    List.forIn_yield_eq_foldl, foldl_range'_eq_foldWhile, zero_add]
+  simp only [bind_pure_comp, map_pure, forIn_eq_forIn_range', size, tsub_zero, Nat.succ_add_sub_one,
+    List.forIn_pure_yield_eq_foldl, MProd_mk_eq, bind_pure, Id.run_pure]
+  simp only [Nat.ofNat_pos, mul_pos_iff_of_pos_left, hLen, Nat.add_div_right,
+    foldl_range'_eq_foldWhile, zero_add]
   have := nttLayer_eq_fst_arith len hkLen
   simp only [this]
   have := nttLayer_eq_fst_aux f i len 0 hLen
@@ -263,9 +264,9 @@ private theorem nttLayer_eq_snd
   (f : Polynomial) (i len : Nat) (hLen : 0 < len) :
   (Target.nttLayer f i len).snd = i + 255 / (2 * len) + 1 := by
   unfold Target.nttLayer
-  simp only [Id.run, Id.pure_eq, Id.bind_eq, Aeneas.SRRange.forIn_eq_forIn_range',
-    Aeneas.SRRange.size, tsub_zero, Nat.succ_add_sub_one, Nat.ofNat_pos, mul_pos_iff_of_pos_left,
-    pow_pos, Nat.add_div_right, List.forIn_yield_eq_foldl, hLen]
+  simp only [bind_pure_comp, map_pure, forIn_eq_forIn_range', size, tsub_zero, Nat.succ_add_sub_one,
+    List.forIn_pure_yield_eq_foldl, MProd_mk_eq, bind_pure, Id.run_pure]
+  simp only [Nat.ofNat_pos, mul_pos_iff_of_pos_left, hLen, Nat.add_div_right]
   have := nttLayer_eq_snd_aux f (fun x y => Target.nttLayerInner x y len) i
   simp only [this, add_right_inj]
   ring_nf
@@ -288,8 +289,14 @@ private theorem nttLayer_eq (f : Polynomial) (len : Nat) (hLen : 0 < len)
 private theorem ntt_eq_target (f : Polynomial) :
   ntt f = Target.ntt f := by
   unfold ntt Target.ntt
-  simp [Id.run, Aeneas.divRange, Aeneas.divRange.loop]
-  repeat (rw [← nttLayer_eq] <;> simp [Nat.log2])
+  simp only [bind_pure_comp, map_pure, Aeneas.DivRange.forIn'_eq_forIn_divRange,
+    List.forIn'_pure_yield_eq_foldl, Id.run_pure]
+  simp only [Aeneas.divRange, Nat.reduceAdd, Aeneas.divRange.loop, gt_iff_lt, Nat.one_lt_ofNat,
+    ↓dreduceIte, Nat.reduceDiv, lt_self_iff_false, List.attach_cons, List.attach_nil, List.map_nil,
+    List.map_cons, List.foldl_cons, List.foldl_nil]
+  repeat (rw [← nttLayer_eq] <;> simp only [Nat.log2, ge_iff_le, Nat.reduceLeDiff, ↓reduceIte,
+    Nat.reduceDiv, le_refl, Nat.ofNat_pos, Nat.div_self, Nat.not_ofNat_le_one, zero_add,
+    Nat.reduceAdd, Nat.reducePow, and_self])
 
 /-- This is the important theorem -/
 theorem ntt_eq (f : Polynomial) :
@@ -321,9 +328,9 @@ private theorem invNttLayerInner_eq
   simp at this
   rw [this]; clear this
   unfold Target.invNttLayerInner
-  simp only [Id.run, Id.pure_eq, Id.bind_eq, forIn_eq_forIn_range', size, add_tsub_cancel_left,
-    add_tsub_cancel_right, Nat.div_one, List.forIn_yield_eq_foldl, zero_lt_one, foldl_range'_eq_foldWhile,
-    mul_one]
+  simp only [bind_pure_comp, map_pure, forIn_eq_forIn_range', size, add_tsub_cancel_left,
+    add_tsub_cancel_right, Nat.div_one, List.forIn_pure_yield_eq_foldl, bind_pure, Id.run_pure]
+  simp only [zero_lt_one, foldl_range'_eq_foldWhile, mul_one]
   conv => rhs; rw [foldWhile_shift_start]
   have : start + len - start = len := by omega
   rw [this]; clear this
@@ -360,9 +367,10 @@ private theorem invNttLayer_eq_fst (f : Polynomial) (i len : Nat)
   (hLen : 0 < len) (hkLen : ∃ k, k ≤ 7 ∧ len = 2 ^ k) :
   invNttLayer f i len 0 hLen = (Target.invNttLayer f i len).fst := by
   unfold Target.invNttLayer
-  simp only [Id.run, Id.pure_eq, Id.bind_eq, forIn_eq_forIn_range', size, tsub_zero,
-    Nat.succ_add_sub_one, Nat.ofNat_pos, mul_pos_iff_of_pos_left, hLen, Nat.add_div_right,
-    List.forIn_yield_eq_foldl, foldl_range'_eq_foldWhile, zero_add]
+  simp only [bind_pure_comp, map_pure, forIn_eq_forIn_range', size, tsub_zero, Nat.succ_add_sub_one,
+    List.forIn_pure_yield_eq_foldl, Id.run_pure]
+  simp only [Nat.ofNat_pos, mul_pos_iff_of_pos_left, hLen, Nat.add_div_right,
+    foldl_range'_eq_foldWhile, zero_add]
   have := invNttLayer_eq_fst_arith len hkLen
   simp only [this]
   have := invNttLayer_eq_fst_aux f i len 0 hLen
@@ -387,9 +395,9 @@ private theorem invNttLayer_eq_snd
   (f : Polynomial) (i len : Nat) (hLen : 0 < len) :
   (Target.invNttLayer f i len hLen).snd = i - (255 / (2 * len) + 1) := by
   unfold Target.invNttLayer
-  simp only [Id.run, Id.pure_eq, Id.bind_eq, Aeneas.SRRange.forIn_eq_forIn_range',
-    Aeneas.SRRange.size, tsub_zero, Nat.succ_add_sub_one, Nat.ofNat_pos, mul_pos_iff_of_pos_left,
-    pow_pos, Nat.add_div_right, List.forIn_yield_eq_foldl, hLen]
+  simp only [bind_pure_comp, map_pure, forIn_eq_forIn_range', size, tsub_zero, Nat.succ_add_sub_one,
+    List.forIn_pure_yield_eq_foldl, Id.run_pure]
+  simp only [Nat.ofNat_pos, mul_pos_iff_of_pos_left, hLen, Nat.add_div_right]
   have := invNttLayer_eq_snd_aux f (fun x y => Target.invNttLayerInner x y len) i
   simp only [this, add_right_inj]
 
@@ -411,8 +419,15 @@ private theorem invNttLayer_eq (f : Polynomial) (len : Nat) (hLen : 0 < len)
 private theorem invNtt_eq_target (f : Polynomial) :
   invNtt f = Target.invNtt f := by
   unfold invNtt Target.invNtt
-  simp [Id.run, Aeneas.mulRange]
-  repeat (rw [← invNttLayer_eq] <;> try simp [Nat.log2])
+  simp only [Aeneas.ReduceZMod.reduceZMod, bind_pure_comp, map_pure,
+    Aeneas.MulRange.forIn'_eq_forIn_MulRange, List.forIn'_pure_yield_eq_foldl, Id.run_pure]
+  -- Unfold the `mulRange`
+  simp only [Aeneas.ReduceZMod.reduceZMod, List.attach, Aeneas.mulRange, Nat.reduceLT, ↓reduceIte,
+    Nat.reduceMul, lt_self_iff_false, List.attachWith_cons, List.attachWith_nil, List.foldl_cons,
+    List.foldl]
+  repeat (rw [← invNttLayer_eq] <;> try simp only [Nat.log2, ge_iff_le, Nat.reduceLeDiff,
+    ↓reduceIte, Nat.reduceDiv, le_refl, Nat.ofNat_pos, Nat.div_self, Nat.not_ofNat_le_one, zero_add,
+    Nat.reduceAdd, Nat.reducePow, and_self])
 
 /-- This is the important theorem -/
 theorem invNtt_eq (f : Polynomial) :
@@ -539,9 +554,9 @@ private theorem Target.multiplyNTTs_inner_eq_spec (f g : Polynomial) :
   Target.multiplyNTTs_inner f g Polynomial.zero 0 = Spec.multiplyNTTs f g := by
   unfold Target.multiplyNTTs_inner Spec.multiplyNTTs
   simp only
-  simp only [Id.pure_eq, Id.bind_eq, Std.Range.forIn_eq_forIn_range', Std.Range.size, tsub_zero,
-    Nat.reduceAdd, Nat.add_one_sub_one, Nat.div_one, List.forIn_yield_eq_foldl,
-    Vector.Inhabited_getElem_eq_getElem!, Vector.set_eq_set!, forIn'_eq_forIn,
+  simp only [bind_pure_comp, map_pure, Std.Range.forIn_eq_forIn_range', Std.Range.size, tsub_zero,
+    Nat.reduceAdd, Nat.add_one_sub_one, Nat.div_one, List.forIn_pure_yield_eq_foldl, bind_pure,
+    Id.run_pure, Vector.Inhabited_getElem_eq_getElem!, Vector.set_eq_set!, forIn'_eq_forIn,
     forIn_eq_forIn_range', size]
 
 /--
@@ -550,9 +565,10 @@ Linking `Target.multiplyNTTs` to `multiplyNTTs_pure`
 private theorem Target.multiplyNTTs_inner_eq (f g : Polynomial) :
   Target.multiplyNTTs_inner f g Polynomial.zero 0 = multiplyNTTs_pure f g Polynomial.zero 0 := by
   unfold Target.multiplyNTTs_inner
-  simp only [Id.run, Id.pure_eq, Id.bind_eq, Std.Range.forIn_eq_forIn_range', Std.Range.size,
-    tsub_zero, Nat.reduceAdd, Nat.add_one_sub_one, Nat.div_one, List.forIn_yield_eq_foldl,
-    zero_lt_one, foldl_range'_eq_foldWhile, mul_one, zero_add]
+  simp only [bind_pure_comp, map_pure, Std.Range.forIn_eq_forIn_range', Std.Range.size, tsub_zero,
+    Nat.reduceAdd, Nat.add_one_sub_one, Nat.div_one, List.forIn_pure_yield_eq_foldl, bind_pure,
+    Id.run_pure]
+  simp only [zero_lt_one, foldl_range'_eq_foldWhile, mul_one, zero_add]
   -- Using a useful equation satisfied by `foldWhile`
   rw [← eq_foldWhile]
   intro h i

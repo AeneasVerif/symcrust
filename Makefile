@@ -32,14 +32,14 @@ symcrust.llbc: $(wildcard */*.rs)
 	  --include=alloc::collections::*  --include=core::alloc::* --include=core::ptr::*
 
 symcrust-aeneas.llbc: $(wildcard */*.rs)
-	$(CHARON_EXE) --hide-marker-traits --exclude=core::fmt::Debug::fmt --opaque=core::fmt::Formatter --remove-associated-types='*' \
+	RUSTFLAGS="--cfg eurydice" \
+	$(CHARON_EXE) --preset=aeneas --exclude=core::fmt::Debug::fmt --opaque=core::fmt::Formatter --remove-associated-types='*' \
 	  --dest-file='symcrust-aeneas.llbc' \
 	  --exclude=symcrust::ffi::* --exclude=symcrust::hash::* --exclude=symcrust::mlkem::* \
 	  --exclude=symcrust::ntt::InternalComputationTemporaries \
 	  --include=symcrust::hash::HashState \
 	  --include=symcrust::hash::KeccakState \
 	  --include=crate::hash::shake128_extract --opaque=crate::hash::shake128_extract \
-	  --exclude=symcrust::key::Key3 --exclude=symcrust::key::Key3::* \
 	  --opaque=symcrust::common::random \
 	  --opaque=symcrust::common::wipe_slice \
 	  --exclude=core::intrinsics::discriminant_value --exclude=core::marker::DiscriminantKind \
@@ -70,9 +70,16 @@ c/symcrust.c: symcrust.llbc
 	$(EURYDICE_HOME)/eurydice $< --output $(dir $@) -fcomments --config c.yaml
 
 # Replaying the proofs
+.PHONY: build-proofs
+build-proofs:
+	cd proofs && lake build
+
+# Replaying the proofs and measuring the time.
+# Note that we rebuild the proofs before measuring to make sure the dependencies
+# are rebuilt (TODO: there is probably a better way).
 .PHONY: timed-lean
-timed-lean:
-	cd proofs && find Symcrust -type f -iname "*.lean" -exec printf "\n{}\n" \; -exec lake env time lean {} \; >& timing.out
+timed-lean: build-proofs
+	cd proofs && find Symcrust -type f -iname "*.lean" -exec printf "\n{}\n" \; -exec lake env time lean {} \;
 
 
 # Misc

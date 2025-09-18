@@ -79,7 +79,6 @@ def bytesToBits {l : Nat} (B : Vector Byte l) : Vector Bool (8 * l) := Id.run do
   let mut C := B
   let mut b := Vector.replicate (8 * l) false
   for hi: i in [0:l] do
-    have : i < l := by scalar_tac -- TODO: remove, or introduce nice assert notation
     for hj: j in [0:8] do
       b := b.set (8*i + j) (C[i] % 2 ≠ 0)
       C := C.set i (C[i] / 2)
@@ -194,35 +193,6 @@ def sampleNTT (B : Vector Byte 34) : Polynomial Q := Id.run do
   pure a
 
 /-- # Algorithm 8 -/
-
-@[scalar_tac_simps] -- TODO: move
-theorem nat_subset_le_iff (p : ℕ → Prop) (x y : {n : ℕ // p n}) : x ≤ y ↔ x.val ≤ y.val := by rfl
-
-@[scalar_tac_simps] -- TODO: move
-theorem nat_subset_lt_iff (p : ℕ → Prop) (x y : {n : ℕ // p n}) : x < y ↔ x.val < y.val := by rfl
-
-@[scalar_tac_simps] -- TODO: move
-theorem nat_subset_eq_iff (p : ℕ → Prop) (x y : {n : ℕ // p n}) : x = y ↔ x.val = y.val := by
-  cases x; cases y; simp
-
--- TODO:move
-attribute [scalar_tac_simps] Set.Mem
-
--- TODO: move
-@[scalar_tac_simps] theorem Set.mem_insert_nat :
-  @insert ℕ (Set ℕ) Set.instInsert x s y ↔ y = x ∨ s y := by rfl
-
--- TODO: move
-@[scalar_tac_simps] theorem Set.mem_singleton_nat :
-  @singleton ℕ (Set ℕ) Set.instSingletonSet x y ↔ y = x := by rfl
-
--- TODO: move
-@[scalar_tac_simps] theorem Set.mem_insert_int :
-  @insert ℤ (Set ℤ) Set.instInsert x s y ↔ y = x ∨ s y := by rfl
-
--- TODO: move
-@[scalar_tac_simps] theorem Set.mem_singleton_int :
-  @singleton ℤ (Set ℤ) Set.instSingletonSet x y ↔ y = x := by rfl
 
 @[scalar_tac η.val]
 theorem H.val (η : Η) : η.val ≤ 3 := by
