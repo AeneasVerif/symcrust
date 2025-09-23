@@ -597,6 +597,15 @@ const SIZEOF_MAX_CIPHERTEXT: usize = 1568;
 const SIZEOF_AGREED_SECRET: usize = 32;
 const SIZEOF_ENCAPS_RANDOM: usize = 32;
 
+// TODO: remove
+//#[charon(opaque)]
+#[inline(always)]
+fn cbd_sample_buffer_try_into(cbd_sample_buffer:  &mut [u8; 193]) -> &mut [u8; crate::hash::SHA3_512_RESULT_SIZE] {
+    (&mut cbd_sample_buffer[0..crate::hash::SHA3_512_RESULT_SIZE])
+        .try_into()
+        .unwrap()
+}
+
 fn encapsulate_internal(
     pk_mlkem_key: &mut Key,
     pb_agreed_secret: &mut [u8],
@@ -648,9 +657,7 @@ fn encapsulate_internal(
     // Note (Rust): no debug_assert!(SIZEOF_AGREED_SECRET < SHA3_512_RESULT_SIZE)?
     crate::hash::sha3_512_result(
         &mut p_comp_temps.hash_state0,
-        (&mut cbd_sample_buffer[0..crate::hash::SHA3_512_RESULT_SIZE])
-            .try_into()
-            .unwrap(),
+        cbd_sample_buffer_try_into(&mut cbd_sample_buffer),
     );
 
     // Write K to pb_agreed_secret
@@ -782,6 +789,13 @@ fn encapsulate_internal(
     Error::NoError
 }
 
+// TODO: remove
+//#[charon(opaque)]
+#[inline(always)]
+fn pb_random_try_into(pb_random : &[u8]) -> &[u8; SIZEOF_ENCAPS_RANDOM] {
+    pb_random.try_into().unwrap()
+}
+
 pub fn encapsulate_ex(
     pk_mlkem_key: &mut Key,
     pb_random: &[u8], // Note(Rust): we could statically require the right length, and have the FFI
@@ -816,7 +830,7 @@ pub fn encapsulate_ex(
         pk_mlkem_key,
         pb_agreed_secret,
         pb_ciphertext,
-        pb_random.try_into().unwrap(),
+        pb_random_try_into(pb_random),
         &mut p_comp_temps,
     )
 }
@@ -969,7 +983,7 @@ pub fn decapsulate(
     crate::hash::shake256_extract(p_shake_state, &mut pb_implicit_rejection_secret, false);
 
     // Constant time test if re-encryption successful
-    let successful_reencrypt = pb_reencapsulated_ciphertext == pb_read_ciphertext;
+    let successful_reencrypt = *pb_reencapsulated_ciphertext == *pb_read_ciphertext;
 
     // If not successful, perform side-channel-safe copy of Implicit Rejection secret over Decapsulated secret
     let cb_copy = ((successful_reencrypt as usize).wrapping_sub(1)) & SIZEOF_AGREED_SECRET;

@@ -31,15 +31,32 @@ symcrust.llbc: $(wildcard */*.rs)
 	  --exclude=core::fmt::Debug::fmt --opaque=core::fmt::Formatter --preset=eurydice \
 	  --include=alloc::collections::*  --include=core::alloc::* --include=core::ptr::*
 
+.PHONY: symcrust-aeneas.llbc
 symcrust-aeneas.llbc: $(wildcard */*.rs)
 	RUSTFLAGS="--cfg eurydice" \
 	$(CHARON_EXE) cargo --preset=aeneas --exclude=core::fmt::Debug::fmt --opaque=core::fmt::Formatter --remove-associated-types='*' \
 	  --dest-file='symcrust-aeneas.llbc' \
-	  --exclude=symcrust::ffi::* --exclude=symcrust::hash::* --exclude=symcrust::mlkem::* \
-	  --exclude=symcrust::ntt::InternalComputationTemporaries \
+	  --exclude=symcrust::ffi::* --exclude=symcrust::hash::* \
 	  --include=symcrust::hash::HashState \
 	  --include=symcrust::hash::KeccakState \
+	  --include=crate::hash::UNINITIALIZED_HASH_STATE \
+	  --include=crate::hash::shake128_state_copy --opaque=crate::hash::shake128_state_copy \
+	  --include=crate::hash::shake128_init --opaque=crate::hash::shake128_init \
 	  --include=crate::hash::shake128_extract --opaque=crate::hash::shake128_extract \
+	  --include=crate::hash::shake128_append --opaque=crate::hash::shake128_append \
+	  --include=crate::hash::shake256_state_copy --opaque=crate::hash::shake256_state_copy \
+	  --include=crate::hash::shake256_init --opaque=crate::hash::shake256_init \
+	  --include=crate::hash::shake256_extract --opaque=crate::hash::shake256_extract \
+	  --include=crate::hash::shake256_append --opaque=crate::hash::shake256_append \
+	  --include=crate::hash::sha3_256_init --opaque=crate::hash::sha3_256_init \
+	  --include=crate::hash::sha3_256_append --opaque=crate::hash::sha3_256_append \
+	  --include=crate::hash::sha3_256_result --opaque=crate::hash::sha3_256_result \
+	  --include=crate::hash::sha3_512 --opaque=crate::hash::sha3_512 \
+	  --include=crate::hash::sha3_512_init --opaque=crate::hash::sha3_512_init \
+	  --include=crate::hash::sha3_512_append --opaque=crate::hash::sha3_512_append \
+	  --include=crate::hash::sha3_512_result --opaque=crate::hash::sha3_512_result \
+	  --opaque=crate::mlkem::cbd_sample_buffer_try_into \
+	  --opaque=crate::mlkem::pb_random_try_into \
 	  --opaque=symcrust::common::random \
 	  --opaque=symcrust::common::wipe_slice \
 	  --exclude=core::intrinsics::discriminant_value --exclude=core::marker::DiscriminantKind \
