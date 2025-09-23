@@ -27,13 +27,13 @@ extract: symcrust-aeneas.llbc proofs/Symcrust/Code/Funs.lean proofs/Symcrust/Cod
 # Alternatively, this could be marked as a phony target, since cargo (and hence
 # charon) can skip recompilations if the sources have not changed.
 symcrust.llbc: $(wildcard */*.rs)
-	RUSTFLAGS="--cfg eurydice" $(CHARON_EXE) --hide-marker-traits \
+	RUSTFLAGS="--cfg eurydice" $(CHARON_EXE) cargo --hide-marker-traits \
 	  --exclude=core::fmt::Debug::fmt --opaque=core::fmt::Formatter --preset=eurydice \
 	  --include=alloc::collections::*  --include=core::alloc::* --include=core::ptr::*
 
 symcrust-aeneas.llbc: $(wildcard */*.rs)
 	RUSTFLAGS="--cfg eurydice" \
-	$(CHARON_EXE) --preset=aeneas --exclude=core::fmt::Debug::fmt --opaque=core::fmt::Formatter --remove-associated-types='*' \
+	$(CHARON_EXE) cargo --preset=aeneas --exclude=core::fmt::Debug::fmt --opaque=core::fmt::Formatter --remove-associated-types='*' \
 	  --dest-file='symcrust-aeneas.llbc' \
 	  --exclude=symcrust::ffi::* --exclude=symcrust::hash::* --exclude=symcrust::mlkem::* \
 	  --exclude=symcrust::ntt::InternalComputationTemporaries \
