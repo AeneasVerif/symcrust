@@ -168,7 +168,7 @@ fn key_expand_from_private_seed(
     // Expand s in place
     c_for!(let mut i = 0; i < n_rows; i += 1; {
         cbd_sample_buffer[0] = i;
-        crate::hash::shake256_state_copy( &mut p_comp_temps.hash_state0, &mut p_comp_temps.hash_state1 );
+        crate::hash::shake256_state_copy( &p_comp_temps.hash_state0, &mut p_comp_temps.hash_state1 );
         crate::hash::shake256_append( &mut p_comp_temps.hash_state1, &cbd_sample_buffer[0..1] );
 
         crate::hash::shake256_extract( &mut p_comp_temps.hash_state1, &mut cbd_sample_buffer[0..64usize*(n_eta1 as usize)], false);
@@ -182,7 +182,7 @@ fn key_expand_from_private_seed(
         // them at the beginning of the function. With the former style, the borrow lives for the
         // duration of the function call and one can use p_comp_temps still; with the latter style,
         // p_comp_temps is invalidated for the duration of the entire function.
-        crate::hash::shake256_state_copy( &mut p_comp_temps.hash_state0, &mut p_comp_temps.hash_state1 );
+        crate::hash::shake256_state_copy( &p_comp_temps.hash_state0, &mut p_comp_temps.hash_state1 );
         crate::hash::shake256_append( &mut p_comp_temps.hash_state1, &cbd_sample_buffer[0..1] );
 
         crate::hash::shake256_extract( &mut p_comp_temps.hash_state1, &mut cbd_sample_buffer[0..64*(n_eta1 as usize)], false );
@@ -650,7 +650,7 @@ fn encapsulate_internal(
     c_for!(let mut i=0u8; i<n_rows; i += 1;
     {
         cbd_sample_buffer[0] = i;
-        crate::hash::shake256_state_copy( &mut p_comp_temps.hash_state0, &mut p_comp_temps.hash_state1 );
+        crate::hash::shake256_state_copy( &p_comp_temps.hash_state0, &mut p_comp_temps.hash_state1 );
         crate::hash::shake256_append( &mut p_comp_temps.hash_state1, &cbd_sample_buffer[0..1] );
 
         crate::hash::shake256_extract( &mut p_comp_temps.hash_state1, &mut cbd_sample_buffer[0..64usize*(n_eta1 as usize)], false );
@@ -682,7 +682,7 @@ fn encapsulate_internal(
     // Expand e1 and add it to pv_tmp - do addition PolyElement-wise to reduce memory usage
     c_for!(let mut i=0; i<n_rows; i += 1; {
         cbd_sample_buffer[0] = n_rows+i;
-        crate::hash::shake256_state_copy( &mut p_comp_temps.hash_state0, &mut p_comp_temps.hash_state1 );
+        crate::hash::shake256_state_copy( &p_comp_temps.hash_state0, &mut p_comp_temps.hash_state1 );
         crate::hash::shake256_append( &mut p_comp_temps.hash_state1, &cbd_sample_buffer[0..1] );
 
         crate::hash::shake256_extract( &mut p_comp_temps.hash_state1, &mut cbd_sample_buffer[0..64*(n_eta2 as usize)], false );
@@ -709,7 +709,7 @@ fn encapsulate_internal(
 
     // Expand e2 polynomial in pe_tmp1
     cbd_sample_buffer[0] = 2 * n_rows;
-    crate::hash::shake256_state_copy(&mut p_comp_temps.hash_state0, &mut p_comp_temps.hash_state1);
+    crate::hash::shake256_state_copy(&p_comp_temps.hash_state0, &mut p_comp_temps.hash_state1);
     crate::hash::shake256_append(&mut p_comp_temps.hash_state1, &cbd_sample_buffer[0..1]);
 
     crate::hash::shake256_extract(
