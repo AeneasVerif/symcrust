@@ -92,14 +92,23 @@ fn key_expand_public_matrix_from_public_seed(
 
     c_for!(let mut i = 0u8; i<n_rows; i += 1; {
         coordinates[1] = i;
-        c_for!(let mut j=0u8; j<n_rows; j += 1; {
-            coordinates[0] = j;
-            crate::hash::shake128_state_copy( p_shake_state_base, p_shake_state_work );
-            crate::hash::shake128_append( p_shake_state_work, &coordinates);
+        #[inline(always)]
+        fn inner_loop (pk_mlkem_key: &mut Key,
+                       coordinates: &mut [u8; 2],
+                       p_shake_state_base : &crate::hash::HashState,
+                       p_shake_state_work : &mut crate::hash::HashState,
+                       n_rows : u8,
+                       i : u8) {
+            c_for!(let mut j=0u8; j<n_rows; j += 1; {
+                coordinates[0] = j;
+                crate::hash::shake128_state_copy( p_shake_state_base, p_shake_state_work );
+                crate::hash::shake128_append( p_shake_state_work, coordinates);
 
-            let a_transpose = pk_mlkem_key.atranspose_mut();
-            poly_element_sample_ntt_from_shake128( p_shake_state_work, &mut a_transpose[(i*n_rows+j) as usize] );
-        });
+                let a_transpose = pk_mlkem_key.atranspose_mut();
+                poly_element_sample_ntt_from_shake128( p_shake_state_work, &mut a_transpose[(i*n_rows+j) as usize] );
+            });
+        }
+        inner_loop(pk_mlkem_key, &mut coordinates, p_shake_state_base, p_shake_state_work, n_rows, i)
     });
 
     // no need to wipe; everything computed here is always public
@@ -166,29 +175,38 @@ fn key_expand_from_private_seed(
     );
 
     // Expand s in place
-    c_for!(let mut i = 0; i < n_rows; i += 1; {
-        cbd_sample_buffer[0] = i;
-        crate::hash::shake256_state_copy( &p_comp_temps.hash_state0, &mut p_comp_temps.hash_state1 );
-        crate::hash::shake256_append( &mut p_comp_temps.hash_state1, &cbd_sample_buffer[0..1] );
+    #[inline(always)]
+    fn loop1(pk_mlkem_key: &mut Key, p_comp_temps: &mut InternalComputationTemporaries, cbd_sample_buffer : &mut [u8; 193], n_rows: u8, n_eta1 : u8) {
+        c_for!(let mut i = 0; i < n_rows; i += 1; {
+            cbd_sample_buffer[0] = i;
+            crate::hash::shake256_state_copy( &p_comp_temps.hash_state0, &mut p_comp_temps.hash_state1 );
+            crate::hash::shake256_append( &mut p_comp_temps.hash_state1, &cbd_sample_buffer[0..1] );
 
-        crate::hash::shake256_extract( &mut p_comp_temps.hash_state1, &mut cbd_sample_buffer[0..64usize*(n_eta1 as usize)], false);
+            crate::hash::shake256_extract( &mut p_comp_temps.hash_state1, &mut cbd_sample_buffer[0..64usize*(n_eta1 as usize)], false);
 
-        poly_element_sample_cbd_from_bytes( &cbd_sample_buffer, n_eta1 as u32, &mut pk_mlkem_key.s_mut()[i as usize]);
-    });
+            poly_element_sample_cbd_from_bytes( cbd_sample_buffer, n_eta1 as u32, &mut pk_mlkem_key.s_mut()[i as usize]);
+        });
+    }
+    loop1(pk_mlkem_key, p_comp_temps, &mut cbd_sample_buffer, n_rows, n_eta1);
+
     // Expand e in t, ready for multiply-add
-    c_for!(let mut i = 0; i < n_rows; i += 1; {
-        cbd_sample_buffer[0] = n_rows+i;
-        // Note (Rust): it is much better to borrow the hash states *here*, rather than declaring
-        // them at the beginning of the function. With the former style, the borrow lives for the
-        // duration of the function call and one can use p_comp_temps still; with the latter style,
-        // p_comp_temps is invalidated for the duration of the entire function.
-        crate::hash::shake256_state_copy( &p_comp_temps.hash_state0, &mut p_comp_temps.hash_state1 );
-        crate::hash::shake256_append( &mut p_comp_temps.hash_state1, &cbd_sample_buffer[0..1] );
+    #[inline(always)]
+    fn loop2(pk_mlkem_key: &mut Key, p_comp_temps: &mut InternalComputationTemporaries, cbd_sample_buffer : &mut [u8; 193], n_rows: u8, n_eta1 : u8) {
+        c_for!(let mut i = 0; i < n_rows; i += 1; {
+            cbd_sample_buffer[0] = n_rows+i;
+            // Note (Rust): it is much better to borrow the hash states *here*, rather than declaring
+            // them at the beginning of the function. With the former style, the borrow lives for the
+            // duration of the function call and one can use p_comp_temps still; with the latter style,
+            // p_comp_temps is invalidated for the duration of the entire function.
+            crate::hash::shake256_state_copy( &p_comp_temps.hash_state0, &mut p_comp_temps.hash_state1 );
+            crate::hash::shake256_append( &mut p_comp_temps.hash_state1, &cbd_sample_buffer[0..1] );
 
-        crate::hash::shake256_extract( &mut p_comp_temps.hash_state1, &mut cbd_sample_buffer[0..64*(n_eta1 as usize)], false );
+            crate::hash::shake256_extract( &mut p_comp_temps.hash_state1, &mut cbd_sample_buffer[0..64*(n_eta1 as usize)], false );
 
-        poly_element_sample_cbd_from_bytes( &cbd_sample_buffer, n_eta1 as u32, &mut pk_mlkem_key.t_mut()[i as usize]);
-    });
+            poly_element_sample_cbd_from_bytes( cbd_sample_buffer, n_eta1 as u32, &mut pk_mlkem_key.t_mut()[i as usize]);
+        });
+    }
+    loop2(pk_mlkem_key, p_comp_temps, &mut cbd_sample_buffer, n_rows, n_eta1);    
 
     // Perform NTT on s and e
     vector_ntt(pk_mlkem_key.s_mut());
@@ -647,16 +665,25 @@ fn encapsulate_internal(
     );
 
     // Expand rInner vector
-    c_for!(let mut i=0u8; i<n_rows; i += 1;
-    {
-        cbd_sample_buffer[0] = i;
-        crate::hash::shake256_state_copy( &p_comp_temps.hash_state0, &mut p_comp_temps.hash_state1 );
-        crate::hash::shake256_append( &mut p_comp_temps.hash_state1, &cbd_sample_buffer[0..1] );
+    #[inline(always)]
+    fn loop1(hash_state0 : &crate::hash::HashState,
+             hash_state1 : &mut crate::hash::HashState,
+             cbd_sample_buffer : &mut [u8; 193],
+             pvr_inner : &mut [[u16; 256]],
+             n_rows: u8, n_eta1 : u8) {
+        c_for!(let mut i=0u8; i<n_rows; i += 1;
+               {
+                   cbd_sample_buffer[0] = i;
+                   crate::hash::shake256_state_copy( hash_state0, hash_state1 );
+                   crate::hash::shake256_append( hash_state1, &cbd_sample_buffer[0..1] );
 
-        crate::hash::shake256_extract( &mut p_comp_temps.hash_state1, &mut cbd_sample_buffer[0..64usize*(n_eta1 as usize)], false );
+                   crate::hash::shake256_extract( hash_state1, &mut cbd_sample_buffer[0..64usize*(n_eta1 as usize)], false );
 
-        poly_element_sample_cbd_from_bytes( & cbd_sample_buffer, n_eta1 as u32, &mut pvr_inner[i as usize]);
-    });
+                   poly_element_sample_cbd_from_bytes( cbd_sample_buffer, n_eta1 as u32, &mut pvr_inner[i as usize]);
+               });
+    }
+    loop1(&p_comp_temps.hash_state0, &mut p_comp_temps.hash_state1,
+          &mut cbd_sample_buffer, pvr_inner, n_rows, n_eta1);
 
     // Perform NTT on rInner
     vector_ntt(pvr_inner);
@@ -680,22 +707,33 @@ fn encapsulate_internal(
     vector_intt_and_mul_r(pv_tmp);
 
     // Expand e1 and add it to pv_tmp - do addition PolyElement-wise to reduce memory usage
-    c_for!(let mut i=0; i<n_rows; i += 1; {
-        cbd_sample_buffer[0] = n_rows+i;
-        crate::hash::shake256_state_copy( &p_comp_temps.hash_state0, &mut p_comp_temps.hash_state1 );
-        crate::hash::shake256_append( &mut p_comp_temps.hash_state1, &cbd_sample_buffer[0..1] );
 
-        crate::hash::shake256_extract( &mut p_comp_temps.hash_state1, &mut cbd_sample_buffer[0..64*(n_eta2 as usize)], false );
+    #[inline(always)]
+    fn loop2(hash_state0 : &crate::hash::HashState,
+             hash_state1 : &mut crate::hash::HashState,
+             cbd_sample_buffer : &mut [u8; 193],
+             pe_tmp0 : &mut [u16; 256],
+             pv_tmp : &mut [[u16; 256]],
+             n_rows: u8, n_eta2 : u8) {
+        c_for!(let mut i=0; i<n_rows; i += 1; {
+            cbd_sample_buffer[0] = n_rows+i;
+            crate::hash::shake256_state_copy( hash_state0, hash_state1 );
+            crate::hash::shake256_append( hash_state1, &cbd_sample_buffer[0..1] );
 
-        poly_element_sample_cbd_from_bytes( &cbd_sample_buffer, n_eta2 as u32, pe_tmp0 );
+            crate::hash::shake256_extract( hash_state1, &mut cbd_sample_buffer[0..64*(n_eta2 as usize)], false );
 
-        // Note (Rust): in-place operation here, was:
-        // PolyElementAdd( INTERNAL_MLKEM_VECTOR_ELEMENT(i, pv_tmp), pe_tmp0, INTERNAL_MLKEM_VECTOR_ELEMENT(i, pv_tmp) );
-        // Added a copy -- TODO: measure performance impact of the copy
-        let copy = pv_tmp[i as usize];
-        poly_element_add( &copy, pe_tmp0, &mut pv_tmp[i as usize] );
+            poly_element_sample_cbd_from_bytes( cbd_sample_buffer, n_eta2 as u32, pe_tmp0 );
 
-    });
+            // Note (Rust): in-place operation here, was:
+            // PolyElementAdd( INTERNAL_MLKEM_VECTOR_ELEMENT(i, pv_tmp), pe_tmp0, INTERNAL_MLKEM_VECTOR_ELEMENT(i, pv_tmp) );
+            // Added a copy -- TODO: measure performance impact of the copy
+            let copy = pv_tmp[i as usize];
+            poly_element_add( &copy, pe_tmp0, &mut pv_tmp[i as usize] );
+
+        });
+    }
+    loop2(&p_comp_temps.hash_state0, &mut p_comp_temps.hash_state1,
+          &mut cbd_sample_buffer, pe_tmp0, pv_tmp, n_rows, n_eta2);
 
     // pv_tmp = u = INTT(Atranspose o rInner) + e1
     // Compress and encode u into prefix of ciphertext
