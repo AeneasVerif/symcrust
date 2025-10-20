@@ -200,7 +200,7 @@ lemma List.flatMap_eq_map {α β} (l : List α) (f : α → β) : l.flatMap (fun
 /-- This function is meant to reason about the output of `decode_coefficient` when it is necessary to load
     bits from the accumulator at the beginning of `decode_coefficient`. Note that `hn_bits_in_accumulator`
     specifies that the initial number of bits in the accumulator is 0. -/
-theorem decode_coefficient.early_load_progress_spec (b : Slice U8) (d : U32) (f : Std.Array U16 256#usize)
+theorem decode_coefficient.early_load_progress_spec (b : Aeneas.Std.Slice U8) (d : U32) (f : Std.Array U16 256#usize)
   (num_bytes_read : Usize) (acc n_bits_in_accumulator : U32) (i' : Usize)
   (hinv : SpecAux.Stream.decode.length_inv (↑d) 4 ↑num_bytes_read ↑n_bits_in_accumulator ↑i')
   (hb1 : ∀ i < 256,
@@ -379,7 +379,7 @@ theorem decode_coefficient.early_load_progress_spec (b : Slice U8) (d : U32) (f 
     specifies that the initial number of bits in the accumulator is not 0 but `hd` and `hn_bits_to_decode`
     collectively state that `d > Min.min d.val n_bits_in_accumulator.val`, meaning there were not enough
     bits in the accumulator to decode a full coefficient. -/
-theorem decode_coefficient.late_load_progress_spec (b : Slice U8) (d : U32) (f : Std.Array U16 256#usize)
+theorem decode_coefficient.late_load_progress_spec (b : Aeneas.Std.Slice U8) (d : U32) (f : Std.Array U16 256#usize)
   (num_bytes_read : Usize) (acc n_bits_in_accumulator : U32) (i : Usize)
   (hacc1 : (∀ j < n_bits_in_accumulator.val, acc.val.testBit j =
     b[(8 * num_bytes_read.val - n_bits_in_accumulator.val + j) / 8]!.val.testBit
@@ -655,7 +655,7 @@ theorem decode_coefficient.late_load_progress_spec (b : Slice U8) (d : U32) (f :
     bits from the accumulator at the beginning of `decode_coefficient`), and the combination of `hd` and
     `hn_bits_to_decode` entail that `d ≤ Min.min d.val n_bits_in_accumulator.val`, meaning there are enough
     bits in the accumulator to decode a full coefficient. -/
-theorem decode_coefficient.no_load_progress_spec (b : Slice U8) (d : U32) (f : Std.Array U16 256#usize)
+theorem decode_coefficient.no_load_progress_spec (b : Aeneas.Std.Slice U8) (d : U32) (f : Std.Array U16 256#usize)
   (num_bytes_read : Usize) (acc n_bits_in_accumulator : U32) (i : Usize)
   (hacc1 : (∀ j < n_bits_in_accumulator.val, acc.val.testBit j =
     b[(8 * num_bytes_read.val - n_bits_in_accumulator.val + j) / 8]!.val.testBit
@@ -767,7 +767,7 @@ theorem decode_coefficient.no_load_progress_spec (b : Slice U8) (d : U32) (f : S
 /-- This function is meant to reason about the output of `decode_coefficient` when it is not necessary to load
     bits from the accumulator at the beginning of `decode_coefficient`. Note that `hn_bits_in_accumulator`
     specifies that the initial number of bits in the accumulator is not 0. -/
-theorem decode_coefficient.no_early_load_progress_spec (b : Slice U8) (d : U32)
+theorem decode_coefficient.no_early_load_progress_spec (b : Aeneas.Std.Slice U8) (d : U32)
   (f : Std.Array U16 256#usize) (num_bytes_read : Usize) (acc n_bits_in_accumulator : U32) (i : Usize)
   (hacc1 : (∀ j < n_bits_in_accumulator.val, acc.val.testBit j =
     b[(8 * num_bytes_read.val - n_bits_in_accumulator.val + j) / 8]!.val.testBit
@@ -847,7 +847,7 @@ theorem decode_coefficient.no_early_load_progress_spec (b : Slice U8) (d : U32)
       hn_bits_in_accumulator1 coefficient1 <;> assumption
 
 @[progress]
-def decode_coefficient.progress_spec (b : Slice U8) (d : U32) (f : Array U16 256#usize)
+def decode_coefficient.progress_spec (b : Aeneas.Std.Slice U8) (d : U32) (f : Array U16 256#usize)
   (num_bytes_read : Usize) (acc : U32) (n_bits_in_accumulator : U32) (i : Usize)
   (hacc1 : (∀ j < n_bits_in_accumulator.val, acc.val.testBit j =
     b[(8 * num_bytes_read.val - n_bits_in_accumulator.val + j) / 8]!.val.testBit
@@ -949,7 +949,7 @@ def decompress_coefficient.progress_spec (i : Usize) (d : U32) (coefficient : U3
       simp_all
 
 @[progress]
-def poly_element_decode_and_decompress_loop.progress_spec (b : Slice U8) (d : U32)
+def poly_element_decode_and_decompress_loop.progress_spec (b : Aeneas.Std.Slice U8) (d : U32)
   (f : Array U16 256#usize) (num_bytes_read : Usize) (acc : U32) (n_bits_in_accumulator : U32) (i : Usize)
   (hacc1 : (∀ j < n_bits_in_accumulator.val, acc.val.testBit j =
     b[(8 * num_bytes_read.val - n_bits_in_accumulator.val + j) / 8]!.val.testBit
@@ -999,7 +999,7 @@ termination_by 256 - i.val
 decreasing_by scalar_decr_tac
 
 @[progress]
-def poly_element_decode_and_decompress.spec (b : Slice U8) (d : U32) (f : Array U16 256#usize)
+def poly_element_decode_and_decompress.spec (b : Aeneas.Std.Slice U8) (d : U32) (f : Array U16 256#usize)
   (hd : 0 < d.val ∧ d.val ≤ 12)
   (hb1 : ∀ i < 256,
     ∑ (a : Fin d), (Bool.toNat (b[(d.val * i + a) / 8]!.val.testBit ((d * i + a) % 8))) * 2^a.val < Spec.m d)

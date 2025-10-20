@@ -117,7 +117,7 @@ theorem min_spec (x y : U32) :
   split <;> progress*
 
 theorem encode_coefficient.progress_spec_aux
-  (x : U32) (d : U32) (dst : Slice U8)
+  (x : U32) (d : U32) (dst : Aeneas.Std.Slice U8)
   (bi : Usize) (acc : U32) (acci : U32)
   (hx : x.val < Spec.m d.val)
   (hd : 0 < d.val ∧ d.val ≤ 12)
@@ -156,7 +156,7 @@ theorem encode_coefficient.progress_spec_aux
 
 @[progress]
 theorem encode_coefficient.progress_spec
-  (x : U32) (d : U32) (dst : Slice U8)
+  (x : U32) (d : U32) (dst : Aeneas.Std.Slice U8)
   (bi : Usize) (acc : U32) (acci : U32)
   (hx : x.val < Spec.m d.val)
   (hd : 0 < d.val ∧ d.val ≤ 12)
@@ -220,7 +220,7 @@ attribute [local progress] wfArray_update wfArray_index
 @[progress]
 theorem poly_element_compress_and_encode_loop.progress_spec
   (f : Array U16 256#usize) (d : U32)
-  (b : Slice U8) (bi : Usize) (acc : U32)
+  (b : Aeneas.Std.Slice U8) (bi : Usize) (acc : U32)
   (acci : U32) (i : Usize)
   (hwf : wfArray f)
   (hi : i.val ≤ 256)
@@ -273,7 +273,7 @@ termination_by 256 - i.val
 decreasing_by scalar_decr_tac
 
 @[progress]
-theorem poly_element_compress_and_encode.spec (f : Array U16 256#usize) (d : U32) (b : Slice U8)
+theorem poly_element_compress_and_encode.spec (f : Array U16 256#usize) (d : U32) (b : Aeneas.Std.Slice U8)
   (hd : 0 < d.val ∧ d.val ≤ 12)
   (hf : wfArray f)
   (hb1 : ∀ i < b.length, b[i]! = 0#u8)
