@@ -1,7 +1,7 @@
 import Mathlib.Data.List.Defs
 import Mathlib.Data.ZMod.Defs
-import Mathlib.Data.Matrix.Defs
-import Mathlib.Data.Matrix.RowCol
+import Mathlib.LinearAlgebra.Matrix.Defs
+import Mathlib.LinearAlgebra.Matrix.RowCol
 import Aeneas
 import Symcrust.Spec.NatBit
 import Symcrust.Spec.Round
