@@ -55,10 +55,8 @@ theorem compress_coeff.spec_aux (d coeff : U32) (hd : d.val ≤ 12) (hc: coeff.v
     clear i3_post
 
     have : i4.val < U32.max := by
-      simp only [UScalarTy.U32_numBits_eq, UScalarTy.U64_numBits_eq, Nat.reduceLeDiff,
-        UScalar.cast_val_mod_pow_greater_numBits_eq, COMPRESS_MULCONSTANT.spec, Nat.reduceSubDiff,
-        Nat.shiftRight_eq_div_pow, i4_post_1, multiplication_post, coeff1_post, mulc_post, this,
-        i2_post]
+      simp only [COMPRESS_MULCONSTANT.spec, Nat.reduceSubDiff, Nat.shiftRight_eq_div_pow,
+        i4_post_1, multiplication_post, coeff1_post, mulc_post, this, i2_post]
       have : 2 ^ 23 ≤ 2 ^ (34 - d.val) := by
         apply Nat.pow_le_pow_right
         . simp
@@ -90,8 +88,7 @@ theorem compress_coeff.spec_aux (d coeff : U32) (hd : d.val ≤ 12) (hc: coeff.v
     simp only [Nat.cast_ofNat] at this
     simp only [← this, SpecAux.compress, Nat.reduceSubDiff, Nat.cast_inj]
 
-    simp only [UScalarTy.U32_numBits_eq, UScalarTy.U64_numBits_eq, Nat.reduceLeDiff,
-      UScalar.cast_val_mod_pow_greater_numBits_eq, COMPRESS_MULCONSTANT.spec, Nat.reduceSubDiff, *]
+    simp only [COMPRESS_MULCONSTANT.spec, Nat.reduceSubDiff, *]
   · simp only [ok.injEq, SpecAux.compressOpt, Nat.cast_ofNat, exists_eq_left']
     simp_ifs
 
@@ -151,7 +148,7 @@ theorem encode_coefficient.progress_spec_aux
     simp_scalar
   . simp [Stream.encode.body]
     simp_ifs
-    simp only [*, Stream.encode.body.length_spec]
+    simp only [*]
     simp_scalar
 
 @[progress]
@@ -211,7 +208,7 @@ theorem encode_coefficient.progress_spec
 
   progress with encode_coefficient.progress_spec_aux as ⟨ dst1, bi1, acc1, acci1, _, h ⟩
   -- The following is annoying - note that it is proven by `grind`
-  simp only [Slice.length, Nat.reduceMul, exists_and_left, exists_eq_left']
+  simp only [Slice.length, exists_and_left, exists_eq_left']
   split_conjs <;> try tauto
   simp_all +zetaDelta only
 
@@ -261,7 +258,7 @@ theorem poly_element_compress_and_encode_loop.progress_spec
   . unfold Stream.compressOpt_encode.recBody
     have hi : i.val = 256 := by scalar_tac
     simp_scalar
-    simp only [getElem!_to_poly, id_eq, List.range'_zero, List.foldl_nil, Slice.length, true_and]
+    simp only [getElem!_to_poly, List.range'_zero, List.foldl_nil]
     simp [Stream.encode.length_inv, hi] at hinv
     revert hinv
     simp_scalar

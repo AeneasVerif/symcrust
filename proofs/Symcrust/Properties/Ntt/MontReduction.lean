@@ -38,10 +38,10 @@ def mont_reduce_spec
     zmodify [t, f]
     rw [div_to_ZMod]
     . simp only [Int.cast_add, Int.cast_natCast, Int.cast_mul, CharP.cast_eq_zero, mul_zero,
-      add_zero, t, f]
+      add_zero, f]
     . simp only [Int.cast_add, Int.cast_natCast, Int.cast_mul, ZMod.intCast_mod, mul_assoc,
-      h_q_minus_1, mul_neg, mul_one, add_neg_cancel, t, f]
-    . simp only [Int.gcd_natCast_natCast, h_q_R, t, f]
+      h_q_minus_1, mul_neg, mul_one, add_neg_cancel, f]
+    . simp only [Int.gcd_natCast_natCast, h_q_R]
 
   -- Secondary goals
   have h_t1 : 0 ≤ t := by scalar_tac +nonLin

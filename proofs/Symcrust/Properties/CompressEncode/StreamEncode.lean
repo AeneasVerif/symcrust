@@ -146,7 +146,7 @@ theorem Stream.encode.body.length_spec
         8 * s.bi + 8 * n + xBits = 8 * s.bi + s.acci + (nBits + xBits) := by simp only [← hif0, acci]; ring_nf
         _ = 8 * s.bi + s.acci + d := by
           have : nBits + xBits = d := by omega
-          simp only [this, Nat.add_left_inj]
+          simp only [this]
         _ = d * i + d := by
           -- Using the characterization of euclidean division
           have : 8 * s.bi + s.acci = d * i := by
@@ -197,7 +197,7 @@ theorem Stream.encode.body.length_spec
     have hAcci : acci = d * (i + 1) % (8 * n) := by
       simp only [acci]
       zmodify
-      simp only [h3, ZMod.natCast_mod, Nat.cast_mul, nBitsEq, acci]
+      simp only [h3, ZMod.natCast_mod, Nat.cast_mul, nBitsEq]
       ring_nf
 
     -- Number of bytes in the output buffer
@@ -260,7 +260,7 @@ theorem Stream.encode.body.spec_before_flush
   have hBitsEq : bits.toNat = x0.val % 2^nBits := by
     simp only [bits]
     simp only [BitVec.shiftLeft_sub_one_eq_mod]
-    simp only [BitVec.ofNat_eq_ofNat, BitVec.toNat_umod, BitVec.toNat_ofNat, BitVec.toNat_pow, bits]
+    simp only [BitVec.ofNat_eq_ofNat, BitVec.toNat_umod, BitVec.toNat_ofNat, BitVec.toNat_pow]
 
     have : 2 < 2 ^(8*n) := by simp_scalar
     have : 2 ^ nBits < 2 ^ (8 * n) := by simp_scalar
@@ -271,20 +271,20 @@ theorem Stream.encode.body.spec_before_flush
   have hAccPre : ∀ j < acci, acc[j]! = F[(8 * s.bi + j) / d]!.val.testBit ((8 * s.bi + j) % d) := by
     intros j hj
     simp only [acci] at hj
-    simp only [BitVec.getElem!_or, acc, acci]
+    simp only [BitVec.getElem!_or, acc]
     by_cases hj': j < s.acci -- TODO: simp_lists +split
     . simp_lists [h4]
     . simp_lists [h5]
 
-      simp only [BitVec.getElem!_eq_testBit_toNat, hBitsEq, Nat.testBit_mod_two_pow, acci, acc]
+      simp only [BitVec.getElem!_eq_testBit_toNat, hBitsEq, Nat.testBit_mod_two_pow]
       simp_scalar
-      simp only [x0, acc, acci]
+      simp only [x0]
 
       have hij : (8 * s.bi + j) / d = i ∧
                  (8 * s.bi + j) % d = j - s.acci := by
         have := Nat.mod_add_div (d * i) (8 * n)
         have : 8 * s.bi = 8 * n * (d * i / (8 * n)) := by
-          simp only [h1, x0, acc, acci]
+          simp only [h1]
           ring_nf
 
         have : 8 * s.bi + j = d * i + (j - s.acci) := by omega
@@ -304,8 +304,8 @@ theorem Stream.encode.body.spec_before_flush
     intros j hj hj'
     simp only [BitVec.getElem!_or, Bool.or_eq_false_iff, acc]
     simp_lists [*]
-    simp only [← h2, acc]
-    simp only [BitVec.shiftLeft_sub_one_eq_mod, BitVec.ofNat_eq_ofNat, bits, acc]
+    simp only [← h2]
+    simp only [BitVec.shiftLeft_sub_one_eq_mod, BitVec.ofNat_eq_ofNat, bits]
     simp_lists
 
   tauto
@@ -478,7 +478,7 @@ theorem Stream.encode.body.spec_with_flush
         (8 * (s.bi + n) + j) % d = (d * i + (nBits +j)) % d := by simp only [hij]; ring_nf
         _ = nBits + j := by simp_scalar
 
-      simp only [hi, hj, Nat.add_left_inj, and_self]
+      simp only [hi, hj, and_self]
     simp only [hij]
     simp only [BitVec.getElem!_eq_testBit_toNat, BitVec.toNat_ofNat, Nat.testBit_mod_two_pow,
       Nat.testBit_shiftRight, Bool.and_eq_right_iff_imp, decide_eq_true_eq]
@@ -487,7 +487,7 @@ theorem Stream.encode.body.spec_with_flush
   . simp only [mem_std_range_step_one, and_imp, x]
     intros j hj hj'
     simp only [BitVec.getElem!_eq_testBit_toNat, BitVec.toNat_ofNat, Nat.testBit_mod_two_pow,
-      Nat.testBit_shiftRight, Bool.and_eq_false_imp, decide_eq_true_eq, x0, x]
+      Nat.testBit_shiftRight, Bool.and_eq_false_imp, decide_eq_true_eq, x0]
     intros
 
     apply Nat.testBit_eq_false_of_lt
@@ -563,7 +563,7 @@ theorem Stream.encode.spec_aux
     unfold inv length_inv
     simp only [BitVec.ofNat_eq_ofNat, List.length_replicate, zero_le, mul_zero, Nat.zero_div,
       Nat.zero_mod, not_lt_zero', IsEmpty.forall_iff, implies_true, BitVec.getElem!_zero, zero_add,
-      Bool.false_eq, mem_std_range_step_one, true_and, and_self, and_assoc, s]
+      Bool.false_eq, mem_std_range_step_one, true_and, and_self, s]
 
   replace hinv := Stream.encode.recBody.spec hinv
 

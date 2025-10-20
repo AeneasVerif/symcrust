@@ -395,7 +395,7 @@ def barrett_reduce_spec
 
   simp +zetaDelta only [barrett_reduce]; split_conjs
   . apply ZMod_eq_imp_mod_eq -- We move to ZMod to leverage many useful lemmas there
-    simp [k, c, o] -- Which are all conveniently annotated with @simp
+    simp -- Which are all conveniently annotated with @simp
 
   . apply barrett_reduce_bounds N h_N R h_R A h_A v h_v o
     simp +zetaDelta

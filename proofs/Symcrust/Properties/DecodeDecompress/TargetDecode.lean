@@ -58,7 +58,7 @@ def Target.byteDecode.decodeCoefficient.spec {m d : ℕ} (b : Vector Bool (8 * (
   inv b (decodeCoefficient b F i) (i + 1) := by
   unfold decodeCoefficient
   simp_all only [inv, Nat.cast_sum, Nat.cast_mul, Nat.cast_pow, Nat.cast_ofNat,
-    mem_std_range_step_one, and_imp, gt_iff_lt, and_self, Vector.getElem!_set!]
+    mem_std_range_step_one, and_imp, gt_iff_lt]
   rcases hinv with ⟨hinv1, hinv2⟩
   constructor
   . intro i' i'_lt_i_add_one

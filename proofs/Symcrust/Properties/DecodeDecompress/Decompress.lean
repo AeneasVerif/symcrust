@@ -74,8 +74,7 @@ lemma Stream.decode_decompressOpt.recBody.inv (d n : ℕ) (B : Vector Byte (32 *
   . replace hi : i < 256 := by omega
     have : (List.range' i (256 - i)) = i :: (List.range' (i + 1) (256 - (i + 1))) := by
       rw [List.range'_eq_cons_iff]
-      simp only [tsub_pos_iff_lt, Nat.reduceSubDiff, List.range'_inj, Nat.add_left_inj, or_true,
-        and_true, true_and]
+      simp only [tsub_pos_iff_lt, Nat.reduceSubDiff, List.range'_inj, or_true, and_true, true_and]
       omega
     rw [this, List.foldl_cons]
     have : (recBody B.toList B.toList_length (body B.toList B.toList_length s1 i) (i + 1)).F[j]! = s2.F[j]! := by
@@ -97,8 +96,7 @@ lemma Stream.decode.recBody.inv (d n : ℕ) (B : Vector Byte (32 * d)) (s1 s2 : 
   . replace hi : i < 256 := by omega
     have : (List.range' i (256 - i)) = i :: (List.range' (i + 1) (256 - (i + 1))) := by
       rw [List.range'_eq_cons_iff]
-      simp only [tsub_pos_iff_lt, Nat.reduceSubDiff, List.range'_inj, Nat.add_left_inj, or_true,
-        and_true, true_and]
+      simp only [tsub_pos_iff_lt, Nat.reduceSubDiff, List.range'_inj, or_true, and_true, true_and]
       omega
     rw [this, List.foldl_cons, ← recBody]
     apply inv d n B _ _ _ _ (by omega) (by omega)
@@ -121,8 +119,7 @@ def Stream.decode_decompress_eq_aux (d n : ℕ) (B : Vector Byte (32 * d)) (s1 s
   unfold decode_decompressOpt.recBody decode.recBody
   have : (List.range' i (256 - i)) = i :: (List.range' (i + 1) (256 - (i + 1))) := by
     rw [List.range'_eq_cons_iff]
-    simp only [tsub_pos_iff_lt, Nat.reduceSubDiff, List.range'_inj, Nat.add_left_inj, or_true,
-      and_true, true_and]
+    simp only [tsub_pos_iff_lt, Nat.reduceSubDiff, List.range'_inj, or_true, and_true, true_and]
     omega
   simp only [this, List.foldl_cons]
   rw [← decode_decompressOpt.recBody, ← decode.recBody]

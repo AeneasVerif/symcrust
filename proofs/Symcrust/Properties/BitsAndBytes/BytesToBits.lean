@@ -113,7 +113,7 @@ theorem Target.byteToBits.body.spec
   . simp_lists [h4, hi]
     natify
     simp only [BitVec.toNat_udiv, BitVec.toNat_ushiftRight, Nat.shiftRight_eq_div_pow,
-      BitVec.toNat_ofNat, Nat.reducePow, Nat.reduceMod, Nat.div_div_eq_div_mul, forall_const]
+      BitVec.toNat_ofNat, Nat.reducePow, Nat.reduceMod, Nat.div_div_eq_div_mul]
     ring_nf
 
 theorem Target.byteToBits.recBody.spec
