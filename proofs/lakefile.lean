@@ -10,5 +10,5 @@ package «symcrust»
 lean_lib «Symcrust»
 
 lean_exe spec_tests where
-  root := `Symcrust.Spec
+  root := `Symcrust.Spec.Test
   supportInterpreter := false
