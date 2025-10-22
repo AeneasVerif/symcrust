@@ -111,6 +111,14 @@ def Hex.toVector? (s : String) (n : Nat) : Option (Bytes n) := do
   else
     none
 
+/-
+def Bitstring.toString {ℓ: Nat} (b : Vector Bit ℓ) : String := Id.run do
+  let mut s : String := ""
+  for i in [0:ℓ] do
+    s := s ++ if b[i]! then "1" else "0"
+  pure s
+-/
+
 syntax "v!" str : term
 macro_rules
   | `(v! $s:str) => do

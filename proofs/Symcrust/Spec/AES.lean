@@ -11,6 +11,8 @@ import Symcrust.Spec.Round
 import Symcrust.Spec.Utils
 open Lean
 
+set_option grind.warning false
+
 /-
   Executable specification of SHA128 aligned to FIPS-197
 -/
