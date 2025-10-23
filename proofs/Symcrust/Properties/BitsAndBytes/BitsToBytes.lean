@@ -96,7 +96,7 @@ def Target.bitsToBytes.body.spec
     -- to reason about bitwise manipulations
     intros j' hj'
     simp_scalar; simp_lists
-    cases hb: b[8 * i + j]! <;> simp [hb]
+    cases hb: b[8 * i + j]! <;> simp
     . by_cases hj'': j' = j
       . simp_all only [forall_const, lt_add_iff_pos_right, Nat.lt_one_iff, pos_of_gt, le_refl]
       . have : j' < j := by omega
@@ -115,7 +115,7 @@ def Target.bitsToBytes.body.spec
       . simp_lists
       . simp_lists [h2]
     . simp_scalar
-      simp only [Byte.testBit, BitVec.toNat_add, BitVec.toNat_ofNat, Nat.reducePow, Nat.add_mod_mod]
+      simp only [Byte.testBit, BitVec.toNat_add, Nat.reducePow]
       have : 256 = 2^8 := by rfl
       rw [this]; clear this
       simp_scalar

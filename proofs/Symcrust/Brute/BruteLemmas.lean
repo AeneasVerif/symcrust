@@ -102,7 +102,7 @@ theorem ofMkFold1UpperBoundedEqTrue {t : Type} [h : IsNatLike t] (b : t) (f f' :
   split
   . next ht hpf =>
     rw [LT.lt, instLTOfIsNatLike, hpf]
-    simp only [gt_iff_lt, eq_iff_iff]
+    simp only [gt_iff_lt]
     induction (cast ht b) generalizing acc
     . simp
     . next b' ih =>
@@ -123,7 +123,7 @@ theorem ofMkFold1UpperBoundedEqTrue {t : Type} [h : IsNatLike t] (b : t) (f f' :
         . simp only [← ih.2.1, ← hx, cast_cast, cast_eq]
   . next ht hpf =>
     rw [LT.lt, instLTOfIsNatLike, hpf]
-    simp only [BitVec.natCast_eq_ofNat, gt_iff_lt, eq_iff_iff]
+    simp only [BitVec.natCast_eq_ofNat, gt_iff_lt]
     rw [LT.lt, instLTBitVec]
     simp only [gt_iff_lt]
     induction (cast ht.2 b).toNat generalizing acc
@@ -146,7 +146,7 @@ theorem ofMkFold1UpperBoundedEqTrue {t : Type} [h : IsNatLike t] (b : t) (f f' :
         . simp only [← ih.2.1, ← hx, BitVec.ofNat_toNat, BitVec.setWidth_eq, cast_cast, cast_eq]
   . next ht hpf =>
     rw [LT.lt, instLTOfIsNatLike, hpf]
-    simp only [BitVec.natCast_eq_ofNat, gt_iff_lt, eq_iff_iff]
+    simp only [gt_iff_lt]
     rw [LT.lt, instLTUScalar]
     simp only [gt_iff_lt]
     induction (cast ht.2.2 b).val generalizing acc
@@ -260,7 +260,7 @@ lemma le_iff_lt_natLikeSucc_some {t : Type} [ht : IsNatLike t] {x b b' : t} (hb 
   . simp only [ge_iff_le, gt_iff_lt]
     simp only [heq, beq_iff_eq, BitVec.ofNat_eq_ofNat, Option.ite_none_left_eq_some, Option.some.injEq] at hb
     rw [← hb.2, LT.lt, instLTBitVec, LE.le, instLEBitVec]
-    simp only [heq, BitVec.lt_def, gt_iff_lt, cast_cast, cast_eq, BitVec.toNat_add,
+    simp only [gt_iff_lt, cast_cast, cast_eq, BitVec.toNat_add,
       BitVec.toNat_ofNat, Nat.add_mod_mod]
     rw [Nat.mod_eq_of_lt] <;> omega
   . simp only [ne_eq, UScalar.le_equiv, ge_iff_le, UScalar.lt_equiv, gt_iff_lt]
@@ -268,7 +268,7 @@ lemma le_iff_lt_natLikeSucc_some {t : Type} [ht : IsNatLike t] {x b b' : t} (hb 
       Bvify.UScalar.BitVec_ofNat_setWidth, BitVec.setWidth_eq, Nat.cast_one, BitVec.ofNat_eq_ofNat,
       dite_eq_ite, Option.ite_none_left_eq_some, Option.some.injEq, UScalar.max] at hb
     rw [← hb.2]
-    simp only [heq, ne_eq, UScalar.lt_equiv, gt_iff_lt, cast_cast, cast_eq]
+    simp only [cast_cast, cast_eq]
     rw [BitVec.add_def]
     simp only [UScalar.bv_toNat, BitVec.toNat_ofNat]
     rw [Nat.mod_eq_of_lt]

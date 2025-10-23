@@ -101,8 +101,7 @@ namespace Target
     unfold invNttLayerInner
     simp only [bind_pure_comp, map_pure, forIn_eq_forIn_range', size, add_tsub_cancel_left,
       add_tsub_cancel_right, Nat.div_one, List.forIn_pure_yield_eq_foldl, bind_pure, Id.run_pure,
-      tsub_zero, Nat.succ_add_sub_one, Aeneas.MulRange.forIn'_eq_forIn_MulRange,
-      List.forIn'_pure_yield_eq_foldl, Aeneas.ReduceZMod.reduceZMod, MProd_mk_eq,
+      tsub_zero, Nat.succ_add_sub_one, Aeneas.ReduceZMod.reduceZMod, MProd_mk_eq,
       Vector.Inhabited_getElem_eq_getElem!, Vector.set_eq_set!, forIn'_eq_forIn,
       Aeneas.MulRange.forIn_eq_forIn_MulRange, Aeneas.MulRange.foldl_MulRange_foldWhile,
       Nat.reduceLT, Aeneas.MulRange.foldWhile_step, Nat.reduceMul, ne_eq, Nat.left_eq_add,
@@ -268,7 +267,7 @@ private theorem nttLayer_eq_snd
     List.forIn_pure_yield_eq_foldl, MProd_mk_eq, bind_pure, Id.run_pure]
   simp only [Nat.ofNat_pos, mul_pos_iff_of_pos_left, hLen, Nat.add_div_right]
   have := nttLayer_eq_snd_aux f (fun x y => Target.nttLayerInner x y len) i
-  simp only [this, add_right_inj]
+  simp only [this]
   ring_nf
 
 private theorem nttLayer_eq_aux (f : Polynomial) (i len : Nat)
@@ -399,7 +398,7 @@ private theorem invNttLayer_eq_snd
     List.forIn_pure_yield_eq_foldl, Id.run_pure]
   simp only [Nat.ofNat_pos, mul_pos_iff_of_pos_left, hLen, Nat.add_div_right]
   have := invNttLayer_eq_snd_aux f (fun x y => Target.invNttLayerInner x y len) i
-  simp only [this, add_right_inj]
+  simp only [this]
 
 private theorem invNttLayer_eq_aux (f : Polynomial) (i len : Nat)
   (hLen : 0 < len) (hkLen : ∃ k, k ≤ 7 ∧ len = 2 ^ k) :
@@ -475,7 +474,7 @@ private theorem multiplyNTTs_getElem! (f g h : Polynomial) (i j : Nat) (hj : j <
   (multiplyNTTs f g h i)[2 * j]! = (if j < i then h[2 * j]! else h[2 * j]! + baseCaseMultiply0 f g j) ∧
   (multiplyNTTs f g h i)[2 * j + 1]! = (if j < i then h[2 * j + 1]! else h[2 * j + 1]! + baseCaseMultiply1 f g j) := by
   unfold multiplyNTTs
-  simp [baseCaseMultiply_eq]
+  simp
   split <;> rename_i hi
   . have hind h := multiplyNTTs_getElem! f g h (i + 1) j hj
     dcases hij0 : j < i
@@ -585,7 +584,7 @@ private theorem multiplyNTTs_add_zero (f g h : Polynomial) :
   simp only [Polynomial.eq_iff']
   intro i hi
   simp_lists [multiplyNTTs_getElem!, multiplyNTTs_pure_getElem!]
-  simp only [not_lt_zero', ↓reduceIte, Polynomial.getElem!_add, Polynomial.zero_getElem!, zero_add]
+  simp only [not_lt_zero', ↓reduceIte]
   ring_nf
   simp only [and_self]
 
