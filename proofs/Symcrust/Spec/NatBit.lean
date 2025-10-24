@@ -86,7 +86,7 @@ theorem Nat.bits_append_bit_bodd_div2 (n : Nat) (h : n ≠ 0) :
 /-- This is the important reasoning theorem about `bits`, together with `Nat.zero_bits` -/
 theorem Nat.bits_bit_decomp {n : Nat} (h : n ≠ 0) :
   n.bits = n.bodd :: n.div2.bits := by
-  have hBit := Nat.bit_decomp n
+  have hBit := Nat.bit_bodd_div2 n
   conv => lhs; rw [← hBit]
   simp only [Nat.bits_append_bit_bodd_div2 n h]
 
