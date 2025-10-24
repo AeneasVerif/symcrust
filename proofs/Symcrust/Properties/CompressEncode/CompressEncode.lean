@@ -101,7 +101,7 @@ theorem compress_coeff.spec (d coeff : U32) (hd : d.val ≤ 12) (hc: coeff.val <
   progress with compress_coeff.spec_aux as ⟨ coeff', h1 ⟩
   have : NeZero (Spec.m d.val) := by constructor; simp [Spec.m]; split <;> simp
   simp only [SpecAux.compressOpt, Nat.cast_ofNat, Spec.m] at *
-  split <;> simp_all only [ite_true, ite_false, Nat.cast_inj, not_lt, Int.cast_natCast, and_self]
+  split <;> simp_all only [ite_true, ite_false, Nat.cast_inj, Std.not_lt, Int.cast_natCast, and_self]
   zify
   simp_scalar
 

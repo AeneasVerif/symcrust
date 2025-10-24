@@ -18,7 +18,7 @@ theorem def_ediv (a b: ℤ) : b * (a / b) = a - a % b := by
   have h: a % b + b * (a / b) = a % b + (a - a % b) := (calc
     a % b + b * (a / b) = b * (a / b) + a % b := by apply add_comm
     _ = a := by apply Int.ediv_add_emod
-    _ = a % b + (a - a % b) := by field_simp
+    _ = a % b + (a - a % b) := by simp
   )
   apply Int.add_left_cancel
   exact h
@@ -126,7 +126,7 @@ private theorem barrett_reduce_lemma (x: Int) (m: Nat) (h_m: 0 < m) :
           clear heq
           apply (small_emod_inj (m * 2))
           . have h_rw : (x * 2 % (↑m * 2) + ↑m % (↑m * 2)) % (↑m * 2) % (↑m * 2) = (2 * (x % m) + m) % (m * 2) := (calc
-              (x * 2 % (↑m * 2) + ↑m % (↑m * 2)) % (↑m * 2) % (↑m * 2) = ((x * 2) % (↑m * 2) + ↑m) % (↑m * 2) := by field_simp
+              (x * 2 % (↑m * 2) + ↑m % (↑m * 2)) % (↑m * 2) % (↑m * 2) = ((x * 2) % (↑m * 2) + ↑m) % (↑m * 2) := by simp
               _ = (2 * (x % m) + m) % (m * 2) := by
                 have h_rw: (x * 2) % (↑m * 2) = (2 * x) % (2 * m) := by ring_nf
                 rw [h_rw] -- Need to put in the write form to apply Int.mul_emod_mul_of_pos, which is @simp
@@ -135,7 +135,7 @@ private theorem barrett_reduce_lemma (x: Int) (m: Nat) (h_m: 0 < m) :
             rw [h_rw]; clear h_rw
             apply Int.emod_eq_emod_iff_emod_sub_eq_zero.mpr
             ring_nf
-            field_simp
+            simp
           . apply Int.emod_nonneg; linarith
           . apply Int.emod_lt_of_pos; linarith
           . have h_le2: 2 * ((m + 1) / 2) - m ≤ 2 * (x % m) - m := by linarith
@@ -176,15 +176,15 @@ private theorem barrett_reduce_lemma (x: Int) (m: Nat) (h_m: 0 < m) :
       . apply Int.emod_lt_of_pos; linarith
 
     rw [h']
-    field_simp
+    simp [field]
     rw [add_mul]
-    field_simp
+    simp
     have h_rw: (x / m) * m = x - x % m := by rw [←def_ediv]; apply mul_comm
     qify at h_rw; rw [h_rw]
     ring_nf
 
 private theorem mul_cancel_le_mul (a b c : ℚ) (h_a: 0 < a) (h: a * b ≤ a * c) : b ≤ c := by
-  exact (mul_le_mul_left h_a).mp h
+  exact (mul_le_mul_iff_right₀ h_a).mp h
 
 private theorem ediv_le_add_one (x: ℤ) : (x + 1) / 2 ≤ x / 2 + 1 := by
   have h: x / 2 + 1 = (x + 2) / 2 := by
@@ -349,9 +349,10 @@ private theorem barrett_reduce_bounds
 
   apply lt_of_lt_of_le h
   field_simp
+  simp
   ring_nf
-  have h_simp3: (↑R * ↑N * |(↑R)⁻¹| : ℚ) = ↑N := (calc
-    (↑R * ↑N * |(↑R)⁻¹| : ℚ) = ↑N * (↑R * |(↑R)⁻¹|) := by ring
+  have h_simp3: (↑N * ↑R * (↑R)⁻¹ : ℚ) = ↑N := (calc
+    (↑N * ↑R * (↑R)⁻¹ : ℚ) = ↑N * (↑R * (↑R)⁻¹) := by ring
     _ =  ↑N * (|↑R| * |(↑R)⁻¹|) := by simp
     _ =  ↑N * |↑R * (↑R)⁻¹| := by rw [abs_mul]
     _ = ↑N := by
@@ -361,7 +362,7 @@ private theorem barrett_reduce_bounds
       exact h_Rne_zero
   )
 
-  rw [h_simp3]
+  simp [h_simp3]
 
 private theorem qify_le (a b: Int) (h: (a: ℚ) < (b: ℚ)) : a < b := by
   qify
