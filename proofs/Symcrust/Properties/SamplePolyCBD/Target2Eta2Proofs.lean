@@ -52,7 +52,8 @@ def Target2.samplePolyCBD.eta2_loop.inner_loop.equals_unrolled (pe_dst : Polynom
 lemma Fin.unfold2 {α} [AddCommMonoid α] {n : Nat} (hn : n = 2) (f : Fin n → α) :
   ∑ x : Fin n, f x = f ⟨0, by omega⟩ + f ⟨1, by omega⟩ := by
   rw [Finset.sum, Multiset.map, Multiset.sum, Finset.univ, Fintype.elems, Fin.fintype]
-  simp only [List.finRange, List.ofFn, Fin.foldr, hn, Fin.foldr.loop, Multiset.lift_coe,
+  simp only [List.finRange, hn, List.ofFn_succ, Fin.cast, Fin.isValue, Fin.coe_ofNat_eq_mod,
+    Nat.zero_mod, Fin.succ_zero_eq_one, Nat.mod_succ, List.ofFn_zero, Multiset.lift_coe,
     List.map_cons, List.map_nil, Multiset.coe_foldr, List.foldr_cons, List.foldr_nil, add_zero]
 
 lemma shiftDistribMask1431655765Core {x y : BitVec 64} (shift : Nat) (hs : shift ∈ [0,4,8,12,16,20,24,28])

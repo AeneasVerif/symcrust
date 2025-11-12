@@ -105,7 +105,6 @@ theorem mont_reduce_bounds (q R : Nat) (minus_q_minus_1 : Int) (B m : Nat)
   (hR : R ≠ 0)
   (hMax : List.maximum (List.map (mont_reduce q R minus_q_minus_1) (List.range' 0 R)) = .some m := by reduce) :
   ∀ x, x ≤ B → mont_reduce q R minus_q_minus_1 x ≤ m + B / R := by
-  unfold autoParam at hMax
   rw [List.maximum_eq_coe_iff] at hMax
   intro x hIneq
   have h0 : x % R + x / R * R = x := by

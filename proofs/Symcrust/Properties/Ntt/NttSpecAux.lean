@@ -293,7 +293,7 @@ private theorem ntt_eq_target (f : Polynomial) :
   simp only [Aeneas.divRange, Nat.reduceAdd, Aeneas.divRange.loop, gt_iff_lt, Nat.one_lt_ofNat,
     ↓dreduceIte, Nat.reduceDiv, lt_self_iff_false, List.attach_cons, List.attach_nil, List.map_nil,
     List.map_cons, List.foldl_cons, List.foldl_nil]
-  repeat (rw [← nttLayer_eq] <;> simp only [Nat.log2, ge_iff_le, Nat.reduceLeDiff, ↓reduceIte,
+  repeat (rw [← nttLayer_eq] <;> simp only [Nat.log2_def, Nat.reduceLeDiff, ↓reduceIte,
     Nat.reduceDiv, le_refl, Nat.ofNat_pos, Nat.div_self, Nat.not_ofNat_le_one, zero_add,
     Nat.reduceAdd, Nat.reducePow, and_self])
 
@@ -424,7 +424,7 @@ private theorem invNtt_eq_target (f : Polynomial) :
   simp only [Aeneas.ReduceZMod.reduceZMod, List.attach, Aeneas.mulRange, Nat.reduceLT, ↓reduceIte,
     Nat.reduceMul, lt_self_iff_false, List.attachWith_cons, List.attachWith_nil, List.foldl_cons,
     List.foldl]
-  repeat (rw [← invNttLayer_eq] <;> try simp only [Nat.log2, ge_iff_le, Nat.reduceLeDiff,
+  repeat (rw [← invNttLayer_eq] <;> try simp only [Nat.log2_def, Nat.reduceLeDiff,
     ↓reduceIte, Nat.reduceDiv, le_refl, Nat.ofNat_pos, Nat.div_self, Nat.not_ofNat_le_one, zero_add,
     Nat.reduceAdd, Nat.reducePow, and_self])
 
