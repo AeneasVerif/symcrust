@@ -1,18 +1,12 @@
-import Mathlib.Data.List.Defs
-import Mathlib.Data.ZMod.Defs
-import Mathlib.Data.Vector.Defs
 import Mathlib.LinearAlgebra.Matrix.Defs
 import Mathlib.LinearAlgebra.Matrix.RowCol
 import Aeneas
-import Symcrust.Spec.NatBit
-import Symcrust.Spec.Round
 import Symcrust.Spec.AES
 import Sha3.Spec
 
-set_option grind.warning false
-
 -- Function that returns a vector slice.
-@[inline, expose] def Vector.slice (xs : Vector α n) (start : Nat) (len : Nat) (hlen: start + len ≤ n := by grind): Vector α len :=
+@[inline, expose] def Vector.slice (xs : Vector α n) (start : Nat) (len : Nat) (hlen: start + len ≤ n := by grind):
+    Vector α len :=
   (Vector.extract xs start (start + len)).cast (by simp [hlen])
 
 /-!
@@ -40,7 +34,6 @@ inductive parameterSet where
   | FrodoKEM640 : parameterSet
   | FrodoKEM976 : parameterSet
   | FrodoKEM1344 : parameterSet
-
 
 @[reducible, scalar_tac_simps] def n (p : parameterSet) : ℕ :=
   match p with
@@ -104,7 +97,7 @@ inductive parameterSet where
 @[reducible] def lenA : ℕ := 128
 
 
-/- Conditions on parameters from Section 5 [ISO] and consistency checks -/
+/- Conditions on parameters from Section 5 [CFRG] and consistency checks -/
 
 lemma D_pos : ∀ p : parameterSet, D p > 0 := by
   intro p; cases p <;> trivial
@@ -255,12 +248,6 @@ def AES128 (key : Bitstring 128) (message : Bitstring 128) : Bitstring 128 :=
 
 /- # SHAKE -/
 
--- @[reducible] def SHAKE (p : parameterSet) :=
---   match p with
---   | .FrodoKEM640 => Spec.SHAKE128
---   | .FrodoKEM976 => Spec.SHAKE256
---   | .FrodoKEM1344 => Spec.SHAKE256
-
 @[reducible] def SHAKE (p : parameterSet) (M : Bitstring m) d :=
   match p with
   | .FrodoKEM640  => Spec.SHAKE128 M.toArray d
@@ -269,14 +256,16 @@ def AES128 (key : Bitstring 128) (message : Bitstring 128) : Bitstring 128 :=
 
 
 /-- # Encode a B-bit integer to a coefficient ([CFRG, 6.2], [ISO, 7.2]) -/
-def ec (D : ℕ) (B : {B : Nat // B ≤ D }) (val : ZMod (2^B.val)) : ZMod (2^D) := val.val * 2^(D-B.val)
+def ec (D : ℕ) (B : {B : Nat // B ≤ D }) (val : ZMod (2^B.val)) : ZMod (2^D) :=
+  val.val * 2^(D-B.val)
 
 /-- # Decode a coefficient to a B-bit integer ([CFRG, 6.2], [ISO, 7.2]) -/
-def dc (D : ℕ) (B : {B : Nat // B ≤ D}) (c : ZMod (2^D)) : ZMod (2^B.val) := ⌊ c.val * (( 2^B.val : ℚ ) / ( (2^D) : ℚ )) + 1/2 ⌋
+def dc (D : ℕ) (B : {B : Nat // B ≤ D}) (c : ZMod (2^D)) : ZMod (2^B.val) :=
+  ⌊ c.val * (( 2^B.val : ℚ ) / ( (2^D) : ℚ )) + 1/2 ⌋
 
 example : ∀ p : parameterSet,
   let val : (ZMod (2^(B p))) := 3
-  dc (D p) ⟨ (B p), by scalar_tac⟩ (ec (D p) ⟨ (B p), by scalar_tac ⟩ val) = val := by
+  dc (D p) ⟨ (B p), by grind ⟩ (ec (D p) ⟨ (B p), by grind ⟩ val) = val := by
   intro p; cases p <;> decide +kernel
 
 #eval ec 15 ⟨ 2, by simp ⟩ (dc 15 ⟨2, by simp⟩ (15000 : ZMod (2^15)))
@@ -336,14 +325,12 @@ lemma Pack_arith {i j n1 n2 D k : ℕ} (hi: i < n1) (hj: j < n2) (hk: k < D) (hd
   have : i * n2 ≤ (n1 - 1) * n2 := by simp_scalar
   have :=
     calc
-      i * n2 + n2  ≤ (n1 - 1) * n2 + n2 := by scalar_tac
-      _ = (n1 - 1 + 1) * n2 := by ring_nf
+      i * n2 + n2  ≤ (n1 - 1 + 1) * n2 := by grind
       _ = n1 * n2 := by simp_scalar
   have : (i * n2 + j) * D ≤ (n1 * n2 - 1) * D := by simp_scalar
   have :=
     calc
-      (i * n2 + j) * D + D ≤ (n1 * n2 - 1) * D + D := by simp_scalar
-      _ = (n1 * n2 - 1 + 1) * D := by ring_nf
+      (i * n2 + j) * D + D ≤ (n1 * n2 - 1 + 1) * D := by grind
       _ = (n1 * n2) * D := by simp_scalar
   have : 8 ∣ n1 * n2 * D := by apply Nat.dvd_mul_right_of_dvd hdiv
   omega
@@ -395,8 +382,7 @@ lemma SampleMatrix_arith {i j n1 n2 : ℕ}  (hi : i < n1) (hj : j < n2) :
   have : i * n2 ≤ (n1 - 1) * n2 := by simp_scalar
   have :=
     calc
-      i * n2 + n2  ≤ (n1 - 1) * n2 + n2 := by scalar_tac
-      _ = (n1 - 1 + 1) * n2 := by ring_nf
+      i * n2 + n2  ≤ (n1 - 1 + 1) * n2 := by grind
       _ = n1 * n2 := by simp_scalar
   omega
 
@@ -580,9 +566,9 @@ noncomputable
 def Decaps (p : parameterSet) (gen : GenSelection) (ct : CT p) (sk : SK p) : Bitstring (lensec p) :=
   -- Parse ciphertext
   let c1 : Vector Byte (nbar * (n p) * (D p) / 8) :=
-    (ct.1.extract 0 (nbar * (n p) * (D p) / 8)).cast (by cases p <;> scalar_tac)
+    ct.1.slice 0 (nbar * (n p) * (D p) / 8)
   let c2 : Vector Byte (nbar^2 * (D p) / 8) :=
-    (ct.1.extract (nbar * (n p) * (D p) / 8) ((nbar * (n p) * (D p) / 8) + (nbar^2 * (D p) / 8))).cast (by cases p <;> scalar_tac)
+    ct.1.slice (nbar * (n p) * (D p) / 8) (nbar^2 * (D p) / 8)
   let salt := ct.2
   -- Parse secret key
   let s : Bitstring (lensec p) :=
@@ -590,13 +576,11 @@ def Decaps (p : parameterSet) (gen : GenSelection) (ct : CT p) (sk : SK p) : Bit
   let seedA : Bitstring lenA :=
     sk.slice (lensec p) lenA
   let b_bits : Bitstring ((n p) * nbar * (D p)) :=
-    (sk.extract (lensec p + lenA) (lensec p + lenA + (n p) * nbar * (D p))).cast (by cases p <;> scalar_tac)
+    sk.slice (lensec p + lenA) ((n p) * nbar * (D p))
   let ST_bits : Bitstring (16 * (n p) * nbar) :=
-    (sk.extract (lensec p + lenA + (n p) * nbar * (D p)) (lensec p + lenA + (n p) * nbar * (D p) + 16 * (n p) * nbar)).cast
-    (by cases p <;> scalar_tac)
+    sk.slice (lensec p + lenA + (n p) * nbar * (D p)) (16 * (n p) * nbar)
   let pkh : Bitstring (lensec p) :=
-    (sk.extract (lensec p + lenA + (n p) * nbar * (D p) + 16 * (n p) * nbar) (2*(lensec p) + lenA + (n p) * nbar * (D p) + 16 * (n p) * nbar)).cast
-    (by cases p <;> scalar_tac)
+    sk.slice (lensec p + lenA + (n p) * nbar * (D p) + 16 * (n p) * nbar) (lensec p)
   --
   let B' := Unpack p c1
   let C := Unpack p c2
