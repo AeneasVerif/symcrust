@@ -1,15 +1,12 @@
 import Mathlib.Data.List.Defs
 import Mathlib.Data.ZMod.Defs
 import Mathlib.Data.Vector.Defs
-import Mathlib.Data.Matrix.Defs
-import Mathlib.Data.Matrix.Basic
-import Mathlib.Data.Matrix.RowCol
-import Mathlib.Data.Matrix.Reflection
+import Mathlib.LinearAlgebra.Matrix.Defs
+import Mathlib.LinearAlgebra.Matrix.RowCol
 import Aeneas
 import Symcrust.Spec.NatBit
 import Symcrust.Spec.Round
 import Symcrust.Spec.AES
---import Symcrust.Brute
 import Sha3.Spec
 
 set_option grind.warning false
