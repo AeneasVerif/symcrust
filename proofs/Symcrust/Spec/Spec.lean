@@ -115,17 +115,6 @@ def bytesToBits {ℓ : Nat} (B : 𝔹 ℓ) : Vector Bool (8 * ℓ) := Id.run do
       C := C.set i (C[i] / 2)
   pure b
 
--- a more abstract spec:
-def bytesToBits2 {ℓ : Nat} (B : 𝔹 ℓ) : Vector Bool (8 * ℓ) := Id.run do
-  let mut C := B
-  let mut b := Vector.replicate (8 * ℓ) false
-  for hi: i in [0:ℓ] do
-    for hj: j in [0:8] do
-      b := b.set (8 * i + j) (C[i] % 2 ≠ 0)
-      C := C.set i (C[i] / 2)
-  pure b
-
-
 #assert
   let b : Vector Bool (8 * 2) :=
     ⟨ ⟨ [false, true, false, true, false, false, false, false,
@@ -258,11 +247,11 @@ def ntt (f : Polynomial) := Id.run do
   for h0: len in [128 : >1 : /= 2] do
     for h1: start in [0 : 256 : 2*len] do
       let zeta := ζ ^ (bitRev 7 i)
-      i ← i + 1
+      i := i + 1
       for h: j in [start : start+len] do
         let t := zeta * f[j + len]
-        f ← f.set (j + len) (f[j] - t)
-        f ← f.set j         (f[j] + t)
+        f := f.set (j + len) (f[j] - t)
+        f := f.set j         (f[j] + t)
   pure f
 
 /-! # Algorithm 10 -/
