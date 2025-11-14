@@ -1,12 +1,4 @@
-import Mathlib.Data.List.Defs
-import Mathlib.Data.ZMod.Defs
-import Mathlib.Data.Matrix.Defs
-import Mathlib.Data.Matrix.RowCol
-import Mathlib.Tactic.IntervalCases
-import Aeneas
 import Sha3.Spec
-import Symcrust.Spec.NatBit
-import Symcrust.Spec.Round
 import Symcrust.Spec.Spec
 import Symcrust.Spec.FrodoSpec
 import Symcrust.Spec.Utils
@@ -130,14 +122,13 @@ def test_keyGen_1024 : IO Unit := do
 
 def main : IO Unit := do
   Spec.FrodoTest.all
-  /-
+
   IO.println s!"Testing symcrust's formalization of ML-KEM."
   test_BytesBits
   test_shake256
-  test_xof
+  --test_xof
   test_keyGen
   test_encaps
   test_decaps
   test_keyGen_768
   test_keyGen_1024
-  -/

@@ -10,6 +10,8 @@ and then incrementally squeeze the required output data.-/
 
 section Sponge -- generic sponge construction
 
+namespace Incremental
+
 variable
   -- algorithm
   (n   : Nat)
@@ -132,6 +134,8 @@ lemma sponge.squeeze_lookup s m hm :
   . grind -- excluded branch of squeeze1
   . simp_all
 
+end Incremental
+
 end Sponge
 
 -- Incremental API for SHAKE128 and SHAKE256
@@ -139,13 +143,13 @@ end Sponge
 private def n := b 6
 private def k6 := Keccak.P 6 (nᵣ := 24)
 
-def SHAKE128.init := sponge.init n (r := b 6 - 256)
-def SHAKE256.init := sponge.init n (r := b 6 - 512)
+def SHAKE128.init := Incremental.sponge.init n (r := b 6 - 256)
+def SHAKE256.init := Incremental.sponge.init n (r := b 6 - 512)
 
-def SHAKE128.absorb s B := sponge.absorb1 n k6 (r := b 6 - 256) (s := s) (N := B ++ SHAKE_suffix)
-def SHAKE256.absorb s B := sponge.absorb1 n k6 (r := b 6 - 512) (s := s) (N := B ++ SHAKE_suffix)
+def SHAKE128.absorb s B := Incremental.sponge.absorb1 n k6 (r := b 6 - 256) (s := s) (N := B ++ SHAKE_suffix)
+def SHAKE256.absorb s B := Incremental.sponge.absorb1 n k6 (r := b 6 - 512) (s := s) (N := B ++ SHAKE_suffix)
 
-def SHAKE128.squeeze := sponge.squeeze1 n k6 (r := b 6 - 256)
-def SHAKE256.squeeze := sponge.squeeze1 n k6 (r := b 6 - 512)
+def SHAKE128.squeeze := Incremental.sponge.squeeze1 n k6 (r := b 6 - 256)
+def SHAKE256.squeeze := Incremental.sponge.squeeze1 n k6 (r := b 6 - 512)
 
 end Spec
