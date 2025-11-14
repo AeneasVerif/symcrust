@@ -25,7 +25,6 @@ namespace Notations
   scoped macro_rules
   | `(tactic| get_elem_tactic) => `(tactic| scalar_tac)
 
-
   @[scalar_tac]
   theorem div_range_in_bounds {len start : ℕ}
     (h0 : 1 < len ∧ len ≤ 128 ∧ ∃ k, len = 128 / 2 ^ k)
@@ -126,15 +125,15 @@ def bytesToBits {ℓ : Nat} (B : 𝔹 ℓ) : Vector Bool (8 * ℓ) := Id.run do
 
 -- TODO: Is using bytesToBits and bitsToBytes the correct behavior?
 -- TODO: use Lists rather than Arrays in Sha3? (why??)
-def sha3_256 (M : 𝔹 n) : 𝔹 32 :=
+def sha3_256 {n} (M : 𝔹 n) : 𝔹 32 :=
   let M_bits := bytesToBits M
   bitsToBytes (Spec.SHA3_256 M_bits.toArray)
 
-def sha3_512 (M : 𝔹 n) : 𝔹 64 :=
+def sha3_512 {n} (M : 𝔹 n) : 𝔹 64 :=
   let M_bits := bytesToBits M
   bitsToBytes (Spec.SHA3_512 M_bits.toArray)
 
-def shake256 (M : 𝔹 n) (ℓ : ℕ) : 𝔹 ℓ :=
+def shake256 {n} (M : 𝔹 n) (ℓ : ℕ) : 𝔹 ℓ :=
   let bits := (bytesToBits M).toArray
   bitsToBytes (Spec.SHAKE256 bits (8 * ℓ))
 
@@ -147,9 +146,9 @@ def PRF (η : Η) (s : 𝔹 32) (b : Byte) : 𝔹 (64 * η) :=
 
 /-! # Hash functions -/
 
-def H (s : 𝔹 n) := sha3_256 s
-def J (s : 𝔹 n) := shake256 s 32
-def G (s : 𝔹 n) : 𝔹 32 × 𝔹 32 :=
+def H {n} (s : 𝔹 n) := sha3_256 s
+def J {n} (s : 𝔹 n) := shake256 s 32
+def G {n} (s : 𝔹 n) : 𝔹 32 × 𝔹 32 :=
   let hash := sha3_512 s
   let a := hash.extract 0 32
   let b := hash.extract 32 64
@@ -356,12 +355,12 @@ def PolyVector.decompress {k : K} (d : {d: ℕ // d < 12}) (v : PolyVector (m d)
   v.map (Polynomial.decompress d)
 
 def PolyVector.byteEncode {k : K} (d : ℕ) (v : PolyVector (m d) k) : 𝔹 (k * (32 * d)) := Id.run do
-  (Vector.flatten (v.map (Spec.byteEncode d))).cast (by scalar_tac)
+  (Vector.flatten (v.map (Spec.byteEncode d))).cast (by grind)
 
 def PolyVector.byteDecode {k : K} (d : ℕ) (bytes : 𝔹 (32 * d * k)) : PolyVector (m d) k :=
   PolyVector.ofFn fun i =>
     have : 32 * d * (i + 1) ≤ 32 * d * k := by simp_scalar
-    Spec.byteDecode ((bytes.extract (32 * d * i) (32 * d * (i + 1))).cast (by simp_scalar; ring_nf; scalar_tac))
+    Spec.byteDecode ((bytes.extract (32 * d * i) (32 * d * (i + 1))).cast (by simp_scalar; grind))
 
 @[reducible] def PolyMatrix (n : ℕ) (k : K) := Matrix (Fin k) (Fin k) (Polynomial n)
 def PolyMatrix.zero (n : ℕ) (k : K) : PolyMatrix n k := Matrix.of (fun _ _ ↦ Polynomial.zero n)
@@ -457,7 +456,6 @@ def kpke.decrypt (p : ParameterSet)
   (c : 𝔹 (32 * (dᵤ p * k p + dᵥ p))) :
   𝔹 32 :=
 
-  have : 32 * (dᵤ p * k p + dᵥ p) - 32 * dᵤ p * k p = 32 * dᵥ p := by ring_nf; simp
   let c₁ : 𝔹 (32 * dᵤ p * k p) := (c.extract 0 (32 * dᵤ p * k p)).cast (by grind)
   let c₂ : 𝔹 (32 * dᵥ p) := (c.extract (32 * dᵤ p * k p) (32 * (dᵤ p * k p + dᵥ p))).cast (by grind)
   let u' := PolyVector.decompress ⟨dᵤ p, by grind⟩ (PolyVector.byteDecode (dᵤ p) c₁)
