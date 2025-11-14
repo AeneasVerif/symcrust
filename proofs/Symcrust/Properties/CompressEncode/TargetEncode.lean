@@ -84,7 +84,7 @@ def Target.byteEncode.encodeElem.body.spec
   (hinv : inv d F acc i j)
   (hi : i < 256 := by omega) (hj : j < d := by omega) :
   inv d F (body d i acc j) i (j + 1) := by
-  simp only [inv, mem_std_range_step_one, and_imp, gt_iff_lt, body] at *
+  simp only [inv, mem_std_range_step_one, and_imp, body] at *
   obtain ⟨ h0, h1, h2, h3, h4 ⟩ := hinv
   generalize hb1: acc.snd = b1 at *
   generalize ha1: acc.fst = a1 at *
@@ -136,7 +136,7 @@ def Target.byteEncode.encodeElem.recBody.spec
   (hi : i < 256 := by omega) (hj : j ≤ d := by omega) :
   body.inv d F (recBody d i acc j) i d := by
   if hj' : j = d then
-    simp only [hj', gt_iff_lt, le_refl] at *
+    simp only [hj', le_refl] at *
     unfold recBody
     simp only [tsub_self, List.range'_zero, List.foldl_nil]
     apply hinv
@@ -199,7 +199,7 @@ theorem Target.byteEncode.encodeElem.inv_imp_body_inv
   {d : ℕ} {F : Polynomial (m d)} {b : Vector Bool (256 * d)} {i : ℕ}
   (hinv : encode.inv d F b i) (hi : i < 256 := by omega) :
   body.inv d F ⟨ F[i]!.val, b ⟩ i 0 := by
-  simp only [encode.inv, mem_std_range_step_one, and_imp, gt_iff_lt, body.inv, not_lt_zero',
+  simp only [encode.inv, mem_std_range_step_one, and_imp, body.inv, not_lt_zero',
     IsEmpty.forall_iff, implies_true, zero_le, true_and, pow_zero, Nat.div_one] at *
   obtain ⟨ h0, h1 ⟩ := hinv
   split_conjs <;> simp_lists [*]
@@ -284,7 +284,7 @@ def Target.byteEncode.spec (d : ℕ) (F : Polynomial (m d)) (hd : 0 < d := by om
 
   have : ij = i' * d + j' := by
     have := Nat.mod_add_div ij d
-    simp +zetaDelta only [gt_iff_lt] at *
+    simp +zetaDelta only at *
     ring_nf at *
     omega
 

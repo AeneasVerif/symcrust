@@ -97,7 +97,7 @@ lemma sponge.squeeze3 (s: state n r) d :
 
       . split_ifs
         simp at hv
-        simp [hv, hr, ht, hu, squeeze_r]
+        simp [hv, ht, hu, squeeze_r]
         have eqz : s.x + d - (s.Z.size + r) = 0 := by
           apply Nat.sub_eq_zero_of_le
           apply Nat.ge_of_not_lt h0

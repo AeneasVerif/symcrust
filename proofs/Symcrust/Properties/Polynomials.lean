@@ -18,7 +18,7 @@ namespace Spec
 
 theorem Polynomial.eq_iff {n} (f g : Polynomial n) :
   f = g ↔ ∀ i < 256, f[i]! = g[i]! := by
-  simp only [Vector.eq_iff_forall_eq_getElem!, Vector.size_toArray, true_and]
+  simp only [Vector.eq_iff_forall_eq_getElem!]
 
 theorem Polynomial.eq_iff' (f g : Polynomial n) :
   f = g ↔ ∀ i < 128, (f[2 * i]! = g[2 * i]! ∧ f[2 * i + 1]! = g[2 * i + 1]!) := by

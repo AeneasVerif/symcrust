@@ -127,8 +127,7 @@ def Stream.decode.body.length_spec {d n : ℕ} (b : List Byte) (hb : b.length = 
     . next num_bits_in_acc_eq_zero =>
       simp only [beq_iff_eq] at num_bits_in_acc_eq_zero
       simp only [num_bits_in_acc_eq_zero, add_zero] at hinv2
-      simp only [pop_bits_from_acc, BitVec.setWidth'_eq, BitVec.ofNat_eq_ofNat,
-        BitVec.shiftLeft_sub_one_eq_mod]
+      simp only [pop_bits_from_acc, BitVec.ofNat_eq_ofNat, BitVec.shiftLeft_sub_one_eq_mod]
       constructor
       . simp_scalar [mul_add] -- Automation note: We need `mul_add` to ensure that `hinv1` is applied
       . simp_scalar [mul_add, mul_one]
@@ -138,8 +137,7 @@ def Stream.decode.body.length_spec {d n : ℕ} (b : List Byte) (hb : b.length = 
       split
       . next num_bits_in_acc_lt_d =>
         simp only [gt_iff_lt, inf_lt_left, not_le] at num_bits_in_acc_lt_d
-        simp only [pop_bits_from_acc, BitVec.setWidth'_eq, BitVec.ofNat_eq_ofNat,
-          BitVec.shiftLeft_sub_one_eq_mod]
+        simp only [pop_bits_from_acc, BitVec.ofNat_eq_ofNat, BitVec.shiftLeft_sub_one_eq_mod]
         constructor
         . simp_scalar [mul_add] -- Automation note: We need `mul_add` to ensure that `hinv1` is applied
         . simp_scalar [mul_add, mul_one]
@@ -183,7 +181,7 @@ def Stream.decode.pop_bits_from_acc.spec {n : ℕ} (d : ℕ) (acc : BitVec (8 * 
   (∀ j ∈ [num_bits_in_acc - num_bits_to_decode: 8*n], res.2.1[j]! = false) ∧
   res.2.2 = num_bits_in_acc - num_bits_to_decode := by
   intro res
-  simp only [ZMod.val_natCast, mem_std_range_step_one, and_imp]
+  simp only [mem_std_range_step_one, and_imp]
   have heq : ∀ j < num_bits_to_decode, res.1[j]! = acc[j]! := by
     intro j hj
     simp only [pop_bits_from_acc, BitVec.ofNat_eq_ofNat, BitVec.shiftLeft_sub_one_eq_mod, res]
@@ -216,7 +214,7 @@ def Stream.decode.pop_bits_from_acc.spec {n : ℕ} (d : ℕ) (acc : BitVec (8 * 
   . intro j hj1 hj2
     simp only [pop_bits_from_acc, BitVec.ofNat_eq_ofNat, BitVec.shiftLeft_sub_one_eq_mod,
       BitVec.getElem!_shiftRight, res]
-    simp only [mem_std_range_step_one, and_imp, res] at h2
+    simp only [mem_std_range_step_one, and_imp] at h2
     -- **NOTE** If `num_bits_to_decode + j` is out of bounds, we rely on the default behavior of
     -- `BitVec.getElem!` as defined by `BitVec.getElem!_eq_false`
     dcases bounds_check : num_bits_to_decode + j < 8 * n
@@ -280,8 +278,8 @@ def Stream.decode.body.spec_early_load {d n : ℕ} (b : List Byte) (hb : b.lengt
   unfold inv
   constructor -- Automation note: `split_conjs` likewise fails here
   . apply length_spec <;> simp_all
-  . simp only [body, h_num_bits_in_acc, beq_self_eq_true, ↓reduceIte, BitVec.setWidth'_eq,
-      mem_std_range_step_one, and_imp]
+  . simp only [body, h_num_bits_in_acc, beq_self_eq_true, ↓reduceIte, mem_std_range_step_one,
+    and_imp]
     unfold length_inv at hinv1
     simp only [h_num_bits_in_acc, add_zero] at hinv1
     have : ∑ a : Fin (min d (8 * n)), (load_acc b hb s)[a.val]!.toNat * 2 ^ a.val < m d := by
@@ -295,7 +293,7 @@ def Stream.decode.body.spec_early_load {d n : ℕ} (b : List Byte) (hb : b.lengt
       dcases hj : i = j
       . rw [hj, Vector.getElem!_set!]
         . simp only [lt_inf_iff, and_imp] at h1
-          simp only [ZMod.val_natCast, ← BitVec.getElem!_eq_testBit_toNat, h1 k k_lt_d (by omega)]
+          simp only [← BitVec.getElem!_eq_testBit_toNat, h1 k k_lt_d (by omega)]
           rw [load_acc.spec b hb s k (by omega), Byte.testBit, ← BitVec.getElem!_eq_testBit_toNat]
           scalar_tac
         . omega
@@ -403,7 +401,7 @@ def Stream.decode.body.spec_late_load {d n : ℕ} (b : List Byte) (hb1 : b.lengt
   constructor -- Automation note: `split_conjs` likewise fails here
   . apply length_spec <;> simp_all
   . simp only [body, beq_iff_eq, h_num_bits_in_acc, ↓reduceIte, gt_iff_lt, inf_lt_left, not_le, hd2,
-      BitVec.setWidth'_eq, BitVec.toNat_or, BitVec.toNat_shiftLeft, mem_std_range_step_one, and_imp]
+    BitVec.toNat_or, BitVec.toNat_shiftLeft, mem_std_range_step_one, and_imp]
     -- Automation note: This `simp_lists_scalar` is pretty slow. It would be nice to have
     -- `simp_lists_scalar?` for here
     simp_lists_scalar
@@ -548,7 +546,7 @@ theorem Stream.decode.spec_aux {d n : ℕ} (B : Vector Byte (32 * d)) (hd : d < 
       simp_lists
     . simp only [mem_std_range_step_one, and_imp, s]
       intro j hj1 hj2
-      simp only [BitVec.ofNat_eq_ofNat, BitVec.getElem!_zero, s]
+      simp only [BitVec.ofNat_eq_ofNat, BitVec.getElem!_zero]
     . simp only [not_lt_zero', IsEmpty.forall_iff, implies_true, s]
   have hinv := recBody.spec B.toList B.toList_length hd s 0 (by omega) hdn hB hinv0
   obtain ⟨h0, h1, h2, h3, h4⟩ := hinv

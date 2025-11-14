@@ -1,10 +1,8 @@
 import Mathlib.Data.List.Defs
 import Mathlib.Data.ZMod.Defs
 import Mathlib.Data.Vector.Defs
-import Mathlib.Data.Matrix.Defs
-import Mathlib.Data.Matrix.Basic
-import Mathlib.Data.Matrix.RowCol
-import Mathlib.Data.Matrix.Reflection
+import Mathlib.LinearAlgebra.Matrix.Defs
+import Mathlib.LinearAlgebra.Matrix.RowCol
 import Aeneas
 import Symcrust.Spec.NatBit
 import Symcrust.Spec.Round
@@ -72,7 +70,7 @@ def subWord (w : Word) : Word := Vector.map subByte w
 
 def rotWord (w : Word) : Word := Vector.ofFn (fun i => w[(i + 1) % 4])
 
-instance : Xor Word where
+instance : XorOp Word where
   xor w₀ w₁ := Vector.ofFn (fun i => w₀[i] ^^^ w₁[i])
 
 def rconWord (rc : Byte) : Word := #v[rc, 0, 0, 0]
@@ -131,7 +129,7 @@ def rounds := 10
 def roundConstant : 𝔹 rounds := Vector.map byte
   #v[ 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36 ]
 
-instance : Xor State where
+instance : XorOp State where
   xor s rk :=
     Vector.ofFn fun c =>
       Vector.ofFn fun r =>

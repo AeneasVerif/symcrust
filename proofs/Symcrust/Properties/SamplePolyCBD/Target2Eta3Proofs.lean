@@ -52,8 +52,11 @@ def Target2.samplePolyCBD.eta3_loop.inner_loop.equals_unrolled (pe_dst : Polynom
 lemma Fin.unfold3 {α} [AddCommMonoid α] {n : Nat} (hn : n = 3) (f : Fin n → α) :
   ∑ x : Fin n, f x = f ⟨0, by omega⟩ + f ⟨1, by omega⟩ + f ⟨2, by omega⟩ := by
   rw [Finset.sum, Multiset.map, Multiset.sum, Finset.univ, Fintype.elems, Fin.fintype]
-  simp only [List.finRange, List.ofFn, Fin.foldr, hn, Fin.foldr.loop, Multiset.lift_coe, List.map_cons,
-    List.map_nil, Multiset.coe_foldr, List.foldr_cons, List.foldr_nil, add_zero, add_assoc]
+  simp only [List.finRange, hn, List.ofFn_succ, Fin.cast, Fin.isValue, Fin.coe_ofNat_eq_mod,
+    Nat.zero_mod, Fin.succ_zero_eq_one, Nat.one_mod, Fin.succ_one_eq_two, Nat.mod_succ,
+    List.ofFn_zero, Multiset.lift_coe, List.map_cons, List.map_nil, Multiset.coe_foldr,
+    List.foldr_cons, List.foldr_nil, add_zero, add_assoc]
+
 
 lemma shiftDistribMask2396745Core {x y z : BitVec 64} (shift : Nat) (hs : shift ∈ [6,12,18]) (k : Nat) :
   (((x &&& 2396745#64) + (y &&& 2396745#64) + (z &&& 2396745#64)) >>> shift) &&& BitVec.ofNat 64 (2^k : Nat) =
@@ -208,8 +211,8 @@ theorem Target2.samplePolyCBD.eta3_loop.spec.aux0 (s : samplePolyCBDState)
           . intro i hi
             apply testBitOfAdd 6 _ _ i hi
             . intro j hj
-              simp only [hx', hx, Nat.testBit_and, Nat.testBit_shiftRight,
-                ← BitVec.getElem!_eq_testBit_toNat, BitVec.fromLEBytes_getElem!]
+              simp only [hx', hx, Nat.testBit_and, ← BitVec.getElem!_eq_testBit_toNat,
+                BitVec.fromLEBytes_getElem!]
               rw [List.getElem!_slice, hs_B_byte, Array.getElem!_toList]
               . simp_scalar
                 congr 1
@@ -367,8 +370,8 @@ theorem Target2.samplePolyCBD.eta3_loop.spec.aux1 {s : samplePolyCBDState}
       ext k hk1
       by_cases hk2 : k < 6
       . simp only [← BitVec.getElem!_eq_getElem, BitVec.getElem!_mod_pow2_eq _ _ _ hk2,
-          BitVec.getElem!_eq_testBit_toNat, BitVec.toNat_ofNat, Nat.reducePow, BitVec.toNat_add,
-          BitVec.toNat_and, Nat.reduceMod, BitVec.toNat_ushiftRight, Nat.mod_add_mod]
+        BitVec.getElem!_eq_testBit_toNat, BitVec.toNat_ofNat, Nat.reducePow, BitVec.toNat_add,
+        BitVec.toNat_and, Nat.reduceMod, Nat.mod_add_mod]
         rw [testBitMod256 ((x' + y' + z') >>> 6) k (by omega), Nat.mod_eq_of_lt]
         . rw [hx', hy', hz', hy, hz, shiftDistribMask2396745 hx_bound (by omega) (by omega) (by omega) hk2,
             ← hz, ← hy, ← hz', ← hy', ← hx']
@@ -438,8 +441,8 @@ theorem Target2.samplePolyCBD.eta3_loop.spec.aux1 {s : samplePolyCBDState}
           BitVec.getElem!_mod_pow2_false _ _ _ (by omega), BitVec.getElem!_eq_testBit_toNat,
           ← Nat.mod_eq_of_lt this]
         simp only [BitVec.toNat_add, BitVec.toNat_and, BitVec.toNat_ofNat, Nat.reducePow,
-          Nat.reduceMod, BitVec.toNat_ushiftRight, Nat.mod_add_mod, BitVec.ofNat_eq_ofNat,
-          BitVec.toNat_pow, Nat.reduceDvd, Nat.mod_mod_of_dvd, Bool.false_eq]
+          Nat.reduceMod, Nat.mod_add_mod, BitVec.ofNat_eq_ofNat, BitVec.toNat_pow, Nat.reduceDvd,
+          Nat.mod_mod_of_dvd, Bool.false_eq]
         rw [(by decide : 64 = 2^6), Nat.testBit_mod_two_pow,
           Bool.and_eq_false_eq_eq_false_or_eq_false]
         left
@@ -498,10 +501,10 @@ theorem Target2.samplePolyCBD.eta3_loop.spec.aux2 {s : samplePolyCBDState}
     ∑ (x : Fin s.η.val), ↑(Target.bytesToBits BVector)[2 * j * ↑s.η + ↑x]!.toNat -
       ∑ (x : Fin s.η.val), ↑(Target.bytesToBits BVector)[2 * j * ↑s.η + ↑s.η + ↑x]!.toNat := by
   simp_lists
-  simp only [hj3, hη, Nat.mul_assoc 2 (s.i + 2) 3, Nat.mul_comm (s.i + 2) 3,
-    Nat.mul_add 3 s.i 2, Nat.mul_comm 3 s.i, ← hs3, Nat.mul_comm s.src_i 4, mul_one,
-    Nat.mul_add 2 (4 * s.src_i) 6, ← Nat.mul_assoc 2 4 s.src_i, Nat.reduceMul,
-    Nat.add_assoc, Fin.unfold3 hη, add_zero, Nat.reduceAdd]
+  simp only [hj3, hη, Nat.mul_assoc 2 (s.i + 2) 3, Nat.mul_comm (s.i + 2) 3, Nat.mul_add 3 s.i 2,
+    Nat.mul_comm 3 s.i, ← hs3, Nat.mul_comm s.src_i 4, Nat.mul_add 2 (4 * s.src_i) 6,
+    ← Nat.mul_assoc 2 4 s.src_i, Nat.reduceMul, Nat.add_assoc, Fin.unfold3 hη, add_zero,
+    Nat.reduceAdd]
   conv in 8 * s.src_i + 12 => rw [(by omega : 8 * s.src_i + 12 = 8 * (s.src_i + 1) + 4)]
   conv in 8 * s.src_i + 13 => rw [(by omega : 8 * s.src_i + 13 = 8 * (s.src_i + 1) + 5)]
   conv in 8 * s.src_i + 14 => rw [(by omega : 8 * s.src_i + 14 = 8 * (s.src_i + 1) + 6)]
@@ -699,10 +702,10 @@ theorem Target2.samplePolyCBD.eta3_loop.spec.aux3 {s : samplePolyCBDState}
     ∑ (x : Fin s.η.val), ↑(Target.bytesToBits BVector)[2 * j * ↑s.η + ↑x]!.toNat -
       ∑ (x : Fin s.η.val), ↑(Target.bytesToBits BVector)[2 * j * ↑s.η + ↑s.η + ↑x]!.toNat := by
   simp_lists
-  simp only [hj3, hη, Nat.mul_assoc 2 (s.i + 3) 3, Nat.mul_comm (s.i + 3) 3,
-    Nat.mul_add 3 s.i 3, Nat.mul_comm 3 s.i, ← hs3, Nat.mul_comm s.src_i 4, mul_one,
-    Nat.mul_add 2 (4 * s.src_i) 9, ← Nat.mul_assoc 2 4 s.src_i, Nat.reduceMul,
-    Nat.add_assoc, Fin.unfold3 hη, add_zero, Nat.reduceAdd]
+  simp only [hj3, hη, Nat.mul_assoc 2 (s.i + 3) 3, Nat.mul_comm (s.i + 3) 3, Nat.mul_add 3 s.i 3,
+    Nat.mul_comm 3 s.i, ← hs3, Nat.mul_comm s.src_i 4, Nat.mul_add 2 (4 * s.src_i) 9, ←
+    Nat.mul_assoc 2 4 s.src_i, Nat.reduceMul, Nat.add_assoc, Fin.unfold3 hη, add_zero,
+    Nat.reduceAdd]
   conv in 8 * s.src_i + 18 => rw [(by omega : 8 * s.src_i + 18 = 8 * (s.src_i + 2) + 2)]
   conv in 8 * s.src_i + 19 => rw [(by omega : 8 * s.src_i + 19 = 8 * (s.src_i + 2) + 3)]
   conv in 8 * s.src_i + 20 => rw [(by omega : 8 * s.src_i + 20 = 8 * (s.src_i + 2) + 4)]
@@ -794,8 +797,7 @@ theorem Target2.samplePolyCBD.eta3_loop.spec.aux3 {s : samplePolyCBDState}
                   simp only [h1, Bool.and_false, h2]
               . scalar_tac
           . intro i hi
-            simp only [hz', hz, hx, Nat.testBit_and, Nat.testBit_shiftRight, BitVec.getElem!_or,
-              BitVec.getElem!_shiftRight, ← BitVec.getElem!_eq_testBit_toNat, BitVec.fromLEBytes_getElem!]
+            simp only [hz', hz, hx, Nat.testBit_and, Nat.testBit_shiftRight, ← BitVec.getElem!_eq_testBit_toNat, BitVec.fromLEBytes_getElem!]
             rw [List.getElem!_slice, hs_B_byte2, Array.getElem!_toList]
             . by_cases hi2 : i < 4
               . rw [(by omega : (2 + (18 + i)) / 8 = 2), (by omega : (2 + (18 + i)) % 8 = 4 + i)]
@@ -847,7 +849,7 @@ def Target2.samplePolyCBD.eta3_loop.spec {s : Target2.samplePolyCBDState}
   split
   . simp only [UScalar.ofNat_val_eq, Nat.cast_ofNat, BitVec.ofNat_eq_ofNat, BitVec.setWidth'_eq]
     apply eta3_loop.spec
-    . simp only [Vector.eq_mk, hBVector]
+    . simp only [hBVector]
     . intro j hj1
       simp only at hj1
       simp only

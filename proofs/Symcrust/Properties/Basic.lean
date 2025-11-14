@@ -20,7 +20,7 @@ theorem getElem!_to_poly (a : Array U16 256#usize) (i : ℕ) :
 @[simp]
 theorem to_poly_set (a : Array U16 256#usize) (i : Usize) (x : U16) :
   to_poly (Std.Array.set a i x) = (to_poly a).set! i.val (x.val : Spec.Zq) := by
-  simp only [to_poly, Spec.Q, id_eq, Array.set_val_eq, List.map_set]
+  simp only [to_poly, Spec.Q]
   rw [Vector.eq_iff_forall_eq_getElem!]
   intro j hj
   simp_lists

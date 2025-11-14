@@ -17,8 +17,8 @@ def round (x: ℚ) : Int := ⌊ x + 1/2 ⌋
 theorem def_ediv (a b: ℤ) : b * (a / b) = a - a % b := by
   have h: a % b + b * (a / b) = a % b + (a - a % b) := (calc
     a % b + b * (a / b) = b * (a / b) + a % b := by apply add_comm
-    _ = a := by apply Int.ediv_add_emod
-    _ = a % b + (a - a % b) := by field_simp
+    _ = a := by apply Int.mul_ediv_add_emod
+    _ = a % b + (a - a % b) := by simp
   )
   apply Int.add_left_cancel
   exact h
@@ -26,11 +26,11 @@ theorem def_ediv (a b: ℤ) : b * (a / b) = a - a % b := by
 private theorem small_emod_inj {a b:ℤ} (n:ℤ)
   (h_mod: a % n = b % n) (h_a: 0 ≤ a) (h_a': a < n) (h_b: 0 ≤ b) (h_b': b < n)
   : a = b := calc
-  a = n * (a / n) + a % n := by apply Eq.symm; apply Int.ediv_add_emod
+  a = n * (a / n) + a % n := by apply Eq.symm; apply Int.mul_ediv_add_emod
   _ = n * 0 + a % n := by rw [Int.ediv_eq_zero_of_lt h_a h_a']
   _ = n * 0 + b % n := by rw [h_mod]
   _ = n * (b / n) + b % n := by rw [←Int.ediv_eq_zero_of_lt h_b h_b']
-  _ = b := by apply Int.ediv_add_emod
+  _ = b := by apply Int.mul_ediv_add_emod
 
 private theorem barrett_reduce_lemma (x: Int) (m: Nat) (h_m: 0 < m) :
   round ((x : ℚ) / m) = (x - Int.bmod x m) / (m : ℚ) := by
@@ -51,7 +51,7 @@ private theorem barrett_reduce_lemma (x: Int) (m: Nat) (h_m: 0 < m) :
         rw [Rat.floor_intCast_div_natCast, h]
 
       -- Continuing with integers
-      have heq := Int.ediv_add_emod (x * 2 + m) (m * 2)
+      have heq := Int.mul_ediv_add_emod (x * 2 + m) (m * 2)
       rw [Int.add_emod] at heq
 
       -- We're going to use Euclide's division lemma which uniquely defines the quotient and the remainder
@@ -119,14 +119,14 @@ private theorem barrett_reduce_lemma (x: Int) (m: Nat) (h_m: 0 < m) :
       have h_goal: x % ↑m + ↑m * ((x * 2 + ↑m) / (↑m * 2)) = x + ↑m := by
         clear hu; clear hu
 
-        have heq := Int.ediv_add_emod (x * 2 + m) (m * 2)
+        have heq := Int.mul_ediv_add_emod (x * 2 + m) (m * 2)
         rw [Int.add_emod] at heq
 
         have h1 : (x * 2 % (↑m * 2) + ↑m % (↑m * 2)) % (↑m * 2) = 2 * (x % m) - m := by
           clear heq
           apply (small_emod_inj (m * 2))
           . have h_rw : (x * 2 % (↑m * 2) + ↑m % (↑m * 2)) % (↑m * 2) % (↑m * 2) = (2 * (x % m) + m) % (m * 2) := (calc
-              (x * 2 % (↑m * 2) + ↑m % (↑m * 2)) % (↑m * 2) % (↑m * 2) = ((x * 2) % (↑m * 2) + ↑m) % (↑m * 2) := by field_simp
+              (x * 2 % (↑m * 2) + ↑m % (↑m * 2)) % (↑m * 2) % (↑m * 2) = ((x * 2) % (↑m * 2) + ↑m) % (↑m * 2) := by simp
               _ = (2 * (x % m) + m) % (m * 2) := by
                 have h_rw: (x * 2) % (↑m * 2) = (2 * x) % (2 * m) := by ring_nf
                 rw [h_rw] -- Need to put in the write form to apply Int.mul_emod_mul_of_pos, which is @simp
@@ -135,7 +135,7 @@ private theorem barrett_reduce_lemma (x: Int) (m: Nat) (h_m: 0 < m) :
             rw [h_rw]; clear h_rw
             apply Int.emod_eq_emod_iff_emod_sub_eq_zero.mpr
             ring_nf
-            field_simp
+            simp
           . apply Int.emod_nonneg; linarith
           . apply Int.emod_lt_of_pos; linarith
           . have h_le2: 2 * ((m + 1) / 2) - m ≤ 2 * (x % m) - m := by linarith
@@ -176,15 +176,15 @@ private theorem barrett_reduce_lemma (x: Int) (m: Nat) (h_m: 0 < m) :
       . apply Int.emod_lt_of_pos; linarith
 
     rw [h']
-    field_simp
+    simp [field]
     rw [add_mul]
-    field_simp
+    simp
     have h_rw: (x / m) * m = x - x % m := by rw [←def_ediv]; apply mul_comm
     qify at h_rw; rw [h_rw]
     ring_nf
 
 private theorem mul_cancel_le_mul (a b c : ℚ) (h_a: 0 < a) (h: a * b ≤ a * c) : b ≤ c := by
-  exact (mul_le_mul_left h_a).mp h
+  exact (mul_le_mul_iff_right₀ h_a).mp h
 
 private theorem ediv_le_add_one (x: ℤ) : (x + 1) / 2 ≤ x / 2 + 1 := by
   have h: x / 2 + 1 = (x + 2) / 2 := by
@@ -206,7 +206,7 @@ private theorem bmod_bounds (a: ℤ) (b: ℕ) (h_b: 0 < b) : |(Int.bmod a b : �
     simp only [Nat.ofNat_pos]
     ring_nf
     have h2: (b/2) * 2 ≤ (b: ℤ) := by
-      conv => rhs; rw [← (Int.ediv_add_emod b 2)]; rfl
+      conv => rhs; rw [← (Int.mul_ediv_add_emod b 2)]; rfl
       have h': (b: ℤ) / 2 * 2 = 2 * (↑b / 2) := by apply Int.mul_comm
       rw [h']
       apply Int.le_add_of_nonneg_right
@@ -226,7 +226,7 @@ private theorem bmod_bounds (a: ℤ) (b: ℕ) (h_b: 0 < b) : |(Int.bmod a b : �
     simp only [Nat.ofNat_pos]
     ring_nf
     have h2: (b/2) * 2 ≤ (b: ℤ) := by
-      conv => rhs; rw [← (Int.ediv_add_emod b 2)]; rfl
+      conv => rhs; rw [← (Int.mul_ediv_add_emod b 2)]; rfl
       have h': (b: ℤ) / 2 * 2 = 2 * (↑b / 2) := by apply Int.mul_comm
       rw [h']
       apply Int.le_add_of_nonneg_right
@@ -286,7 +286,9 @@ private theorem barrett_reduce_bounds
 
   rw [h_simp2]
 
-  have h_le : |(↑v * ↑(Int.bmod (↑R) N) * (↑R)⁻¹ + ↑N * ↑(Int.bmod (v * round (↑R * (↑N)⁻¹)) R) * (↑R)⁻¹ : ℚ)| ≤ |(↑v * ↑(Int.bmod (↑R) N) * (↑R)⁻¹ : ℚ)| + |(↑N * ↑(Int.bmod (v * round (↑R * (↑N)⁻¹)) R) * (↑R)⁻¹ : ℚ)| := by apply abs_add
+  have h_le : |(↑v * ↑(Int.bmod (↑R) N) * (↑R)⁻¹ + ↑N * ↑(Int.bmod (v * round (↑R * (↑N)⁻¹)) R) * (↑R)⁻¹ : ℚ)| ≤ |(↑v * ↑(Int.bmod (↑R) N) * (↑R)⁻¹ : ℚ)| + |(↑N * ↑(Int.bmod (v * round (↑R * (↑N)⁻¹)) R) * (↑R)⁻¹ : ℚ)| := by
+    apply abs_add_le
+
 
   apply lt_of_le_of_lt h_le
 
@@ -349,9 +351,10 @@ private theorem barrett_reduce_bounds
 
   apply lt_of_lt_of_le h
   field_simp
+  simp
   ring_nf
-  have h_simp3: (↑R * ↑N * |(↑R)⁻¹| : ℚ) = ↑N := (calc
-    (↑R * ↑N * |(↑R)⁻¹| : ℚ) = ↑N * (↑R * |(↑R)⁻¹|) := by ring
+  have h_simp3: (↑N * ↑R * (↑R)⁻¹ : ℚ) = ↑N := (calc
+    (↑N * ↑R * (↑R)⁻¹ : ℚ) = ↑N * (↑R * (↑R)⁻¹) := by ring
     _ =  ↑N * (|↑R| * |(↑R)⁻¹|) := by simp
     _ =  ↑N * |↑R * (↑R)⁻¹| := by rw [abs_mul]
     _ = ↑N := by
@@ -361,7 +364,7 @@ private theorem barrett_reduce_bounds
       exact h_Rne_zero
   )
 
-  rw [h_simp3]
+  grind
 
 private theorem qify_le (a b: Int) (h: (a: ℚ) < (b: ℚ)) : a < b := by
   qify
@@ -395,7 +398,7 @@ def barrett_reduce_spec
 
   simp +zetaDelta only [barrett_reduce]; split_conjs
   . apply ZMod_eq_imp_mod_eq -- We move to ZMod to leverage many useful lemmas there
-    simp [k, c, o] -- Which are all conveniently annotated with @simp
+    simp -- Which are all conveniently annotated with @simp
 
   . apply barrett_reduce_bounds N h_N R h_R A h_A v h_v o
     simp +zetaDelta

@@ -55,10 +55,8 @@ theorem compress_coeff.spec_aux (d coeff : U32) (hd : d.val ≤ 12) (hc: coeff.v
     clear i3_post
 
     have : i4.val < U32.max := by
-      simp only [UScalarTy.U32_numBits_eq, UScalarTy.U64_numBits_eq, Nat.reduceLeDiff,
-        UScalar.cast_val_mod_pow_greater_numBits_eq, COMPRESS_MULCONSTANT.spec, Nat.reduceSubDiff,
-        Nat.shiftRight_eq_div_pow, i4_post_1, multiplication_post, coeff1_post, mulc_post, this,
-        i2_post]
+      simp only [COMPRESS_MULCONSTANT.spec, Nat.reduceSubDiff, Nat.shiftRight_eq_div_pow,
+        i4_post_1, multiplication_post, coeff1_post, mulc_post, this, i2_post]
       have : 2 ^ 23 ≤ 2 ^ (34 - d.val) := by
         apply Nat.pow_le_pow_right
         . simp
@@ -90,8 +88,7 @@ theorem compress_coeff.spec_aux (d coeff : U32) (hd : d.val ≤ 12) (hc: coeff.v
     simp only [Nat.cast_ofNat] at this
     simp only [← this, SpecAux.compress, Nat.reduceSubDiff, Nat.cast_inj]
 
-    simp only [UScalarTy.U32_numBits_eq, UScalarTy.U64_numBits_eq, Nat.reduceLeDiff,
-      UScalar.cast_val_mod_pow_greater_numBits_eq, COMPRESS_MULCONSTANT.spec, Nat.reduceSubDiff, *]
+    simp only [COMPRESS_MULCONSTANT.spec, Nat.reduceSubDiff, *]
   · simp only [ok.injEq, SpecAux.compressOpt, Nat.cast_ofNat, exists_eq_left']
     simp_ifs
 
@@ -104,7 +101,7 @@ theorem compress_coeff.spec (d coeff : U32) (hd : d.val ≤ 12) (hc: coeff.val <
   progress with compress_coeff.spec_aux as ⟨ coeff', h1 ⟩
   have : NeZero (Spec.m d.val) := by constructor; simp [Spec.m]; split <;> simp
   simp only [SpecAux.compressOpt, Nat.cast_ofNat, Spec.m] at *
-  split <;> simp_all only [ite_true, ite_false, Nat.cast_inj, not_lt, Int.cast_natCast, and_self]
+  split <;> simp_all only [ite_true, ite_false, Nat.cast_inj, Std.not_lt, Int.cast_natCast, and_self]
   zify
   simp_scalar
 
@@ -117,7 +114,7 @@ theorem min_spec (x y : U32) :
   split <;> progress*
 
 theorem encode_coefficient.progress_spec_aux
-  (x : U32) (d : U32) (dst : Slice U8)
+  (x : U32) (d : U32) (dst : Aeneas.Std.Slice U8)
   (bi : Usize) (acc : U32) (acci : U32)
   (hx : x.val < Spec.m d.val)
   (hd : 0 < d.val ∧ d.val ≤ 12)
@@ -151,12 +148,12 @@ theorem encode_coefficient.progress_spec_aux
     simp_scalar
   . simp [Stream.encode.body]
     simp_ifs
-    simp only [*, Stream.encode.body.length_spec]
+    simp only [*]
     simp_scalar
 
 @[progress]
 theorem encode_coefficient.progress_spec
-  (x : U32) (d : U32) (dst : Slice U8)
+  (x : U32) (d : U32) (dst : Aeneas.Std.Slice U8)
   (bi : Usize) (acc : U32) (acci : U32)
   (hx : x.val < Spec.m d.val)
   (hd : 0 < d.val ∧ d.val ≤ 12)
@@ -211,7 +208,7 @@ theorem encode_coefficient.progress_spec
 
   progress with encode_coefficient.progress_spec_aux as ⟨ dst1, bi1, acc1, acci1, _, h ⟩
   -- The following is annoying - note that it is proven by `grind`
-  simp only [Slice.length, Nat.reduceMul, exists_and_left, exists_eq_left']
+  simp only [Slice.length, exists_and_left, exists_eq_left']
   split_conjs <;> try tauto
   simp_all +zetaDelta only
 
@@ -220,7 +217,7 @@ attribute [local progress] wfArray_update wfArray_index
 @[progress]
 theorem poly_element_compress_and_encode_loop.progress_spec
   (f : Array U16 256#usize) (d : U32)
-  (b : Slice U8) (bi : Usize) (acc : U32)
+  (b : Aeneas.Std.Slice U8) (bi : Usize) (acc : U32)
   (acci : U32) (i : Usize)
   (hwf : wfArray f)
   (hi : i.val ≤ 256)
@@ -261,7 +258,7 @@ theorem poly_element_compress_and_encode_loop.progress_spec
   . unfold Stream.compressOpt_encode.recBody
     have hi : i.val = 256 := by scalar_tac
     simp_scalar
-    simp only [getElem!_to_poly, id_eq, List.range'_zero, List.foldl_nil, Slice.length, true_and]
+    simp only [getElem!_to_poly, List.range'_zero, List.foldl_nil]
     simp [Stream.encode.length_inv, hi] at hinv
     revert hinv
     simp_scalar
@@ -273,7 +270,7 @@ termination_by 256 - i.val
 decreasing_by scalar_decr_tac
 
 @[progress]
-theorem poly_element_compress_and_encode.spec (f : Array U16 256#usize) (d : U32) (b : Slice U8)
+theorem poly_element_compress_and_encode.spec (f : Array U16 256#usize) (d : U32) (b : Aeneas.Std.Slice U8)
   (hd : 0 < d.val ∧ d.val ≤ 12)
   (hf : wfArray f)
   (hb1 : ∀ i < b.length, b[i]! = 0#u8)

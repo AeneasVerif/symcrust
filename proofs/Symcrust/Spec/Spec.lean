@@ -1,13 +1,13 @@
 import Mathlib.Data.List.Defs
 import Mathlib.Data.ZMod.Defs
-import Mathlib.Data.Matrix.Defs
-import Mathlib.Data.Matrix.RowCol
+import Mathlib.LinearAlgebra.Matrix.Defs
+import Mathlib.LinearAlgebra.Matrix.RowCol
 import Mathlib.Tactic.IntervalCases
 import Aeneas
 import Symcrust.Spec.NatBit
 import Symcrust.Spec.Round
 import Symcrust.Spec.Utils
-import Sha3.Spec
+import Symcrust.Spec.Sha3XOF
 
 /-!
 The spec of ML-KEM, based on: https://csrc.nist.gov/pubs/fips/203/final
@@ -25,25 +25,6 @@ namespace Notations
   scoped macro_rules
   | `(tactic| get_elem_tactic) => `(tactic| scalar_tac)
 
-  /-!
-  lemma add_stride_le_of_mod
-    {stride n start : ℕ}
-    (hdiv   : stride ∣ n)
-    (hstart : start < n)
-    (hmod   : start % stride = 0) :
-    start + stride ≤ n := by
-    obtain ⟨t, rfl⟩ :
-      ∃ t, start = stride * t := by
-        have h := Nat.mod_add_div start stride
-        have h' : stride * (start / stride) = start := by
-          simpa [hmod, zero_add] using h
-        exact ⟨start / stride, h'.symm⟩
-    rcases hdiv with ⟨q, rfl⟩
-    have ht_lt_q : t < q := Nat.lt_of_mul_lt_mul_left hstart
-    have : t + 1 ≤ q := Nat.succ_le_of_lt ht_lt_q
-    have : stride * (t + 1) ≤ stride * q := Nat.mul_le_mul_left _ this
-    simpa
-  -/
 
   @[scalar_tac]
   theorem div_range_in_bounds {len start : ℕ}

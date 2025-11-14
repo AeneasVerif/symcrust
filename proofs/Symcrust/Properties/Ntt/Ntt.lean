@@ -422,7 +422,7 @@ theorem poly_element_ntt_spec (peSrc : Std.Array U16 256#usize)
   to_poly peSrc1 = Spec.ntt (to_poly peSrc) ∧ wfArray peSrc1
   := by
   unfold poly_element_ntt
-  progress* by fsimp [Nat.log2]
+  progress* by fsimp [Nat.log2_def]
   rw [← SpecAux.ntt_eq]
   unfold SpecAux.ntt
   fsimp [*]
@@ -650,7 +650,7 @@ theorem poly_element_intt_and_mul_r_spec (peSrc : Std.Array U16 256#usize)
   to_poly peSrc1 = Spec.invNtt (to_poly peSrc) * (2^16 : Spec.Zq) ∧ wfArray peSrc1
   := by
   unfold poly_element_intt_and_mul_r
-  progress* by fsimp [Nat.log2]
+  progress* by fsimp [Nat.log2_def]
   rw [← SpecAux.invNtt_eq]
   unfold SpecAux.invNtt
   fsimp [*]
