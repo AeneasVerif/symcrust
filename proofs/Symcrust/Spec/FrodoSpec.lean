@@ -7,7 +7,7 @@ import Symcrust.Spec.NatBit
 import Symcrust.Spec.Round
 import Symcrust.Spec.AES
 import Symcrust.Spec.Utils
-import Sha3.Spec
+import Symcrust.Spec.Sha3
 
 set_option grind.warning false
 

@@ -1,4 +1,4 @@
-import Sha3.Spec.Spec
+import Symcrust.Spec.Sha3
 
 set_option grind.warning false
 
