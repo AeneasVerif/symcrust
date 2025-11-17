@@ -268,9 +268,9 @@ example : ∀ p : parameterSet,
   dc (D p) ⟨ (B p), by grind ⟩ (ec (D p) ⟨ (B p), by grind ⟩ val) = val := by
   intro p; cases p <;> decide +kernel
 
-#eval ec 15 ⟨ 2, by simp ⟩ (dc 15 ⟨2, by simp⟩ (15000 : ZMod (2^15)))
-#eval ec 16 ⟨ 3, by simp ⟩ 3
-#eval dc 16 ⟨ 3, by simp⟩ (15000 : ZMod (2^16))
+#assert ec 15 ⟨ 2, by simp ⟩ (dc 15 ⟨2, by simp⟩ (15000 : ZMod (2^15))) = 16384
+#assert ec 16 ⟨ 3, by simp ⟩ 3 = 24576
+#assert dc 16 ⟨ 3, by simp⟩ (15000 : ZMod (2^16)) = 2
 
 
 /-- # Matrix Encoding of Bit Strings ([CFRG, 6.2], [ISO, 7.2]) -/
@@ -400,10 +400,13 @@ def NatToBits16 (x : {x : ℕ // x < 2^16}) : Bitstring 16 := Id.run do
     b := b.set i (Nat.testBit x i)
   pure b
 
-#eval NatToBits16 ⟨ 255, by linarith ⟩
-#eval Nat.toDigits 2 255
-#check NatToBits16 ⟨ 117, by linarith ⟩
-
+#assert NatToBits16 ⟨ 255, by linarith ⟩ =
+  { toArray := #[true, true, true, true, true, true, true, true, false, false, false, false, false, false, false, false],
+    size_toArray := by simp }
+#assert Nat.toDigits 2 255 = ['1', '1', '1', '1', '1', '1', '1', '1']
+#assert NatToBits16 ⟨ 117, by simp ⟩ =
+  { toArray := #[true, false, true, false, true, true, true, false, false, false, false, false, false, false, false, false],
+    size_toArray := by simp }
 
 /-- # Pseudo-random Generation of Matrix A with AES128 ([CFRG, 6.6.1], [ISO, 7.6.1]) -/
 noncomputable
