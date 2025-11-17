@@ -2,7 +2,7 @@ import Mathlib.LinearAlgebra.Matrix.Defs
 import Mathlib.LinearAlgebra.Matrix.RowCol
 import Aeneas
 import Symcrust.Spec.AES
-import Sha3.Spec
+import Symcrust.Spec.Sha3
 
 -- Function that returns a vector slice.
 @[inline, expose] def Vector.slice (xs : Vector α n) (start : Nat) (len : Nat) (hlen: start + len ≤ n := by grind):
