@@ -409,7 +409,6 @@ def NatToBits16 (x : {x : ℕ // x < 2^16}) : Bitstring 16 := Id.run do
     size_toArray := by simp }
 
 /-- # Pseudo-random Generation of Matrix A with AES128 ([CFRG, 6.6.1], [ISO, 7.6.1]) -/
-noncomputable
 def Gen_AES128 (p : parameterSet) (seedA : Bitstring lenA) : MatrixQ (n p) (n p) (Q p) := Id.run do
   let mut A := MatrixQ.zero (n p) (n p) (Q p)
   for hi: i in [0:(n p)] do
@@ -434,15 +433,10 @@ def Gen_SHAKE128 (p : parameterSet) (seedA : Bitstring lenA) : MatrixQ (n p) (n 
       A := MatrixQ.update A ⟨ i, by scalar_tac ⟩ ⟨ j, by scalar_tac ⟩ Cijpk
   pure A
 
-noncomputable
 def Gen (p : parameterSet) (gen : GenSelection) (seedA : Bitstring lenA) : MatrixQ (n p) (n p) (Q p) :=
   match gen with
   | .aes => Gen_AES128 p seedA
   | .sha => Gen_SHAKE128 p seedA
-
-
-/- # Random bit generation -/
-axiom randomBits (length : ℕ) : Bitstring length
 
 /-- # Matrix Encoding of Signed Integer Matrix S^T as Bit String (needed in key generation) -/
 def EncodeSigned (p : parameterSet) (ST : MatrixZ nbar (n p)) : Bitstring (16 * nbar * (n p)) := Id.run do
@@ -480,16 +474,9 @@ abbrev CT (p : parameterSet) :=
 def slice16 {n} (R: Bitstring (16 * n)) (i : Nat) (hi : i < n := by scalar_tac) : Bitstring 16 :=
   (R.extract (i * 16) ((i + 1) * 16)).cast (by scalar_tac)
 
-
 /-- # Key Generation ([CFRG, 7.1], [ISO, 8.1]) -/
-noncomputable
-def KeyGen (p : parameterSet) (gen : GenSelection) : (PK p) × (SK p) :=
-  -- Choose uniformly random seed s of bitlength lensec
-  let s := randomBits (lensec p)
-  -- Choose uniformly random seed seedSE of bitlength lenSE
-  let seedSE := randomBits (lenSE p)
-  -- Choose uniformly random seed z of bitlength lenA
-  let z := randomBits lenA
+def KeyGen.internal (p : parameterSet) (gen : GenSelection)
+  (s : Bitstring (lensec p)) (seedSE : Bitstring (lenSE p)) (z : Bitstring lenA) : PK p × SK p :=
   -- # Generate pseudorandom seed:
   let seedA := SHAKE p z lenA
   -- # Generate the matrix A:
@@ -517,18 +504,29 @@ def KeyGen (p : parameterSet) (gen : GenSelection) : (PK p) × (SK p) :=
   let sk := (s ++ seedA ++ b_bits ++ EncodeSigned p ST ++ pkh).cast (by cases p <;> scalar_tac) -- TODO: bit strings vs byte arrays?
   (pk, sk)
 
+/-- Don't know what to do with the random generation so we take the random bitstrings as inputs -/
+def KeyGen (p : parameterSet) (gen : GenSelection)
+  (s : Option (Bitstring (lensec p)))
+  (seedSE : Option (Bitstring (lenSE p)))
+  (z : Option (Bitstring lenA))
+  : Option (PK p × SK p) := do
+  -- Choose uniformly random seed s of bitlength lensec
+  let s ← s
+  -- Choose uniformly random seed seedSE of bitlength lenSE
+  let seedSE ← seedSE
+  -- Choose uniformly random seed z of bitlength lenA
+  let z ← z
+  -- Call the internal key generation function
+  KeyGen.internal p gen s seedSE z
 
 /-- # Encapsulation ([CFRG, 7.2], [ISO, 8.2]) -/
-noncomputable
-def Encaps (p : parameterSet) (gen : GenSelection) (pk : PK p) : CT p × (Bitstring (lensec p)) :=
+def Encaps.internal (p : parameterSet) (gen : GenSelection) (pk : PK p)
+  (u : Bitstring (lensec p)) (salt : Bitstring (lensalt p))
+  : CT p × Bitstring (lensec p) :=
   -- Get public key components
   let seedA := pk.1
   let b := pk.2
   let b_bits := OctetDecodeToBits b
-  -- Choose uniformly random value u of bitlength lensec
-  let u := randomBits (lensec p)
-  -- Choose uniformly random value salt of bitlength lensalt
-  let salt := randomBits (lensalt p)
   -- Compute pkh
   let pkh := SHAKE p (seedA ++ b_bits) (lensec p)
   -- # Generate pseudorandom values:
@@ -563,9 +561,19 @@ def Encaps (p : parameterSet) (gen : GenSelection) (pk : PK p) : CT p × (Bitstr
   let ss := SHAKE p (c1_bits ++ c2_bits ++ salt ++ k) (lensec p)
   ((((c1 ++ c2).cast (by cases p <;> scalar_tac)), salt), ss)
 
+/-- Don't know what to do with the random generation so we take the random bitstrings as inputs -/
+def Encaps (p : parameterSet) (gen : GenSelection) (pk : PK p)
+  (u : Option (Bitstring (lensec p)))
+  (salt : Option (Bitstring (lensalt p))) :
+  Option (CT p × Bitstring (lensec p)) := do
+  -- Choose uniformly random value u of bitlength lensec
+  let u ← u
+  -- Choose uniformly random value salt of bitlength lensalt
+  let salt ← salt
+  -- Call the internal encapsulation function
+  Encaps.internal p gen pk u salt
 
 /-- # Decapsulation ([CFRG, 7.3], [ISO, 8.3]) -/
-noncomputable
 def Decaps (p : parameterSet) (gen : GenSelection) (ct : CT p) (sk : SK p) : Bitstring (lensec p) :=
   -- Parse ciphertext
   let c1 : Vector Byte (nbar * (n p) * (D p) / 8) :=
@@ -621,3 +629,62 @@ def Decaps (p : parameterSet) (gen : GenSelection) (ct : CT p) (sk : SK p) : Bit
   let c2_bits := OctetDecodeToBits c2
   let ss := SHAKE p (c1_bits ++ c2_bits ++ salt ++ kHat) (lensec p)
   ss
+
+
+namespace Spec.FrodoTest
+
+open Spec.Utils
+open Spec.Frodo
+
+@[simp] def parameterSet.all : List parameterSet :=
+  [.FrodoKEM640, .FrodoKEM976, .FrodoKEM1344]
+
+def parameterSet.tag : parameterSet → String
+  | .FrodoKEM640 => "FrodoKEM640"
+  | .FrodoKEM976 => "FrodoKEM976"
+  | .FrodoKEM1344 => "FrodoKEM1344"
+
+@[simp] def GenSelection.all : List GenSelection := [.aes, .sha]
+
+def GenSelection.tag : GenSelection → String
+  | .aes => "AES"
+  | .sha => "SHAKE"
+
+def mkBits (seed : Nat := 42): Bitstring ℓ :=
+  let input := Vector.ofFn (fun i => seed.testBit i) (n := 64)
+  Spec.SHAKE128 input.toArray ℓ
+
+def sampling := do
+  for p in parameterSet.all do
+    let mut h := Array.replicate (2 * d p + 1) 0
+    for i in [0:2^16] do
+      let i0 := i % 256
+      let i1 := i / 256
+      let b : Vector Byte 2 := #v[i0, i1]
+      let r : Bitstring (8 * 2) := OctetDecodeToBits b
+      let x := Sample p r
+      let s := (x + d p).toNat
+      h := h.set! s (h[s]! + 1)
+    IO.println s!"\nSampling distribution for {parameterSet.tag p}"
+    for i in [0:2 * d p + 1] do
+      IO.println s!"{(i : ℤ) - d p} : \t{h[i]!}"
+
+def all := do
+  for gen in GenSelection.all do
+    for p in parameterSet.all do
+      IO.println s!"Testing {parameterSet.tag p}/{GenSelection.tag gen}"
+      let s      := mkBits (lensec p)
+      let seedSE := mkBits (lenSE p)
+      let z      := mkBits lenA
+      let u      := mkBits (B p * nbar * nbar)
+      let salt   := mkBits (lensalt p)
+      let (ek, dk) ← time s!"keygen" (KeyGen.internal p gen s seedSE) z
+      let (ct, ss) ← time s!"encaps" (Encaps.internal p gen ek u) salt
+      let ss_dec   ← time s!"decaps" (Decaps p gen ct) dk
+      IO.println s!"public key ({ek.2.size} bytes): {ek.2}"
+      IO.println s!"ciphertext ({ct.1.size} bytes): {ct.1}"
+      let v0 : Vector Byte (lensec p / 8) := OctetEncodeOfBits (ss.cast (by cases p <;> ring ))
+      let v1 : Vector Byte (lensec p / 8) := OctetEncodeOfBits (ss_dec.cast (by cases p <;> ring ))
+      expect ("shared secret") v0 v1
+
+end Spec.FrodoTest
