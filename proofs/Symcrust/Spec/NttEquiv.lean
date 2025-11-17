@@ -6,7 +6,6 @@ import Mathlib.RingTheory.Ideal.Defs
 import Mathlib.RingTheory.Ideal.Span
 import Mathlib.RingTheory.Ideal.Quotient.Defs
 import Mathlib.RingTheory.ZMod.UnitsCyclic
-
 import Mathlib.Tactic.Ring
 import Mathlib.Tactic.Linarith
 
