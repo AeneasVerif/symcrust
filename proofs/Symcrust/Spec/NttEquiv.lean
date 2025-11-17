@@ -6,10 +6,16 @@ import Mathlib.RingTheory.Ideal.Defs
 import Mathlib.RingTheory.Ideal.Span
 import Mathlib.RingTheory.Ideal.Quotient.Defs
 import Mathlib.RingTheory.ZMod.UnitsCyclic
+import Mathlib.Algebra.Ring.Prod
+
 import Mathlib.Tactic.Ring
 import Mathlib.Tactic.Linarith
 
+import Init.Data.BitVec.Lemmas
+
 set_option maxRecDepth 2500
+set_option maxHeartbeats 50000
+--set_option diagnostics true
 
 
 /- In this file, "the thesis" refers to https://kannwischer.eu/thesis/phd-thesis-2023-01-03.pdf -/
@@ -171,77 +177,27 @@ namespace Poly
   theorem zeta_exp_p_128_eq (x : ℕ) : ζ ^ (x + 128) = - ζ ^ x := by
     simp [pow_add ζ x 128, zeta_128_eq, one]
 
-  /- # Definition of the ring structure in the Kyber ring. -/
-  def TqAux (splits baseLevel zetaPow: Nat) :=
-    match splits with
-    | 0 => Zq[X] ⧸ Ideal.span {xn (2^(baseLevel + 1)) - ζ ^ (zetaPow)}
-    | k + 1 =>
-      TqAux k (baseLevel-1) (zetaPow/2) × TqAux k (baseLevel-1) (zetaPow/2 + 128)
-
-  #check TqAux 0 7 128 -- This is the ring Zq[X] ⧸ Ideal.span {xn 256 + 1}
-  #check TqAux 0 6 64  -- This is the ring Zq[X] ⧸ Ideal.span {xn 128 - zeta ^ 64}
-  #check TqAux 0 6 192  -- This is the ring Zq[X] ⧸ Ideal.span {xn 128 + zeta ^ 64}
-  example : TqAux 1 7 128 = ((TqAux 0 6 64) × (TqAux 0 6 192)) := by simp [TqAux]
-  example : TqAux 2 4 128 = (((TqAux 0 2 32) × (TqAux 0 2 160)) × ((TqAux 0 2 96) × (TqAux 0 2 224))) := by simp [TqAux]
+  /- # The Kyber ring Rq -/
+  def Rq := Zq[X] ⧸ Ideal.span {xn 256 + 1}
 
 
-  /- # The corresponding polynomials. -/
   noncomputable
-  def PiAux (level zetaPow : Nat) :=
-    match level with
-    | 0 => xn 2 - ζ ^ zetaPow
-    | k + 1 => (PiAux k (zetaPow/2)) * (PiAux k ((zetaPow/2) + 128))
+  def f_lk (l k : Nat) := xn (2 ^ (l + 1)) - ζ ^ k
 
-  example : PiAux 0 1 = xn 2 - ζ := by simp [PiAux]
-  example : PiAux 1 2 = xn 4 - ζ ^ 2 := by
-    simp [PiAux, xn, Zq.one, zeta_exp_p_128_eq]
+  theorem f_lk_mul (l k : Nat) : (f_lk l k) * (f_lk l (k + 128)) = f_lk (l+1) (2*k) := by
+    simp [f_lk]
     ring_nf
-    simp [sub_eq_add_neg, add_comm]
-
-  /- # Explicit formula for the polynomials. -/
-  theorem pi_lk (l k : Nat) (h₁ : (2 ^ l) ∣ k) (h₂ : l < 8): PiAux l k = xn (2 ^ (l + 1)) - ζ ^ k := by
-    match l with
-    | 0 => simp [PiAux, xn]
-    | m + 1 =>
-      have h₃ : 2 ∣ k := by apply Nat.dvd_of_pow_dvd _ h₁ ; simp
-      have h₄ : 2 * 2 ^ m ∣ k := by
-         calc
-           2 * 2 ^ m = 2 ^ (m + 1) := by ring_nf
-           _ ∣ k := by apply h₁
-      have h₅ : 2 * (k / 2) = k - (k % 2) := by omega
-      have h₆ : 2 * (k / 2) = k := by
-        have : k % 2 = 0 := by apply Nat.mod_eq_zero_of_dvd h₃
-        rw[this, Nat.sub_zero] at h₅
-        exact h₅
-      have h₇ : 2 ^ m ∣ k / 2 := by
-        rw [←h₆] at h₄
-        apply Nat.dvd_of_mul_dvd_mul_left Nat.two_pos h₄
-      have h₈ : 2 ^ m ∣ 128 := by
-        have : m ≤ 7 := by
-          apply Nat.le_of_lt
-          apply Nat.lt_of_add_lt_add_right h₂
-        apply Nat.pow_dvd_pow 2 this
-      simp [PiAux]
-      rw [pi_lk m (k / 2), pi_lk m]
-      ring_nf
-      simp [PiAux, xn, one, Zq.one]
-      simp [zeta_128_eq, monomial_pow, one]
-      rw [Nat.div_mul_cancel]
-      ring_nf
-
-      apply h₃
-      apply Nat.dvd_add h₇ h₈
-      linarith
-      apply h₇
-      linarith
+    simp [zeta_128_eq, one, xn, monomial_pow, Zq.one]
+    ring_nf
 
 
-  theorem PiAux_coprime (l k m: Nat) (h₀ : (2 ^ l) ∣ k) (h₁ : (2 ^ l) ∣ m) (h₂ : l < 8) (h₃: m % 256 ≠ k % 256):
-      IsCoprime (PiAux l k) (PiAux l m) := by
+  /- # Two polynomials are coprime if m and k are not equal mod 256. -/
+  theorem f_lk_coprime (l k m: Nat) (h: m % 256 ≠ k % 256):
+      IsCoprime (f_lk l k) (f_lk l m) := by
     have diffUnit : IsUnit (Zq.ζ^m - Zq.ζ^k) := by
       apply Zq.zeta_pow_sub_zeta_pow_isUnit
-      exact h₃
-    rw [pi_lk, pi_lk, IsCoprime]
+      exact h
+    rw [f_lk, f_lk, IsCoprime]
     use monomial 0 (Ring.inverse (Zq.ζ^m - Zq.ζ^k))
     use -monomial 0 (Ring.inverse (Zq.ζ^m - Zq.ζ^k))
     rw [mul_sub, mul_sub, xn]
@@ -250,40 +206,252 @@ namespace Poly
     simp
     rw [← C.map_pow (Zq.ζ) m, ← C.map_pow (Zq.ζ), ← C.map_sub (Zq.ζ^m), ← C.map_mul, ← C.map_one]
     rw [ZMod.inv_mul_of_unit (Zq.ζ ^ m - Zq.ζ ^ k) diffUnit]
-    repeat assumption
 
-  theorem PiAuxIdeals_coprime (l k m: Nat) (h₀ : (2 ^ l) ∣ k) (h₁ : (2 ^ l) ∣ m) (h₂ : l < 8) (h₃: m % 256 ≠ k % 256):
-      IsCoprime (Ideal.span {PiAux l k}) (Ideal.span {PiAux l m}) := by
-    apply (Ideal.isCoprime_span_singleton_iff (PiAux l k) (PiAux l m)).mpr
-    exact PiAux_coprime l k m h₀ h₁ h₂ h₃
+  /- # The corresponding ideals are coprime -/
+  theorem f_lk_Ideals_coprime (l k m: Nat) (h: m % 256 ≠ k % 256):
+      IsCoprime (Ideal.span {f_lk l k}) (Ideal.span {f_lk l m}) := by
+    apply (Ideal.isCoprime_span_singleton_iff (f_lk l k) (f_lk l m)).mpr
+    exact f_lk_coprime l k m h
 
-  theorem Tq_Pi_correspondence_0 (l k : Nat) (h₁ : (2 ^ l) ∣ k) (h₂ : l < 8) :
-        (TqAux 0 l k) = (Zq[X] ⧸ Ideal.span {PiAux l k}) := by
-    rw [TqAux, pi_lk l k h₁ h₂]
+  /- # CRT for one decomposition from Rq -/
+  /- Zq[X] ⧸ (X^256 + 1) ≃+* Zq[X] ⧸ (X^128 - ζ^64) ×  Zq[X] ⧸ (X^128 + ζ^64) -/
+  noncomputable
+  def crt_Rq_1 :
+    (Zq[X] ⧸ Ideal.span {f_lk 7 128}) ≃+*
+    (Zq[X] ⧸ Ideal.span {f_lk 6 64}) × (Zq[X] ⧸ Ideal.span {f_lk 6 192}) := by
+    have coprime : IsCoprime (Ideal.span {f_lk 6 64}) (Ideal.span {f_lk 6 192}) := by
+      apply f_lk_Ideals_coprime
+      grind
+    have prod : (Ideal.span {f_lk 6 64}) * (Ideal.span {f_lk 6 192}) = Ideal.span {f_lk 7 128} := by
+      simp [Ideal.span_singleton_mul_span_singleton (f_lk 6 64) (f_lk 6 192)]
+      simp [f_lk_mul]
+    rw [← prod]
+    apply Ideal.quotientMulEquivQuotientProd (Ideal.span {f_lk 6 64}) (Ideal.span {f_lk 6 192}) coprime
 
-  example : TqAux 0 7 128 = (Zq[X] ⧸ Ideal.span {xn 256 + 1}) := by
-    simp [Tq_Pi_correspondence_0, pi_lk, zeta_128_eq, one]
+  /- # CRT for one decomposition from any Rlk as long as the power at ζ is even -/
+  /- Zq[X] ⧸ (X^(2^(l+1)) - ζ^(2k)) ≃+* Zq[X] ⧸ (X^(2^l) - ζ^k) ×  Zq[X] ⧸ (X^(2^l) + ζ^k) -/
+  noncomputable
+  def crt_Rlk_1 (l k : Nat) :
+    (Zq[X] ⧸ Ideal.span {f_lk (l + 1) (2*k)}) ≃+*
+    (Zq[X] ⧸ Ideal.span {f_lk l k}) × (Zq[X] ⧸ Ideal.span {f_lk l (k + 128)}) := by
+    have coprime : IsCoprime (Ideal.span {f_lk l k}) (Ideal.span {f_lk l (k + 128)}) := by
+      apply f_lk_Ideals_coprime
+      grind
+    have prod :
+      (Ideal.span {f_lk l k}) * (Ideal.span {f_lk l (k + 128)}) =
+       Ideal.span {f_lk (l + 1) (2*k)} := by
+      simp [Ideal.span_singleton_mul_span_singleton (f_lk l k) (f_lk l (k + 128)), f_lk_mul]
+    rw [← prod]
+    apply Ideal.quotientMulEquivQuotientProd (Ideal.span {f_lk l k}) (Ideal.span {f_lk l (k + 128)}) coprime
 
-  example : TqAux 0 6 64 = (Zq[X] ⧸ Ideal.span {xn 128 - ζ ^ 64}) := by
-    simp [Tq_Pi_correspondence_0, pi_lk]
 
-  example : TqAux 0 6 192 = (Zq[X] ⧸ Ideal.span {xn 128 + ζ ^ 64}) := by
-    simp [Tq_Pi_correspondence_0, pi_lk, zeta_exp_p_128_eq]
+  /- The BitRev₇ function from the ML-KEM specification [Section 4.3]
+     "Define BitRev₇(𝑖) to be the integer represented by bit-reversing
+      the unsigned 7-bit value that corresponds to the input integer
+      𝑖 ∈ {0,…,127}." -/
+  def BitRev₇ (i : Fin 128) : Fin 128 :=
+    have : i.val < 2 ^ 7 := by exact i.isLt
+    let ibits := BitVec.ofNatLT i.val this
+    (ibits.reverse).toFin
+
+  #eval BitRev₇ 1
+
+  example : BitRev₇ 3  = 96 := by rfl
+  example : BitRev₇ 0  = 0 := by rfl
+  example : BitRev₇ 127 = 127 := by rfl
+  example : BitRev₇ 1  = 64 := by rfl
+  example : BitRev₇ 2  = 32 := by rfl
+
+  /- Define a more general version that allows the bitsize b of the
+     integers to be any positive integer (instead of only b=7). -/
+  def BitRev (b : ℕ) (i : Fin (2 ^ b)) : Fin (2 ^ b) :=
+    have : i.val < 2 ^ b := by exact i.isLt
+    let ibits := BitVec.ofNatLT i.val this
+    (ibits.reverse).toFin
+
+  #eval BitRev 7 2
+
+  example : BitRev 0 0 = 0 := by rfl
+  example : BitRev 3 1 = 4 := by rfl
+  example : BitRev 7 0 = 0 := by rfl
+  example : BitRev 7 2 = 32 := by rfl
+
+  lemma BitRev_equal : ∀ i : Fin 128, BitRev₇ i = BitRev 7 i := by
+    intro i; rfl
+
+  lemma BitVec_reverse_reverse_eq {n : ℕ} (v : BitVec n) : v.reverse.reverse = v := by sorry
+    -- This seems to exist in Mathlib v4.25.
+
+  lemma BitRev_inv (b : ℕ) (i : Fin (2 ^ b)) : BitRev b (BitRev b i) = i := by
+    simp [BitRev, BitVec_reverse_reverse_eq]
+
+  lemma BitRev₇_inv (i : Fin 128) : BitRev₇ (BitRev₇ i) = i := by
+    decide +revert
+
+  lemma BitRev_inj (b : ℕ) (i j : Fin (2 ^ b)) (hij : i ≠ j) : BitRev b i ≠ BitRev b j := by
+    intro h
+    have h' : BitRev b (BitRev b i) = BitRev b (BitRev b j) := congr_arg (BitRev b) h
+    rw [BitRev_inv, BitRev_inv] at h'
+    exact hij h'
 
 
-  theorem Tq_Pi_correspondence_1 (l k : Nat) (h₁ : (2 ^ (l+1)) ∣ k) (h₂ : l < 7) :
-        (TqAux 1 (l+1) k) = ((Zq[X] ⧸ Ideal.span {PiAux l (k/2)}) × (Zq[X] ⧸ Ideal.span {PiAux l (k/2 + 128)})) := by
-    have h₃ : 2 ^ l ∣ (k / 2) := by
-      refine (Nat.dvd_div_iff_mul_dvd ?_).mpr ?_
-      apply Nat.dvd_of_pow_dvd _ h₁
-      simp
-      rw [Eq.symm Nat.pow_succ']
-      apply h₁
-    simp [TqAux]
-    rw [pi_lk l (k/2), pi_lk l (k/2 + 128)]
-    · refine (Nat.dvd_add_iff_right ?_).mp ?_
-      exact h₃
-      apply Nat.pow_dvd_pow 2 (Nat.le_of_lt h₂)
-    · linarith
-    · exact h₃
-    · linarith
+  /-- Bit reversal of an odd number (2i+1) equals bit reversal of the even number (2i)
+      plus 2^(b-1), where b is the number of bits. This is because adding 1 sets the LSB,
+      which becomes the MSB after reversal.
+  -/
+  lemma BitRev_odd_from_even (b : ℕ) (hb : b > 0) (i : Fin (2 ^ (b - 1))) :
+    let i₂ : Fin (2 ^ b) := ⟨2 * i.val + 1, by
+      have : 2 ^ b = 2 * 2 ^ (b - 1) := by
+        cases b
+        · omega
+        · simp [Nat.pow_succ]; ring
+      omega⟩
+    let i₁ : Fin (2 ^ b) := ⟨2 * i.val, by
+      have : 2 ^ b = 2 * 2 ^ (b - 1) := by
+        cases b
+        · omega
+        · simp [Nat.pow_succ]; ring
+      omega⟩
+    (BitRev b i₂).val = (BitRev b i₁).val + 2^(b - 1) := by
+    intro i₂ i₁
+    have : Nat.testBit i₁.val 0 = false := by
+      grind
+    have : Nat.testBit i₂.val 0 = true := by
+      grind
+    have : i₁.val / 2 = i₂.val / 2 := by grind
+    have : ∀ j : ℕ , Nat.testBit i₁.val (j+1) = Nat.testBit i₂.val (j+1) := by
+      grind
+    have : (BitVec.ofNat b i₁.val)[0] = false := by
+      simp [i₁]
+      sorry
+    sorry
+
+  #check BitVec.msb
+
+  /- The NTT is a ring isomorphism from Rq to the product Tq of 128 rings defined by
+     quadratic polynomials X^2 - ζ^k for some integer k. It works through repeated
+     decomposition of the involved rings according to the following scheme.
+
+     Rq = Z[X] ⧸ (X^256 + 1) = Z[X] ⧸ (X^256 - ζ^128)
+        ≅ Z[X] ⧸ (X^128 - ζ^64) × Z[X] ⧸ (X^128 + ζ^64) = Z[X] ⧸ (X^128 - ζ^64) × Z[X] ⧸ (X^128 - ζ^192)
+        ≅ Z[X] ⧸ (X^64 - ζ^32) × Z[X] ⧸ (X^64 - ζ^160) × Z[X] ⧸ (X^64 - ζ^96) × Z[X] ⧸ (X^64 - ζ^224)
+        ≅ ...
+
+    Continuing this way leads to a scheme of exponents (x_exp, ζ_exp) for the
+    polynomials X^x_exp - ζ^ζ_exp as follows:
+
+    l=0: (256, 128)
+    l=1: (128, 64), (128, 192)
+    l=2: (64, 32), (64, 160), (64, 96), (64, 224)
+    l=3: (32, 16), (32, 144), (32, 80), (32, 208), ...
+    l=4: (16, 8), (16, 136), ...
+    l=5: (8, 4), (8, 132), ...
+    l=6: (4, 2), (4, 130), ...
+    l=7: (2, 1), (2, 129), ...
+
+    The second number, ζ_exp, if numbered with i = 0, ..., i = 2 ^ l - 1 in the order defined
+    by the above decomposition is given by 2^(7-l) + (BitRev l i) * 2^(8-l).
+
+    This means that the ring for for (l, i) decomposes as the product of the rings for (l+1, 2i) and (l+1, 2i+1).
+  -/
+
+  /- Define the polynomial that defines the i-th quotiont ring
+     at level l down from Rq:
+     fq (l, i) = X^x_exp - ζ^ζ_exp
+               = X^(2^(8-l)) - ζ^(2^(7-l) + (BitRev l i)*2^(8-l)) -/
+
+  --@[simp]
+  def x_exp (l : Fin 8) : ℕ := 2 ^ (8 - l.val)
+  --@[simp]
+  def ζ_exp (l : Fin 8) (i : Fin (2 ^ l.val)) : ℕ :=
+    (x_exp l)/2 + (BitRev l i).val * (x_exp l)
+
+  lemma ζ_exp_ubound (l : Fin 8) (i : Fin (2 ^ l.val)) : ζ_exp l i < 2 ^ 8 := by
+    decide +revert
+
+  lemma ζ_exp_not_eq (l : Fin 8) (i j : Fin (2 ^ l.val)) (hij : i ≠ j) : ζ_exp l i ≠ ζ_exp l j := by
+      intro h
+      simp only [ζ_exp] at h
+      have h_mul : (BitRev l i).val * x_exp l = (BitRev l j).val * x_exp l := by
+        have : x_exp l / 2 + (BitRev l i).val * x_exp l = x_exp l / 2 + (BitRev l j).val * x_exp l := h
+        linarith
+      have hx_pos : 0 < x_exp l := by unfold x_exp; apply Nat.two_pow_pos
+      have h_bitrev : (BitRev l i).val = (BitRev l j).val := Nat.eq_of_mul_eq_mul_right hx_pos h_mul
+      have : BitRev l i = BitRev l j := Fin.ext h_bitrev
+      exact BitRev_inj l i j hij this
+
+  lemma ζ_exp_not_eq_mod (l : Fin 8) (i j : Fin (2 ^ l.val)) (hij : i ≠ j) : (ζ_exp l i) % 256 ≠ (ζ_exp l j) % 256 := by
+      have hi : ζ_exp l i < 256 := by convert ζ_exp_ubound l i
+      have hj : ζ_exp l j < 256 := by convert ζ_exp_ubound l j
+      rw [Nat.mod_eq_of_lt hi, Nat.mod_eq_of_lt hj]; exact ζ_exp_not_eq l i j hij
+
+  lemma ζ_exp_diff_IsUnit (l : Fin 8) (i j : Fin (2 ^ l.val)) (hij : i ≠ j) : IsUnit (Zq.ζ^(ζ_exp l i) - Zq.ζ^(ζ_exp l j)) := by
+      apply Zq.zeta_pow_sub_zeta_pow_isUnit
+      exact ζ_exp_not_eq_mod l i j hij
+
+
+  noncomputable
+  def fq (l : Fin 8) (i : Fin (2 ^ l.val)) :=
+    xn (x_exp l) - ζ ^ (ζ_exp l i)
+
+  example : fq 0 0 = xn 256 + 1 := by
+    simp [fq, ζ_exp, x_exp, BitRev, zeta_128_eq, one]
+  example : fq 7 0 = xn 2 - ζ := by
+    simp [fq, ζ_exp, x_exp, BitRev, BitVec.reverse]
+  example : fq 7 2 = xn 2 - ζ ^ 65 := by
+    simp [fq, ζ_exp, x_exp, BitRev, BitVec.reverse, BitVec.msb, Nat.testBit]
+
+  /- Define the i-th quotient ring at level l down from Rq defined by (fq l i). -/
+  def Sq (l : Fin 8) (i : Fin (2 ^ l.val)) :=
+    Zq[X] ⧸ Ideal.span {fq l i}
+
+  example : Sq 0 0 = (Zq[X] ⧸ Ideal.span {xn 256 + 1}) := by
+    simp [Sq, fq, ζ_exp, x_exp, zeta_128_eq, one]
+  example : Sq 1 1 = (Zq[X] ⧸ Ideal.span {xn 128 - ζ^192}) := by
+    simp [Sq, fq, ζ_exp, x_exp, BitRev, BitVec.reverse, BitVec.msb]
+  example : Sq 7 1 = (Zq[X] ⧸ Ideal.span {xn 2 - ζ^129}) := by
+    simp [Sq, fq, ζ_exp, x_exp, BitRev, BitVec.reverse, BitVec.msb, Nat.testBit]
+
+
+  /- # Two polynomials (fq l i) and (fq l j) are coprime if i ≠ j.-/
+  theorem fq_coprime (l : Fin 8) (i j : Fin (2 ^ l.val)) (hij : i ≠ j): IsCoprime (fq l i) (fq l j) := by
+    rw [fq, fq, IsCoprime]
+    use -monomial 0 (Ring.inverse (Zq.ζ^ζ_exp l i - Zq.ζ^ζ_exp l j))
+    use monomial 0 (Ring.inverse (Zq.ζ^ζ_exp l i - Zq.ζ^ζ_exp l j))
+    rw [mul_sub, mul_sub, xn]
+    ring_nf
+    rw [← mul_sub_left_distrib, ζ]
+    simp
+    rw [← C.map_pow (Zq.ζ) (ζ_exp l i), ← C.map_pow (Zq.ζ) (ζ_exp l j), ← C.map_sub (Zq.ζ^(ζ_exp l i)), ← C.map_mul, ← C.map_one]
+    rw [ZMod.inv_mul_of_unit (Zq.ζ ^ ζ_exp l i - Zq.ζ ^ ζ_exp l j) (ζ_exp_diff_IsUnit l i j hij)]
+
+
+  lemma fq_mul (l : Fin 8) (i : Fin (2 ^ l.val)) (hl : l.val < 7) :
+    let l' : Fin 8 := ⟨l.val + 1, by omega⟩
+    let i₁ : Fin (2 ^ l'.val) := ⟨2 * i.val, by simp [l']; omega⟩
+    let i₂ : Fin (2 ^ l'.val) := ⟨2 * i.val + 1, by simp [l']; omega⟩
+    fq l' i₁ * fq l' i₂ = fq l i := by
+    intro l' i₁ i₂
+    simp only [fq]
+    sorry
+
+
+  noncomputable
+  def crt_Sq_1 (l : Fin 8) (i : Fin (2 ^ l.val)) (hl : l.val < 7) :
+    let l' : Fin 8 := ⟨l.val + 1, by omega⟩
+    let i₁ : Fin (2 ^ l'.val) := ⟨2 * i.val, by simp [l']; omega⟩
+    let i₂ : Fin (2 ^ l'.val) := ⟨2 * i.val + 1, by simp [l']; omega⟩
+    Zq[X] ⧸ Ideal.span {fq l i} ≃+* (Zq[X] ⧸ Ideal.span {fq l' i₁}) × (Zq[X] ⧸ Ideal.span {fq l' i₂}) :=
+  by
+    intro l' i₁ i₂
+    have coprime : IsCoprime (Ideal.span {fq l' i₁}) (Ideal.span {fq l' i₂}) := by
+      rw [Ideal.isCoprime_span_singleton_iff]
+      apply fq_coprime
+      simp [i₁, i₂]
+    have prod :
+      (Ideal.span {fq l' i₁}) * (Ideal.span {fq l' i₂}) =
+       Ideal.span {fq l i} := by
+      rw [Ideal.span_singleton_mul_span_singleton]
+      rw [fq_mul l i hl]
+    rw [← prod]
+    apply Ideal.quotientMulEquivQuotientProd (Ideal.span {fq l' i₁}) (Ideal.span {fq l' i₂}) coprime
