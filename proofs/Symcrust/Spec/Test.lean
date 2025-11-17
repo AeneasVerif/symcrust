@@ -1,8 +1,8 @@
-import Sha3.Spec
 import Symcrust.Spec.Spec
 import Symcrust.Spec.FrodoSpec
 import Symcrust.Spec.Utils
 import Symcrust.Spec.AES
+import Symcrust.Spec.Sha3
 
 open Symcrust.Spec
 open Spec.Utils
@@ -15,8 +15,6 @@ def test_BytesBits : IO Unit := do
 
 def test_shake256 : IO Unit := do
   let m := v!""
-  -- let bits := (bytesToBits m).toArray ++ Spec.SHAKE_suffix ++ «pad10*1» (1600 - 512) 4
-  -- IO.println s!"  {bits.size} bits: {bits}"
   let h0 := v!"46b9dd2b0ba88d13233b3feb743eeb243fcd52ea62b81b82b50c27646ed5762f"
   let h1 ← time "SHAKE256" (fun m => shake256 m 32) m
   expect "empty" h0 h1
@@ -120,6 +118,20 @@ def test_keyGen_1024 : IO Unit := do
   expect "ek" ek ek1
   expect "dk" dk dk1
 
+def test_aes128 := do
+-- FIPS‑197 test vector
+  let key        := v!"000102030405060708090a0b0c0d0e0f"
+  let plaintext  := v!"00112233445566778899aabbccddeeff"
+  let ciphertext := v!"69c4e0d86a7b0430d8cdb78070b4c55a"
+  let c ← time "AES128" (Spec.AES.aes128 key) plaintext
+  expect "cipher" ciphertext c
+
+  let key        := v!"00000000000000000000000000000000"
+  let plaintext  := v!"00000101030307070f0f1f1f3f3f7f7f"
+  let ciphertext := v!"c7d12419489e3b6233a2c5a7f4563172"
+  let c ← time "AES128" (Spec.AES.aes128 key) plaintext
+  expect "cipher" ciphertext c
+
 def main : IO Unit := do
   Spec.FrodoTest.all
 
@@ -132,3 +144,4 @@ def main : IO Unit := do
   test_decaps
   test_keyGen_768
   test_keyGen_1024
+  test_aes128

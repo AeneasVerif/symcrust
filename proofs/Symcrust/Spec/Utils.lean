@@ -44,23 +44,6 @@ def trying_json  : IO Unit := do
       for t in x do
         -- let k := parseHexVector? t.k
         IO.println s!"Loaded test case {t.tcId} with c={t.c} and k={t.k}."
-      /-
-      let x ← IO.ofExcept (j.getObjVal? "testGroups")
-      match x with
-      | arr a =>
-        let x ← IO.ofExcept (a[1]!.getObjVal? "tests")
-        match x with
-        | arr a =>
-          IO.println s!"Loaded {a[1]!}."
-          let x ← IO.ofExcept (a[1]!.getObjVal? "c")
-          IO.println s!"Loaded {x}."
-          match x with
-          | str x =>
-            IO.println s!"Loaded {x}."; return
-          | _ => return
-        | _ => return
-      | _ => return
-      -/
 
 namespace Spec.Utils
 
@@ -110,14 +93,6 @@ def Hex.toVector? (s : String) (n : Nat) : Option (Bytes n) := do
     pure ⟨arr, h⟩
   else
     none
-
-/-
-def Bitstring.toString {ℓ: Nat} (b : Vector Bit ℓ) : String := Id.run do
-  let mut s : String := ""
-  for i in [0:ℓ] do
-    s := s ++ if b[i]! then "1" else "0"
-  pure s
--/
 
 syntax "v!" str : term
 macro_rules

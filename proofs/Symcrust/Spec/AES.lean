@@ -27,16 +27,15 @@ private def byte (n : Nat) : Byte := BitVec.ofNat 8 n
   let shifted := b <<< 1
   if b.getMsbD 0 then shifted ^^^ byte 0x1b else shifted
 
-private def mul (a b : Byte) :=
-  Id.run do
-    let mut r : Byte := 0
-    let mut x := a
-    let mut y := b
-    for i in [0:8] do
-      if y.getLsbD i then
-        r := r ^^^ x
-      x := xtime x
-    pure r
+private def mul (a b : Byte) := Id.run do
+  let mut r : Byte := 0
+  let mut x := a
+  let mut y := b
+  for i in [0:8] do
+    if y.getLsbD i then
+      r := r ^^^ x
+    x := xtime x
+  pure r
 
 private def pow (a : Byte) (b : Nat) :=
   if b = 0 then 1
@@ -141,29 +140,13 @@ def round (r : Nat) (s : State) :=
   if r = rounds - 1 then s else mixColumns s
 
 def aes128 (key plain : 𝔹 16) : 𝔹 16 := Id.run do
-    let mut keys  := bytesToState key
-    let mut state := bytesToState plain ^^^ keys
-    for r in [0 : rounds] do
-      keys  := key_round keys roundConstant[r]!
-      state := round r state ^^^ keys
-    return stateToBytes state
+  let mut keys  := bytesToState key
+  let mut state := bytesToState plain ^^^ keys
+  for r in [0 : rounds] do
+    keys  := key_round keys roundConstant[r]!
+    state := round r state ^^^ keys
+  return stateToBytes state
 
 end Spec.AES
 
 open Spec.Utils
-
-def test_aes128 := do
--- FIPS‑197 test vector
-  let key        := v!"000102030405060708090a0b0c0d0e0f"
-  let plaintext  := v!"00112233445566778899aabbccddeeff"
-  let ciphertext := v!"69c4e0d86a7b0430d8cdb78070b4c55a"
-  let c ← time "AES128" (Spec.AES.aes128 key) plaintext
-  expect "cipher" ciphertext c
-
-  let key        := v!"00000000000000000000000000000000"
-  let plaintext  := v!"00000101030307070f0f1f1f3f3f7f7f"
-  let ciphertext := v!"c7d12419489e3b6233a2c5a7f4563172"
-  let c ← time "AES128" (Spec.AES.aes128 key) plaintext
-  expect "cipher" ciphertext c
-
-#eval test_aes128

@@ -29,36 +29,36 @@ namespace Notations
   theorem div_range_in_bounds {len start : ℕ}
     (h0 : 1 < len ∧ len ≤ 128 ∧ ∃ k, len = 128 / 2 ^ k)
     (h1 : start < 256 ∧ start % (2 * len) = 0) : start + 2 * len ≤ 256 := by
-      rcases h0 with ⟨hlen_gt, hlen_le, ⟨k, hk⟩⟩
-      have: k ≤ 6 := by
-        have k_le : 2^k <= 2^6 := by
-          rw [hk] at hlen_gt
-          have: 0 < 2^k := by
-            apply pow_pos
-            decide
-          have := (Nat.le_div_iff_mul_le this).mp hlen_gt
-          have h : 2 * 2^k ≤ 2 * 2^6 := this
-          apply Nat.le_of_mul_le_mul_left h
+    rcases h0 with ⟨hlen_gt, hlen_le, ⟨k, hk⟩⟩
+    have: k ≤ 6 := by
+      have k_le : 2^k <= 2^6 := by
+        rw [hk] at hlen_gt
+        have: 0 < 2^k := by
+          apply pow_pos
           decide
-        contrapose! k_le
-        apply Nat.pow_lt_pow_right (by decide)
-        exact k_le
-      interval_cases k <;> simp_all <;> omega
+        have := (Nat.le_div_iff_mul_le this).mp hlen_gt
+        have h : 2 * 2^k ≤ 2 * 2^6 := this
+        apply Nat.le_of_mul_le_mul_left h
+        decide
+      contrapose! k_le
+      apply Nat.pow_lt_pow_right (by decide)
+      exact k_le
+    interval_cases k <;> simp_all <;> omega
 
   @[scalar_tac]
   theorem mul_range_add_in_bounds {len start : ℕ}
     (h0 : 2 ≤ len ∧ len < 256 ∧ ∃ k, len = 2 * 2 ^ k)
     (h1 : start < 256 ∧ start % (2 * len) = 0) : start + 2 * len ≤ 256 := by
-      rcases h0 with ⟨_, hlen_lt, ⟨k, hk⟩⟩
-      have: k <= 6 := by
-        contrapose hlen_lt
-        simp_all
-        have: 256 = 2 * 2^7 := by simp
-        rw [this]
-        apply Nat.mul_le_mul_left
-        apply Nat.pow_le_pow_right (by decide)
-        exact hlen_lt
-      interval_cases k <;> simp_all <;> omega
+    rcases h0 with ⟨_, hlen_lt, ⟨k, hk⟩⟩
+    have: k <= 6 := by
+      contrapose hlen_lt
+      simp_all
+      have: 256 = 2 * 2^7 := by simp
+      rw [this]
+      apply Nat.mul_le_mul_left
+      apply Nat.pow_le_pow_right (by decide)
+      exact hlen_lt
+    interval_cases k <;> simp_all <;> omega
 
 end Notations
 
@@ -511,7 +511,7 @@ def mlkem.decaps_internal (p : ParameterSet)
 axiom randomBytes (length : ℕ) : Option (𝔹 length)
 
 /-
-Not sure how to model randomness, so we simply take the random bytes as inputs.
+Not sure how to model randomness, so we simply take the random bytes as input.
 -/
 def mlkem.keygen (p : ParameterSet)
   (d z : Option (𝔹 32)) :
@@ -525,7 +525,7 @@ def mlkem.keygen (p : ParameterSet)
 /-! # Algorithm 20 -/
 
 /-
-Not sure how to model randomness, so we simply take the random bytes as inputs.
+Not sure how to model randomness, so we simply take the random bytes as input.
 -/
 def mlkem.encaps (p : ParameterSet)
   (ek : 𝔹 (384 * k p + 32))
