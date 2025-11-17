@@ -134,7 +134,7 @@ def test_aes128 := do
 
 def main : IO Unit := do
   -- TODO: this causes a stack overflow, probably because matrices are represented as functions.
-  --Spec.FrodoTest.all
+  Spec.FrodoTest.all
   IO.println s!"Testing symcrust's formalization of ML-KEM."
   test_BytesBits
   test_shake256
