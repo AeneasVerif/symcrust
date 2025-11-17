@@ -133,8 +133,8 @@ def test_aes128 := do
   expect "cipher" ciphertext c
 
 def main : IO Unit := do
+  -- TODO: this causes a stack overflow, probably because matrices are represented as functions.
   Spec.FrodoTest.all
-
   IO.println s!"Testing symcrust's formalization of ML-KEM."
   test_BytesBits
   test_shake256

@@ -1,5 +1,3 @@
-import Mathlib.LinearAlgebra.Matrix.Defs
-import Mathlib.LinearAlgebra.Matrix.RowCol
 import Aeneas
 import Symcrust.Spec.AES
 import Symcrust.Spec.Sha3
@@ -169,19 +167,45 @@ lemma T_X_equiv_P_X : ∀ p : parameterSet,
     (((T_X p)[i.val+1] - (T_X p)[i.val]) = (P_X p)[i.val+1]'(by rw [← lenT_X_eq_lenP_X]; omega)) := by
   intro p; cases p <;> (simp [T_X, P_X]; decide +kernel)
 
+/-- Our own matrix definition, which uses vectors to be more efficient once compiled. -/
+abbrev Matrix (m n : ℕ) (α : Type u) := Vector (Vector α n) m
+
+def Matrix.of {m n : ℕ} {α} (f : Fin m → Fin n → α) : Matrix m n α := Vector.ofFn (fun i => Vector.ofFn (fun j => f i j))
+
+def Matrix.updateRow {m n α} (M : Matrix m n α) (i : Fin m) (b : Fin n → α) : Matrix m n α :=
+  Vector.set M i (Vector.ofFn b)
+
+def Matrix.transpose {m n α} (M : Matrix m n α) : Matrix n m α :=
+  Matrix.of (fun i j => M[j][i])
 
 -- Matrices modulo q
-@[reducible] def MatrixQ (m n q : ℕ) := Matrix (Fin m) (Fin n) (ZMod q)
+@[reducible] def MatrixQ (m n q : ℕ) := Matrix m n (ZMod q)
 def MatrixQ.zero (m n q : ℕ) : MatrixQ m n q := Matrix.of (fun _ _ ↦ (0 : (ZMod q)))
 def MatrixQ.update {m n q : ℕ} (M : MatrixQ m n q) (i : Fin m) (j : Fin n) (val : (ZMod q)) : MatrixQ m n q :=
-  Matrix.updateRow M i (fun k => if k = j then val else (M i k))
+  Vector.set M i (M[i].set j val)
 
 -- Integer matrices for sampling from the error distribution
-@[reducible] def MatrixZ (m n : ℕ) := Matrix (Fin m) (Fin n) ℤ
+@[reducible] def MatrixZ (m n : ℕ) := Matrix m n ℤ
 def MatrixZ.zero (m n : ℕ) : MatrixZ m n := Matrix.of (fun _ _ ↦ (0 : ℤ))
-def MatrixZ.update {m n : ℕ} (M : Matrix (Fin m) (Fin n) ℤ) (i : Fin m) (j : Fin n) (val : ℤ) : Matrix (Fin m) (Fin n) ℤ :=
-  Matrix.updateRow M i (fun k => if k = j then val else (M i k))
-def MatrixZ.toQ {m n : ℕ} (q : ℕ) (M : (MatrixZ m n)) : MatrixQ m n q := Matrix.of (fun i j ↦ ((M i j) : (ZMod q)))
+def MatrixZ.update {m n : ℕ} (M : Matrix m n ℤ) (i : Fin m) (j : Fin n) (val : ℤ) : Matrix m n ℤ :=
+  Vector.set M i (M[i].set j val)
+def MatrixZ.toQ {m n : ℕ} (q : ℕ) (M : (MatrixZ m n)) : MatrixQ m n q := Matrix.of (fun i j ↦ (M[i][j] : ZMod q))
+
+-- Matrix * Vector multiplication
+def Matrix.mulVec {m n α} (M : Matrix m n α) (v : Vector α n) [Mul α] [AddCommMonoid α] : Vector α m :=
+  Vector.ofFn (fun i => ∑ (j : Fin n), M[i][j] * v[j])
+
+instance {m n α} [Mul α] [AddCommMonoid α] :
+    HMul (Matrix m n α) (Vector α n) (Vector α m) where
+  hMul M V := Matrix.mulVec M V
+
+-- Matrix * Matrix multiplication
+def Matrix.mul {m n α} (M1 : Matrix m q α) (M2 : Matrix q n α) [Mul α] [AddCommMonoid α] : Matrix m n α :=
+  Matrix.of (fun i j => ∑ (k : Fin q), M1[i][k] * M2[k][j])
+
+instance {m n α} [Mul α] [AddCommMonoid α] :
+    HMul (Matrix m q α) (Matrix q n α) (Matrix m n α) where
+  hMul M1 M2 := Matrix.mul M1 M2
 
 -- Bits and bit strings
 abbrev Bit := Bool
@@ -290,7 +314,7 @@ def Decode (p : parameterSet) (C : MatrixQ nbar nbar (Q p)) : Bitstring ((B p) *
   let mut b := Vector.replicate ((B p) * nbar^2) false
   for hi: i in [0:nbar] do
     for hj: j in [0:nbar] do
-      let c := dc (D p) ⟨ B p, by apply B_le_D⟩ (C ⟨ i, by scalar_tac ⟩ ⟨ j, by scalar_tac ⟩ )
+      let c := dc (D p) ⟨ B p, by apply B_le_D⟩ C[i][j]
       for hk: k in [0:(B p)] do
         have : (i * nbar + j) * (B p) + k < (B p) * nbar^2 := by cases p <;> scalar_tac
         b := b.set ((i * nbar + j) * (B p) + k) (Nat.testBit c.val k)
@@ -340,7 +364,7 @@ def Pack {n1 n2: ℕ} (p : parameterSet) (C : MatrixQ n1 n2 (Q p)) (hdiv: 8 ∣ 
   let mut b := Vector.replicate (8 * (n1 * n2 * (D p) / 8)) false
   for hi: i in [0:n1] do
     for hj: j in [0:n2] do
-      let Cij := (C ⟨i, by scalar_tac⟩ ⟨j, by scalar_tac⟩ )
+      let Cij := C[i][j]
       for hk: k in [0:(D p)] do
         b := b.set ((i * n2 + j) * (D p) + k) (Nat.testBit Cij.val ((D p) - 1 - k))
   pure (OctetEncodeOfBits b)
@@ -409,7 +433,6 @@ def NatToBits16 (x : {x : ℕ // x < 2^16}) : Bitstring 16 := Id.run do
     size_toArray := by simp }
 
 /-- # Pseudo-random Generation of Matrix A with AES128 ([CFRG, 6.6.1], [ISO, 7.6.1]) -/
-noncomputable
 def Gen_AES128 (p : parameterSet) (seedA : Bitstring lenA) : MatrixQ (n p) (n p) (Q p) := Id.run do
   let mut A := MatrixQ.zero (n p) (n p) (Q p)
   for hi: i in [0:(n p)] do
@@ -434,15 +457,10 @@ def Gen_SHAKE128 (p : parameterSet) (seedA : Bitstring lenA) : MatrixQ (n p) (n 
       A := MatrixQ.update A ⟨ i, by scalar_tac ⟩ ⟨ j, by scalar_tac ⟩ Cijpk
   pure A
 
-noncomputable
 def Gen (p : parameterSet) (gen : GenSelection) (seedA : Bitstring lenA) : MatrixQ (n p) (n p) (Q p) :=
   match gen with
   | .aes => Gen_AES128 p seedA
   | .sha => Gen_SHAKE128 p seedA
-
-
-/- # Random bit generation -/
-axiom randomBits (length : ℕ) : Bitstring length
 
 /-- # Matrix Encoding of Signed Integer Matrix S^T as Bit String (needed in key generation) -/
 def EncodeSigned (p : parameterSet) (ST : MatrixZ nbar (n p)) : Bitstring (16 * nbar * (n p)) := Id.run do
@@ -450,7 +468,7 @@ def EncodeSigned (p : parameterSet) (ST : MatrixZ nbar (n p)) : Bitstring (16 * 
   for hi: i in [0:nbar] do
     for hj: j in [0:(n p)] do
       for hk: k in [0:16] do
-        b := b.set ((i * (n p) + j) * 16 + k) (Int.testBit (ST ⟨ i, by scalar_tac ⟩ ⟨ j, by scalar_tac ⟩ ) k)
+        b := b.set ((i * (n p) + j) * 16 + k) (Int.testBit ST[i][j] k)
   pure b
 
 /-- # Matrix Decoding of Bit String to Signed Integer Matrix S^T (needed in decapsulation) -/
@@ -480,16 +498,9 @@ abbrev CT (p : parameterSet) :=
 def slice16 {n} (R: Bitstring (16 * n)) (i : Nat) (hi : i < n := by scalar_tac) : Bitstring 16 :=
   (R.extract (i * 16) ((i + 1) * 16)).cast (by scalar_tac)
 
-
 /-- # Key Generation ([CFRG, 7.1], [ISO, 8.1]) -/
-noncomputable
-def KeyGen (p : parameterSet) (gen : GenSelection) : (PK p) × (SK p) :=
-  -- Choose uniformly random seed s of bitlength lensec
-  let s := randomBits (lensec p)
-  -- Choose uniformly random seed seedSE of bitlength lenSE
-  let seedSE := randomBits (lenSE p)
-  -- Choose uniformly random seed z of bitlength lenA
-  let z := randomBits lenA
+def KeyGen.internal (p : parameterSet) (gen : GenSelection)
+  (s : Bitstring (lensec p)) (seedSE : Bitstring (lenSE p)) (z : Bitstring lenA) : PK p × SK p :=
   -- # Generate pseudorandom seed:
   let seedA := SHAKE p z lenA
   -- # Generate the matrix A:
@@ -517,18 +528,29 @@ def KeyGen (p : parameterSet) (gen : GenSelection) : (PK p) × (SK p) :=
   let sk := (s ++ seedA ++ b_bits ++ EncodeSigned p ST ++ pkh).cast (by cases p <;> scalar_tac) -- TODO: bit strings vs byte arrays?
   (pk, sk)
 
+/-- Don't know what to do with the random generation so we take the random bitstrings as inputs -/
+def KeyGen (p : parameterSet) (gen : GenSelection)
+  (s : Option (Bitstring (lensec p)))
+  (seedSE : Option (Bitstring (lenSE p)))
+  (z : Option (Bitstring lenA))
+  : Option (PK p × SK p) := do
+  -- Choose uniformly random seed s of bitlength lensec
+  let s ← s
+  -- Choose uniformly random seed seedSE of bitlength lenSE
+  let seedSE ← seedSE
+  -- Choose uniformly random seed z of bitlength lenA
+  let z ← z
+  -- Call the internal key generation function
+  KeyGen.internal p gen s seedSE z
 
 /-- # Encapsulation ([CFRG, 7.2], [ISO, 8.2]) -/
-noncomputable
-def Encaps (p : parameterSet) (gen : GenSelection) (pk : PK p) : CT p × (Bitstring (lensec p)) :=
+def Encaps.internal (p : parameterSet) (gen : GenSelection) (pk : PK p)
+  (u : Bitstring (lensec p)) (salt : Bitstring (lensalt p))
+  : CT p × Bitstring (lensec p) :=
   -- Get public key components
   let seedA := pk.1
   let b := pk.2
   let b_bits := OctetDecodeToBits b
-  -- Choose uniformly random value u of bitlength lensec
-  let u := randomBits (lensec p)
-  -- Choose uniformly random value salt of bitlength lensalt
-  let salt := randomBits (lensalt p)
   -- Compute pkh
   let pkh := SHAKE p (seedA ++ b_bits) (lensec p)
   -- # Generate pseudorandom values:
@@ -563,9 +585,19 @@ def Encaps (p : parameterSet) (gen : GenSelection) (pk : PK p) : CT p × (Bitstr
   let ss := SHAKE p (c1_bits ++ c2_bits ++ salt ++ k) (lensec p)
   ((((c1 ++ c2).cast (by cases p <;> scalar_tac)), salt), ss)
 
+/-- Don't know what to do with the random generation so we take the random bitstrings as inputs -/
+def Encaps (p : parameterSet) (gen : GenSelection) (pk : PK p)
+  (u : Option (Bitstring (lensec p)))
+  (salt : Option (Bitstring (lensalt p))) :
+  Option (CT p × Bitstring (lensec p)) := do
+  -- Choose uniformly random value u of bitlength lensec
+  let u ← u
+  -- Choose uniformly random value salt of bitlength lensalt
+  let salt ← salt
+  -- Call the internal encapsulation function
+  Encaps.internal p gen pk u salt
 
 /-- # Decapsulation ([CFRG, 7.3], [ISO, 8.3]) -/
-noncomputable
 def Decaps (p : parameterSet) (gen : GenSelection) (ct : CT p) (sk : SK p) : Bitstring (lensec p) :=
   -- Parse ciphertext
   let c1 : Vector Byte (nbar * (n p) * (D p) / 8) :=
@@ -612,7 +644,7 @@ def Decaps (p : parameterSet) (gen : GenSelection) (ct : CT p) (sk : SK p) : Bit
   let R_E'' : Vector (Bitstring 16) (nbar * nbar) :=
     Vector.ofFn fun i => slice16 r (2 * (n p) * nbar + i)
   let E'' := MatrixZ.toQ (Q p) (SampleMatrix p nbar nbar R_E'')
-  let b := OctetEncodeOfBits (b_bits.cast (by cases p <;> scalar_tac))
+  let b : 𝔹 ((n p * nbar * D p) / 8) := OctetEncodeOfBits (b_bits.cast (by cases p <;> scalar_tac))
   let B := Unpack p b
   let V := S' * B + E''
   let C' := V + Encode p u'
@@ -621,3 +653,62 @@ def Decaps (p : parameterSet) (gen : GenSelection) (ct : CT p) (sk : SK p) : Bit
   let c2_bits := OctetDecodeToBits c2
   let ss := SHAKE p (c1_bits ++ c2_bits ++ salt ++ kHat) (lensec p)
   ss
+
+
+namespace Spec.FrodoTest
+
+open Spec.Utils
+open Spec.Frodo
+
+@[simp] def parameterSet.all : List parameterSet :=
+  [.FrodoKEM640, .FrodoKEM976, .FrodoKEM1344]
+
+def parameterSet.tag : parameterSet → String
+  | .FrodoKEM640 => "FrodoKEM640"
+  | .FrodoKEM976 => "FrodoKEM976"
+  | .FrodoKEM1344 => "FrodoKEM1344"
+
+@[simp] def GenSelection.all : List GenSelection := [.aes, .sha]
+
+def GenSelection.tag : GenSelection → String
+  | .aes => "AES"
+  | .sha => "SHAKE"
+
+def mkBits (seed : Nat := 42): Bitstring ℓ :=
+  let input := Vector.ofFn (fun i => seed.testBit i) (n := 64)
+  Spec.SHAKE128 input.toArray ℓ
+
+def sampling := do
+  for p in parameterSet.all do
+    let mut h := Array.replicate (2 * d p + 1) 0
+    for i in [0:2^16] do
+      let i0 := i % 256
+      let i1 := i / 256
+      let b : Vector Byte 2 := #v[i0, i1]
+      let r : Bitstring (8 * 2) := OctetDecodeToBits b
+      let x := Sample p r
+      let s := (x + d p).toNat
+      h := h.set! s (h[s]! + 1)
+    IO.println s!"\nSampling distribution for {parameterSet.tag p}"
+    for i in [0:2 * d p + 1] do
+      IO.println s!"{(i : ℤ) - d p} : \t{h[i]!}"
+
+def all := do
+  for gen in GenSelection.all do
+    for p in parameterSet.all do
+      IO.println s!"Testing {parameterSet.tag p}/{GenSelection.tag gen}"
+      let s      := mkBits (lensec p)
+      let seedSE := mkBits (lenSE p)
+      let z      := mkBits lenA
+      let u      := mkBits (B p * nbar * nbar)
+      let salt   := mkBits (lensalt p)
+      let (ek, dk) ← time s!"keygen" (KeyGen.internal p gen s seedSE) z
+      let (ct, ss) ← time s!"encaps" (Encaps.internal p gen ek u) salt
+      let ss_dec   ← time s!"decaps" (Decaps p gen ct) dk
+      IO.println s!"public key ({ek.2.size} bytes): {ek.2}"
+      IO.println s!"ciphertext ({ct.1.size} bytes): {ct.1}"
+      let v0 : Vector Byte (lensec p / 8) := OctetEncodeOfBits (ss.cast (by cases p <;> ring ))
+      let v1 : Vector Byte (lensec p / 8) := OctetEncodeOfBits (ss_dec.cast (by cases p <;> ring ))
+      expect ("shared secret") v0 v1
+
+end Spec.FrodoTest
