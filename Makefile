@@ -1,6 +1,6 @@
-CHARON_HOME	?= $(dir $(abspath $(lastword $(MAKEFILE_LIST))))/../charon
-AENEAS_HOME	?= $(dir $(abspath $(lastword $(MAKEFILE_LIST))))/../aeneas
-EURYDICE_HOME	?= $(dir $(abspath $(lastword $(MAKEFILE_LIST))))/../eurydice
+CHARON_HOME	?= $(dir $(abspath $(lastword $(MAKEFILE_LIST))))../aeneas/charon
+AENEAS_HOME	?= $(dir $(abspath $(lastword $(MAKEFILE_LIST))))../aeneas
+EURYDICE_HOME	?= $(dir $(abspath $(lastword $(MAKEFILE_LIST))))../eurydice
 
 CHARON_EXE = $(CHARON_HOME)/bin/charon
 AENEAS_EXE = $(AENEAS_HOME)/bin/aeneas

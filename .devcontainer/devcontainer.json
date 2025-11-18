@@ -1,0 +1,46 @@
+{
+  "name": "Symcrust Development",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04",
+  
+  "features": {
+    "ghcr.io/devcontainers/features/rust:1": {
+      "version": "latest",
+      "profile": "default"
+    },
+    "ghcr.io/devcontainers/features/common-utils:2": {
+      "installZsh": true,
+      "installOhMyZsh": true,
+      "upgradePackages": true
+    },
+    "ghcr.io/devcontainers/features/git:1": {
+      "version": "latest"
+    }
+  },
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "rust-lang.rust-analyzer",
+        "leanprover.lean4",
+        "tamasfe.even-better-toml",
+        "vadimcn.vscode-lldb"
+      ],
+      "settings": {
+        "rust-analyzer.checkOnSave.command": "clippy",
+        "lean4.serverLogging.enabled": false
+      }
+    }
+  },
+
+  "postCreateCommand": "bash .devcontainer/setup.sh",
+
+  "remoteUser": "vscode",
+  
+  "mounts": [
+    "source=${localWorkspaceFolder}/.cargo-cache,target=${containerWorkspaceFolder}/.cargo-cache,type=bind,consistency=cached"
+  ],
+
+  "containerEnv": {
+    "CARGO_HOME": "${containerWorkspaceFolder}/.cargo-cache"
+  }
+}
