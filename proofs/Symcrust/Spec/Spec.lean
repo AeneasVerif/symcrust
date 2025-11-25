@@ -25,7 +25,7 @@ namespace Notations
   scoped macro_rules
   | `(tactic| get_elem_tactic) => `(tactic| grind)
 
-  @[scalar_tac]
+  @[scoped scalar_tac]
   theorem div_range_in_bounds {len start : ℕ}
     (h0 : 1 < len ∧ len ≤ 128 ∧ ∃ k, len = 128 / 2 ^ k)
     (h1 : start < 256 ∧ start % (2 * len) = 0) : start + 2 * len ≤ 256 := by
@@ -45,7 +45,14 @@ namespace Notations
       exact k_le
     interval_cases k <;> simp_all <;> omega
 
-  @[scalar_tac]
+  theorem div_range_in_bounds_mem (h0: len ∈ ({ start := 128, stop := 1, divisor := 2, divisor_pos} : Aeneas.DivRange))
+    (h1: start ∈ ({ stop := 256, step := 2 * len, step_pos}: Aeneas.SRRange)):
+    start + 2 * len ≤ 256 := by
+    apply div_range_in_bounds <;> simp [Membership.mem] at * <;> grind
+
+  scoped grind_pattern div_range_in_bounds_mem => start ∈ ({ stop := 256, step := 2 * len, step_pos}: Aeneas.SRRange)
+
+  @[scoped scalar_tac]
   theorem mul_range_add_in_bounds {len start : ℕ}
     (h0 : 2 ≤ len ∧ len < 256 ∧ ∃ k, len = 2 * 2 ^ k)
     (h1 : start < 256 ∧ start % (2 * len) = 0) : start + 2 * len ≤ 256 := by
@@ -59,6 +66,19 @@ namespace Notations
       apply Nat.pow_le_pow_right (by decide)
       exact hlen_lt
     interval_cases k <;> simp_all <;> omega
+
+  theorem mul_range_add_in_bounds_mem {start_pos mul_pos}
+    (h0: len ∈ ({ start := 2, stop := 256, mul := 2, start_pos, mul_pos} : Aeneas.MulRange))
+    (h1: start ∈ ({ stop := 256, step := 2 * len, step_pos}: Aeneas.SRRange)) :
+    start + 2 * len ≤ 256 := by
+    apply mul_range_add_in_bounds <;> simp [Membership.mem] at * <;> grind
+
+  scoped grind_pattern mul_range_add_in_bounds_mem => start ∈ ({ stop := 256, step := 2 * len, step_pos}: Aeneas.SRRange)
+
+  @[scoped grind =]
+  theorem mem_std_range_step_one (x n0 n1 : Nat) :
+    x ∈ [n0:n1] ↔ (n0 ≤ x ∧ x < n1) := by
+    simp only [Membership.mem, Nat.mod_one, and_true]
 
 end Notations
 
@@ -226,6 +246,8 @@ def sampleNTT (B : 𝔹 34) := Id.run do
 theorem H.val (η : Η) : η.val ≤ 3 := by
   have := η.property
   scalar_tac
+
+grind_pattern H.val => η.val
 
 def samplePolyCBD {η:Η} (B : 𝔹 (64 * η)) : Polynomial := Id.run do
   let b := bytesToBits B
