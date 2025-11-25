@@ -23,7 +23,7 @@ namespace Notations
 
   -- Overloading the `get_elem_tactic` so that notation `l[i]` works
   scoped macro_rules
-  | `(tactic| get_elem_tactic) => `(tactic| scalar_tac)
+  | `(tactic| get_elem_tactic) => `(tactic| grind)
 
   @[scalar_tac]
   theorem div_range_in_bounds {len start : ℕ}
