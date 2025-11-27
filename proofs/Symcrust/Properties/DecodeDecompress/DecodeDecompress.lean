@@ -373,6 +373,9 @@ theorem decode_coefficient.early_load_progress_spec (b : Aeneas.Std.Slice U8) (d
       rw [this]
       exact hb1 i'.val (by omega)
 
+-- TODO: Why is this needed for grind? Where should it be added?
+attribute [grind! .] inf_lt_left
+
 /-- This function is meant to reason about the output of `decode_coefficient` when it is necessary to load
     bits from the accumulator at the end of `decode_coefficient`. Note that `hn_bits_in_accumulator`
     specifies that the initial number of bits in the accumulator is not 0 but `hd` and `hn_bits_to_decode`
@@ -762,6 +765,9 @@ theorem decode_coefficient.no_load_progress_spec (b : Aeneas.Std.Slice U8) (d : 
           exact Nat.lt_of_lt_of_le (by omega) (by scalar_tac : 1 <<< n_bits_to_decode.val ≤ 2 ^ d.val)
     rw [this, ← hd]
     exact hb1 i.val hi
+
+-- TODO: Why is this needed for grind? Where should it be added?
+attribute [grind! .] inf_le_right
 
 /-- This function is meant to reason about the output of `decode_coefficient` when it is not necessary to load
     bits from the accumulator at the beginning of `decode_coefficient`. Note that `hn_bits_in_accumulator`
