@@ -50,7 +50,8 @@ namespace Notations
     start + 2 * len ≤ 256 := by
     apply div_range_in_bounds <;> simp [Membership.mem] at * <;> grind
 
-  scoped grind_pattern div_range_in_bounds_mem => start ∈ ({ stop := 256, step := 2 * len, step_pos}: Aeneas.SRRange)
+  scoped grind_pattern div_range_in_bounds_mem =>
+    len ∈ ({ start := 128, stop := 1, divisor := 2, divisor_pos} : Aeneas.DivRange), start ∈ ({ stop := 256, step := 2 * len, step_pos}: Aeneas.SRRange)
 
   @[scoped scalar_tac]
   theorem mul_range_add_in_bounds {len start : ℕ}
@@ -73,7 +74,8 @@ namespace Notations
     start + 2 * len ≤ 256 := by
     apply mul_range_add_in_bounds <;> simp [Membership.mem] at * <;> grind
 
-  scoped grind_pattern mul_range_add_in_bounds_mem => start ∈ ({ stop := 256, step := 2 * len, step_pos}: Aeneas.SRRange)
+  scoped grind_pattern mul_range_add_in_bounds_mem =>
+    len ∈ ({ start := 2, stop := 256, mul := 2, start_pos, mul_pos} : Aeneas.MulRange), start ∈ ({ stop := 256, step := 2 * len, step_pos}: Aeneas.SRRange)
 
   @[scoped grind =]
   theorem mem_std_range_step_one (x n0 n1 : Nat) :

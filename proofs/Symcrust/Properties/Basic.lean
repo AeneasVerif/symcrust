@@ -84,10 +84,15 @@ theorem wfArray_iff_forAll {n : Usize} (a : Std.Array U16 n) : wfArray a ↔ a.v
 @[simp, scalar_tac_simps, bvify_simps, grind =]
 theorem key.MLWE_POLYNOMIAL_COEFFICIENTS_eq : key.MLWE_POLYNOMIAL_COEFFICIENTS.val = 256 := by simp [global_simps]
 
-@[simp] theorem INTT_FIXUP_TIMES_RSQR.eq : INTT_FIXUP_TIMES_RSQR.val = 1441 := by simp [global_simps]
-@[simp] theorem INTT_FIXUP_TIMES_RSQR.bv_eq : INTT_FIXUP_TIMES_RSQR.bv = 1441#32 := by simp [global_simps]
+@[simp, grind =] theorem NEG_Q_INV_MOD_R.bv_eq : NEG_Q_INV_MOD_R.bv = 3327#32 := by simp [global_simps]
+@[simp, grind =] theorem RMASK.bv_eq : RMASK.bv = 65535#32 := by simp [global_simps]
+@[simp, grind =] theorem RLOG2.bv_eq : RLOG2.bv = 16#32 := by simp [global_simps]
+@[simp, grind =] theorem RSQR.bv_eq : RSQR.bv = 1353#32 := by simp [global_simps]
+@[simp, grind =] theorem RSQR_TIMES_NEG_Q_INV_MOD_R.bv_eq : RSQR_TIMES_NEG_Q_INV_MOD_R.bv = 44983#32 := by simp [global_simps]
+@[simp, grind =] theorem INTT_FIXUP_TIMES_RSQR.eq : INTT_FIXUP_TIMES_RSQR.val = 1441 := by simp [global_simps]
+@[simp, grind =] theorem INTT_FIXUP_TIMES_RSQR.bv_eq : INTT_FIXUP_TIMES_RSQR.bv = 1441#32 := by simp [global_simps]
 
-@[simp] theorem INTT_FIXUP_TIMES_RSQR_TIMES_NEQ_Q_INV_MOD_R.bv_eq : INTT_FIXUP_TIMES_RSQR_TIMES_NEQ_Q_INV_MOD_R.bv = 10079#32 := by simp [global_simps]
+@[simp, grind =] theorem INTT_FIXUP_TIMES_RSQR_TIMES_NEQ_Q_INV_MOD_R.bv_eq : INTT_FIXUP_TIMES_RSQR_TIMES_NEQ_Q_INV_MOD_R.bv = 10079#32 := by simp [global_simps]
 
 attribute [simp, scalar_tac_simps, bvify_simps, grind] Spec.Q
 

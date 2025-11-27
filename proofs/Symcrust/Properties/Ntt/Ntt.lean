@@ -18,9 +18,9 @@ set_option maxHeartbeats 10000000
 set_option maxRecDepth 2048
 set_option linter.dupNamespace false -- This option is needed because `Ntt.lean` is in an `Ntt` directory
 
-@[local simp] theorem bv_and_65535_eq_mod (x : BitVec 32) : x &&& 65535#32 = x % 65536#32 := by bv_decide
-@[local simp] theorem bv_shift_16_eq_div (x : BitVec 32) : x >>> 16 = x / 65536#32 := by bv_decide
-@[local simp] theorem nat_and_65535_eq_mod (x : Nat) : x &&& 65535 = x % 65536 := by apply Nat.and_two_pow_sub_one_eq_mod x 16
+@[local simp, local grind =] theorem bv_and_65535_eq_mod (x : BitVec 32) : x &&& 65535#32 = x % 65536#32 := by bv_decide
+@[local simp, local grind =] theorem bv_shift_16_eq_div (x : BitVec 32) : x >>> 16 = x / 65536#32 := by bv_decide
+@[local simp, local grind =] theorem nat_and_65535_eq_mod (x : Nat) : x &&& 65535 = x % 65536 := by apply Nat.and_two_pow_sub_one_eq_mod x 16
 
 -- TODO: remove those simps
 @[local simp]
@@ -603,7 +603,7 @@ theorem poly_element_intt_and_mul_r_loop_spec_aux
   fsimp
   split <;> rename_i h
   . progress as ⟨ x ⟩
-    progress with mont_mul_spec as ⟨ xTimes ⟩
+    progress with mont_mul_spec as ⟨ xTimes ⟩ by (fsimp [*])
     progress as ⟨ xTimes', hxTimes' ⟩
     progress as ⟨ peSrc1, hPeSrc1 ⟩
     progress as ⟨ i1 ⟩
@@ -673,6 +673,8 @@ private theorem and_RMASK (x : U32) : x.val &&& 65535 ≤ 65535 := by
     Bvify.U32.UScalar_bv, BitVec.setWidth_eq, UScalar.bv_toNat, Nat.reducePow, Nat.reduceMod,
     nat_and_65535_eq_mod, BitVec.ofNat_eq_ofNat, BitVec.toNat_ofNat, ge_iff_le] at *
   assumption
+
+local grind_pattern and_RMASK => x.val &&& (65535 : ℕ)
 
 section
   -- TODO: failure cases of scalar_tac +nonLin
@@ -872,7 +874,7 @@ section
 
   -- TODO: no post-processing of the post-conditions in progress
 
-  @[simp, scalar_tac_simps]
+  @[simp, scalar_tac_simps, grind]
   abbrev montMulStepBound : Nat := 3328 * 3328 + 3328 * 3498
 
   theorem poly_element_mul_and_accumulate_loop_spec
@@ -890,7 +892,8 @@ section
     unfold poly_element_mul_and_accumulate_loop
     fsimp only [fold_mul_acc_mont_reduce, fold_update_acc]
     fsimp
-    progress* by (fsimp [*]; ring_nf)
+    progress* by (scalar_tac +nonLin)
+    fsimp [*]; ring_nf
     apply wfAcc_128 hwf3 (by scalar_tac)
   termination_by 128 - i.val
   decreasing_by scalar_decr_tac
@@ -919,8 +922,8 @@ theorem poly_element_mul_and_accumulate_spec
 # Reduce and Add
 -/
 
-@[scalar_tac_simps, bvify_simps] abbrev reduceAddInputBound : Nat := 4*3328*3328 + 4*3494*3312
-@[scalar_tac_simps, bvify_simps] abbrev reduceAddStepBound : Nat := 4711
+@[scalar_tac_simps, bvify_simps, grind] abbrev reduceAddInputBound : Nat := 4*3328*3328 + 4*3494*3312
+@[scalar_tac_simps, bvify_simps, grind] abbrev reduceAddStepBound : Nat := 4711
 
 
 section
@@ -1148,12 +1151,7 @@ theorem montgomery_reduce_and_add_poly_element_accumulator_to_poly_element_spec
 
     -- TODO: progress by
     progress with montgomery_reduce_and_add_poly_element_accumulator_to_poly_element_loop_spec paSrc paSrc paDst paDst as ⟨ paSrc1, paDst1 ⟩
-    . fsimp at *; assumption
-    . fsimp at *; assumption
-    . -- Post-condition
-      fsimp at *
-      tauto
-
+    grind
 /-
 # MulR
 -/
@@ -1172,7 +1170,7 @@ theorem poly_element_mul_r_loop_spec
   unfold poly_element_mul_r_loop
   split
   . let* ⟨ i1, i1_post_1, i1_post_2 ⟩ ← wfArray_index
-    let* ⟨ i3, i3_post_1, i3_post_2 ⟩ ← mont_mul_spec
+    let* ⟨ i3, i3_post_1, i3_post_2 ⟩ ← mont_mul_spec by (fsimp [*])
     let* ⟨ i4, i4_post ⟩ ← UScalar.cast_inBounds_spec
     let* ⟨ peDst1, peDst1_post ⟩ ← Array.update_spec
     let* ⟨ i5, i5_post ⟩ ← Usize.add_spec
