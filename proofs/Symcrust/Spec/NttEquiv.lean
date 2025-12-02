@@ -14,7 +14,7 @@ import Mathlib.Tactic.Linarith
 import Init.Data.BitVec.Lemmas
 
 set_option maxRecDepth 2500
-set_option maxHeartbeats 50000
+set_option maxHeartbeats 100000
 --set_option diagnostics true
 
 
@@ -441,72 +441,6 @@ namespace Poly
   def Rq := Zq[X] ⧸ Ideal.span {xn 256 + 1}
 
 
-  -- noncomputable
-  -- def f_lk (l k : Nat) := xn (2 ^ (l + 1)) - ζ ^ k
-
-  -- theorem f_lk_mul (l k : Nat) : (f_lk l k) * (f_lk l (k + 128)) = f_lk (l+1) (2*k) := by
-  --   simp [f_lk]
-  --   ring_nf
-  --   simp [zeta_128_eq, one, xn, monomial_pow, Zq.one]
-  --   ring_nf
-
-
-  -- /- # Two polynomials are coprime if m and k are not equal mod 256. -/
-  -- theorem f_lk_coprime (l k m: Nat) (h: m % 256 ≠ k % 256):
-  --     IsCoprime (f_lk l k) (f_lk l m) := by
-  --   have diffUnit : IsUnit (Zq.ζ^m - Zq.ζ^k) := by
-  --     apply Zq.zeta_pow_sub_zeta_pow_isUnit
-  --     exact h
-  --   rw [f_lk, f_lk, IsCoprime]
-  --   use monomial 0 (Ring.inverse (Zq.ζ^m - Zq.ζ^k))
-  --   use -monomial 0 (Ring.inverse (Zq.ζ^m - Zq.ζ^k))
-  --   rw [mul_sub, mul_sub, xn]
-  --   ring_nf
-  --   rw [← mul_sub_left_distrib, ζ]
-  --   simp
-  --   rw [← C.map_pow (Zq.ζ) m, ← C.map_pow (Zq.ζ), ← C.map_sub (Zq.ζ^m), ← C.map_mul, ← C.map_one]
-  --   rw [ZMod.inv_mul_of_unit (Zq.ζ ^ m - Zq.ζ ^ k) diffUnit]
-
-  -- /- # The corresponding ideals are coprime -/
-  -- theorem f_lk_Ideals_coprime (l k m: Nat) (h: m % 256 ≠ k % 256):
-  --     IsCoprime (Ideal.span {f_lk l k}) (Ideal.span {f_lk l m}) := by
-  --   apply (Ideal.isCoprime_span_singleton_iff (f_lk l k) (f_lk l m)).mpr
-  --   exact f_lk_coprime l k m h
-
-  -- /- # CRT for one decomposition from Rq -/
-  -- /- Zq[X] ⧸ (X^256 + 1) ≃+* Zq[X] ⧸ (X^128 - ζ^64) ×  Zq[X] ⧸ (X^128 + ζ^64) -/
-  -- noncomputable
-  -- def crt_Rq_1 :
-  --   (Zq[X] ⧸ Ideal.span {f_lk 7 128}) ≃+*
-  --   (Zq[X] ⧸ Ideal.span {f_lk 6 64}) × (Zq[X] ⧸ Ideal.span {f_lk 6 192}) := by
-  --   have coprime : IsCoprime (Ideal.span {f_lk 6 64}) (Ideal.span {f_lk 6 192}) := by
-  --     apply f_lk_Ideals_coprime
-  --     grind
-  --   have prod : (Ideal.span {f_lk 6 64}) * (Ideal.span {f_lk 6 192}) = Ideal.span {f_lk 7 128} := by
-  --     simp [Ideal.span_singleton_mul_span_singleton (f_lk 6 64) (f_lk 6 192)]
-  --     simp [f_lk_mul]
-  --   rw [← prod]
-  --   apply Ideal.quotientMulEquivQuotientProd (Ideal.span {f_lk 6 64}) (Ideal.span {f_lk 6 192}) coprime
-
-  -- /- # CRT for one decomposition from any Rlk as long as the power at ζ is even -/
-  -- /- Zq[X] ⧸ (X^(2^(l+1)) - ζ^(2k)) ≃+* Zq[X] ⧸ (X^(2^l) - ζ^k) ×  Zq[X] ⧸ (X^(2^l) + ζ^k) -/
-  -- noncomputable
-  -- def crt_Rlk_1 (l k : Nat) :
-  --   (Zq[X] ⧸ Ideal.span {f_lk (l + 1) (2*k)}) ≃+*
-  --   (Zq[X] ⧸ Ideal.span {f_lk l k}) × (Zq[X] ⧸ Ideal.span {f_lk l (k + 128)}) := by
-  --   have coprime : IsCoprime (Ideal.span {f_lk l k}) (Ideal.span {f_lk l (k + 128)}) := by
-  --     apply f_lk_Ideals_coprime
-  --     grind
-  --   have prod :
-  --     (Ideal.span {f_lk l k}) * (Ideal.span {f_lk l (k + 128)}) =
-  --      Ideal.span {f_lk (l + 1) (2*k)} := by
-  --     simp [Ideal.span_singleton_mul_span_singleton (f_lk l k) (f_lk l (k + 128)), f_lk_mul]
-  --   rw [← prod]
-  --   apply Ideal.quotientMulEquivQuotientProd (Ideal.span {f_lk l k}) (Ideal.span {f_lk l (k + 128)}) coprime
-
-
-
-
   /- The NTT is a ring isomorphism from Rq to the product Tq of 128 rings defined by
      quadratic polynomials X^2 - ζ^k for some integer k. It works through repeated
      decomposition of the involved rings according to the following scheme.
@@ -578,7 +512,7 @@ namespace Poly
   example : fq 7 0 = xn 2 - ζ := by
     simp [fq, ζ_exp, x_exp, BitRev, BitVec.reverse]
   example : fq 7 2 = xn 2 - ζ ^ 65 := by
-    simp [fq, ζ_exp, x_exp, BitRev, BitVec.reverse, BitVec.msb, Nat.testBit]
+    simp [fq, ζ_exp, x_exp, BitRev, BitVec.reverse, BitVec.msb]
 
   /- Define the i-th quotient ring at level l down from Rq defined by (fq l i). -/
   def Sq (l : Fin 8) (i : Fin (2 ^ l.val)) :=
@@ -589,7 +523,7 @@ namespace Poly
   example : Sq 1 1 = (Zq[X] ⧸ Ideal.span {xn 128 - ζ^192}) := by
     simp [Sq, fq, ζ_exp, x_exp, BitRev, BitVec.reverse, BitVec.msb]
   example : Sq 7 1 = (Zq[X] ⧸ Ideal.span {xn 2 - ζ^129}) := by
-    simp [Sq, fq, ζ_exp, x_exp, BitRev, BitVec.reverse, BitVec.msb, Nat.testBit]
+    simp [Sq, fq, ζ_exp, x_exp, BitRev, BitVec.reverse, BitVec.msb]
 
 
   /- # Two polynomials (fq l i) and (fq l j) are coprime if i ≠ j.-/
@@ -649,23 +583,130 @@ namespace Poly
     ring_nf
 
 
+  lemma fq_mul_four (l : Fin 8) (i : Fin (2 ^ l.val)) (hl : l.val < 6) :
+    let l'' : Fin 8 := ⟨l.val + 2, by omega⟩
+    let i₁ : Fin (2 ^ l''.val) := ⟨4 * i.val, by grind⟩
+    let i₂ : Fin (2 ^ l''.val) := ⟨4 * i.val + 1, by grind⟩
+    let i₃ : Fin (2 ^ l''.val) := ⟨4 * i.val + 2, by grind⟩
+    let i₄ : Fin (2 ^ l''.val) := ⟨4 * i.val + 3, by grind⟩
+    fq l'' i₁ * fq l'' i₂ * fq l'' i₃ * fq l'' i₄ = fq l i := by
+    intro l'' i₁ i₂ i₃ i₄
+
+    -- Apply fq_mul twice: first at level l+1, then at level l
+    have hl' : l.val < 7 := by omega
+    have hl'' : l.val + 1 < 7 := by omega
+
+    let l' : Fin 8 := ⟨l.val + 1, by omega⟩
+    let i₁' : Fin (2 ^ l'.val) := ⟨2 * i.val, by simp [l']; omega⟩
+    let i₂' : Fin (2 ^ l'.val) := ⟨2 * i.val + 1, by simp [l']; omega⟩
+
+    -- First pair: fq l'' i₁ * fq l'' i₂ = fq l' i₁'
+    have eq₁₂ : fq l'' i₁ * fq l'' i₂ = fq l' i₁' := by
+      have h := fq_mul l' i₁' hl''
+      convert h using 2
+      · ext; simp [i₁, i₁', l', l'']; ring_nf
+      · ext; simp [i₂, i₁', l', l'']; ring_nf
+
+    -- Second pair: fq l'' i₃ * fq l'' i₄ = fq l' i₂'
+    have eq₃₄ : fq l'' i₃ * fq l'' i₄ = fq l' i₂' := by
+      have h := fq_mul l' i₂' hl''
+      convert h using 2
+      · ext; simp [i₃, i₂', l', l'']; ring_nf
+      · ext; simp [i₄, i₂', l', l'']; ring_nf
+
+    -- Combine: fq l' i₁' * fq l' i₂' = fq l i
+    have eq_final : fq l' i₁' * fq l' i₂' = fq l i := fq_mul l i hl'
+
+    -- Put it all together
+    calc fq l'' i₁ * fq l'' i₂ * fq l'' i₃ * fq l'' i₄
+        = (fq l'' i₁ * fq l'' i₂) * (fq l'' i₃ * fq l'' i₄) := by ring
+      _ = fq l' i₁' * fq l' i₂' := by rw [eq₁₂, eq₃₄]
+      _ = fq l i := eq_final
+
 
   noncomputable
   def crt_Sq_1 (l : Fin 8) (i : Fin (2 ^ l.val)) (hl : l.val < 7) :
     let l' : Fin 8 := ⟨l.val + 1, by omega⟩
     let i₁ : Fin (2 ^ l'.val) := ⟨2 * i.val, by grind⟩
     let i₂ : Fin (2 ^ l'.val) := ⟨2 * i.val + 1, by grind⟩
-    Zq[X] ⧸ Ideal.span {fq l i} ≃+* (Zq[X] ⧸ Ideal.span {fq l' i₁}) × (Zq[X] ⧸ Ideal.span {fq l' i₂}) :=
+    let I₁ := Ideal.span {fq l' i₁}
+    let I₂ := Ideal.span {fq l' i₂}
+    Zq[X] ⧸ Ideal.span {fq l i} ≃+* (Zq[X] ⧸ I₁) × (Zq[X] ⧸ I₂) :=
   by
-    intro l' i₁ i₂
-    have coprime : IsCoprime (Ideal.span {fq l' i₁}) (Ideal.span {fq l' i₂}) := by
+    intro l' i₁ i₂ I₁ I₂
+    have coprime : IsCoprime I₁ I₂ := by
       rw [Ideal.isCoprime_span_singleton_iff]
       apply fq_coprime
       simp [i₁, i₂]
     have prod :
-      (Ideal.span {fq l' i₁}) * (Ideal.span {fq l' i₂}) =
+      I₁ * I₂ =
        Ideal.span {fq l i} := by
       rw [Ideal.span_singleton_mul_span_singleton]
       rw [fq_mul l i hl]
     rw [← prod]
-    apply Ideal.quotientMulEquivQuotientProd (Ideal.span {fq l' i₁}) (Ideal.span {fq l' i₂}) coprime
+    apply Ideal.quotientMulEquivQuotientProd I₁ I₂ coprime
+
+
+  noncomputable
+  def crt_Sq_2 (l : Fin 8) (i : Fin (2 ^ l.val)) (hl : l.val < 6) :
+    -- Decomposition at two levels down: l'' = l + 2
+    let l'' : Fin 8 := ⟨l.val + 2, by omega⟩
+    -- The ring indices are 4i, 4i+1, 4i+2, 4i+3.
+    let idx : Fin 4 → Fin (2 ^ l''.val) := fun k => ⟨4 * i.val + k.val, by grind⟩
+    -- Define the polynomial for each ring.
+    let f : Fin 4 → Zq[X] := fun k => fq l'' (idx k)
+    -- And the corresponding ideals.
+    let I := fun k => Ideal.span {f k}
+
+    Zq[X] ⧸ Ideal.span {fq l i} ≃+* (Zq[X] ⧸ I 0) × (Zq[X] ⧸ I 1) × (Zq[X] ⧸ I 2) × (Zq[X] ⧸ I 3) :=
+  by
+    intro l'' idx f I
+
+    -- Show they are pairwise coprime
+    have coprime : Pairwise (fun j k => IsCoprime (I j) (I k)) := by
+      intro j k hjk
+      fin_cases j <;> fin_cases k <;> simp [I] at hjk ⊢
+      all_goals {
+        rw [Ideal.isCoprime_span_singleton_iff]
+        apply fq_coprime
+        simp [idx]
+      }
+
+    -- Show their infimum is the original ideal
+    have inf_eq : iInf I = Ideal.span {fq l i} := by
+      rw [Ideal.iInf_span_singleton]
+      · have prod_eq : ∏ k : Fin 4, f k = fq l i := by
+          calc ∏ k : Fin 4, f k
+              = f 0 * f 1 * f 2 * f 3 := by simp only [Fin.prod_univ_four]
+            _ = fq l'' (idx 0) * fq l'' (idx 1) * fq l'' (idx 2) * fq l'' (idx 3) := rfl
+            _ = fq l i := fq_mul_four l i hl
+        rw [prod_eq]
+      · intro j k hjk
+        have h : IsCoprime (I j) (I k) := coprime hjk
+        simp only [I] at h
+        rwa [Ideal.isCoprime_span_singleton_iff] at h
+
+    -- Apply the Chinese Remainder Theorem
+    rw [← inf_eq]
+    let crt := Ideal.quotientInfRingEquivPiQuotient I coprime
+    -- Convert from (i : Fin 4) → R ⧸ I i to product type
+    refine crt.trans ?_
+    let piToProduct : ((i : Fin 4) → Zq[X] ⧸ I i) ≃+* _ := {
+      toFun := fun f => (f 0, f 1, f 2, f 3)
+      invFun := fun (a, b, c, d) => fun i =>
+        match i with
+        | 0 => a
+        | 1 => b
+        | 2 => c
+        | 3 => d
+      left_inv := fun f => by
+        ext i
+        fin_cases i <;> rfl
+      right_inv := fun (a, b, c, d) => by
+        simp
+      map_mul' := fun f g => rfl
+      map_add' := fun f g => rfl
+    }
+    exact piToProduct
+
+end Poly
