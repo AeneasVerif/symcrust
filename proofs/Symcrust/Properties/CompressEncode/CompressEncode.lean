@@ -113,9 +113,6 @@ theorem min_spec (x y : U32) :
   unfold ntt.min
   split <;> progress*
 
--- TODO: Why is this needed for grind to succeed below?
-attribute [local grind! .] inf_le_left
-
 theorem encode_coefficient.progress_spec_aux
   (x : U32) (d : U32) (dst : Aeneas.Std.Slice U8)
   (bi : Usize) (acc : U32) (acci : U32)
