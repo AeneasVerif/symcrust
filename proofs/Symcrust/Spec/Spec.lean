@@ -25,7 +25,6 @@ namespace Notations
   scoped macro_rules
   | `(tactic| get_elem_tactic) => `(tactic| grind)
 
-  @[scoped scalar_tac]
   theorem div_range_in_bounds {len start : ℕ}
     (h0 : 1 < len ∧ len ≤ 128 ∧ ∃ k, len = 128 / 2 ^ k)
     (h1 : start < 256 ∧ start % (2 * len) = 0) : start + 2 * len ≤ 256 := by
@@ -53,7 +52,6 @@ namespace Notations
   scoped grind_pattern div_range_in_bounds_mem =>
     len ∈ ({ start := 128, stop := 1, divisor := 2, divisor_pos} : Aeneas.DivRange), start ∈ ({ stop := 256, step := 2 * len, step_pos}: Aeneas.SRRange)
 
-  @[scoped scalar_tac]
   theorem mul_range_add_in_bounds {len start : ℕ}
     (h0 : 2 ≤ len ∧ len < 256 ∧ ∃ k, len = 2 * 2 ^ k)
     (h1 : start < 256 ∧ start % (2 * len) = 0) : start + 2 * len ≤ 256 := by
