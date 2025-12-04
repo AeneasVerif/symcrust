@@ -810,7 +810,8 @@ section
     fsimp [wfAcc] at *
     apply h
 
-  def wfAcc_128 {f g : Array U16 256#usize} {B0 B1 : Nat} {i : Nat} {acc0 acc : Array U32 256#usize}
+  @[local grind .]
+  theorem wfAcc_128 {f g : Array U16 256#usize} {B0 B1 : Nat} {i : Nat} {acc0 acc : Array U32 256#usize}
     (h : wfAcc f g B0 B1 i acc0 acc) (hi : 128 ≤ i) :
     wfAcc f g B0 B1 128 acc0 acc := by
     fsimp [wfAcc] at *
@@ -859,8 +860,7 @@ section
     . dcases hjeq : j = i0
       . simp_lists_scalar [*]
       . simp_lists_scalar [*]
-    . intro hj'
-      simp_lists_scalar [*]
+    . grind
     . dcases hjeq : j = i0
       . fsimp [*]
         simp_lists
@@ -871,8 +871,6 @@ section
       . simp_lists [*]
     . intro hj'
       simp_lists [*]
-
-  -- TODO: no post-processing of the post-conditions in progress
 
   @[simp, scalar_tac_simps, grind]
   abbrev montMulStepBound : Nat := 3328 * 3328 + 3328 * 3498
@@ -892,11 +890,11 @@ section
     unfold poly_element_mul_and_accumulate_loop
     fsimp only [fold_mul_acc_mont_reduce, fold_update_acc]
     fsimp
-    progress* by (scalar_tac +nonLin)
-    fsimp [*]; ring_nf
-    apply wfAcc_128 hwf3 (by scalar_tac)
+    progress*
+    · simp [*]; grind -- TODO: Nat.cast_mul
+    grind
   termination_by 128 - i.val
-  decreasing_by scalar_decr_tac
+  decreasing_by grind
 end
 
 attribute [local progress] poly_element_mul_and_accumulate_loop_spec
