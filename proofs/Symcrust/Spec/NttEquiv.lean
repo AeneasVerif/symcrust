@@ -562,46 +562,109 @@ namespace Poly
     convert h_even using 2
     ring_nf
 
-  /- A polynomial factors as a product of four consecutively indexed polynomials
-     at the level two further down, provided it is not in the bottom two (highest
-     numbered) levels. -/
-  lemma fq_mul_four (l : Fin 8) (i : Fin (2 ^ l.val)) (hl : l.val < 6) :
-    let l'' : Fin 8 := ⟨l.val + 2, by omega⟩
-    let idx : Fin 4 → Fin (2 ^ l''.val) := fun k => ⟨4 * i.val + k.val, by grind⟩
-    fq l'' (idx 0) * fq l'' (idx 1) * fq l'' (idx 2) * fq l'' (idx 3) = fq l i := by
+  /- Generalization of fq_mul: A polynomial at level l and position/index i in the tree
+     factors as a product of the corresponding consecutive 2^k polynomials at level l+k
+    (if they exist in the tree). -/
+  lemma fq_mul_k (l : Fin 8) (i : Fin (2 ^ l.val)) (k : Fin 8) (hlk : k.val < 8 - l.val) :
+    let l'' : Fin 8 := ⟨l.val + k.val, by omega⟩
+    let idx : Fin (2 ^ k.val) → Fin (2 ^ l''.val) := fun j => ⟨2 ^ k.val * i.val + j.val, by
+      simp only [l'']
+      calc 2 ^ k.val * i.val + j.val
+          < 2 ^ k.val * i.val + 2 ^ k.val := Nat.add_lt_add_left j.isLt _
+        _ = 2 ^ k.val * (i.val + 1) := by ring
+        _ ≤ 2 ^ k.val * 2 ^ l.val := Nat.mul_le_mul_left _ i.isLt
+        _ = 2 ^ (l.val + k.val) := by rw [← Nat.pow_add, Nat.add_comm]⟩
+    ∏ j : Fin (2 ^ k.val), fq l'' (idx j) = fq l i := by
     intro l'' idx
+    induction k using Fin.inductionOn generalizing l i with
+    | zero =>
+      -- Base case: k = 0, product of 1 element
+      simp only [Fin.val_zero, Nat.pow_zero]
+      rw [Fintype.prod_subsingleton _ (0 : Fin 1)]
+      simp [l'', idx]
+    | succ k' ih =>
+      -- Inductive case: split the product into pairs using fq_mul
+      -- ∏ j : Fin (2^(k'+1)), fq l'' (idx j)
+      --   = ∏ j : Fin (2^k'), (fq l'' (idx (2j)) * fq l'' (idx (2j+1)))
+      --   = ∏ j : Fin (2^k'), fq l' (idx' j)   -- by fq_mul
+      --   = fq l i                              -- by induction hypothesis
+      simp only [Fin.val_succ, Nat.pow_succ] at l'' idx
 
-    -- Apply fq_mul twice: first at level l+1, then at level l
-    have hl' : l.val < 7 := by omega
-    have hl'' : l.val + 1 < 7 := by omega
+      -- Note: k'.succ.val = k'.val + 1 and k'.castSucc.val = k'.val
+      have hk'_eq : k'.castSucc.val = k'.val := rfl
 
-    let l' : Fin 8 := ⟨l.val + 1, by omega⟩
-    let i₁ : Fin (2 ^ l'.val) := ⟨2 * i.val, by simp [l']; omega⟩
-    let i₂ : Fin (2 ^ l'.val) := ⟨2 * i.val + 1, by simp [l']; omega⟩
+      -- Define intermediate level l' = l + k' (one level below l'')
+      have hk : k'.succ.val = k'.val + 1 := rfl
+      have hkval : k'.val + 1 < 8 - l.val := by simp only [hk] at hlk; exact hlk
+      let l' : Fin 8 := ⟨l.val + k'.val, by omega⟩
+      have hl' : l'.val < 7 := by simp only [l']; omega
 
-    -- First pair: fq l'' (idx 0) * fq l'' (idx 1) = fq l' i₁
+      -- Define intermediate index function for level l'
+      let idx' : Fin (2 ^ k'.val) → Fin (2 ^ l'.val) := fun j => ⟨2 ^ k'.val * i.val + j.val, by
+        simp only [l']
+        calc 2 ^ k'.val * i.val + j.val
+            < 2 ^ k'.val * i.val + 2 ^ k'.val := Nat.add_lt_add_left j.isLt _
+          _ = 2 ^ k'.val * (i.val + 1) := by ring
+          _ ≤ 2 ^ k'.val * 2 ^ l.val := Nat.mul_le_mul_left _ i.isLt
+          _ = 2 ^ (l.val + k'.val) := by rw [← Nat.pow_add, Nat.add_comm]⟩
 
-    have eq₁₂ : fq l'' (idx 0) * fq l'' (idx 1) = fq l' i₁ := by
-      have h := fq_mul l' i₁ hl''
-      convert h using 2
-      · ext; simp [idx, i₁, l', l'']; ring_nf
-      · ext; simp [idx, i₁, l', l'']; ring_nf
+      -- Rewrite ∏ j : Fin (2^k' * 2), ... as ∏ j : Fin (2^k'), (... * ...)
+      have h_prod_eq : ∏ j : Fin (2 ^ k'.val * 2), fq l'' (idx j)
+                     = ∏ j : Fin (2 ^ k'.val), (fq l'' (idx ⟨2*j.val, by omega⟩) * fq l'' (idx ⟨2*j.val+1, by omega⟩)) := by
+        -- Define the pairing: Fin (n * 2) ≃ Fin n × Fin 2, where pair (a, b) maps to 2a + b
+        let pair : Fin (2 ^ k'.val) × Fin 2 → Fin (2 ^ k'.val * 2) :=
+          fun ⟨a, b⟩ => ⟨2 * a.val + b.val, by have ha := a.isLt; have hb := b.isLt; omega⟩
+        have hpair_bij : Function.Bijective pair := by
+          constructor
+          · intro ⟨a₁, b₁⟩ ⟨a₂, b₂⟩ h
+            simp only [pair] at h
+            have heq : 2 * a₁.val + b₁.val = 2 * a₂.val + b₂.val := Fin.mk.inj h
+            have hb1 := b₁.isLt; have hb2 := b₂.isLt
+            have ha : a₁.val = a₂.val := by omega
+            have hb : b₁.val = b₂.val := by omega
+            simp only [Prod.mk.injEq]
+            exact ⟨Fin.ext ha, Fin.ext hb⟩
+          · intro j
+            use (⟨j.val / 2, by have := j.isLt; omega⟩, ⟨j.val % 2, Nat.mod_lt _ (by omega)⟩)
+            simp only [pair]
+            apply Fin.ext
+            show 2 * (j.val / 2) + j.val % 2 = j.val
+            exact Nat.div_add_mod j.val 2
+        -- Rewrite RHS as product over Fin n × Fin 2
+        have hrhs : ∏ j : Fin (2 ^ k'.val), (fq l'' (idx ⟨2*j.val, by omega⟩) * fq l'' (idx ⟨2*j.val+1, by omega⟩))
+                  = ∏ p : Fin (2 ^ k'.val) × Fin 2, fq l'' (idx (pair p)) := by
+          trans ∏ a : Fin (2 ^ k'.val), ∏ b : Fin 2, fq l'' (idx (pair (a, b)))
+          · congr 1; ext a; rw [Fin.prod_univ_two]; simp only [pair]; rfl
+          · rw [← Finset.prod_product']; rfl
+        rw [hrhs]
+        -- Now use bijection
+        exact (Fintype.prod_bijective pair hpair_bij _ _ (fun _ => rfl)).symm
 
-    -- Second pair: fq l'' (idx 2) * fq l'' (idx 3) = fq l' i₂
-    have eq₃₄ : fq l'' (idx 2) * fq l'' (idx 3) = fq l' i₂ := by
-      have h := fq_mul l' i₂ hl''
-      convert h using 2
-      · ext; simp [idx, i₂, l', l'']; ring_nf
-      · ext; simp [idx, i₂, l', l'']; ring_nf
+      -- Each pair equals fq l' (idx' j) by fq_mul
+      have h_pairs : ∀ j : Fin (2 ^ k'.val),
+          fq l'' (idx ⟨2*j.val, by omega⟩) * fq l'' (idx ⟨2*j.val+1, by omega⟩) = fq l' (idx' j) := by
+        intro j
+        -- Apply fq_mul at level l' with index idx' j
+        have hmul := fq_mul l' (idx' j) hl'
+        -- hmul : fq (l'+1) ⟨2*(idx' j).val, _⟩ * fq (l'+1) ⟨2*(idx' j).val+1, _⟩ = fq l' (idx' j)
+        -- We need to show:
+        --   l'' = l' + 1
+        --   idx ⟨2j, _⟩ = ⟨2(idx' j).val, _⟩
+        --   idx ⟨2j+1, _⟩ = ⟨2(idx' j).val+1, _⟩
+        convert hmul using 3 <;> ext <;> simp only [idx, idx', Fin.val_succ, Nat.pow_succ] <;> ring
 
-    -- Combine: fq l' i₁ * fq l' i₂ = fq l i
-    have eq_final : fq l' i₁ * fq l' i₂ = fq l i := fq_mul l i hl'
+      -- Apply induction hypothesis
+      have hlk' : k'.castSucc.val < 8 - l.val := by
+        simp only [hk'_eq]
+        have hk : k'.succ.val = k'.val + 1 := rfl
+        simp only [hk] at hlk; omega
+      have h_ih := ih l i hlk'
 
-    -- Put it all together
-    calc fq l'' (idx 0) * fq l'' (idx 1) * fq l'' (idx 2) * fq l'' (idx 3)
-        = (fq l'' (idx 0) * fq l'' (idx 1)) * (fq l'' (idx 2) * fq l'' (idx 3)) := by ring
-      _ = fq l' i₁ * fq l' i₂ := by rw [eq₁₂, eq₃₄]
-      _ = fq l i := eq_final
+      -- Final assembly
+      calc ∏ j : Fin (2 ^ k'.val * 2), fq l'' (idx j)
+          = ∏ j : Fin (2 ^ k'.val), (fq l'' (idx ⟨2*j.val, by omega⟩) * fq l'' (idx ⟨2*j.val+1, by omega⟩)) := h_prod_eq
+        _ = ∏ j : Fin (2 ^ k'.val), fq l' (idx' j) := Finset.prod_congr rfl (fun j _ => h_pairs j)
+        _ = fq l i := by convert h_ih using 2
 
 
   noncomputable
@@ -649,10 +712,8 @@ namespace Poly
     have inf_eq : iInf I = Ideal.span {fq l i} := by
       rw [Ideal.iInf_span_singleton]
       · have prod_eq : ∏ k : Fin 4, f k = fq l i := by
-          calc ∏ k : Fin 4, f k
-              = f 0 * f 1 * f 2 * f 3 := by simp only [Fin.prod_univ_four]
-            _ = fq l'' (idx 0) * fq l'' (idx 1) * fq l'' (idx 2) * fq l'' (idx 3) := rfl
-            _ = fq l i := fq_mul_four l i hl
+          have h := fq_mul_k l i ⟨2, by omega⟩ (by omega : (2 : Fin 8).val < 8 - l.val)
+          convert h using 2
         rw [prod_eq]
       · intro j k hjk
         have h : IsCoprime (I j) (I k) := coprime hjk
