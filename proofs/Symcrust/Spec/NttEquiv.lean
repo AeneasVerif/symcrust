@@ -527,6 +527,9 @@ namespace Poly
     rw [← C_pow, ← C_pow, ← C_mul, ← C_mul, ← C_sub, show d⁻¹ * Zq.ζ ^ ζ_exp l i - d⁻¹ * Zq.ζ ^ ζ_exp l j
         = d⁻¹ * d by ring, ZMod.inv_mul_of_unit d hd, C_1]
 
+  lemma Iq_coprime (l : Fin 8) (i j : Fin (2 ^ l.val)) (hij : i ≠ j): IsCoprime (Iq l i) (Iq l j) := by
+    simp only [Iq, Ideal.isCoprime_span_singleton_iff]
+    exact fq_coprime _ _ _ hij
 
   /- Multiplying two fq polynomials at the same level l' and with consecutive indices
      2i and 2i+1 yields the polynomial at level l = l'-1 with index i.
@@ -667,8 +670,10 @@ namespace Poly
         _ = fq l i := by convert h_ih using 2
 
 
+  /-- The quotient ring at level l and index i is isomorphic
+      to a product of 2 quotient rings at level l+1. -/
   noncomputable
-  def crt_Sq_1 (l : Fin 8) (i : Fin (2 ^ l.val)) (hl : l.val < 7) :
+  def crt_Sq (l : Fin 8) (i : Fin (2 ^ l.val)) (hl : l.val < 7) :
     Zq[X] ⧸ Iq l i ≃+*
       (Zq[X] ⧸ Iq ⟨l.val + 1, by omega⟩ ⟨2 * i.val, by simp; omega⟩) ×
       (Zq[X] ⧸ Iq ⟨l.val + 1, by omega⟩ ⟨2 * i.val + 1, by simp; omega⟩) := by
@@ -683,64 +688,53 @@ namespace Poly
       ((Ideal.isCoprime_span_singleton_iff _ _).mpr coprime)
 
 
+  /-- General version: The quotient ring at level l and index i is isomorphic
+      to a product of 2^k quotient rings at level l+k. -/
   noncomputable
-  def crt_Sq_2 (l : Fin 8) (i : Fin (2 ^ l.val)) (hl : l.val < 6) :
-    -- Decomposition at two levels down: l'' = l + 2
-    let l'' : Fin 8 := ⟨l.val + 2, by omega⟩
-    -- The ring indices are 4i, 4i+1, 4i+2, 4i+3.
-    let idx : Fin 4 → Fin (2 ^ l''.val) := fun k => ⟨4 * i.val + k.val, by grind⟩
-    -- Define the polynomial for each ring.
-    let f : Fin 4 → Zq[X] := fun k => fq l'' (idx k)
-    -- And the corresponding ideals.
-    let I := fun k => Ideal.span {f k}
+  def crt_Sq_k (l : Fin 8) (i : Fin (2 ^ l.val)) (k : Fin 8) (hlk : k.val < 8 - l.val) :
+    -- Decomposition at k levels down: l'' = l + k
+    let l'' : Fin 8 := ⟨l.val + k.val, by omega⟩
+    -- The ring indices are 2^k * i, 2^k * i + 1, ..., 2^k * i + 2^k - 1
+    let idx : Fin (2 ^ k.val) → Fin (2 ^ l''.val) := fun j => ⟨2 ^ k.val * i.val + j.val, by
+      simp only [l'']
+      calc 2 ^ k.val * i.val + j.val
+          < 2 ^ k.val * i.val + 2 ^ k.val := Nat.add_lt_add_left j.isLt _
+        _ = 2 ^ k.val * (i.val + 1) := by ring
+        _ ≤ 2 ^ k.val * 2 ^ l.val := Nat.mul_le_mul_left _ i.isLt
+        _ = 2 ^ (l.val + k.val) := by rw [← Nat.pow_add, Nat.add_comm]⟩
 
-    Zq[X] ⧸ Ideal.span {fq l i} ≃+* (Zq[X] ⧸ I 0) × (Zq[X] ⧸ I 1) × (Zq[X] ⧸ I 2) × (Zq[X] ⧸ I 3) :=
+    Zq[X] ⧸ Iq l i ≃+* Π j : Fin (2 ^ k.val), Zq[X] ⧸ Iq l'' (idx j) :=
   by
-    intro l'' idx f I
+    intro l'' idx
+
+    -- Define I as shorthand for Iq l'' ∘ idx
+    let I : Fin (2 ^ k.val) → Ideal Zq[X] := fun j => Iq l'' (idx j)
 
     -- Show they are pairwise coprime
-    have coprime : Pairwise (fun j k => IsCoprime (I j) (I k)) := by
-      intro j k hjk
-      fin_cases j <;> fin_cases k <;> simp [I] at hjk ⊢
-      all_goals {
-        rw [Ideal.isCoprime_span_singleton_iff]
-        apply fq_coprime
-        simp [idx]
-      }
+    have coprime : Pairwise (fun j₁ j₂ => IsCoprime (I j₁) (I j₂)) := by
+      intro j₁ j₂ hjk
+      simp only [I]
+      apply Iq_coprime
+      simp only [idx, Ne, Fin.mk.injEq]
+      have h1 := j₁.isLt; have h2 := j₂.isLt
+      omega
 
     -- Show their infimum is the original ideal
-    have inf_eq : iInf I = Ideal.span {fq l i} := by
+    have inf_eq : iInf I = Iq l i := by
+      simp only [I, Iq]
       rw [Ideal.iInf_span_singleton]
-      · have prod_eq : ∏ k : Fin 4, f k = fq l i := by
-          have h := fq_mul_k l i ⟨2, by omega⟩ (by omega : (2 : Fin 8).val < 8 - l.val)
+      · have prod_eq : ∏ j : Fin (2 ^ k.val), fq l'' (idx j) = fq l i := by
+          have h := fq_mul_k l i k hlk
           convert h using 2
         rw [prod_eq]
-      · intro j k hjk
-        have h : IsCoprime (I j) (I k) := coprime hjk
-        simp only [I] at h
+      · intro j₁ j₂ hjk
+        have h : IsCoprime (I j₁) (I j₂) := coprime hjk
+        simp only [I, Iq] at h
         rwa [Ideal.isCoprime_span_singleton_iff] at h
 
     -- Apply the Chinese Remainder Theorem
     rw [← inf_eq]
-    let crt := Ideal.quotientInfRingEquivPiQuotient I coprime
-    -- Convert from (i : Fin 4) → R ⧸ I i to product type
-    refine crt.trans ?_
-    let piToProduct : ((i : Fin 4) → Zq[X] ⧸ I i) ≃+* _ := {
-      toFun := fun f => (f 0, f 1, f 2, f 3)
-      invFun := fun (a, b, c, d) => fun i =>
-        match i with
-        | 0 => a
-        | 1 => b
-        | 2 => c
-        | 3 => d
-      left_inv := fun f => by
-        ext i
-        fin_cases i <;> rfl
-      right_inv := fun (a, b, c, d) => by
-        simp
-      map_mul' := fun f g => rfl
-      map_add' := fun f g => rfl
-    }
-    exact piToProduct
+    exact Ideal.quotientInfRingEquivPiQuotient I coprime
+
 
 end Poly
