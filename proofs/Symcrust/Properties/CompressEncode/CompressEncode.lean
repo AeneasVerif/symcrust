@@ -150,9 +150,6 @@ theorem encode_coefficient.progress_spec_aux
     simp_scalar
   unfold Symcrust.ntt.encode_coefficient
   progress*
-  . simp_all only [Slice.length, U32.size_eq, UScalarTy.U32_numBits_eq, Bvify.U32.UScalar_bv, U32.ofNat_bv, UScalar.ofNat_val_eq]
-    -- TODO: omega works here, but grind does not
-    omega
   . simp only [Slice.length, Stream.encode.body, Nat.reduceMul, ZMod.val_natCast,
       BitVec.shiftLeft_sub_one_eq_mod, BitVec.ofNat_eq_ofNat, exists_and_left, exists_eq_left']
     simp only [*]
