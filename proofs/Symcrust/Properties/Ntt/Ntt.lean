@@ -108,6 +108,7 @@ theorem mod_add_spec (a : U32) (b : U32)
   c.val < Spec.Q := by
   unfold mod_add
   progress*
+  simp [*] -- TODO: `grind` should solve this
 
 /-!
 # Subtraction Modulo
@@ -891,8 +892,7 @@ section
     fsimp only [fold_mul_acc_mont_reduce, fold_update_acc]
     fsimp
     progress*
-    · simp [*]; grind -- TODO: Nat.cast_mul
-    grind
+    · simp [*]; grind -- TODO: shouldn't be necessary
   termination_by 128 - i.val
   decreasing_by grind
 end
@@ -1085,7 +1085,7 @@ section
 
       -- TODO: this should be automated
       have : ∀ j < i11.val, paSrc1[j]! = 0#u32 := by
-        intro j hj; dcases hji : j = i.val <;> simp_lists [*]
+        intro j hj; dcases hji : j = i.val <;> grind
 
       have : ∀ j ≥ i11.val, j < 256 → paSrc1[j]! = paSrc0[j]! := by
         intro j hj0 hj1
@@ -1093,11 +1093,11 @@ section
 
       have : ∀ j ≥ i11.val, j < 256 → paSrc0[j]!.val ≤ reduceAddInputBound := by
         intro j hj0 hj1
-        dcases hji : j = i.val + 1 <;> simp_lists [*]
+        dcases hji : j = i.val + 1 <;> grind
 
       have : ∀ j < i11.val, paDst1[j]!.val ≤ 3328 := by
         intro j hj0
-        dcases hji : j = i.val <;> simp_lists [*]
+        dcases hji : j = i.val <;> grind
 
       have : ∀ j < i11.val, (paDst1[j]!.val : Spec.Zq) = ↑↑paDst0[j]! + ↑↑paSrc0[j]! * 169 := by
         intro j hj
@@ -1105,7 +1105,7 @@ section
 
       have : ∀ j ≥ i11.val, j < 256 → paDst0[j]!.val ≤ 3328 := by
         intro j hj0 hj1
-        dcases hji : j = i.val + 1 <;> simp_lists [*]
+        dcases hji : j = i.val + 1 <;> grind
 
       have : ∀ j ≥ i11.val, j < 256 → paDst1[j]!.val = ↑paDst0[j]! := by
         intro j hj0 hj1
@@ -1150,6 +1150,7 @@ theorem montgomery_reduce_and_add_poly_element_accumulator_to_poly_element_spec
     -- TODO: progress by
     progress with montgomery_reduce_and_add_poly_element_accumulator_to_poly_element_loop_spec paSrc paSrc paDst paDst as ⟨ paSrc1, paDst1 ⟩
     grind
+
 /-
 # MulR
 -/
