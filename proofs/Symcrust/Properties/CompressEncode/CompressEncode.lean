@@ -111,8 +111,18 @@ theorem min_spec (x y : U32) :
   ∃ z, ntt.min x y = ok z ∧ -- TODO: simp lemmas for `... = toResult ...`
   z.val = Min.min x.val y.val := by
   unfold ntt.min
-  split <;> progress*
+  progress*
 
+/-
+There is a: "timeout at `isDefEq`", but I don't manage to understand where it
+happens (and `progress*?` manages to generate a proof script, which when expanded
+allows proving the theorem - the problem may be linked to the auxiliary theorems
+introduced by `progress*`).
+
+I reduced the number of heart beats to that the error happens faster, but it
+occurs with a really high number as well (2M heartbeats).
+-/
+set_option maxHeartbeats 200000 in
 theorem encode_coefficient.progress_spec_aux
   (x : U32) (d : U32) (dst : Aeneas.Std.Slice U8)
   (bi : Usize) (acc : U32) (acci : U32)
@@ -152,6 +162,9 @@ theorem encode_coefficient.progress_spec_aux
   . simp [Stream.encode.body]
     simp_ifs
     simp only [*]
+    /- This call to grind also triggers the timeout, but I don't manage to have it if I isolate
+       the goal into an auxiliary lemma -/
+    grind
     simp_scalar
 
 @[progress]
