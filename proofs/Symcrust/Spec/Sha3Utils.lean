@@ -91,7 +91,7 @@ def Utils.dump' (S: BitVec n)(spacing? : Bool := false): Std.Format :=
   let formatted := Array.mk final.toList
     |>.chunks 16
     |>.map (·.chunks 2
-      |>.map (fun v => text  <| v.toList.asString)
+      |>.map (fun v => text  <| String.ofList v.toList)
       |>.toList
       |> singleSpace?.joinSep
       |> group)
