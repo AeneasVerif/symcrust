@@ -677,16 +677,37 @@ namespace Poly
     Zq[X] ⧸ Iq l i ≃+*
       (Zq[X] ⧸ Iq ⟨l.val + 1, by omega⟩ ⟨2 * i.val, by simp; omega⟩) ×
       (Zq[X] ⧸ Iq ⟨l.val + 1, by omega⟩ ⟨2 * i.val + 1, by simp; omega⟩) := by
+    let I₁ := Iq ⟨l.val + 1, by omega⟩ ⟨2 * i.val, by simp; omega⟩
+    let I₂ := Iq ⟨l.val + 1, by omega⟩ ⟨2 * i.val + 1, by simp; omega⟩
     have coprime : IsCoprime (fq ⟨l.val + 1, by omega⟩ ⟨2 * i.val, by simp; omega⟩)
                              (fq ⟨l.val + 1, by omega⟩ ⟨2 * i.val + 1, by simp; omega⟩) :=
       fq_coprime _ _ _ (by simp)
-    have prod : Iq ⟨l.val + 1, by omega⟩ ⟨2 * i.val, by simp; omega⟩ *
-                Iq ⟨l.val + 1, by omega⟩ ⟨2 * i.val + 1, by simp; omega⟩ = Iq l i := by
-      simp only [Iq, Ideal.span_singleton_mul_span_singleton, fq_mul l i hl]
-    rw [← prod]
-    exact Ideal.quotientMulEquivQuotientProd _ _
-      ((Ideal.isCoprime_span_singleton_iff _ _).mpr coprime)
+    have prod : I₁ * I₂ = Iq l i := by
+      simp only [I₁, I₂, Iq, Ideal.span_singleton_mul_span_singleton, fq_mul l i hl]
+    -- Instead of rw, use explicit composition: Iq l i ≃ I₁ * I₂ ≃ I₁ × I₂
+    exact (Ideal.quotEquivOfEq prod).symm.trans <|
+      Ideal.quotientMulEquivQuotientProd I₁ I₂
+        ((Ideal.isCoprime_span_singleton_iff _ _).mpr coprime)
 
+
+  lemma crt_Sq_fst (l : Fin 8) (i : Fin (2 ^ l.val)) (hl : l.val < 7) (f : Zq[X]) :
+    (crt_Sq l i hl (Ideal.Quotient.mk (Iq l i) f)).1 =
+      Ideal.Quotient.mk (Iq ⟨l.val + 1, by omega⟩ ⟨2 * i.val, by simp; omega⟩) f := by
+    -- Now crt_Sq is defined as (quotEquivOfEq prod).symm.trans quotientMulEquivQuotientProd
+    rw [crt_Sq]
+    simp only [RingEquiv.trans_apply]
+    -- Apply quotientMulEquivQuotientProd first, then quotEquivOfEq.symm
+    rw [Ideal.quotientMulEquivQuotientProd_fst]
+    -- Now we need: (quotEquivOfEq prod).symm (mk (Iq l i) f) = mk (I₁ * I₂) f
+    simp
+
+  lemma crt_Sq_snd (l : Fin 8) (i : Fin (2 ^ l.val)) (hl : l.val < 7) (f : Zq[X]) :
+    (crt_Sq l i hl (Ideal.Quotient.mk (Iq l i) f)).2 =
+      Ideal.Quotient.mk (Iq ⟨l.val + 1, by omega⟩ ⟨2 * i.val + 1, by simp; omega⟩) f := by
+    rw [crt_Sq]
+    simp only [RingEquiv.trans_apply]
+    rw [Ideal.quotientMulEquivQuotientProd_snd]
+    simp
 
   /-- General version: The quotient ring at level l and index i is isomorphic
       to a product of 2^k quotient rings at level l+k. -/
@@ -735,6 +756,175 @@ namespace Poly
     -- Apply the Chinese Remainder Theorem
     rw [← inf_eq]
     exact Ideal.quotientInfRingEquivPiQuotient I coprime
+
+
+  /-====================================================================-/
+
+  /-- Split a polynomial into low and high halves at position n.
+      Given f ∈ Zq[X] with degree ≤ 2n-1, splits it as f = low + X^n * high,
+      where low has degree < n and high has degree < n. -/
+  noncomputable
+  def poly_split (n : ℕ) (f : Zq[X]) (_hf : f.degree ≤ (2*n - 1 : ℕ)) : Zq[X] × Zq[X] :=
+    let low := Finset.sum (Finset.range n) (fun i => Polynomial.coeff f i • Polynomial.X ^ i)
+    let high := Finset.sum (Finset.range n) (fun i => Polynomial.coeff f (i + n) • Polynomial.X ^ i)
+    (low, high)
+
+  /-- The result of poly_split satisfies f = low + X^n * high. -/
+  lemma poly_split_eq (n : ℕ) (hn : 0 < n) (f : Zq[X]) (hf : f.degree ≤ (2*n - 1 : ℕ)) :
+    let (low, high) := poly_split n f hf
+    f = low + Polynomial.X ^ n * high := by
+    -- Prove by showing coefficients are equal
+    simp only [poly_split]
+    ext i
+    simp only [Polynomial.coeff_add, Finset.mul_sum, Polynomial.finset_sum_coeff,
+               Polynomial.coeff_smul, Polynomial.coeff_X_pow, Polynomial.coeff_mul]
+    -- Case split on whether i < n
+    by_cases hi : i < n
+    · -- Case i < n: only low part contributes
+      simp [hi]
+      refine Finset.sum_eq_zero fun x _ => Finset.sum_eq_zero fun p hp => ?_
+      split_ifs with h1 h2 <;> try rfl
+      simp [Finset.mem_antidiagonal] at hp
+      omega
+    · -- Case i >= n: potentially high part contributes
+      simp [hi]
+      push_neg at hi
+      by_cases hi2 : i - n < n
+      · -- i - n < n, so high contributes at position i - n
+        rw [Finset.sum_eq_single (i - n)]
+        · rw [Finset.sum_eq_single (n, i - n)]
+          · grind
+          · grind
+          · intro h; exfalso; apply h; simp [Finset.mem_antidiagonal, Nat.add_sub_cancel' hi]
+        · intro x hx hxne; apply Finset.sum_eq_zero; intro p hp; split_ifs with h1 h2 <;> try rfl
+          simp [Finset.mem_antidiagonal] at hp; omega
+        · grind
+      · -- i - n >= n, so i >= 2n and coeff is 0
+        push_neg at hi2
+        have hi_large : 2 * n ≤ i := by omega
+        have hfi : f.coeff i = 0 := by
+          apply Polynomial.coeff_eq_zero_of_degree_lt
+          calc f.degree ≤ (2*n - 1 : ℕ) := hf
+               _ < (2*n : WithBot ℕ) := by exact Nat.cast_lt.mpr (by omega : 2*n - 1 < 2*n)
+               _ ≤ i := by exact Nat.cast_le.mpr hi_large
+        rw [hfi]; symm; refine Finset.sum_eq_zero fun x hx => Finset.sum_eq_zero fun p hp => ?_
+        split_ifs with h1 h2 <;> (simp [Finset.mem_antidiagonal] at hp; grind)
+
+  /-- NTT butterfly at level l, splitting at position 2^(7-l).
+      Given a polynomial representative f with degree ≤ 2^(8-l) - 1,
+      computes (l + ζ^exp * r, l - ζ^exp * r)
+      where exp is the appropriate twiddle factor exponent. -/
+  noncomputable
+  def ntt_butterfly_poly (l : Fin 8) (i : Fin (2 ^ l.val)) (hl : l.val < 7) (f : Zq[X])
+      (hf : f.degree ≤ (2 ^ (8 - l.val) - 1 : ℕ)) : Zq[X] × Zq[X] :=
+    let n := 2 ^ (7 - l.val)
+    have hdeg : f.degree ≤ (2 * n - 1 : ℕ) := by
+      simp only [n]
+      have : 2 * 2 ^ (7 - l.val) = 2 ^ (8 - l.val) := by ring_nf; rw [← Nat.pow_succ]; congr; omega
+      rw [this]; exact hf
+    let (low, high) := poly_split n f hdeg
+    let exp := ζ_exp ⟨l.val + 1, by omega⟩ ⟨2 * i.val, by simp; omega⟩
+    let twiddle := Zq.ζ ^ exp
+    (low + C twiddle * high, low - C twiddle * high)
+
+  /-- NTT butterfly map on a polynomial with bounded degree.
+      Given a polynomial f with degree ≤ 2^(8-l) - 1, computes the butterfly transformation
+      and returns the pair of quotient ring elements in the child rings. -/
+  noncomputable
+  def ntt_butterfly (l : Fin 8) (i : Fin (2 ^ l.val)) (hl : l.val < 7) (f : Zq[X])
+      (hf : f.degree ≤ (2 ^ (8 - l.val) - 1 : ℕ)) :
+      (Zq[X] ⧸ Iq ⟨l.val + 1, by omega⟩ ⟨2 * i.val, by simp; omega⟩) ×
+      (Zq[X] ⧸ Iq ⟨l.val + 1, by omega⟩ ⟨2 * i.val + 1, by simp; omega⟩) :=
+    let (p1, p2) := ntt_butterfly_poly l i hl f hf
+    (Ideal.Quotient.mk (Iq ⟨l.val + 1, by omega⟩ ⟨2 * i.val, by simp; omega⟩) p1,
+     Ideal.Quotient.mk (Iq ⟨l.val + 1, by omega⟩ ⟨2 * i.val + 1, by simp; omega⟩) p2)
+
+  /-- The butterfly operation agrees with the CRT isomorphism.
+      This theorem shows that the explicit butterfly computation produces the same result
+      as applying the abstract CRT isomorphism to the quotient element. -/
+  theorem ntt_butterfly_eq_crt (l : Fin 8) (i : Fin (2 ^ l.val)) (hl : l.val < 7) (f : Zq[X])
+      (hf : f.degree ≤ (2 ^ (8 - l.val) - 1 : ℕ)) :
+      ntt_butterfly l i hl f hf = crt_Sq l i hl (Ideal.Quotient.mk (Iq l i) f) := by
+
+    let l' : Fin 8 := ⟨l.val + 1, by omega⟩
+    let i₁ : Fin (2 ^ l'.val) := ⟨2 * i.val, by simp [l']; omega⟩
+    let i₂ : Fin (2 ^ l'.val) := ⟨2 * i.val + 1, by simp [l']; omega⟩
+    let I₁ := Iq l' i₁
+    let I₂ := Iq l' i₂
+    let n := 2 ^ (7 - l.val)
+    let exp := ζ_exp l' i₁
+    let low : Zq[X] := ∑ i ∈ Finset.range n, f.coeff i • Polynomial.X ^ i
+    let high : Zq[X] := ∑ i ∈ Finset.range n, f.coeff (i + n) • Polynomial.X ^ i
+    let twiddle := Zq.ζ ^ exp
+
+    -- Use poly_split_eq to get f = low + X^n * high
+    have h0 : (l.val + 1) - 1 = l.val := by omega
+    have h1 : 8 - l.val = (7 - l.val) + 1 := by omega
+    have h2 : 2 ^ (8 - l.val) = 2 * 2 ^ (7 - l.val) := by rw [h1, pow_succ]; omega
+    have h3 : 7 - l.val = 8 - (l.val + 1) := by omega
+    have h4 : (7 - l.val) + l.val = 7 := by omega
+    have h5 : 2 ^ (7 - l.val) * 2 ^ l.val = 128 := by rw [← Nat.pow_add, h4];
+    have h6 : C Zq.ζ ^ 128 = C (Zq.ζ ^ 128) := by simp
+    have hf' : f.degree ≤ (2 * n - 1 : ℕ) := by grind
+    have split_eq : f = low + Polynomial.X ^ n * high :=
+      poly_split_eq n (by simp only [n]; apply Nat.one_le_two_pow) f hf'
+
+    -- Unfold the LHS (butterfly side) using rw
+    rw [ntt_butterfly, ntt_butterfly_poly]
+    simp only [poly_split]
+    -- The goal is now an equality of pairs
+    -- Split into two components: .1 and .2
+    ext
+    · -- First component
+      -- Use the proved lemma to extract the first component of the CRT
+      rw [crt_Sq_fst]
+      show Ideal.Quotient.mk I₁ (low + Polynomial.C twiddle * high) =
+           Ideal.Quotient.mk I₁ f
+
+      -- Show that X^n ≡ C twiddle (mod I₁) since I₁ = ⟨X^n - ζ^exp⟩
+      have Xn_eq_twiddle : Ideal.Quotient.mk I₁ (Polynomial.X ^ n) =
+                           Ideal.Quotient.mk I₁ (Polynomial.C twiddle) := by
+        simp only [Ideal.Quotient.eq, I₁, Iq, fq, xn, ζ, x_exp, l', i₁, exp, twiddle, n, Zq.one]
+        rw [Ideal.mem_span_singleton]; use 1
+        rw [Polynomial.X_pow_eq_monomial, h3]
+        simp
+
+      -- Combine: f = low + X^n * high ≡ low + C twiddle * high (mod I₁)
+      symm
+      calc Ideal.Quotient.mk I₁ f
+        _ = Ideal.Quotient.mk I₁ low + Ideal.Quotient.mk I₁ (Polynomial.X ^ n * high) := by simp [split_eq, map_add]
+        _ = Ideal.Quotient.mk I₁ low + Ideal.Quotient.mk I₁ (Polynomial.X ^ n) * Ideal.Quotient.mk I₁ high := by simp [map_mul]
+        _ = Ideal.Quotient.mk I₁ low + Ideal.Quotient.mk I₁ (Polynomial.C twiddle) * Ideal.Quotient.mk I₁ high := by rw [Xn_eq_twiddle]
+        _ = Ideal.Quotient.mk I₁ (low + Polynomial.C twiddle * high) := by simp [map_add, map_mul]
+    · -- Second component
+      -- Use the proved lemma to extract the second component of the CRT
+      rw [crt_Sq_snd]
+      show Ideal.Quotient.mk I₂ (low - Polynomial.C twiddle * high) =
+           Ideal.Quotient.mk I₂ f
+
+      -- Show that X^n ≡ -C twiddle (mod I₂)
+      have Xn_eq_neg_twiddle : Ideal.Quotient.mk I₂ (Polynomial.X ^ n) =
+                               Ideal.Quotient.mk I₂ (-Polynomial.C twiddle) := by
+        simp only [Ideal.Quotient.eq, I₂, Iq, fq, xn, ζ, x_exp, l', i₁, i₂, exp, twiddle, n, Zq.one, ζ_exp]
+        rw [Ideal.mem_span_singleton]; use 1
+        rw [Polynomial.X_pow_eq_monomial, h3]
+        rw [BitRev_odd_from_even]
+        · -- Main goal: show Polynomial equality
+          simp [h0, add_mul]
+          ring_nf
+          simp [h5, h6, Zq.zeta_128_eq]
+        · -- Side goal: l + 1 > 0
+          omega
+
+      -- Combine: f = low + X^n * high ≡ low - C twiddle * high (mod I₂)
+      symm
+      calc Ideal.Quotient.mk I₂ f
+        _ = Ideal.Quotient.mk I₂ low + Ideal.Quotient.mk I₂ (Polynomial.X ^ n * high) := by simp [split_eq, map_add]
+        _ = Ideal.Quotient.mk I₂ low + Ideal.Quotient.mk I₂ (Polynomial.X ^ n) * Ideal.Quotient.mk I₂ high := by simp [map_mul]
+        _ = Ideal.Quotient.mk I₂ low + Ideal.Quotient.mk I₂ (-Polynomial.C twiddle) * Ideal.Quotient.mk I₂ high := by rw [Xn_eq_neg_twiddle]
+        _ = Ideal.Quotient.mk I₂ (low - Polynomial.C twiddle * high) := by simp [map_mul]; ring
+
+
 
 
 end Poly
