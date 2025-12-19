@@ -116,8 +116,7 @@ namespace Zq
       | inl ll => contradiction
       | inr rr =>
         apply sub_eq_zero.mp at rr
-        rw [← pow_mod_orderOf ζ (m-k)] at rr
-        simp [Zq.zeta_order_eq_256] at rr
+        rw [← pow_mod_orderOf ζ (m-k), Zq.zeta_order_eq_256] at rr
         contradiction
     · simp at h₀
       have hkm : m + (k - m ) = k := by grind
@@ -140,12 +139,10 @@ namespace Zq
       | inl ll => contradiction
       | inr rr =>
         apply sub_eq_zero.mp at rr
-        rw [← pow_mod_orderOf ζ (k-m)] at rr
-        simp [Zq.zeta_order_eq_256] at rr ; symm at rr
+        rw [← pow_mod_orderOf ζ (k-m), Zq.zeta_order_eq_256] at rr; symm at rr
         contradiction
 
   theorem zeta_pow_sub_zeta_pow_isUnit (m k : Nat) (h : (m % 256) ≠ (k % 256)) : IsUnit (ζ^m - ζ^k) := by
-    have q_isPrime_fact : Fact (Nat.Prime q) := ⟨q_isPrime⟩
     have : (ζ^m - ζ^k) ^ (q-1) = 1 := by
       apply ZMod.pow_card_sub_one_eq_one (zeta_pow_sub_zeta_pow_ne_zero m k h)
     apply IsUnit.of_pow_eq_one this
@@ -186,80 +183,71 @@ example : BitRev 7 2 = 32 := by rfl
 lemma BitRev_equal : ∀ i : Fin 128, BitRev₇ i = BitRev 7 i := by
   intro i; rfl
 
+/- Some properties of the BitRev function. -/
+/- Reversing a bit vector twice is the identity. -/
 lemma BitVec_reverse_reverse_eq {n : ℕ} (v : BitVec n) : v.reverse.reverse = v := by sorry
   -- This seems to exist in Mathlib v4.25: Use the below?
   -- simpa using (BitVec.reverse_reverse v)
 
+/- BitRev is its own inverse. -/
 lemma BitRev_inv (b : ℕ) (i : Fin (2 ^ b)) : BitRev b (BitRev b i) = i := by
   simp [BitRev, BitVec_reverse_reverse_eq]
 
 lemma BitRev₇_inv (i : Fin 128) : BitRev₇ (BitRev₇ i) = i := by
   decide +revert
 
+/- BitRev is injective. -/
 lemma BitRev_inj (b : ℕ) (i j : Fin (2 ^ b)) (hij : i ≠ j) : BitRev b i ≠ BitRev b j := by
   intro h
   have h' : BitRev b (BitRev b i) = BitRev b (BitRev b j) := congr_arg (BitRev b) h
   simp [BitRev_inv] at h'
-  exact hij h'
+  contradiction
 
+
+/- Properties relating Bit Vectors of consecutive integers. -/
 /-- For integers 2i and 2i+1, their BitVec representations are the same except for bit 0. -/
 lemma BitVec_ofNat_double_vs_double_plus_one
     (b : ℕ) (i : ℕ)
-    (hi : 2 * i < 2 ^ b) (hi2 : 2 * i + 1 < 2 ^ b)
     (j : Nat) (hj : 0 ≠ j) :
   (BitVec.ofNat b (2 * i)).getLsbD j = (BitVec.ofNat b (2 * i + 1)).getLsbD j := by
   simp only [BitVec.getLsbD, BitVec.ofNat]
   show (⟨(2 * i) % 2 ^ b, by omega⟩ : Fin (2 ^ b)).val.testBit j =
         (⟨(2 * i + 1) % 2 ^ b, by omega⟩ : Fin (2 ^ b)).val.testBit j
-  simp only [Nat.mod_eq_of_lt hi, Nat.mod_eq_of_lt hi2]
-  cases j with
-  | zero => omega
-  | succ j' =>
-    simp only [Nat.testBit_succ]
-    have h1 : 2 * i / 2 = i := Nat.mul_div_cancel_left i (by omega : 0 < 2)
-    have h2 : (2 * i + 1) / 2 = i := by omega
-    rw [h1, h2]
+  cases j with | zero => omega | succ j' => grind
 
 /-- For the same numbers, if their BitVec representations are reversed, they are the same
     except for the most significant bit. -/
 lemma BitVec_ofNat_double_vs_double_plus_one_reverse
     (b : ℕ) (i : ℕ)
-    (hi : 2 * i < 2 ^ b) (hi2 : 2 * i + 1 < 2 ^ b)
     (j : Nat) (hjb : j < (b-1)) :
   (BitVec.ofNat b (2 * i)).reverse.getLsbD j = (BitVec.ofNat b (2 * i + 1)).reverse.getLsbD j := by
   simp only [BitVec.getLsbD_reverse, BitVec.getMsbD]
   simp (config := {decide := true}) only [show j < b by omega]
-  apply BitVec_ofNat_double_vs_double_plus_one <;> omega
+  apply BitVec_ofNat_double_vs_double_plus_one; omega
 
 /-- The least significant bit of an even number is zero. -/
-lemma BitVec_ofNat_double_lsb (b : ℕ) (i : ℕ) (hi : 2 * i < 2 ^ b) :
+lemma BitVec_ofNat_double_lsb (b : ℕ) (i : ℕ)  :
   (BitVec.ofNat b (2 * i)).getLsbD 0 = false := by
-  rw [BitVec.getLsbD, BitVec.ofNat]
-  show (⟨(2 * i) % 2 ^ b, by omega⟩ : Fin (2 ^ b)).val.testBit 0 = false
-  rw [Fin.val_mk, Nat.mod_eq_of_lt hi, Nat.testBit_zero]
-  simp [Nat.mul_mod_right]
+  simp [BitVec.getLsbD_ofNat]
 
 /-- The most significant bit of the bit reverse of an even number is zero. -/
-lemma BitVec_ofNat_double_reverse_msb (b : ℕ) (i : ℕ) (hb : b > 0) (hi : 2 * i < 2 ^ b) :
+lemma BitVec_ofNat_double_reverse_msb (b : ℕ) (i : ℕ) (hb : b > 0) :
   (BitVec.ofNat b (2 * i)).reverse.getLsbD (b-1) = false := by
   rw [BitVec.getLsbD_reverse, BitVec.getMsbD]
   simp [hb]
-  apply BitVec_ofNat_double_lsb _ _ hi
+  exact BitVec_ofNat_double_lsb _ _
 
 /-- The least significant bit of an odd number is one. -/
-lemma BitVec_ofNat_double_plus_one_lsb (b : ℕ) (i : ℕ) (hi : 2 * i + 1 < 2 ^ b) :
+lemma BitVec_ofNat_double_plus_one_lsb (b : ℕ) (i : ℕ) (hb : b > 0) :
   (BitVec.ofNat b (2 * i + 1)).getLsbD 0 = true := by
-  rw [BitVec.getLsbD, BitVec.ofNat]
-  show (⟨(2 * i + 1) % 2 ^ b, by omega⟩ : Fin (2 ^ b)).val.testBit 0 = true
-  simp only [Nat.mod_eq_of_lt hi, Nat.testBit_zero]
-  simp [Nat.add_mod, Nat.mul_mod_right]
+  simp [BitVec.getLsbD_ofNat]; exact hb
 
 /-- The most significant bit of the bit reverse of an odd number is one. -/
-lemma BitVec_ofNat_double_plus_one_reverse_msb (b : ℕ) (i : ℕ) (hb : b > 0) (hi : 2 * i + 1 < 2 ^ b) :
+lemma BitVec_ofNat_double_plus_one_reverse_msb (b : ℕ) (i : ℕ) (hb : b > 0) :
   (BitVec.ofNat b (2 * i + 1)).reverse.getLsbD (b-1) = true := by
   rw [BitVec.getLsbD_reverse, BitVec.getMsbD]
   simp [hb]
-  apply BitVec_ofNat_double_plus_one_lsb _ _ hi
+  exact BitVec_ofNat_double_plus_one_lsb _ _ hb
 
 /-- Bit reversal of an odd number (2i+1) equals bit reversal of the even number (2i)
     plus 2^(b-1), where b is the number of bits. -/
@@ -267,14 +255,11 @@ lemma BitRev_odd_from_even (b : ℕ) (hb : b > 0) (i : Fin (2 ^ (b - 1))) :
   let i₁ : Fin (2 ^ b) := ⟨2 * i.val, by rw [← mul_pow_sub_one (Nat.pos_iff_ne_zero.mp hb)]; omega⟩
   let i₂ : Fin (2 ^ b) := ⟨2 * i.val + 1, by rw [← mul_pow_sub_one (Nat.pos_iff_ne_zero.mp hb)]; omega⟩
   (BitRev b i₂).val = (BitRev b i₁).val + 2^(b - 1) := by
-  intro i₂ i₁
+  intro i₁ i₂
   simp only [i₁, i₂, BitRev]
-
   show (BitVec.ofNat b (2 * i.val + 1)).reverse.toNat =
         (BitVec.ofNat b (2 * i.val)).reverse.toNat + 2^(b - 1)
 
-  have h2i_lt : 2 * i.val < 2 ^ b := by rw [← mul_pow_sub_one (Nat.pos_iff_ne_zero.mp hb)]; omega
-  have h2ip1_lt : 2 * i.val + 1 < 2 ^ b := by rw [← mul_pow_sub_one (Nat.pos_iff_ne_zero.mp hb)]; omega
   have h_pow_lt : 2 ^ (b - 1) < 2 ^ b := Nat.pow_lt_pow_right (by omega) (by omega)
 
   -- Prove BitVec equality, then take toNat of both sides
@@ -282,14 +267,13 @@ lemma BitRev_odd_from_even (b : ℕ) (hb : b > 0) (i : Fin (2 ^ (b - 1))) :
                 (BitVec.ofNat b (2 * i.val)).reverse + (BitVec.twoPow b (b - 1)) by
     -- Extract numeric equality from BitVec equality
     have : (BitVec.ofNat b (2 * i.val + 1)).reverse.toNat =
-            ((BitVec.ofNat b (2 * i.val)).reverse + (BitVec.twoPow b (b - 1))).toNat := by
-      rw [h]
+            ((BitVec.ofNat b (2 * i.val)).reverse + (BitVec.twoPow b (b - 1))).toNat := by rw [h]
     rw [this, BitVec.toNat_add, BitVec.toNat_twoPow]
     -- Show no overflow in the addition
     have : (BitVec.ofNat b (2 * i.val)).reverse.toNat < 2 ^ (b - 1) := by
       apply BitVec.toNat_lt_of_msb_false
       rw [BitVec.msb_eq_getLsbD_last]
-      exact BitVec_ofNat_double_reverse_msb b i.val hb h2i_lt
+      exact BitVec_ofNat_double_reverse_msb b i.val hb
     have h_no_overflow : (BitVec.ofNat b (2 * i.val)).reverse.toNat + 2 ^ (b - 1) < 2 ^ b := by
       rw [← mul_pow_sub_one (Nat.pos_iff_ne_zero.mp hb)]; omega
     rw [Nat.mod_eq_of_lt h_pow_lt, Nat.mod_eq_of_lt h_no_overflow]
@@ -301,9 +285,9 @@ lemma BitRev_odd_from_even (b : ℕ) (hb : b > 0) (i : Fin (2 ^ (b - 1))) :
   by_cases hjb : j = b - 1
   · -- At MSB (bit b-1): LHS is true, RHS is false + true
     subst hjb
-    rw [BitVec_ofNat_double_plus_one_reverse_msb b i.val hb h2ip1_lt]
+    rw [BitVec_ofNat_double_plus_one_reverse_msb b i.val hb]
     rw [BitVec.getLsbD_add]
-    · rw [BitVec_ofNat_double_reverse_msb b i.val hb h2i_lt]
+    · rw [BitVec_ofNat_double_reverse_msb b i.val hb]
       rw [BitVec.getLsbD_twoPow]
       simp [hb]
       simp [BitVec.carry]
@@ -316,17 +300,14 @@ lemma BitRev_odd_from_even (b : ℕ) (hb : b > 0) (i : Fin (2 ^ (b - 1))) :
     rw [BitVec.getLsbD_add]
     · have h_twoPow_zero : (BitVec.twoPow b (b - 1)).getLsbD j = false := by
         rw [BitVec.getLsbD_twoPow]
-        simp ; omega
-      rw [h_twoPow_zero]
+        grind
       have h_carry_zero : BitVec.carry j (BitVec.ofNat b (2 * i.val)).reverse (BitVec.twoPow b (b - 1)) false = false := by
         simp [BitVec.carry]
         rw [Nat.mod_eq_of_lt h_pow_lt]
         rw [Nat.dvd_iff_mod_eq_zero.mp (by apply Nat.pow_dvd_pow; omega : 2 ^ j ∣ 2 ^ (b - 1))]
-        simp
         exact Nat.mod_lt _ (Nat.pow_pos (by omega : 0 < 2))
-      rw [h_carry_zero]
-      simp
-      exact (BitVec_ofNat_double_vs_double_plus_one_reverse b i.val h2i_lt h2ip1_lt j hjb_lt).symm
+      simp [h_twoPow_zero, h_carry_zero]
+      exact (BitVec_ofNat_double_vs_double_plus_one_reverse b i.val j hjb_lt).symm
     · omega
 
 /-- Bit reversal (of width b) of an even b-bit number (2*i) is the same as bit
@@ -341,55 +322,36 @@ lemma BitRev_even_from_half (b : ℕ) (hb : b > 0) (i : Fin (2 ^ (b - 1))) :
   -- Show toNat values are equal
   show (BitVec.ofNat b (2 * i.val)).reverse.toNat = (BitVec.ofNat (b-1) i.val).reverse.toNat
 
-  have h2i_lt : 2 * i.val < 2 ^ b := by rw [← mul_pow_sub_one (Nat.pos_iff_ne_zero.mp hb)]; omega
-
   -- Since MSB is 0, the b-bit reversed value fits in b-1 bits
   have h_bound : (BitVec.ofNat b (2 * i.val)).reverse.toNat < 2 ^ (b - 1) := by
     apply BitVec.toNat_lt_of_msb_false
     rw [BitVec.msb_eq_getLsbD_last]
-    exact BitVec_ofNat_double_reverse_msb b i.val hb h2i_lt
+    exact BitVec_ofNat_double_reverse_msb b i.val hb
 
   -- Since the reversed value fits in b-1 bits, converting via ofNat preserves the value
   have h_preserve : (BitVec.ofNat b (2 * i.val)).reverse.toNat =
        (BitVec.ofNat (b-1) ((BitVec.ofNat b (2 * i.val)).reverse.toNat)).toNat := by
-    rw [BitVec.toNat_ofNat]
-    rw [Nat.mod_eq_of_lt h_bound]
+    rw [BitVec.toNat_ofNat, Nat.mod_eq_of_lt h_bound]
 
-  -- Now we need to show that this equals (BitVec.ofNat (b-1) i.val).reverse.toNat
+  -- This equals (BitVec.ofNat (b-1) i.val).reverse.toNat
   have h_i : (BitVec.ofNat (b-1) ((BitVec.ofNat b (2 * i.val)).reverse.toNat)).toNat
     = (BitVec.ofNat (b-1) i.val).reverse.toNat := by
     -- Prove bit vector equality, then toNat equality follows
     suffices h : (BitVec.ofNat (b-1) ((BitVec.ofNat b (2 * i.val)).reverse.toNat)) =
-                 (BitVec.ofNat (b-1) i.val).reverse by
-      rw [h]
-
+                 (BitVec.ofNat (b-1) i.val).reverse by rw [h]
     -- Prove bit-by-bit equality
     apply BitVec.eq_of_getLsbD_eq
     intro j hj
-
-    -- LHS: get bit j of ofNat (b-1) (reverse of 2*i in b bits)
-    rw [BitVec.getLsbD_ofNat]
-    -- RHS: get bit j of reverse of i in (b-1) bits
-    rw [BitVec.getLsbD_reverse, BitVec.getMsbD]
-    simp [hj]
-    -- Both sides should extract the same bit from the reversed (b-1) bit representation
-    rw [← BitVec.getLsbD, BitVec.getLsbD_reverse, BitVec.getMsbD]
-    simp [Nat.lt_of_lt_pred hj]
-    -- Show: (BitVec.ofNat b (2*i)).getLsbD (b-1-j) = i.testBit (b-2-j)
-    rw [BitVec.getLsbD_ofNat]
-    have hj_bound : b - 1 - j < b := by omega
-    simp [hj_bound]
-    -- testBit of 2*i at (b-1-j) equals testBit of i at (b-2-j)
-    -- because 2i shifts left, so bit k of i becomes bit k+1 of 2i
-    have h_shift : b - 1 - j = (b - 1 - 1 - j) + 1 := by omega
-    rw [h_shift, Nat.testBit_succ]
     have h_div : 2 * i.val / 2 = i.val := Nat.mul_div_cancel_left i.val (by omega : 0 < 2)
-    rw [h_div]
+    -- LHS: get bit j of ofNat (b-1) (reverse of 2*i in b bits)
+    -- RHS: get bit j of reverse of i in (b-1) bits
+    rw [BitVec.getLsbD_ofNat, BitVec.getLsbD_reverse, BitVec.getMsbD]
+    rw [← BitVec.getLsbD, BitVec.getLsbD_reverse, BitVec.getMsbD, BitVec.getLsbD_ofNat]
+    simp [Nat.lt_of_lt_pred hj]
+    grind
 
   -- Combine the results
-  calc (BitVec.ofNat b (2 * i.val)).reverse.toNat
-      = (BitVec.ofNat (b - 1) (BitVec.ofNat b (2 * i.val)).reverse.toNat).toNat := h_preserve
-    _ = (BitVec.ofNat (b - 1) i.val).reverse.toNat := h_i
+  grind
 
 
 open Polynomial
@@ -524,8 +486,9 @@ namespace Poly
     use -C d⁻¹, C d⁻¹
     simp only [xn, ζ, monomial_zero_left, Zq.one]
     ring_nf
-    rw [← C_pow, ← C_pow, ← C_mul, ← C_mul, ← C_sub, show d⁻¹ * Zq.ζ ^ ζ_exp l i - d⁻¹ * Zq.ζ ^ ζ_exp l j
-        = d⁻¹ * d by ring, ZMod.inv_mul_of_unit d hd, C_1]
+    rw [← C_pow, ← C_pow, ← C_mul, ← C_mul, ← C_sub,
+        show d⁻¹ * Zq.ζ ^ ζ_exp l i - d⁻¹ * Zq.ζ ^ ζ_exp l j = d⁻¹ * d by ring,
+        ZMod.inv_mul_of_unit d hd, C_1]
 
   lemma Iq_coprime (l : Fin 8) (i j : Fin (2 ^ l.val)) (hij : i ≠ j): IsCoprime (Iq l i) (Iq l j) := by
     simp only [Iq, Ideal.isCoprime_span_singleton_iff]
@@ -548,11 +511,14 @@ namespace Poly
     have h_pow_half : 2 ^ (8 - l.val) / 2 = 2 ^ (7 - l.val) := by omega
     have h_div : 2 ∣ 2 ^ (7 - l.val) := Nat.pow_dvd_pow 2 (by omega : 1 ≤ 7 - l.val)
 
-    simp only [fq, x_exp, ζ_exp, i₁, i₂, l']
     /- Use the result expressing BitRev of the odd number in terms of the even one. -/
     have h_bitrev := BitRev_odd_from_even (l.val + 1) (by omega) (⟨i.val, by omega⟩ : Fin (2 ^ l.val))
     simp at h_bitrev
-    rw [h_bitrev, add_mul, ← pow_add, h_arith]
+    /- And the one expressing BitRev of the double. -/
+    have h_even := BitRev_even_from_half (l.val + 1) (by omega) i
+    simp at h_even
+
+    simp only [fq, x_exp, ζ_exp, i₁, i₂, l', h_bitrev, add_mul, ← pow_add, h_arith]
     simp [pow_add, zeta_128_eq, one]
     ring_nf
     simp [xn, ζ, Zq.one, h_pow, h_pow_half, Nat.div_mul_cancel h_div]
@@ -560,8 +526,6 @@ namespace Poly
     congr 1
     rw [mul_assoc, h_pow]
     congr 3
-    have h_even := BitRev_even_from_half (l.val + 1) (by omega) i
-    simp at h_even
     convert h_even using 2
     ring_nf
 
@@ -582,8 +546,7 @@ namespace Poly
     induction k using Fin.inductionOn generalizing l i with
     | zero =>
       -- Base case: k = 0, product of 1 element
-      simp only [Fin.val_zero, Nat.pow_zero]
-      rw [Fintype.prod_subsingleton _ (0 : Fin 1)]
+      simp only [Fin.val_zero, Nat.pow_zero, Fintype.prod_subsingleton _ (0 : Fin 1)]
       simp [l'', idx]
     | succ k' ih =>
       -- Inductive case: split the product into pairs using fq_mul
@@ -591,13 +554,12 @@ namespace Poly
       --   = ∏ j : Fin (2^k'), (fq l'' (idx (2j)) * fq l'' (idx (2j+1)))
       --   = ∏ j : Fin (2^k'), fq l' (idx' j)   -- by fq_mul
       --   = fq l i                              -- by induction hypothesis
-      simp only [Fin.val_succ, Nat.pow_succ] at l'' idx
+      simp only [Fin.val_succ, Nat.pow_succ] at idx
 
       -- Note: k'.succ.val = k'.val + 1 and k'.castSucc.val = k'.val
       have hk'_eq : k'.castSucc.val = k'.val := rfl
-
-      -- Define intermediate level l' = l + k' (one level below l'')
       have hk : k'.succ.val = k'.val + 1 := rfl
+      -- Define intermediate level l' = l + k' (one level below l'')
       have hkval : k'.val + 1 < 8 - l.val := by simp only [hk] at hlk; exact hlk
       let l' : Fin 8 := ⟨l.val + k'.val, by omega⟩
       have hl' : l'.val < 7 := by simp only [l']; omega
@@ -619,20 +581,10 @@ namespace Poly
           fun ⟨a, b⟩ => ⟨2 * a.val + b.val, by have ha := a.isLt; have hb := b.isLt; omega⟩
         have hpair_bij : Function.Bijective pair := by
           constructor
-          · intro ⟨a₁, b₁⟩ ⟨a₂, b₂⟩ h
-            simp only [pair] at h
-            have heq : 2 * a₁.val + b₁.val = 2 * a₂.val + b₂.val := Fin.mk.inj h
-            have hb1 := b₁.isLt; have hb2 := b₂.isLt
-            have ha : a₁.val = a₂.val := by omega
-            have hb : b₁.val = b₂.val := by omega
-            simp only [Prod.mk.injEq]
-            exact ⟨Fin.ext ha, Fin.ext hb⟩
+          · intro ⟨a₁, b₁⟩ ⟨a₂, b₂⟩ h ; grind
           · intro j
             use (⟨j.val / 2, by have := j.isLt; omega⟩, ⟨j.val % 2, Nat.mod_lt _ (by omega)⟩)
-            simp only [pair]
-            apply Fin.ext
-            show 2 * (j.val / 2) + j.val % 2 = j.val
-            exact Nat.div_add_mod j.val 2
+            apply Fin.ext ; grind
         -- Rewrite RHS as product over Fin n × Fin 2
         have hrhs : ∏ j : Fin (2 ^ k'.val), (fq l'' (idx ⟨2*j.val, by omega⟩) * fq l'' (idx ⟨2*j.val+1, by omega⟩))
                   = ∏ p : Fin (2 ^ k'.val) × Fin 2, fq l'' (idx (pair p)) := by
@@ -664,11 +616,7 @@ namespace Poly
       have h_ih := ih l i hlk'
 
       -- Final assembly
-      calc ∏ j : Fin (2 ^ k'.val * 2), fq l'' (idx j)
-          = ∏ j : Fin (2 ^ k'.val), (fq l'' (idx ⟨2*j.val, by omega⟩) * fq l'' (idx ⟨2*j.val+1, by omega⟩)) := h_prod_eq
-        _ = ∏ j : Fin (2 ^ k'.val), fq l' (idx' j) := Finset.prod_congr rfl (fun j _ => h_pairs j)
-        _ = fq l i := by convert h_ih using 2
-
+      grind
 
   /-- The quotient ring at level l and index i is isomorphic
       to a product of 2 quotient rings at level l+1. -/
@@ -679,35 +627,28 @@ namespace Poly
       (Zq[X] ⧸ Iq ⟨l.val + 1, by omega⟩ ⟨2 * i.val + 1, by simp; omega⟩) := by
     let I₁ := Iq ⟨l.val + 1, by omega⟩ ⟨2 * i.val, by simp; omega⟩
     let I₂ := Iq ⟨l.val + 1, by omega⟩ ⟨2 * i.val + 1, by simp; omega⟩
+
     have coprime : IsCoprime (fq ⟨l.val + 1, by omega⟩ ⟨2 * i.val, by simp; omega⟩)
                              (fq ⟨l.val + 1, by omega⟩ ⟨2 * i.val + 1, by simp; omega⟩) :=
       fq_coprime _ _ _ (by simp)
+
     have prod : I₁ * I₂ = Iq l i := by
       simp only [I₁, I₂, Iq, Ideal.span_singleton_mul_span_singleton, fq_mul l i hl]
+
     -- Instead of rw, use explicit composition: Iq l i ≃ I₁ * I₂ ≃ I₁ × I₂
     exact (Ideal.quotEquivOfEq prod).symm.trans <|
       Ideal.quotientMulEquivQuotientProd I₁ I₂
         ((Ideal.isCoprime_span_singleton_iff _ _).mpr coprime)
 
-
   lemma crt_Sq_fst (l : Fin 8) (i : Fin (2 ^ l.val)) (hl : l.val < 7) (f : Zq[X]) :
     (crt_Sq l i hl (Ideal.Quotient.mk (Iq l i) f)).1 =
       Ideal.Quotient.mk (Iq ⟨l.val + 1, by omega⟩ ⟨2 * i.val, by simp; omega⟩) f := by
-    -- Now crt_Sq is defined as (quotEquivOfEq prod).symm.trans quotientMulEquivQuotientProd
-    rw [crt_Sq]
-    simp only [RingEquiv.trans_apply]
-    -- Apply quotientMulEquivQuotientProd first, then quotEquivOfEq.symm
-    rw [Ideal.quotientMulEquivQuotientProd_fst]
-    -- Now we need: (quotEquivOfEq prod).symm (mk (Iq l i) f) = mk (I₁ * I₂) f
-    simp
+    simp [crt_Sq, RingEquiv.trans_apply, Ideal.quotientMulEquivQuotientProd_fst]
 
   lemma crt_Sq_snd (l : Fin 8) (i : Fin (2 ^ l.val)) (hl : l.val < 7) (f : Zq[X]) :
     (crt_Sq l i hl (Ideal.Quotient.mk (Iq l i) f)).2 =
       Ideal.Quotient.mk (Iq ⟨l.val + 1, by omega⟩ ⟨2 * i.val + 1, by simp; omega⟩) f := by
-    rw [crt_Sq]
-    simp only [RingEquiv.trans_apply]
-    rw [Ideal.quotientMulEquivQuotientProd_snd]
-    simp
+    simp [crt_Sq, RingEquiv.trans_apply, Ideal.quotientMulEquivQuotientProd_snd]
 
   /-- General version: The quotient ring at level l and index i is isomorphic
       to a product of 2^k quotient rings at level l+k. -/
@@ -737,7 +678,6 @@ namespace Poly
       simp only [I]
       apply Iq_coprime
       simp only [idx, Ne, Fin.mk.injEq]
-      have h1 := j₁.isLt; have h2 := j₂.isLt
       omega
 
     -- Show their infimum is the original ideal
@@ -817,12 +757,9 @@ namespace Poly
   noncomputable
   def ntt_butterfly_poly (l : Fin 8) (i : Fin (2 ^ l.val)) (hl : l.val < 7) (f : Zq[X])
       (hf : f.degree ≤ (2 ^ (8 - l.val) - 1 : ℕ)) : Zq[X] × Zq[X] :=
-    let n := 2 ^ (7 - l.val)
-    have hdeg : f.degree ≤ (2 * n - 1 : ℕ) := by
-      simp only [n]
-      have : 2 * 2 ^ (7 - l.val) = 2 ^ (8 - l.val) := by ring_nf; rw [← Nat.pow_succ]; congr; omega
-      rw [this]; exact hf
-    let (low, high) := poly_split n f hdeg
+    have : 2 * 2 ^ (7 - l.val) = 2 ^ (8 - l.val) := by ring_nf; rw [← Nat.pow_succ]; congr; omega
+    have hdeg : f.degree ≤ (2 * (2 ^ (7 - l.val)) - 1 : ℕ) := by grind
+    let (low, high) := poly_split (2 ^ (7 - l.val)) f hdeg
     let exp := ζ_exp ⟨l.val + 1, by omega⟩ ⟨2 * i.val, by simp; omega⟩
     let twiddle := Zq.ζ ^ exp
     (low + C twiddle * high, low - C twiddle * high)
@@ -869,9 +806,8 @@ namespace Poly
     have split_eq : f = low + Polynomial.X ^ n * high :=
       poly_split_eq n (by simp only [n]; apply Nat.one_le_two_pow) f hf'
 
-    -- Unfold the LHS (butterfly side) using rw
-    rw [ntt_butterfly, ntt_butterfly_poly]
-    simp only [poly_split]
+    -- Unfold the LHS (butterfly side)
+    simp only [ntt_butterfly, ntt_butterfly_poly, poly_split]
     -- The goal is now an equality of pairs
     -- Split into two components: .1 and .2
     ext
@@ -884,8 +820,8 @@ namespace Poly
       -- Show that X^n ≡ C twiddle (mod I₁) since I₁ = ⟨X^n - ζ^exp⟩
       have Xn_eq_twiddle : Ideal.Quotient.mk I₁ (Polynomial.X ^ n) =
                            Ideal.Quotient.mk I₁ (Polynomial.C twiddle) := by
-        simp only [Ideal.Quotient.eq, I₁, Iq, fq, xn, ζ, x_exp, l', i₁, exp, twiddle, n, Zq.one]
-        rw [Ideal.mem_span_singleton]; use 1
+        simp only [Ideal.Quotient.eq, I₁, Iq, fq, xn, ζ, x_exp, l', i₁, exp, twiddle, n, Zq.one, Ideal.mem_span_singleton]
+        use 1
         rw [Polynomial.X_pow_eq_monomial, h3]
         simp
 
@@ -905,10 +841,9 @@ namespace Poly
       -- Show that X^n ≡ -C twiddle (mod I₂)
       have Xn_eq_neg_twiddle : Ideal.Quotient.mk I₂ (Polynomial.X ^ n) =
                                Ideal.Quotient.mk I₂ (-Polynomial.C twiddle) := by
-        simp only [Ideal.Quotient.eq, I₂, Iq, fq, xn, ζ, x_exp, l', i₁, i₂, exp, twiddle, n, Zq.one, ζ_exp]
-        rw [Ideal.mem_span_singleton]; use 1
-        rw [Polynomial.X_pow_eq_monomial, h3]
-        rw [BitRev_odd_from_even]
+        simp only [Ideal.Quotient.eq, I₂, Iq, fq, xn, ζ, x_exp, l', i₁, i₂, exp, twiddle, n, Zq.one, ζ_exp, Ideal.mem_span_singleton]
+        use 1
+        rw [Polynomial.X_pow_eq_monomial, h3, BitRev_odd_from_even]
         · -- Main goal: show Polynomial equality
           simp [h0, add_mul]
           ring_nf
