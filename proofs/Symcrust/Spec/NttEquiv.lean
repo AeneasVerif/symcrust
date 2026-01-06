@@ -7,11 +7,17 @@ import Mathlib.RingTheory.Ideal.Span
 import Mathlib.RingTheory.Ideal.Quotient.Defs
 import Mathlib.RingTheory.ZMod.UnitsCyclic
 import Mathlib.Algebra.Ring.Prod
-
 import Mathlib.Tactic.Ring
 import Mathlib.Tactic.Linarith
-
 import Init.Data.BitVec.Lemmas
+import Aeneas
+import Symcrust.Spec
+
+open Aeneas.Notations.SRRange  -- allows the `[0:256:2*len]` notations to desugar to an `SRRange` instead of a `Std.Range`
+open Aeneas.Notations.DivRange -- activates the `[start : >stop : /divisor]` notation
+open Aeneas.Notations.MulRange -- activates the `[start : <stop : *mul]` notation
+open Symcrust.Spec.Notations -- activates custom get_elem_tactic and bounds-checking theorems
+
 
 set_option maxRecDepth 2500
 set_option maxHeartbeats 100000
@@ -21,27 +27,27 @@ set_option maxHeartbeats 100000
 /- The Kyber prime q and root of unity ζ -/
 
 @[simp]
-def q := 3329
+def Q : Nat := 3329
 
 @[simp]
-lemma q_isPrime : Nat.Prime q := by native_decide
-instance : Fact (Nat.Prime q) := ⟨q_isPrime⟩
+lemma Q_isPrime : Nat.Prime Q := by native_decide
+instance : Fact (Nat.Prime Q) := ⟨Q_isPrime⟩
 
-lemma q_nonzero : q ≠ 0 := by trivial
-lemma q_minus_one_fact : (q - 1) = 2^8 * 13 := rfl
+lemma Q_nonzero : Q ≠ 0 := by trivial
+lemma Q_minus_one_fact : (Q - 1) = 2^8 * 13 := rfl
 
-example : (q-2)*q = 2^16 * 169 - 1 := by simp
+example : (Q-2)*Q = 2^16 * 169 - 1 := by simp
 
 def zeta := 17
-theorem zeta_coprime : Nat.Coprime zeta q := by rfl
+theorem zeta_coprime : Nat.Coprime zeta Q := by rfl
 
 
 /-- Finite ring Zq --/
 
 @[reducible]
-def Zq := ZMod q
+def Zq := ZMod Q
 lemma Zq_cyclic : IsCyclic Zqˣ := by
-  apply ZMod.isCyclic_units_prime q_isPrime
+  apply ZMod.isCyclic_units_prime Q_isPrime
 
 def Fq := Field Zq
 
@@ -68,7 +74,7 @@ namespace Zq
     exact zeta_mul_inv_zeta_eq_one
 
   lemma inv_zeta_val : ζ⁻¹ = 1175 := by
-    exact ZMod.inv_eq_of_mul_eq_one q ζ 1175 (by rfl : ζ * 1175 = 1)
+    exact ZMod.inv_eq_of_mul_eq_one Q ζ 1175 (by rfl : ζ * 1175 = 1)
 
   lemma inv_zeta_eq_zeta_pow : ζ⁻¹ = ζ ^ 255 := by
     rw [inv_zeta_val] ; rfl
@@ -143,7 +149,7 @@ namespace Zq
         contradiction
 
   theorem zeta_pow_sub_zeta_pow_isUnit (m k : Nat) (h : (m % 256) ≠ (k % 256)) : IsUnit (ζ^m - ζ^k) := by
-    have : (ζ^m - ζ^k) ^ (q-1) = 1 := by
+    have : (ζ^m - ζ^k) ^ (Q-1) = 1 := by
       apply ZMod.pow_card_sub_one_eq_one (zeta_pow_sub_zeta_pow_ne_zero m k h)
     apply IsUnit.of_pow_eq_one this
     decide
@@ -228,13 +234,14 @@ lemma BitVec_ofNat_double_vs_double_plus_one_reverse
 /-- The least significant bit of an even number is zero. -/
 lemma BitVec_ofNat_double_lsb (b : ℕ) (i : ℕ)  :
   (BitVec.ofNat b (2 * i)).getLsbD 0 = false := by
-  simp [BitVec.getLsbD_ofNat]
+  rw [BitVec.getLsbD_ofNat]
+  simp
 
 /-- The most significant bit of the bit reverse of an even number is zero. -/
 lemma BitVec_ofNat_double_reverse_msb (b : ℕ) (i : ℕ) (hb : b > 0) :
   (BitVec.ofNat b (2 * i)).reverse.getLsbD (b-1) = false := by
   rw [BitVec.getLsbD_reverse, BitVec.getMsbD]
-  simp [hb]
+  simp only [show b - 1 < b by omega, show b - 1 - (b - 1) = 0 by omega]
   exact BitVec_ofNat_double_lsb _ _
 
 /-- The least significant bit of an odd number is one. -/
@@ -306,7 +313,7 @@ lemma BitRev_odd_from_even (b : ℕ) (hb : b > 0) (i : Fin (2 ^ (b - 1))) :
         rw [Nat.mod_eq_of_lt h_pow_lt]
         rw [Nat.dvd_iff_mod_eq_zero.mp (by apply Nat.pow_dvd_pow; omega : 2 ^ j ∣ 2 ^ (b - 1))]
         exact Nat.mod_lt _ (Nat.pow_pos (by omega : 0 < 2))
-      simp [h_twoPow_zero, h_carry_zero]
+      simp only [h_twoPow_zero, h_carry_zero, Bool.xor_false]
       exact (BitVec_ofNat_double_vs_double_plus_one_reverse b i.val j hjb_lt).symm
     · omega
 
@@ -353,7 +360,6 @@ lemma BitRev_even_from_half (b : ℕ) (hb : b > 0) (i : Fin (2 ^ (b - 1))) :
   -- Combine the results
   grind
 
-
 open Polynomial
 
 @[reducible]
@@ -366,7 +372,7 @@ namespace Poly
 
   noncomputable def one : Zq[X] := monomial 0 1
   noncomputable def ζ : Zq[X] := monomial 0 Zq.ζ
-  noncomputable def ζ_inv : Zq[X]:= monomial 0 (ZMod.inv q Zq.ζ)
+  noncomputable def ζ_inv : Zq[X]:= monomial 0 (ZMod.inv Q Zq.ζ)
 
   theorem zeta_128_eq : ζ ^ 128 = - one := by
     simp only [one, ζ, monomial_pow]
@@ -466,17 +472,6 @@ namespace Poly
   def Iq (l : Fin 8) (i : Fin (2 ^ l.val)) :=
     Ideal.span {fq l i}
 
-  /- Define the i-th quotient ring at level l down from Rq defined by (fq l i). -/
-  def Sq (l : Fin 8) (i : Fin (2 ^ l.val)) :=
-    Zq[X] ⧸ Iq l i
-
-  example : Sq 0 0 = (Zq[X] ⧸ Ideal.span {xn 256 + 1}) := by
-    simp [Sq, Iq, fq, ζ_exp, x_exp, zeta_128_eq, one]
-  example : Sq 1 1 = (Zq[X] ⧸ Ideal.span {xn 128 - ζ^192}) := by
-    simp [Sq, Iq, fq, ζ_exp, x_exp, BitRev, BitVec.reverse, BitVec.msb]
-  example : Sq 7 1 = (Zq[X] ⧸ Ideal.span {xn 2 - ζ^129}) := by
-    simp [Sq, Iq, fq, ζ_exp, x_exp, BitRev, BitVec.reverse, BitVec.msb]
-
 
   /- Two polynomials (fq l i) and (fq l j) are coprime if i ≠ j.-/
   theorem fq_coprime (l : Fin 8) (i j : Fin (2 ^ l.val)) (hij : i ≠ j): IsCoprime (fq l i) (fq l j) := by
@@ -490,20 +485,18 @@ namespace Poly
         show d⁻¹ * Zq.ζ ^ ζ_exp l i - d⁻¹ * Zq.ζ ^ ζ_exp l j = d⁻¹ * d by ring,
         ZMod.inv_mul_of_unit d hd, C_1]
 
+  /- Then the corresponding ideals are also coprime. -/
   lemma Iq_coprime (l : Fin 8) (i j : Fin (2 ^ l.val)) (hij : i ≠ j): IsCoprime (Iq l i) (Iq l j) := by
     simp only [Iq, Ideal.isCoprime_span_singleton_iff]
     exact fq_coprime _ _ _ hij
 
-  /- Multiplying two fq polynomials at the same level l' and with consecutive indices
-     2i and 2i+1 yields the polynomial at level l = l'-1 with index i.
-     In other words an fq polynomial factors into two consecutively indexed fq polynomials
-     at the level one further down, provided it is not in the bottom (highest numbered) level. -/
+  /- Multiplying two fq polynomials at the same level l+1 and with consecutive indices
+     2i and 2i+1 yields the polynomial at level l with index i.
+     In other words an fq polynomial at level l factors into two consecutively indexed fq polynomials
+     at the level l+1, one further down, provided it is not in the bottom (highest numbered) level. -/
   lemma fq_mul (l : Fin 8) (i : Fin (2 ^ l.val)) (hl : l.val < 7) :
-    let l' : Fin 8 := ⟨l.val + 1, by omega⟩
-    let i₁ : Fin (2 ^ l'.val) := ⟨2 * i.val, by simp [l']; omega⟩
-    let i₂ : Fin (2 ^ l'.val) := ⟨2 * i.val + 1, by simp [l']; omega⟩
-    fq l' i₁ * fq l' i₂ = fq l i := by
-    intro l' i₁ i₂
+    fq ⟨l.val + 1, by omega⟩ ⟨2 * i.val, by simp; omega⟩ *
+    fq ⟨l.val + 1, by omega⟩ ⟨2 * i.val + 1, by simp; omega⟩ = fq l i := by
 
     /- Some properties of l.val. -/
     have h_arith : l.val + (8 - (l.val + 1)) = 7 := by omega
@@ -518,7 +511,7 @@ namespace Poly
     have h_even := BitRev_even_from_half (l.val + 1) (by omega) i
     simp at h_even
 
-    simp only [fq, x_exp, ζ_exp, i₁, i₂, l', h_bitrev, add_mul, ← pow_add, h_arith]
+    simp only [fq, x_exp, ζ_exp, h_bitrev, add_mul, ← pow_add, h_arith]
     simp [pow_add, zeta_128_eq, one]
     ring_nf
     simp [xn, ζ, Zq.one, h_pow, h_pow_half, Nat.div_mul_cancel h_div]
@@ -533,25 +526,23 @@ namespace Poly
      factors as a product of the corresponding consecutive 2^k polynomials at level l+k
     (if they exist in the tree). -/
   lemma fq_mul_k (l : Fin 8) (i : Fin (2 ^ l.val)) (k : Fin 8) (hlk : k.val < 8 - l.val) :
-    let l'' : Fin 8 := ⟨l.val + k.val, by omega⟩
-    let idx : Fin (2 ^ k.val) → Fin (2 ^ l''.val) := fun j => ⟨2 ^ k.val * i.val + j.val, by
-      simp only [l'']
+    let idx : Fin (2 ^ k.val) → Fin (2 ^ (l.val + k.val)) := fun j => ⟨2 ^ k.val * i.val + j.val, by
       calc 2 ^ k.val * i.val + j.val
           < 2 ^ k.val * i.val + 2 ^ k.val := Nat.add_lt_add_left j.isLt _
         _ = 2 ^ k.val * (i.val + 1) := by ring
         _ ≤ 2 ^ k.val * 2 ^ l.val := Nat.mul_le_mul_left _ i.isLt
         _ = 2 ^ (l.val + k.val) := by rw [← Nat.pow_add, Nat.add_comm]⟩
-    ∏ j : Fin (2 ^ k.val), fq l'' (idx j) = fq l i := by
-    intro l'' idx
+    ∏ j : Fin (2 ^ k.val), fq ⟨l.val + k.val, by omega⟩ (idx j) = fq l i := by
+    intro idx
     induction k using Fin.inductionOn generalizing l i with
     | zero =>
       -- Base case: k = 0, product of 1 element
       simp only [Fin.val_zero, Nat.pow_zero, Fintype.prod_subsingleton _ (0 : Fin 1)]
-      simp [l'', idx]
+      simp [idx]
     | succ k' ih =>
       -- Inductive case: split the product into pairs using fq_mul
-      -- ∏ j : Fin (2^(k'+1)), fq l'' (idx j)
-      --   = ∏ j : Fin (2^k'), (fq l'' (idx (2j)) * fq l'' (idx (2j+1)))
+      -- ∏ j : Fin (2^(k'+1)), fq ⟨l.val + k.val, _⟩ (idx j)
+      --   = ∏ j : Fin (2^k'), (fq ⟨l.val + k.val, _⟩ (idx (2j)) * fq ⟨l.val + k.val, _⟩ (idx (2j+1)))
       --   = ∏ j : Fin (2^k'), fq l' (idx' j)   -- by fq_mul
       --   = fq l i                              -- by induction hypothesis
       simp only [Fin.val_succ, Nat.pow_succ] at idx
@@ -559,7 +550,7 @@ namespace Poly
       -- Note: k'.succ.val = k'.val + 1 and k'.castSucc.val = k'.val
       have hk'_eq : k'.castSucc.val = k'.val := rfl
       have hk : k'.succ.val = k'.val + 1 := rfl
-      -- Define intermediate level l' = l + k' (one level below l'')
+      -- Define intermediate level l' = l + k' (one level below l+k)
       have hkval : k'.val + 1 < 8 - l.val := by simp only [hk] at hlk; exact hlk
       let l' : Fin 8 := ⟨l.val + k'.val, by omega⟩
       have hl' : l'.val < 7 := by simp only [l']; omega
@@ -574,8 +565,8 @@ namespace Poly
           _ = 2 ^ (l.val + k'.val) := by rw [← Nat.pow_add, Nat.add_comm]⟩
 
       -- Rewrite ∏ j : Fin (2^k' * 2), ... as ∏ j : Fin (2^k'), (... * ...)
-      have h_prod_eq : ∏ j : Fin (2 ^ k'.val * 2), fq l'' (idx j)
-                     = ∏ j : Fin (2 ^ k'.val), (fq l'' (idx ⟨2*j.val, by omega⟩) * fq l'' (idx ⟨2*j.val+1, by omega⟩)) := by
+      have h_prod_eq : ∏ j : Fin (2 ^ k'.val * 2), fq ⟨l.val + k'.succ.val, by omega⟩ (idx j)
+                     = ∏ j : Fin (2 ^ k'.val), (fq ⟨l.val + k'.succ.val, by omega⟩ (idx ⟨2*j.val, by omega⟩) * fq ⟨l.val + k'.succ.val, by omega⟩ (idx ⟨2*j.val+1, by omega⟩)) := by
         -- Define the pairing: Fin (n * 2) ≃ Fin n × Fin 2, where pair (a, b) maps to 2a + b
         let pair : Fin (2 ^ k'.val) × Fin 2 → Fin (2 ^ k'.val * 2) :=
           fun ⟨a, b⟩ => ⟨2 * a.val + b.val, by have ha := a.isLt; have hb := b.isLt; omega⟩
@@ -586,10 +577,10 @@ namespace Poly
             use (⟨j.val / 2, by have := j.isLt; omega⟩, ⟨j.val % 2, Nat.mod_lt _ (by omega)⟩)
             apply Fin.ext ; grind
         -- Rewrite RHS as product over Fin n × Fin 2
-        have hrhs : ∏ j : Fin (2 ^ k'.val), (fq l'' (idx ⟨2*j.val, by omega⟩) * fq l'' (idx ⟨2*j.val+1, by omega⟩))
-                  = ∏ p : Fin (2 ^ k'.val) × Fin 2, fq l'' (idx (pair p)) := by
-          trans ∏ a : Fin (2 ^ k'.val), ∏ b : Fin 2, fq l'' (idx (pair (a, b)))
-          · congr 1; ext a; rw [Fin.prod_univ_two]; simp only [pair]; rfl
+        have hrhs : ∏ j : Fin (2 ^ k'.val), (fq ⟨l.val + k'.succ.val, by omega⟩ (idx ⟨2*j.val, by omega⟩) * fq ⟨l.val + k'.succ.val, by omega⟩ (idx ⟨2*j.val+1, by omega⟩))
+                  = ∏ p : Fin (2 ^ k'.val) × Fin 2, fq ⟨l.val + k'.succ.val, by omega⟩ (idx (pair p)) := by
+          trans ∏ a : Fin (2 ^ k'.val), ∏ b : Fin 2, fq ⟨l.val + k'.succ.val, by omega⟩ (idx (pair (a, b)))
+          · congr 1; ext a; rw [Fin.prod_univ_two]; rfl
           · rw [← Finset.prod_product']; rfl
         rw [hrhs]
         -- Now use bijection
@@ -597,7 +588,7 @@ namespace Poly
 
       -- Each pair equals fq l' (idx' j) by fq_mul
       have h_pairs : ∀ j : Fin (2 ^ k'.val),
-          fq l'' (idx ⟨2*j.val, by omega⟩) * fq l'' (idx ⟨2*j.val+1, by omega⟩) = fq l' (idx' j) := by
+          fq ⟨l.val + k'.succ.val, by omega⟩ (idx ⟨2*j.val, by omega⟩) * fq ⟨l.val + k'.succ.val, by omega⟩ (idx ⟨2*j.val+1, by omega⟩) = fq l' (idx' j) := by
         intro j
         -- Apply fq_mul at level l' with index idx' j
         have hmul := fq_mul l' (idx' j) hl'
@@ -621,7 +612,7 @@ namespace Poly
   /-- The quotient ring at level l and index i is isomorphic
       to a product of 2 quotient rings at level l+1. -/
   noncomputable
-  def crt_Sq (l : Fin 8) (i : Fin (2 ^ l.val)) (hl : l.val < 7) :
+  def crtIq (l : Fin 8) (i : Fin (2 ^ l.val)) (hl : l.val < 7) :
     Zq[X] ⧸ Iq l i ≃+*
       (Zq[X] ⧸ Iq ⟨l.val + 1, by omega⟩ ⟨2 * i.val, by simp; omega⟩) ×
       (Zq[X] ⧸ Iq ⟨l.val + 1, by omega⟩ ⟨2 * i.val + 1, by simp; omega⟩) := by
@@ -640,37 +631,34 @@ namespace Poly
       Ideal.quotientMulEquivQuotientProd I₁ I₂
         ((Ideal.isCoprime_span_singleton_iff _ _).mpr coprime)
 
-  lemma crt_Sq_fst (l : Fin 8) (i : Fin (2 ^ l.val)) (hl : l.val < 7) (f : Zq[X]) :
-    (crt_Sq l i hl (Ideal.Quotient.mk (Iq l i) f)).1 =
+  lemma crtIq_fst (l : Fin 8) (i : Fin (2 ^ l.val)) (hl : l.val < 7) (f : Zq[X]) :
+    (crtIq l i hl (Ideal.Quotient.mk (Iq l i) f)).1 =
       Ideal.Quotient.mk (Iq ⟨l.val + 1, by omega⟩ ⟨2 * i.val, by simp; omega⟩) f := by
-    simp [crt_Sq, RingEquiv.trans_apply, Ideal.quotientMulEquivQuotientProd_fst]
+    simp [crtIq, RingEquiv.trans_apply, Ideal.quotientMulEquivQuotientProd_fst]
 
-  lemma crt_Sq_snd (l : Fin 8) (i : Fin (2 ^ l.val)) (hl : l.val < 7) (f : Zq[X]) :
-    (crt_Sq l i hl (Ideal.Quotient.mk (Iq l i) f)).2 =
+  lemma crtIq_snd (l : Fin 8) (i : Fin (2 ^ l.val)) (hl : l.val < 7) (f : Zq[X]) :
+    (crtIq l i hl (Ideal.Quotient.mk (Iq l i) f)).2 =
       Ideal.Quotient.mk (Iq ⟨l.val + 1, by omega⟩ ⟨2 * i.val + 1, by simp; omega⟩) f := by
-    simp [crt_Sq, RingEquiv.trans_apply, Ideal.quotientMulEquivQuotientProd_snd]
+    simp [crtIq, RingEquiv.trans_apply, Ideal.quotientMulEquivQuotientProd_snd]
 
   /-- General version: The quotient ring at level l and index i is isomorphic
       to a product of 2^k quotient rings at level l+k. -/
   noncomputable
-  def crt_Sq_k (l : Fin 8) (i : Fin (2 ^ l.val)) (k : Fin 8) (hlk : k.val < 8 - l.val) :
-    -- Decomposition at k levels down: l'' = l + k
-    let l'' : Fin 8 := ⟨l.val + k.val, by omega⟩
+  def crtIq_k (l : Fin 8) (i : Fin (2 ^ l.val)) (k : Fin 8) (hlk : k.val < 8 - l.val) :
     -- The ring indices are 2^k * i, 2^k * i + 1, ..., 2^k * i + 2^k - 1
-    let idx : Fin (2 ^ k.val) → Fin (2 ^ l''.val) := fun j => ⟨2 ^ k.val * i.val + j.val, by
-      simp only [l'']
+    let idx : Fin (2 ^ k.val) → Fin (2 ^ (l.val + k.val)) := fun j => ⟨2 ^ k.val * i.val + j.val, by
       calc 2 ^ k.val * i.val + j.val
           < 2 ^ k.val * i.val + 2 ^ k.val := Nat.add_lt_add_left j.isLt _
         _ = 2 ^ k.val * (i.val + 1) := by ring
         _ ≤ 2 ^ k.val * 2 ^ l.val := Nat.mul_le_mul_left _ i.isLt
         _ = 2 ^ (l.val + k.val) := by rw [← Nat.pow_add, Nat.add_comm]⟩
 
-    Zq[X] ⧸ Iq l i ≃+* Π j : Fin (2 ^ k.val), Zq[X] ⧸ Iq l'' (idx j) :=
+    Zq[X] ⧸ Iq l i ≃+* Π j : Fin (2 ^ k.val), Zq[X] ⧸ Iq ⟨l.val + k.val, by omega⟩ (idx j) :=
   by
-    intro l'' idx
+    intro idx
 
-    -- Define I as shorthand for Iq l'' ∘ idx
-    let I : Fin (2 ^ k.val) → Ideal Zq[X] := fun j => Iq l'' (idx j)
+    -- Define I as shorthand for Iq ⟨l.val + k.val, by omega⟩ ∘ idx
+    let I : Fin (2 ^ k.val) → Ideal Zq[X] := fun j => Iq ⟨l.val + k.val, by omega⟩ (idx j)
 
     -- Show they are pairwise coprime
     have coprime : Pairwise (fun j₁ j₂ => IsCoprime (I j₁) (I j₂)) := by
@@ -684,7 +672,7 @@ namespace Poly
     have inf_eq : iInf I = Iq l i := by
       simp only [I, Iq]
       rw [Ideal.iInf_span_singleton]
-      · have prod_eq : ∏ j : Fin (2 ^ k.val), fq l'' (idx j) = fq l i := by
+      · have prod_eq : ∏ j : Fin (2 ^ k.val), fq ⟨l.val + k.val, by omega⟩ (idx j) = fq l i := by
           have h := fq_mul_k l i k hlk
           convert h using 2
         rw [prod_eq]
@@ -750,6 +738,7 @@ namespace Poly
         rw [hfi]; symm; refine Finset.sum_eq_zero fun x hx => Finset.sum_eq_zero fun p hp => ?_
         split_ifs with h1 h2 <;> (simp [Finset.mem_antidiagonal] at hp; grind)
 
+
   /-- NTT butterfly at level l, splitting at position 2^(7-l).
       Given a polynomial representative f with degree ≤ 2^(8-l) - 1,
       computes (l + ζ^exp * r, l - ζ^exp * r)
@@ -763,6 +752,8 @@ namespace Poly
     let exp := ζ_exp ⟨l.val + 1, by omega⟩ ⟨2 * i.val, by simp; omega⟩
     let twiddle := Zq.ζ ^ exp
     (low + C twiddle * high, low - C twiddle * high)
+
+
 
   /-- NTT butterfly map on a polynomial with bounded degree.
       Given a polynomial f with degree ≤ 2^(8-l) - 1, computes the butterfly transformation
@@ -781,7 +772,7 @@ namespace Poly
       as applying the abstract CRT isomorphism to the quotient element. -/
   theorem ntt_butterfly_eq_crt (l : Fin 8) (i : Fin (2 ^ l.val)) (hl : l.val < 7) (f : Zq[X])
       (hf : f.degree ≤ (2 ^ (8 - l.val) - 1 : ℕ)) :
-      ntt_butterfly l i hl f hf = crt_Sq l i hl (Ideal.Quotient.mk (Iq l i) f) := by
+      ntt_butterfly l i hl f hf = crtIq l i hl (Ideal.Quotient.mk (Iq l i) f) := by
 
     let l' : Fin 8 := ⟨l.val + 1, by omega⟩
     let i₁ : Fin (2 ^ l'.val) := ⟨2 * i.val, by simp [l']; omega⟩
@@ -813,7 +804,7 @@ namespace Poly
     ext
     · -- First component
       -- Use the proved lemma to extract the first component of the CRT
-      rw [crt_Sq_fst]
+      rw [crtIq_fst]
       show Ideal.Quotient.mk I₁ (low + Polynomial.C twiddle * high) =
            Ideal.Quotient.mk I₁ f
 
@@ -834,7 +825,7 @@ namespace Poly
         _ = Ideal.Quotient.mk I₁ (low + Polynomial.C twiddle * high) := by simp [map_add, map_mul]
     · -- Second component
       -- Use the proved lemma to extract the second component of the CRT
-      rw [crt_Sq_snd]
+      rw [crtIq_snd]
       show Ideal.Quotient.mk I₂ (low - Polynomial.C twiddle * high) =
            Ideal.Quotient.mk I₂ f
 
@@ -862,4 +853,17 @@ namespace Poly
 
 
 
+/-! # Algorithm 9 from the ML-KEM specification -/
+  def ntt (f : Symcrust.Spec.Polynomial) := Id.run do
+    let mut f := f
+    let mut i := 1
+    for h0: len in [128 : >1 : /= 2] do
+      for h1: start in [0 : 256 : 2*len] do
+        let zeta : Symcrust.Spec.Zq := Zq.ζ ^ ((BitRev 7 i).val)
+        i := i + 1
+        for h: j in [start : start+len] do
+          let t := zeta * f[j + len]
+          f := f.set (j + len) (f[j] - t)
+          f := f.set j         (f[j] + t)
+    pure f
 end Poly
