@@ -34,154 +34,20 @@ open Result Symcrust.ntt
 attribute [-progress] UScalar.cast.progress_spec U32.sub_spec
 attribute [local progress] UScalar.cast_inBounds_spec U32.sub_bv_spec
 
-attribute [local simp_lists_simps] List.length_map
-attribute [local simp_lists_simps] List.length_flatMap
-attribute [local simp_lists_simps] List.length_cons
-attribute [local simp_lists_simps] List.length_nil -- Not needed for anything but added for symmetry with `List.length_cons`
-attribute [local simp_lists_simps] List.map_const'
-attribute [local simp_lists_simps] List.getElem!_slice
-
-attribute [local simp_scalar_simps] Nat.testBit_mod_two_pow
-attribute [local simp_scalar_simps] Nat.testBit_and
-attribute [local simp_scalar_simps] Nat.one_shiftLeft
+-- TODO: we shouldn't need this one
 attribute [local simp_scalar_simps] Nat.testBit_two_pow_sub_one
-attribute [local simp_scalar_simps] Nat.pow_lt_pow_right
--- Intentionally not giving `mul_add` a `simp_scalar_simps` attribute
-attribute [local simp_scalar_simps] Nat.add_sub_cancel'
-attribute [local simp_scalar_simps] Nat.and_two_pow_sub_one_eq_mod
-attribute [local simp_scalar_simps] Nat.add_le_add_iff_right
--- `Nat.add_le_add_iff_left` isn't used here, including it for symmetry with `Nat.add_le_add_iff_right`
-attribute [local simp_scalar_simps] Nat.add_le_add_iff_left
--- Adding `mul_add` globally would probably break `simp_scalar` calls somewhere, but in this file, there
--- are several locations where `mul_add` helps `simp_scalar` and no locations where it hinders it
+
+attribute [local simp_lists_simps] List.map_const'
+attribute [local simp_scalar_simps] Nat.one_shiftLeft
 attribute [local simp_scalar_simps] mul_add
 
-theorem U8.mod_size_of_one_shiftLeft {n : ℕ} (h : n < 8) : 1 <<< n % U8.size = 1 <<< n := by
-  apply Nat.mod_eq_of_lt
-  simp_scalar [U8.size]
-
-theorem U8.one_shiftLeft_lt_size {n : ℕ} (h : n < 8) : 1 <<< n < U8.size := by
-  simp_scalar [U8.size]
-
-theorem U8.two_pow_lt_size {n : ℕ} (h : n < 8) : 2 ^ n < U8.size := by
-  simp_scalar [U8.size]
-
-theorem U8.mod_size_of_two_pow {n : ℕ} (h : n < 8) : 2^n % U8.size = 2^n := by
-  apply Nat.mod_eq_of_lt
-  simp_scalar [U8.size]
-
-theorem U16.mod_size_of_one_shiftLeft {n : ℕ} (h : n < 16) : 1 <<< n % U16.size = 1 <<< n := by
-  apply Nat.mod_eq_of_lt
-  simp_scalar [U16.size]
-
-theorem U16.one_shiftLeft_lt_size {n : ℕ} (h : n < 16) : 1 <<< n < U16.size := by
-  simp_scalar [U16.size]
-
-theorem U16.two_pow_lt_size {n : ℕ} (h : n < 16) : 2 ^ n < U16.size := by
-  simp_scalar [U16.size]
-
-theorem U16.mod_size_of_two_pow {n : ℕ} (h : n < 16) : 2^n % U16.size = 2^n := by
-  apply Nat.mod_eq_of_lt
-  simp_scalar [U16.size]
-
-theorem U32.mod_size_of_one_shiftLeft (n : ℕ) (h : n < 32) : 1 <<< n % U32.size = 1 <<< n := by
-  apply Nat.mod_eq_of_lt
-  simp_scalar [U32.size]
-
-theorem U32.one_shiftLeft_lt_size (n : ℕ) (h : n < 32) : 1 <<< n < U32.size := by
-  simp_scalar [U32.size]
-
-theorem U32.two_pow_lt_size (n : ℕ) (h : n < 32) : 2 ^ n < U32.size := by
-  simp_scalar [U32.size]
-
-theorem U32.mod_size_of_two_pow {n : ℕ} (h : n < 32) : 2^n % U32.size = 2^n := by
-  apply Nat.mod_eq_of_lt
-  simp_scalar [U32.size]
-
-theorem U64.mod_size_of_one_shiftLeft (n : ℕ) (h : n < 64) : 1 <<< n % U64.size = 1 <<< n := by
-  apply Nat.mod_eq_of_lt
-  simp_scalar [U64.size]
-
-theorem U64.one_shiftLeft_lt_size (n : ℕ) (h : n < 64) : 1 <<< n < U64.size := by
-  simp_scalar [U64.size]
-
-theorem U64.two_pow_lt_size (n : ℕ) (h : n < 64) : 2 ^ n < U64.size := by
-  simp_scalar [U64.size]
-
-theorem U64.mod_size_of_two_pow {n : ℕ} (h : n < 64) : 2^n % U64.size = 2^n := by
-  apply Nat.mod_eq_of_lt
-  simp_scalar [U64.size]
-
-theorem U128.mod_size_of_one_shiftLeft (n : ℕ) (h : n < 128) : 1 <<< n % U128.size = 1 <<< n := by
-  apply Nat.mod_eq_of_lt
-  simp_scalar [U128.size]
-
-theorem U128.one_shiftLeft_lt_size (n : ℕ) (h : n < 128) : 1 <<< n < U128.size := by
-  simp_scalar [U128.size]
-
-theorem U128.two_pow_lt_size (n : ℕ) (h : n < 128) : 2 ^ n < U128.size := by
-  simp_scalar [U128.size]
-
-theorem U128.mod_size_of_two_pow {n : ℕ} (h : n < 128) : 2^n % U128.size = 2^n := by
-  apply Nat.mod_eq_of_lt
-  simp_scalar [U128.size]
-
-theorem Nat.pow_mod_pow {a m n : ℕ} (ha : 1 < a) (h : m < n) : a ^ m % a ^ n = a ^ m := by
-  apply Nat.mod_eq_of_lt
-  simp_scalar
-
-theorem Nat.mod_eq_self (x y : ℕ) (hy : 0 < y) : (x % y = x ↔ x < y) := by
-  simp [Nat.mod_eq_iff]
-  omega
-
-attribute [local simp_scalar_simps] U8.mod_size_of_one_shiftLeft
-attribute [local simp_scalar_simps] U8.one_shiftLeft_lt_size
-attribute [local simp_scalar_simps] U8.two_pow_lt_size
-attribute [local simp_scalar_simps] U8.mod_size_of_two_pow
-
-attribute [local simp_scalar_simps] U16.mod_size_of_one_shiftLeft
-attribute [local simp_scalar_simps] U16.one_shiftLeft_lt_size
-attribute [local simp_scalar_simps] U16.two_pow_lt_size
-attribute [local simp_scalar_simps] U16.mod_size_of_two_pow
-
-attribute [local simp_scalar_simps] U32.mod_size_of_one_shiftLeft
-attribute [local simp_scalar_simps] U32.one_shiftLeft_lt_size
-attribute [local simp_scalar_simps] U32.two_pow_lt_size
-attribute [local simp_scalar_simps] U32.mod_size_of_two_pow
-
-attribute [local simp_scalar_simps] U64.mod_size_of_one_shiftLeft
-attribute [local simp_scalar_simps] U64.one_shiftLeft_lt_size
-attribute [local simp_scalar_simps] U64.two_pow_lt_size
-attribute [local simp_scalar_simps] U64.mod_size_of_two_pow
-
-attribute [local simp_scalar_simps] U128.mod_size_of_one_shiftLeft
-attribute [local simp_scalar_simps] U128.one_shiftLeft_lt_size
-attribute [local simp_scalar_simps] U128.two_pow_lt_size
-attribute [local simp_scalar_simps] U128.mod_size_of_two_pow
-
-attribute [local simp_scalar_simps] Nat.pow_mod_pow
-attribute [local simp_scalar_simps] Nat.mod_eq_self
-
-theorem BitVec.getElem!_eq_testBit_toNat_reverse {w : ℕ} (x : BitVec w) (i : ℕ) :
+@[simp, local simp_scalar_simps]
+theorem BitVec.toNat_testBit_eq_getElem! {w : ℕ} (x : BitVec w) (i : ℕ) :
   x.toNat.testBit i = x[i]! := by rw [BitVec.getElem!_eq_testBit_toNat]
 
+@[simp, local simp_scalar_simps]
 theorem UScalar.val_testBit {t : UScalarTy} {x : UScalar t} (i : ℕ) : x.val.testBit i = x.bv[i]! := by
   rw [UScalar.val, BitVec.getElem!_eq_testBit_toNat]
-
--- **TODO** To be determined whether `BitVec.getElem!_eq_testBit_toNat_reverse` and `UScalar.val_testBit`
--- would be good to have
-attribute [local simp_scalar_simps] BitVec.getElem!_eq_testBit_toNat_reverse
-attribute [local simp_scalar_simps] UScalar.val_testBit
-
-attribute [local simp_bool_prop_simps] Bool.false_and
-attribute [local simp_bool_prop_simps] Bool.false_or
-attribute [local simp_bool_prop_simps] Bool.true_and
-attribute [local simp_bool_prop_simps] Bool.true_or
-attribute [local simp_bool_prop_simps] Bool.and_comm
-attribute [local simp_bool_prop_simps] Bool.or_comm
-attribute [local simp_bool_prop_simps] Bool.or_self
-attribute [local simp_bool_prop_simps] Bool.and_self
-------------------------------------------------------------------------------------------------------------------
 
 set_option maxHeartbeats 2000000
 
@@ -189,7 +55,7 @@ lemma mod_two_pow (x y d : ℕ) (hxy : x = y) : x % 2 ^ d = y &&& ((1 <<< d) - 1
   apply Nat.eq_of_testBit_eq
   simp_scalar [hxy]
 
-@[simp_lists_simps]
+@[local simp_lists_simps]
 lemma List.flatMap_eq_map {α β} (l : List α) (f : α → β) : l.flatMap (fun x => [f x]) = l.map f := by
   induction l <;> simp_all
 
