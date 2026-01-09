@@ -59,33 +59,6 @@ lemma mod_two_pow (x y d : ℕ) (hxy : x = y) : x % 2 ^ d = y &&& ((1 <<< d) - 1
 lemma List.flatMap_eq_map {α β} (l : List α) (f : α → β) : l.flatMap (fun x => [f x]) = l.map f := by
   induction l <;> simp_all
 
--- TODO: move
-attribute [simp_scalar_simps] Nat.div_le_self Nat.shiftRight_le
-
--- TODO: move
-@[simp, simp_lists_simps, simp_scalar_simps]
-theorem BitVec.ofNat_shiftRight_toNat {n m} (bv : BitVec n) (i : Nat) :
-  (BitVec.ofNat m (bv.toNat >>> i)) = BitVec.setWidth m (bv >>> i) := by
-  natify; simp
-
--- TODO: move
-@[simp, simp_lists_simps, simp_scalar_simps]
-theorem BitVec.cast_shiftRight_toNat {n m} (bv : BitVec n) (i : Nat) :
-  ((bv.toNat >>> i) : BitVec m) = BitVec.setWidth m (bv >>> i) := by
-  natify; simp
-
--- TODO: move
-@[simp, simp_lists_simps, simp_scalar_simps]
-theorem BitVec.ofNat_shiftLeft_toNat {n m} (bv : BitVec n) (i : Nat) (h : m ≤ n) :
-  (BitVec.ofNat m (bv.toNat <<< i)) = BitVec.setWidth m (bv <<< i) := by
-  natify; simp; simp_scalar
-
--- TODO: move
-@[simp, simp_lists_simps, simp_scalar_simps]
-theorem BitVec.cast_shiftLeft_toNat {n m} (bv : BitVec n) (i : Nat) (h : m ≤ n) :
-  ((bv.toNat <<< i) : BitVec m) = BitVec.setWidth m (bv <<< i) := by
-  natify; simp; simp_scalar
-
 -- **NOTE** `i'` is currently named `i'` rather than `i` because right now, `progress*` will shadow `i` rather
 -- than generate a variable name that does not already appear in the context. I think it would be good if
 -- `progress*` always generated fresh names to avoid this issue (or at least had an option to always
