@@ -105,14 +105,6 @@ theorem compress_coeff.spec (d coeff : U32) (hd : d.val ≤ 12) (hc: coeff.val <
   zify
   simp_scalar
 
--- TODO: use the Std min in Rust
-@[progress]
-theorem min_spec (x y : U32) :
-  ntt.min x y ⦃ z =>
-    z.val = Min.min x.val y.val ⦄ := by
-  unfold ntt.min
-  split <;> progress*
-
 theorem encode_coefficient.progress_spec_aux
   (x : U32) (d : U32) (dst : Aeneas.Std.Slice U8)
   (bi : Usize) (acc : U32) (acci : U32)

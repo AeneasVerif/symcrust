@@ -139,6 +139,14 @@ theorem slice_to_sub_array4_spec (b : Slice U8) (startIdx : Usize)
   replace hi : i = 0 ∨ i = 1 ∨ i = 2 ∨ i = 3 := by omega
   rcases hi with hi | hi | hi | hi <;> simp_all [Array.make]
 
+-- TODO: use the Std min in Rust
+@[progress]
+theorem min_spec (x y : U32) :
+  ntt.min x y ⦃ z =>
+    z.val = Min.min x.val y.val ⦄ := by
+  unfold ntt.min
+  split <;> progress*
+
 end ntt
 
 end Symcrust
