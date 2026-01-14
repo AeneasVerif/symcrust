@@ -187,9 +187,11 @@ lemma BitRev_equal : ∀ i : Fin 128, BitRev₇ i = BitRev 7 i := by
 
 /- Some properties of the BitRev function. -/
 /- Reversing a bit vector twice is the identity. -/
-lemma BitVec_reverse_reverse_eq {n : ℕ} (v : BitVec n) : v.reverse.reverse = v := by sorry
-  -- This seems to exist in Mathlib v4.25: Use the below?
-  -- simpa using (BitVec.reverse_reverse v)
+-- Note: This is `BitVec.reverse_reverse_eq` in Lean v4.27+
+lemma BitVec_reverse_reverse_eq {n : ℕ} (v : BitVec n) : v.reverse.reverse = v := by
+  ext i hi
+  simp only [BitVec.getElem_reverse, BitVec.getMsbD_reverse]
+  rfl
 
 /- BitRev is its own inverse. -/
 lemma BitRev_inv (b : ℕ) (i : Fin (2 ^ b)) : BitRev b (BitRev b i) = i := by
