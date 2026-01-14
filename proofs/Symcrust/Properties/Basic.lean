@@ -51,8 +51,7 @@ theorem wfArray_update {n : Usize} (v : Std.Array U16 n) (i : Usize) (x : U16)
   (hbound : i.val < v.length)
   (hx : x.val < 3329)
   (hWf : wfArray v) :
-  ∃ nv, v.update i x = ok nv ∧ nv = v.set i x ∧
-  wfArray nv := by
+  v.update i x ⦃ nv => nv = v.set i x ∧ wfArray nv ⦄:= by
   progress as ⟨ nv, hnv ⟩
   fsimp [wfArray] at *
   fsimp [hnv, toResult]
@@ -62,7 +61,7 @@ theorem wfArray_update {n : Usize} (v : Std.Array U16 n) (i : Usize) (x : U16)
 theorem wfArray_index {n : Usize} (v : Std.Array U16 n) (i : Usize)
   (hbound : i.val < v.length)
   (hWf : wfArray v) :
-  ∃ x, v.index_usize i = ok x ∧ x = v.val[i.val]! ∧ x.val < 3329 := by
+  v.index_usize i ⦃ x => x = v.val[i.val]! ∧ x.val < 3329 ⦄ := by
   progress as ⟨ x ⟩
   fsimp [wfArray] at hWf
   fsimp [*]
@@ -127,8 +126,7 @@ theorem to_bytes_setSlice! {b : Slice U8} (i : Usize) (s : List U8) :
 @[progress]
 theorem slice_to_sub_array4_spec (b : Slice U8) (startIdx : Usize)
   (h : startIdx.val + 3 < b.length) :
-  ∃ x, slice_to_sub_array4 b startIdx = ok x ∧
-  ∀ i < 4, x[i]! = b[startIdx.val + i]! := by
+  slice_to_sub_array4 b startIdx ⦃ x => ∀ i < 4, x[i]! = b[startIdx.val + i]! ⦄ := by
   unfold slice_to_sub_array4
   let* ⟨e0, he0⟩ ← Slice.index_usize_spec
   let* ⟨i1, hi1⟩ ← Usize.add_spec
@@ -140,6 +138,14 @@ theorem slice_to_sub_array4_spec (b : Slice U8) (startIdx : Usize)
   intro i hi
   replace hi : i = 0 ∨ i = 1 ∨ i = 2 ∨ i = 3 := by omega
   rcases hi with hi | hi | hi | hi <;> simp_all [Array.make]
+
+-- TODO: use the Std min in Rust
+@[progress]
+theorem min_spec (x y : U32) :
+  ntt.min x y ⦃ z =>
+    z.val = Min.min x.val y.val ⦄ := by
+  unfold ntt.min
+  split <;> progress*
 
 end ntt
 

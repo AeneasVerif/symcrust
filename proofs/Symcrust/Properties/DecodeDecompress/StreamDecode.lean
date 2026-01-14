@@ -167,7 +167,7 @@ def Stream.decode.load_acc.spec {d n : ℕ} (b : List Byte) (hb : b.length = 32 
   -- Automation note: `simp_lists_scalar [load_acc, List.slice]` does not close this goal
   -- but `simp [load_acc, List.slice]; simp_lists_scalar` does.
   simp only [load_acc, List.slice, BitVec.setWidth'_eq, Nat.mul_add_mod_self_left]
-  simp_lists_scalar
+  simp_lists_scalar [BitVec.fromLEBytes_getElem!]
 
 def Stream.decode.pop_bits_from_acc.spec {n : ℕ} (d : ℕ) (acc : BitVec (8 * n))
   (num_bits_to_decode num_bits_in_acc : ℕ) (hd : d < 13) (h1 : num_bits_to_decode ≤ d)
