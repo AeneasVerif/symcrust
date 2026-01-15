@@ -18,9 +18,9 @@ set_option maxHeartbeats 10000000
 set_option maxRecDepth 2048
 set_option linter.dupNamespace false -- This option is needed because `Ntt.lean` is in an `Ntt` directory
 
-@[local simp] theorem bv_and_65535_eq_mod (x : BitVec 32) : x &&& 65535#32 = x % 65536#32 := by bv_decide
-@[local simp] theorem bv_shift_16_eq_div (x : BitVec 32) : x >>> 16 = x / 65536#32 := by bv_decide
-@[local simp] theorem nat_and_65535_eq_mod (x : Nat) : x &&& 65535 = x % 65536 := by apply Nat.and_two_pow_sub_one_eq_mod x 16
+@[local simp, local grind =] theorem bv_and_65535_eq_mod (x : BitVec 32) : x &&& 65535#32 = x % 65536#32 := by bv_decide
+@[local simp, local grind =] theorem bv_shift_16_eq_div (x : BitVec 32) : x >>> 16 = x / 65536#32 := by bv_decide
+@[local simp, local grind =] theorem nat_and_65535_eq_mod (x : Nat) : x &&& 65535 = x % 65536 := by apply Nat.and_two_pow_sub_one_eq_mod x 16
 
 -- TODO: remove those simps
 @[local simp]
@@ -108,6 +108,7 @@ theorem mod_add_spec (a : U32) (b : U32)
   c.val < Spec.Q := by
   unfold mod_add
   progress*
+  simp [*] -- TODO: `grind` should solve this
 
 /-!
 # Subtraction Modulo
@@ -603,7 +604,7 @@ theorem poly_element_intt_and_mul_r_loop_spec_aux
   fsimp
   split <;> rename_i h
   . progress as ⟨ x ⟩
-    progress with mont_mul_spec as ⟨ xTimes ⟩
+    progress with mont_mul_spec as ⟨ xTimes ⟩ by (fsimp [*])
     progress as ⟨ xTimes', hxTimes' ⟩
     progress as ⟨ peSrc1, hPeSrc1 ⟩
     progress as ⟨ i1 ⟩
@@ -673,6 +674,8 @@ private theorem and_RMASK (x : U32) : x.val &&& 65535 ≤ 65535 := by
     Bvify.U32.UScalar_bv, BitVec.setWidth_eq, UScalar.bv_toNat, Nat.reducePow, Nat.reduceMod,
     nat_and_65535_eq_mod, BitVec.ofNat_eq_ofNat, BitVec.toNat_ofNat, ge_iff_le] at *
   assumption
+
+local grind_pattern and_RMASK => x.val &&& (65535 : ℕ)
 
 section
   -- TODO: failure cases of scalar_tac +nonLin
@@ -808,7 +811,8 @@ section
     fsimp [wfAcc] at *
     apply h
 
-  def wfAcc_128 {f g : Array U16 256#usize} {B0 B1 : Nat} {i : Nat} {acc0 acc : Array U32 256#usize}
+  @[local grind .]
+  theorem wfAcc_128 {f g : Array U16 256#usize} {B0 B1 : Nat} {i : Nat} {acc0 acc : Array U32 256#usize}
     (h : wfAcc f g B0 B1 i acc0 acc) (hi : 128 ≤ i) :
     wfAcc f g B0 B1 128 acc0 acc := by
     fsimp [wfAcc] at *
@@ -857,8 +861,7 @@ section
     . dcases hjeq : j = i0
       . simp_lists_scalar [*]
       . simp_lists_scalar [*]
-    . intro hj'
-      simp_lists_scalar [*]
+    . grind
     . dcases hjeq : j = i0
       . fsimp [*]
         simp_lists
@@ -870,9 +873,7 @@ section
     . intro hj'
       simp_lists [*]
 
-  -- TODO: no post-processing of the post-conditions in progress
-
-  @[simp, scalar_tac_simps]
+  @[simp, scalar_tac_simps, grind]
   abbrev montMulStepBound : Nat := 3328 * 3328 + 3328 * 3498
 
   theorem poly_element_mul_and_accumulate_loop_spec
@@ -890,10 +891,10 @@ section
     unfold poly_element_mul_and_accumulate_loop
     fsimp only [fold_mul_acc_mont_reduce, fold_update_acc]
     fsimp
-    progress* by (fsimp [*]; ring_nf)
-    apply wfAcc_128 hwf3 (by scalar_tac)
+    progress*
+    · simp [*]; grind -- TODO: shouldn't be necessary
   termination_by 128 - i.val
-  decreasing_by scalar_decr_tac
+  decreasing_by grind
 end
 
 attribute [local progress] poly_element_mul_and_accumulate_loop_spec
@@ -919,8 +920,8 @@ theorem poly_element_mul_and_accumulate_spec
 # Reduce and Add
 -/
 
-@[scalar_tac_simps, bvify_simps] abbrev reduceAddInputBound : Nat := 4*3328*3328 + 4*3494*3312
-@[scalar_tac_simps, bvify_simps] abbrev reduceAddStepBound : Nat := 4711
+@[scalar_tac_simps, bvify_simps, grind] abbrev reduceAddInputBound : Nat := 4*3328*3328 + 4*3494*3312
+@[scalar_tac_simps, bvify_simps, grind] abbrev reduceAddStepBound : Nat := 4711
 
 
 section
@@ -1084,7 +1085,7 @@ section
 
       -- TODO: this should be automated
       have : ∀ j < i11.val, paSrc1[j]! = 0#u32 := by
-        intro j hj; dcases hji : j = i.val <;> simp_lists [*]
+        intro j hj; dcases hji : j = i.val <;> grind
 
       have : ∀ j ≥ i11.val, j < 256 → paSrc1[j]! = paSrc0[j]! := by
         intro j hj0 hj1
@@ -1092,11 +1093,11 @@ section
 
       have : ∀ j ≥ i11.val, j < 256 → paSrc0[j]!.val ≤ reduceAddInputBound := by
         intro j hj0 hj1
-        dcases hji : j = i.val + 1 <;> simp_lists [*]
+        dcases hji : j = i.val + 1 <;> grind
 
       have : ∀ j < i11.val, paDst1[j]!.val ≤ 3328 := by
         intro j hj0
-        dcases hji : j = i.val <;> simp_lists [*]
+        dcases hji : j = i.val <;> grind
 
       have : ∀ j < i11.val, (paDst1[j]!.val : Spec.Zq) = ↑↑paDst0[j]! + ↑↑paSrc0[j]! * 169 := by
         intro j hj
@@ -1104,7 +1105,7 @@ section
 
       have : ∀ j ≥ i11.val, j < 256 → paDst0[j]!.val ≤ 3328 := by
         intro j hj0 hj1
-        dcases hji : j = i.val + 1 <;> simp_lists [*]
+        dcases hji : j = i.val + 1 <;> grind
 
       have : ∀ j ≥ i11.val, j < 256 → paDst1[j]!.val = ↑paDst0[j]! := by
         intro j hj0 hj1
@@ -1148,11 +1149,7 @@ theorem montgomery_reduce_and_add_poly_element_accumulator_to_poly_element_spec
 
     -- TODO: progress by
     progress with montgomery_reduce_and_add_poly_element_accumulator_to_poly_element_loop_spec paSrc paSrc paDst paDst as ⟨ paSrc1, paDst1 ⟩
-    . fsimp at *; assumption
-    . fsimp at *; assumption
-    . -- Post-condition
-      fsimp at *
-      tauto
+    grind
 
 /-
 # MulR
@@ -1172,7 +1169,7 @@ theorem poly_element_mul_r_loop_spec
   unfold poly_element_mul_r_loop
   split
   . let* ⟨ i1, i1_post_1, i1_post_2 ⟩ ← wfArray_index
-    let* ⟨ i3, i3_post_1, i3_post_2 ⟩ ← mont_mul_spec
+    let* ⟨ i3, i3_post_1, i3_post_2 ⟩ ← mont_mul_spec by (fsimp [*])
     let* ⟨ i4, i4_post ⟩ ← UScalar.cast_inBounds_spec
     let* ⟨ peDst1, peDst1_post ⟩ ← Array.update_spec
     let* ⟨ i5, i5_post ⟩ ← Usize.add_spec

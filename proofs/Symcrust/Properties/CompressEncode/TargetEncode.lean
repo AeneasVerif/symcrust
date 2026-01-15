@@ -287,10 +287,6 @@ def Target.byteEncode.spec (d : ℕ) (F : Polynomial (m d)) (hd : 0 < d := by om
     simp +zetaDelta only at *
     ring_nf at *
     omega
-
-  simp only [this, Nat.mul_add_mod_self_right]
-  simp_lists [h0]
-  simp +zetaDelta only [dvd_refl, Nat.mod_mod_of_dvd]
-  simp_scalar
+  grind
 
 end Symcrust.SpecAux

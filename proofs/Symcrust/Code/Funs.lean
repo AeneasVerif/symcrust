@@ -775,7 +775,7 @@ def key.PreKey2SliceArrayU16256.atranspose
   :=
   do
   let m_len ← key.PreKey2SliceArrayU16256.matrix_len self
-  core.slice.index.Slice.index (core.slice.index.SliceIndexRangeUsizeSliceInst
+  core.slice.index.Slice.index (core.slice.index.SliceIndexRangeUsizeSlice
     (Array U16 256#usize)) self.data { start := 0#usize, end_ := m_len }
 
 /- [symcrust::key::{symcrust::key::PreKey2<@Slice<@Array<u16, 256: usize>>>}::t]:
@@ -787,7 +787,7 @@ def key.PreKey2SliceArrayU16256.t
   do
   let m_len ← key.PreKey2SliceArrayU16256.matrix_len self
   let i ← m_len + self.n_rows
-  core.slice.index.Slice.index (core.slice.index.SliceIndexRangeUsizeSliceInst
+  core.slice.index.Slice.index (core.slice.index.SliceIndexRangeUsizeSlice
     (Array U16 256#usize)) self.data { start := m_len, end_ := i }
 
 /- [symcrust::key::{symcrust::key::PreKey2<@Slice<@Array<u16, 256: usize>>>}::s]:
@@ -801,7 +801,7 @@ def key.PreKey2SliceArrayU16256.s
   let i ← m_len + self.n_rows
   let i1 ← 2#usize * self.n_rows
   let i2 ← m_len + i1
-  core.slice.index.Slice.index (core.slice.index.SliceIndexRangeUsizeSliceInst
+  core.slice.index.Slice.index (core.slice.index.SliceIndexRangeUsizeSlice
     (Array U16 256#usize)) self.data { start := i, end_ := i2 }
 
 /- [symcrust::key::{symcrust::key::PreKey2<@Slice<@Array<u16, 256: usize>>>}::atranspose_mut]:
@@ -815,7 +815,7 @@ def key.PreKey2SliceArrayU16256.atranspose_mut
   let m_len ← key.PreKey2SliceArrayU16256.matrix_len self
   let (s, index_mut_back) ←
     core.slice.index.Slice.index_mut
-      (core.slice.index.SliceIndexRangeUsizeSliceInst (Array U16 256#usize))
+      (core.slice.index.SliceIndexRangeUsizeSlice (Array U16 256#usize))
       self.data { start := 0#usize, end_ := m_len }
   let back := fun ret => let s1 := index_mut_back ret
                          { self with data := s1 }
@@ -833,7 +833,7 @@ def key.PreKey2SliceArrayU16256.t_mut
   let i ← m_len + self.n_rows
   let (s, index_mut_back) ←
     core.slice.index.Slice.index_mut
-      (core.slice.index.SliceIndexRangeUsizeSliceInst (Array U16 256#usize))
+      (core.slice.index.SliceIndexRangeUsizeSlice (Array U16 256#usize))
       self.data { start := m_len, end_ := i }
   let back := fun ret => let s1 := index_mut_back ret
                          { self with data := s1 }
@@ -853,7 +853,7 @@ def key.PreKey2SliceArrayU16256.s_mut
   let i2 ← m_len + i1
   let (s, index_mut_back) ←
     core.slice.index.Slice.index_mut
-      (core.slice.index.SliceIndexRangeUsizeSliceInst (Array U16 256#usize))
+      (core.slice.index.SliceIndexRangeUsizeSlice (Array U16 256#usize))
       self.data { start := i, end_ := i2 }
   let back := fun ret => let s1 := index_mut_back ret
                          { self with data := s1 }
@@ -895,7 +895,7 @@ def key.PreKey2SliceArrayU16256.t_encoded_t_mut
   let i ← m_len + self.n_rows
   let (s, index_mut_back) ←
     core.slice.index.Slice.index_mut
-      (core.slice.index.SliceIndexRangeUsizeSliceInst (Array U16 256#usize))
+      (core.slice.index.SliceIndexRangeUsizeSlice (Array U16 256#usize))
       self.data { start := m_len, end_ := i }
   let back :=
     fun ret =>
@@ -1768,7 +1768,7 @@ def ntt.encode_coefficient
     let i4 ← cb_dst_written + 4#usize
     let (s, index_mut_back) ←
       core.slice.index.Slice.index_mut
-        (core.slice.index.SliceIndexRangeUsizeSliceInst U8) pb_dst
+        (core.slice.index.SliceIndexRangeUsizeSlice U8) pb_dst
         { start := cb_dst_written, end_ := i4 }
     let a ←
       (↑(core.num.U32.to_le_bytes accumulator1) : Result (Array U8 4#usize))
