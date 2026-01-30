@@ -293,7 +293,7 @@ theorem decode_coefficient.late_load_progress_spec (b : Aeneas.Std.Slice U8) (d 
   progress with massert_spec
   have hnum_bytes_read : ↑num_bytes_read + 3 < b.length := by
     simp only [SpecAux.Stream.decode.length_inv, Nat.reduceMul, Nat.mod_eq_iff, OfNat.ofNat_ne_zero,
-      Nat.add_eq_zero, mul_eq_zero, false_and, Nat.ofNat_pos, add_zero, true_and, false_or] at hinv
+      Nat.add_eq_zero_iff, mul_eq_zero, false_and, Nat.ofNat_pos, add_zero, true_and, false_or] at hinv
     rcases hinv with ⟨hinv1, hinv2, ⟨k, hk⟩⟩
     rw [(by omega : num_bytes_read.val = 4 * k), hb2]
     have : 4 * k < 32 * d.val := by
