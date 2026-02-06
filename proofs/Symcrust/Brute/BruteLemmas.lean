@@ -106,7 +106,7 @@ theorem ofMkFold1UpperBoundedEqTrue {t : Type} [h : IsNatLike t] (b : t) (f f' :
     induction (cast ht b) generalizing acc
     . simp
     . next b' ih =>
-      simp only [Fin.foldr_succ_last, Fin.coe_castSucc, Fin.val_last]
+      simp only [Fin.foldr_succ_last, Fin.val_castSucc, Fin.val_last]
       intro h hb'
       let h' : ∀ (x : t), cast ht x < b' → f' x = true → f x = true := by
         intro x hx hf
@@ -129,7 +129,7 @@ theorem ofMkFold1UpperBoundedEqTrue {t : Type} [h : IsNatLike t] (b : t) (f f' :
     induction (cast ht.2 b).toNat generalizing acc
     . simp
     . next b' ih =>
-      simp only [Fin.foldr_succ_last, Fin.coe_castSucc, Fin.val_last]
+      simp only [Fin.foldr_succ_last, Fin.val_castSucc, Fin.val_last]
       intro h hb'
       let h' : ∀ (x : t), (cast ht.2 x).toNat < b' → f' x = true → f x = true := by
         intro x hx hf
@@ -152,7 +152,7 @@ theorem ofMkFold1UpperBoundedEqTrue {t : Type} [h : IsNatLike t] (b : t) (f f' :
     induction (cast ht.2.2 b).val generalizing acc
     . simp
     . next b' ih =>
-      simp only [Fin.foldr_succ_last, Fin.coe_castSucc, Fin.val_last]
+      simp only [Fin.foldr_succ_last, Fin.val_castSucc, Fin.val_last]
       intro h hb'
       let h' : ∀ (x : t), (cast ht.2.2 x).val < b' → f' x = true → f x = true := by
         intro x hx hf
@@ -187,7 +187,7 @@ theorem ofMkFold1NoneEqTrue {t : Type} [h : IsNatLike t] (f f' : t → Bool)
     . simp
     . next b ih =>
       intro h
-      simp only [Fin.foldr_succ_last, Fin.coe_castSucc, Fin.val_last] at h
+      simp only [Fin.foldr_succ_last, Fin.val_castSucc, Fin.val_last] at h
       specialize ih (acc && f' (cast ht.2.symm (BitVec.ofNat ht.fst b))) h
       simp only [Bool.and_eq_true, and_assoc] at ih
       simp only [ih, true_and]
@@ -205,7 +205,7 @@ theorem ofMkFold1NoneEqTrue {t : Type} [h : IsNatLike t] (f f' : t → Bool)
     . simp
     . next b ih =>
       intro h
-      simp only [Fin.foldr_succ_last, Fin.coe_castSucc, Fin.val_last] at h
+      simp only [Fin.foldr_succ_last, Fin.val_castSucc, Fin.val_last] at h
       specialize ih (acc && f' (cast ht.2.2.symm (UScalar.ofNat' b))) h
       simp only [ne_eq, Bool.and_eq_true, and_assoc] at ih
       simp only [ih, ne_eq, true_and]
