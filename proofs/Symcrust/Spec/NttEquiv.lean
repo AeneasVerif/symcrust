@@ -1289,7 +1289,7 @@ namespace Poly
                 _ = 2^((l.val + 1) + k') := by rw [← Nat.pow_add]; ring_nf⟩ := by
           apply Iq_fin_cast
           · simp; ring
-          · simp only [Fin.mk.injEq]
+          · simp
             have h2k : 2^(k'+1) = 2 * 2^k' := by rw [Nat.pow_succ]; ring
             grind
 
@@ -1401,4 +1401,64 @@ namespace Poly
           f := f.set (j + len) (f[j] - t)
           f := f.set j         (f[j] + t)
     pure f
+
+
+  /-! ## Specialized NTT for ML-KEM
+
+  We specialize the NTT to the ML-KEM parameters by fixing l=0, i=0, k=7.
+  This gives us a function that takes a polynomial f of degree ≤ 255 and produces
+  128 polynomials, each of degree ≤ 1, representing the images in the 128 quotient rings.
+
+  The structure follows `ntt_butterfly_poly_k` but with explicit parameters.
+  -/
+
+  /-- Apply NTT butterfly 7 times starting from level l, producing 2^(7-l) polynomials.
+      This is a specialized version of `ntt_butterfly_poly_k` for ML-KEM. -/
+  noncomputable
+  def ntt_spec_aux (l : Fin 8) (i : Fin (2 ^ l.val)) (hl7 : l.val ≤ 7) (f : Zq[X])
+      (hf : f.degree ≤ (2 ^ (8 - l.val) - 1 : ℕ)) :
+      Fin (2 ^ (7 - l.val)) → Zq[X] :=
+    if hl : l.val = 7 then
+      -- Base case: l = 7, return single polynomial (2^0 = 1 output)
+      have h1 : 2 ^ (7 - l.val) = 1 := by simp [hl]
+      fun _ => f
+    else
+      -- Recursive case: l < 7, apply butterfly once, then recurse on both results
+      have hl_lt7 : l.val < 7 := Nat.lt_of_le_of_ne hl7 hl
+      have hl7_next : l.val + 1 ≤ 7 := by omega
+      let p1 := (ntt_butterfly_poly l i hl_lt7 f hf).1
+      let p2 := (ntt_butterfly_poly l i hl_lt7 f hf).2
+      have hf1 : p1.degree ≤ (2 ^ (8 - (l.val + 1)) - 1 : ℕ) :=
+        ntt_butterfly_poly_fst_degree l i hl_lt7 f hf
+      have hf2 : p2.degree ≤ (2 ^ (8 - (l.val + 1)) - 1 : ℕ) :=
+        ntt_butterfly_poly_snd_degree l i hl_lt7 f hf
+      let rec1 := ntt_spec_aux ⟨l.val + 1, by omega⟩ ⟨2 * i.val, by simp; omega⟩ hl7_next p1 hf1
+      let rec2 := ntt_spec_aux ⟨l.val + 1, by omega⟩ ⟨2 * i.val + 1, by simp; omega⟩ hl7_next p2 hf2
+      -- Output has 2^(7-l) elements, split into two halves of 2^(7-(l+1)) = 2^(6-l) each
+      have h_half : 2 ^ (7 - (l.val + 1)) = 2 ^ (6 - l.val) := by congr 1; omega
+      have h_total : 2 ^ (7 - l.val) = 2 * 2 ^ (6 - l.val) := by
+        have : 7 - l.val = (6 - l.val) + 1 := by omega
+        rw [this, Nat.pow_succ]; ring
+      fun j => if hj : j.val < 2 ^ (6 - l.val) then
+                 have hj' : j.val < 2 ^ (7 - (l.val + 1)) := by rw [h_half]; exact hj
+                 rec1 ⟨j.val, hj'⟩
+               else
+                 have hj_ge : 2 ^ (6 - l.val) ≤ j.val := Nat.not_lt.mp hj
+                 have hj_lt : j.val < 2 ^ (7 - l.val) := j.isLt
+                 have hj_sub : j.val - 2 ^ (6 - l.val) < 2 ^ (6 - l.val) := by
+                   have : j.val < 2 * 2 ^ (6 - l.val) := by rw [← h_total]; exact hj_lt
+                   omega
+                 have hj' : j.val - 2 ^ (6 - l.val) < 2 ^ (7 - (l.val + 1)) := by
+                   rw [h_half]; exact hj_sub
+                 rec2 ⟨j.val - 2 ^ (6 - l.val), hj'⟩
+  termination_by (7 - l.val)
+
+  /-- The NTT for ML-KEM: takes a polynomial of degree ≤ 255 and produces 128 polynomials.
+      This applies 7 levels of butterfly operations starting from level 0. -/
+  noncomputable
+  def ntt_spec (f : Zq[X]) (hf : f.degree ≤ 255) : Fin 128 → Zq[X] :=
+    have hf' : f.degree ≤ (2^8 - 1 : ℕ) := by simp; exact hf
+    have h128 : 2^7 = 128 := by norm_num
+    h128 ▸ ntt_spec_aux ⟨0, by omega⟩ ⟨0, by simp⟩ (by omega) f hf'
+
 end Poly
