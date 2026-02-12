@@ -49,8 +49,6 @@ def Zq := ZMod Q
 lemma Zq_cyclic : IsCyclic Zqˣ := by
   apply ZMod.isCyclic_units_prime Q_isPrime
 
-def Fq := Field Zq
-
 namespace Zq
   open scoped ZMod
   open Nat
@@ -99,57 +97,14 @@ namespace Zq
     · exact zeta_256_eq
     · exact zeta_pow_m_neq_one
 
-  lemma diff_mod (m k : Nat) (h₀ : m ≥ k) (h₁ : (m - k) % 256 = 0) : (m % 256) = (k % 256) := by
-    grind
-
   lemma zeta_pow_sub_zeta_pow_ne_zero (m k : Nat) (h : (m % 256) ≠ (k % 256)) : ζ^m - ζ^k ≠ 0 := by
-    intro hyp
-    by_cases h₀ : k ≤ m
-    · have hmk : k + (m - k) = m := by grind
-      have : ζ ^ ((m-k) % 256) ≠ 1 := by
-        apply zeta_pow_m_neq_one (((m-k) % 256))
-        · grind
-        · by_contra hc
-          simp at hc
-          apply diff_mod at hc
-          contradiction
-          apply h₀
-      have : ζ^k ≠ 0 := zeta_pow_ne_zero k
-      have : ζ^k * (ζ^(m-k) - 1) = 0 := by
-        calc
-          ζ^k * (ζ^(m-k) - 1 ) = ζ^(k + (m-k)) - ζ^k := by ring
-          _ = ζ^m - ζ^k := by rw [hmk]
-          _ = 0 := by exact hyp
-      apply eq_zero_or_eq_zero_of_mul_eq_zero at this
-      cases this with
-      | inl ll => contradiction
-      | inr rr =>
-        apply sub_eq_zero.mp at rr
-        rw [← pow_mod_orderOf ζ (m-k), Zq.zeta_order_eq_256] at rr
-        contradiction
-    · simp at h₀
-      have hkm : m + (k - m ) = k := by grind
-      have hzpow : ζ ^ ((k-m) % 256) ≠ 1 := by
-        apply zeta_pow_m_neq_one (((k-m) % 256))
-        · grind
-        · by_contra h0
-          simp at h0
-          apply diff_mod at h0 ; symm at h0
-          contradiction
-          apply (le_of_lt h₀)
-      have : ζ^m * (1-ζ^(k-m)) = 0 := by
-        calc
-          ζ^m * (1-ζ^(k-m)) = ζ^m - ζ^(m + (k-m)) := by ring
-          _ = ζ^m - ζ^k := by rw [hkm]
-          _ = 0 := by exact hyp
-      have hzm : ζ^m ≠ 0 := zeta_pow_ne_zero m
-      apply eq_zero_or_eq_zero_of_mul_eq_zero at this
-      cases this with
-      | inl ll => contradiction
-      | inr rr =>
-        apply sub_eq_zero.mp at rr
-        rw [← pow_mod_orderOf ζ (k-m), Zq.zeta_order_eq_256] at rr; symm at rr
-        contradiction
+    intro heq
+    have heq : ζ^m = ζ^k := sub_eq_zero.mp heq
+    rw [← pow_mod_orderOf ζ m, ← pow_mod_orderOf ζ k, zeta_order_eq_256] at heq
+    exact h (pow_injOn_Iio_orderOf
+      (show m % 256 < orderOf ζ by rw [zeta_order_eq_256]; exact Nat.mod_lt m (by omega))
+      (show k % 256 < orderOf ζ by rw [zeta_order_eq_256]; exact Nat.mod_lt k (by omega))
+      heq)
 
   theorem zeta_pow_sub_zeta_pow_isUnit (m k : Nat) (h : (m % 256) ≠ (k % 256)) : IsUnit (ζ^m - ζ^k) := by
     have : (ζ^m - ζ^k) ^ (Q-1) = 1 := by
@@ -188,27 +143,13 @@ example : BitRev 7 2 = 32 := by rfl
 lemma BitRev_equal : ∀ i : Fin 128, BitRev₇ i = BitRev 7 i := by
   intro i; rfl
 
-/- Some properties of the BitRev function. -/
-/- Reversing a bit vector twice is the identity. -/
--- Note: This is `BitVec.reverse_reverse_eq` in Lean v4.27+
-lemma BitVec_reverse_reverse_eq {n : ℕ} (v : BitVec n) : v.reverse.reverse = v := by
-  ext i hi
-  simp only [BitVec.getElem_reverse, BitVec.getMsbD_reverse]
-  rfl
-
 /- BitRev is its own inverse. -/
 lemma BitRev_inv (b : ℕ) (i : Fin (2 ^ b)) : BitRev b (BitRev b i) = i := by
   simp [BitRev]
 
-lemma BitRev₇_inv (i : Fin 128) : BitRev₇ (BitRev₇ i) = i := by
-  decide +revert
-
 /- BitRev is injective. -/
-lemma BitRev_inj (b : ℕ) (i j : Fin (2 ^ b)) (hij : i ≠ j) : BitRev b i ≠ BitRev b j := by
-  intro h
-  have h' : BitRev b (BitRev b i) = BitRev b (BitRev b j) := congr_arg (BitRev b) h
-  simp [BitRev_inv] at h'
-  contradiction
+lemma BitRev_inj (b : ℕ) (i j : Fin (2 ^ b)) (hij : i ≠ j) : BitRev b i ≠ BitRev b j :=
+  fun h => hij (by rw [← BitRev_inv b i, ← BitRev_inv b j, h])
 
 
 /- Properties relating Bit Vectors of consecutive integers. -/
@@ -357,7 +298,6 @@ lemma BitRev_even_from_half (b : ℕ) (hb : b > 0) (i : Fin (2 ^ (b - 1))) :
     rw [← BitVec.getLsbD, BitVec.getLsbD_reverse, BitVec.getMsbD, BitVec.getLsbD_ofNat]
     simp [Nat.lt_of_lt_pred hj]
     grind
-
   -- Combine the results
   grind
 
@@ -373,14 +313,9 @@ namespace Poly
 
   noncomputable def one : Zq[X] := monomial 0 1
   noncomputable def ζ : Zq[X] := monomial 0 Zq.ζ
-  noncomputable def ζ_inv : Zq[X]:= monomial 0 (ZMod.inv Q Zq.ζ)
-
   theorem zeta_128_eq : ζ ^ 128 = - one := by
     simp only [one, ζ, monomial_pow]
     simp [Zq.zeta_128_eq]
-
-  theorem zeta_exp_p_128_eq (x : ℕ) : ζ ^ (x + 128) = - ζ ^ x := by
-    simp [pow_add ζ x 128, zeta_128_eq, one]
 
   /- # The Kyber ring Rq -/
   abbrev Rq := Zq[X] ⧸ Ideal.span {xn 256 + 1}
@@ -431,16 +366,12 @@ namespace Poly
     decide +revert
 
   lemma ζ_exp_not_eq (l : Fin 8) (i j : Fin (2 ^ l.val)) (hij : i ≠ j) : ζ_exp l i ≠ ζ_exp l j := by
-      intro h
-      simp only [ζ_exp] at h
-      have : (BitRev l i).val * x_exp l = (BitRev l j).val * x_exp l := by linarith
-      have : (BitRev l i).val = (BitRev l j).val := Nat.eq_of_mul_eq_mul_right (x_exp_pos l) this
-      have : BitRev l i = BitRev l j := Fin.ext this
-      exact BitRev_inj l i j hij this
+      intro h; simp only [ζ_exp] at h
+      exact BitRev_inj l i j hij (Fin.ext (Nat.eq_of_mul_eq_mul_right (x_exp_pos l) (by omega)))
 
   lemma ζ_exp_not_eq_mod (l : Fin 8) (i j : Fin (2 ^ l.val)) (hij : i ≠ j) : (ζ_exp l i) % 256 ≠ (ζ_exp l j) % 256 := by
-      have hi : ζ_exp l i < 256 := by convert ζ_exp_ubound l i
-      have hj : ζ_exp l j < 256 := by convert ζ_exp_ubound l j
+      have hi : ζ_exp l i < 256 := ζ_exp_ubound l i
+      have hj : ζ_exp l j < 256 := ζ_exp_ubound l j
       rw [Nat.mod_eq_of_lt hi, Nat.mod_eq_of_lt hj]
       exact ζ_exp_not_eq l i j hij
 
@@ -501,9 +432,8 @@ namespace Poly
         ZMod.inv_mul_of_unit d hd, C_1]
 
   /- Then the corresponding ideals are also coprime. -/
-  lemma Iq_coprime (l : Fin 8) (i j : Fin (2 ^ l.val)) (hij : i ≠ j): IsCoprime (Iq l i) (Iq l j) := by
-    simp only [Iq, Ideal.isCoprime_span_singleton_iff]
-    exact fq_coprime _ _ _ hij
+  lemma Iq_coprime (l : Fin 8) (i j : Fin (2 ^ l.val)) (hij : i ≠ j): IsCoprime (Iq l i) (Iq l j) :=
+    (Ideal.isCoprime_span_singleton_iff _ _).mpr (fq_coprime _ _ _ hij)
 
   /- Multiplying two fq polynomials at the same level l+1 and with consecutive indices
      2i and 2i+1 yields the polynomial at level l with index i.
@@ -566,7 +496,6 @@ namespace Poly
       have hk'_eq : k'.castSucc.val = k'.val := rfl
       have hk : k'.succ.val = k'.val + 1 := rfl
       -- Define intermediate level l' = l + k' (one level below l+k)
-      have hkval : k'.val + 1 < 8 - l.val := by simp only [hk] at hlk; exact hlk
       let l' : Fin 8 := ⟨l.val + k'.val, by omega⟩
       have hl' : l'.val < 7 := by simp only [l']; omega
 
@@ -615,10 +544,7 @@ namespace Poly
         convert hmul using 3 <;> ext <;> simp only [idx, idx', Fin.val_succ, Nat.pow_succ] <;> ring
 
       -- Apply induction hypothesis
-      have hlk' : k'.castSucc.val < 8 - l.val := by
-        simp only [hk'_eq]
-        have hk : k'.succ.val = k'.val + 1 := rfl
-        simp only [hk] at hlk; omega
+      have hlk' : k'.castSucc.val < 8 - l.val := by omega
       have h_ih := ih l i hlk'
 
       -- Final assembly
@@ -717,7 +643,7 @@ namespace Poly
       rw [Ideal.iInf_span_singleton]
       · have prod_eq : ∏ j : Fin (2 ^ k.val), fq ⟨l.val + k.val, by omega⟩ (idx j) = fq l i := by
           have h := fq_mul_k l i k hlk
-          convert h using 2
+          exact h
         rw [prod_eq]
       · intro j₁ j₂ hjk
         have h : IsCoprime (I j₁) (I j₂) := coprime hjk
@@ -829,8 +755,7 @@ namespace Poly
     have hChigh : (C c * high).degree ≤ high.degree := by
       calc (C c * high).degree
         ≤ (C c).degree + high.degree := Polynomial.degree_mul_le _ _
-        _ = 0 + high.degree := by rw [hC]
-        _ = high.degree := by simp
+        _ = high.degree := by simp [hC]
     constructor
     · calc (low + C c * high).degree
         ≤ max low.degree (C c * high).degree := Polynomial.degree_add_le _ _
@@ -993,8 +918,7 @@ namespace Poly
   /-- The first butterfly component maps to the same quotient class as f in the first child ring. -/
   lemma ntt_butterfly_poly_fst_eq_mod (l : Fin 8) (i : Fin (2 ^ l.val)) (hl : l.val < 7)
       (f : Zq[X]) (hf : f.degree ≤ (2 ^ (8 - l.val) - 1 : ℕ)) :
-      Ideal.Quotient.mk (Iq ⟨l.val + 1, by omega⟩ ⟨2 * i.val, by simp; omega⟩)
-        (ntt_butterfly_poly l i hl f hf).1 =
+      Ideal.Quotient.mk (Iq ⟨l.val + 1, by omega⟩ ⟨2 * i.val, by simp; omega⟩) (ntt_butterfly_poly l i hl f hf).1 =
       Ideal.Quotient.mk (Iq ⟨l.val + 1, by omega⟩ ⟨2 * i.val, by simp; omega⟩) f := by
     have := congr_arg (·.1) (ntt_butterfly_eq_crt l i hl f hf)
     simp only [ntt_butterfly] at this
@@ -1004,8 +928,7 @@ namespace Poly
   /-- The second butterfly component maps to the same quotient class as f in the second child ring. -/
   lemma ntt_butterfly_poly_snd_eq_mod (l : Fin 8) (i : Fin (2 ^ l.val)) (hl : l.val < 7)
       (f : Zq[X]) (hf : f.degree ≤ (2 ^ (8 - l.val) - 1 : ℕ)) :
-      Ideal.Quotient.mk (Iq ⟨l.val + 1, by omega⟩ ⟨2 * i.val + 1, by simp; omega⟩)
-        (ntt_butterfly_poly l i hl f hf).2 =
+      Ideal.Quotient.mk (Iq ⟨l.val + 1, by omega⟩ ⟨2 * i.val + 1, by simp; omega⟩) (ntt_butterfly_poly l i hl f hf).2 =
       Ideal.Quotient.mk (Iq ⟨l.val + 1, by omega⟩ ⟨2 * i.val + 1, by simp; omega⟩) f := by
     have := congr_arg (·.2) (ntt_butterfly_eq_crt l i hl f hf)
     simp only [ntt_butterfly] at this
@@ -1033,14 +956,7 @@ namespace Poly
       have hlk'_next : k' < 8 - (l.val + 1) := by grind
       let p1 := (ntt_butterfly_poly l i hl f hf).1
       let p2 := (ntt_butterfly_poly l i hl f hf).2
-      -- The butterfly splits at n = 2^(7-l.val), so results have degree < n
-      -- Need to show: degree < 2^(7-l.val) = 2^(8-(l.val+1))
-      -- So degree ≤ 2^(8-(l.val+1)) - 1
-      have deg_eq : 2 ^ (7 - l.val) = 2 ^ (8 - (l.val + 1)) := by grind
-      -- After poly_split at n = 2^(7-l.val), both components have degree < n
-      -- p1 = low + C twiddle * high, p2 = low - C twiddle * high
-      -- Since C is constant, degree remains < n = 2^(8-(l.val+1))
-      -- Thus degree ≤ 2^(8-(l.val+1)) - 1
+      -- The butterfly produces components with degree ≤ 2^(8-(l+1)) - 1
       have hf1 : p1.degree ≤ (2 ^ (8 - (l.val + 1)) - 1 : ℕ) :=
         ntt_butterfly_poly_fst_degree l i hl f hf
       have hf2 : p2.degree ≤ (2 ^ (8 - (l.val + 1)) - 1 : ℕ) :=
@@ -1140,12 +1056,6 @@ namespace Poly
     -- Use Ideal.Quotient.eq to show both sides are in the same equivalence class
     apply Ideal.Quotient.eq.mpr
     simp
-
-  /-- If two ideals are equal, then quotient maps produce equal results. -/
-  lemma quotient_mk_ideal_eq {R : Type*} [CommRing R] (I J : Ideal R) (h : I = J) (x : R) :
-      (Ideal.Quotient.mk I x : R ⧸ I) = h ▸ (Ideal.Quotient.mk J x : R ⧸ J) := by
-    subst h
-    rfl
 
   /-- Base case: When k=0, crtIq_k is a ring isomorphism to a product over Fin 1.
       For the unique element 0 : Fin 1, since 2^0 * i + 0 = i and l + 0 = l,
