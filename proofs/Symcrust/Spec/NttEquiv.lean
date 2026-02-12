@@ -62,6 +62,9 @@ namespace Zq
   lemma zeta_ne_one : ζ ≠ 1 := by trivial
   lemma zeta_ne_zero : ζ ≠ 0 := by trivial
 
+  lemma zeta_pow_ne_zero (k : ℕ) : ζ^k ≠ 0 := by
+    apply pow_ne_zero k zeta_ne_zero
+
   theorem zeta_isUnit : IsUnit ζ := by
     rw [isUnit_iff_ne_zero]
     exact zeta_ne_zero
@@ -111,7 +114,7 @@ namespace Zq
           apply diff_mod at hc
           contradiction
           apply h₀
-      have : ζ^k ≠ 0 := by apply pow_ne_zero k zeta_ne_zero
+      have : ζ^k ≠ 0 := zeta_pow_ne_zero k
       have : ζ^k * (ζ^(m-k) - 1) = 0 := by
         calc
           ζ^k * (ζ^(m-k) - 1 ) = ζ^(k + (m-k)) - ζ^k := by ring
@@ -139,7 +142,7 @@ namespace Zq
           ζ^m * (1-ζ^(k-m)) = ζ^m - ζ^(m + (k-m)) := by ring
           _ = ζ^m - ζ^k := by rw [hkm]
           _ = 0 := by exact hyp
-      have hzm : ζ^m ≠ 0 := by apply pow_ne_zero m zeta_ne_zero
+      have hzm : ζ^m ≠ 0 := zeta_pow_ne_zero m
       apply eq_zero_or_eq_zero_of_mul_eq_zero at this
       cases this with
       | inl ll => contradiction
@@ -195,7 +198,7 @@ lemma BitVec_reverse_reverse_eq {n : ℕ} (v : BitVec n) : v.reverse.reverse = v
 
 /- BitRev is its own inverse. -/
 lemma BitRev_inv (b : ℕ) (i : Fin (2 ^ b)) : BitRev b (BitRev b i) = i := by
-  simp [BitRev, BitVec_reverse_reverse_eq]
+  simp [BitRev]
 
 lemma BitRev₇_inv (i : Fin 128) : BitRev₇ (BitRev₇ i) = i := by
   decide +revert
@@ -296,7 +299,7 @@ lemma BitRev_odd_from_even (b : ℕ) (hb : b > 0) (i : Fin (2 ^ (b - 1))) :
       rw [BitVec.getLsbD_twoPow]
       simp [hb]
       simp [BitVec.carry]
-      rw [Nat.mod_eq_of_lt h_pow_lt]
+      rw [← Nat.pow_mod, Nat.mod_eq_of_lt h_pow_lt]
       simp [Nat.mod_self]
       exact Nat.mod_lt _ (Nat.pow_pos (by omega : 0 < 2))
     · omega
@@ -308,7 +311,7 @@ lemma BitRev_odd_from_even (b : ℕ) (hb : b > 0) (i : Fin (2 ^ (b - 1))) :
         grind
       have h_carry_zero : BitVec.carry j (BitVec.ofNat b (2 * i.val)).reverse (BitVec.twoPow b (b - 1)) false = false := by
         simp [BitVec.carry]
-        rw [Nat.mod_eq_of_lt h_pow_lt]
+        rw [← Nat.pow_mod, Nat.mod_eq_of_lt h_pow_lt]
         rw [Nat.dvd_iff_mod_eq_zero.mp (by apply Nat.pow_dvd_pow; omega : 2 ^ j ∣ 2 ^ (b - 1))]
         exact Nat.mod_lt _ (Nat.pow_pos (by omega : 0 < 2))
       simp only [h_twoPow_zero, h_carry_zero, Bool.xor_false]
@@ -621,6 +624,34 @@ namespace Poly
       -- Final assembly
       grind
 
+  /-- A polynomial `fq` at a descendant node divides the polynomial `fq` at an ancestor node
+      in the NTT decomposition tree. At level `l` and index `i`, the polynomial `fq l i` factors
+      as a product of `2^k` polynomials at level `l+k`. The `j`-th descendant divides `fq l i`. -/
+  lemma fq_dvd_ancestor (l : Fin 8) (i : Fin (2 ^ l.val)) (k : ℕ)
+      (hk : k < 8 - l.val) (j : Fin (2 ^ k)) :
+      fq ⟨l.val + k, by omega⟩ ⟨2 ^ k * i.val + j.val, by
+        calc 2 ^ k * i.val + j.val
+          < 2 ^ k * i.val + 2 ^ k := Nat.add_lt_add_left j.isLt _
+          _ = 2 ^ k * (i.val + 1) := by ring
+          _ ≤ 2 ^ k * 2 ^ l.val := Nat.mul_le_mul_left _ i.isLt
+          _ = 2 ^ (l.val + k) := by rw [← Nat.pow_add]; ring_nf⟩ ∣ fq l i := by
+    have h := fq_mul_k l i ⟨k, by omega⟩ hk
+    simp only [Fin.val_mk] at h
+    rw [← h]
+    exact Finset.dvd_prod_of_mem _ (Finset.mem_univ j)
+
+  /-- The ideal at an ancestor level is contained in the ideal at any descendant level.
+      This follows from the fact that the descendant's generator divides the ancestor's. -/
+  lemma Iq_le_descendant (l : Fin 8) (i : Fin (2 ^ l.val)) (k : ℕ)
+      (hk : k < 8 - l.val) (j : Fin (2 ^ k)) :
+      Iq l i ≤ Iq ⟨l.val + k, by omega⟩ ⟨2 ^ k * i.val + j.val, by
+        calc 2 ^ k * i.val + j.val
+          < 2 ^ k * i.val + 2 ^ k := Nat.add_lt_add_left j.isLt _
+          _ = 2 ^ k * (i.val + 1) := by ring
+          _ ≤ 2 ^ k * 2 ^ l.val := Nat.mul_le_mul_left _ i.isLt
+          _ = 2 ^ (l.val + k) := by rw [← Nat.pow_add]; ring_nf⟩ :=
+    Ideal.span_singleton_le_span_singleton.mpr (fq_dvd_ancestor l i k hk j)
+
   /-- The quotient ring at level l and index i is isomorphic
       to a product of 2 quotient rings at level l+1. -/
   noncomputable
@@ -775,7 +806,6 @@ namespace Poly
           ≤ (n - 1 : ℕ) := h_bound
           _ < n := by exact_mod_cast (Nat.sub_one_lt_of_lt (Nat.pos_of_ne_zero hn))
       · simp [Finset.not_nonempty_iff_eq_empty.mp he]
-        exact WithBot.bot_lt_coe n
     simp only [poly_split]
     exact ⟨aux (f.coeff ·), aux (fun i => f.coeff (i + n))⟩
 
@@ -827,7 +857,7 @@ namespace Poly
   def ntt_butterfly_poly (l : Fin 8) (i : Fin (2 ^ l.val)) (hl : l.val < 7) (f : Zq[X])
       (hf : f.degree ≤ (2 ^ (8 - l.val) - 1 : ℕ)) : Zq[X] × Zq[X] :=
     have : 2 * 2 ^ (7 - l.val) = 2 ^ (8 - l.val) := by ring_nf; rw [← Nat.pow_succ]; congr; omega
-    have hdeg : f.degree ≤ (2 * (2 ^ (7 - l.val)) - 1 : ℕ) := by grind
+    have hdeg : f.degree ≤ (2 * (2 ^ (7 - l.val)) - 1 : ℕ) := by rw [this]; exact hf
     let (low, high) := poly_split (2 ^ (7 - l.val)) f hdeg
     let exp := ζ_exp ⟨l.val + 1, by omega⟩ ⟨2 * i.val, by simp; omega⟩
     let twiddle := Zq.ζ ^ exp
@@ -903,7 +933,9 @@ namespace Poly
     have h4 : (7 - l.val) + l.val = 7 := by omega
     have h5 : 2 ^ (7 - l.val) * 2 ^ l.val = 128 := by rw [← Nat.pow_add, h4];
     have h6 : C Zq.ζ ^ 128 = C (Zq.ζ ^ 128) := by simp
-    have hf' : f.degree ≤ (2 * n - 1 : ℕ) := by grind
+    have hf' : f.degree ≤ (2 * n - 1 : ℕ) := by
+      calc f.degree ≤ (2 ^ (8 - l.val) - 1 : ℕ) := hf
+        _ = (2 * n - 1 : ℕ) := by rw [h2]
     have split_eq : f = low + Polynomial.X ^ n * high :=
       poly_split_eq n (by simp only [n]; apply Nat.one_le_two_pow) f hf'
 
@@ -958,6 +990,27 @@ namespace Poly
         _ = Ideal.Quotient.mk I₂ low + Ideal.Quotient.mk I₂ (-Polynomial.C twiddle) * Ideal.Quotient.mk I₂ high := by rw [Xn_eq_neg_twiddle]
         _ = Ideal.Quotient.mk I₂ (low - Polynomial.C twiddle * high) := by simp [map_mul]; ring
 
+  /-- The first butterfly component maps to the same quotient class as f in the first child ring. -/
+  lemma ntt_butterfly_poly_fst_eq_mod (l : Fin 8) (i : Fin (2 ^ l.val)) (hl : l.val < 7)
+      (f : Zq[X]) (hf : f.degree ≤ (2 ^ (8 - l.val) - 1 : ℕ)) :
+      Ideal.Quotient.mk (Iq ⟨l.val + 1, by omega⟩ ⟨2 * i.val, by simp; omega⟩)
+        (ntt_butterfly_poly l i hl f hf).1 =
+      Ideal.Quotient.mk (Iq ⟨l.val + 1, by omega⟩ ⟨2 * i.val, by simp; omega⟩) f := by
+    have := congr_arg (·.1) (ntt_butterfly_eq_crt l i hl f hf)
+    simp only [ntt_butterfly] at this
+    rw [crtIq_fst] at this
+    exact this
+
+  /-- The second butterfly component maps to the same quotient class as f in the second child ring. -/
+  lemma ntt_butterfly_poly_snd_eq_mod (l : Fin 8) (i : Fin (2 ^ l.val)) (hl : l.val < 7)
+      (f : Zq[X]) (hf : f.degree ≤ (2 ^ (8 - l.val) - 1 : ℕ)) :
+      Ideal.Quotient.mk (Iq ⟨l.val + 1, by omega⟩ ⟨2 * i.val + 1, by simp; omega⟩)
+        (ntt_butterfly_poly l i hl f hf).2 =
+      Ideal.Quotient.mk (Iq ⟨l.val + 1, by omega⟩ ⟨2 * i.val + 1, by simp; omega⟩) f := by
+    have := congr_arg (·.2) (ntt_butterfly_eq_crt l i hl f hf)
+    simp only [ntt_butterfly] at this
+    rw [crtIq_snd] at this
+    exact this
 
   /-! ### Generalization to a k-fold recursive application of the butterfly. -/
 
@@ -1037,7 +1090,25 @@ namespace Poly
       ⟩) poly
 
 
-  /-! ### Helper lemmas for CRT base case of the general theorem below. -/
+  /-! ### Helper lemmas for the general theorem below. -/
+
+  /-- `ntt_butterfly_k` is just `mk (ntt_butterfly_poly_k ...)`. This avoids unfolding
+      `ntt_butterfly_k` (which contains large `calc` proof terms) in downstream proofs. -/
+  lemma ntt_butterfly_k_eq_mk (l : Fin 8) (i : Fin (2 ^ l.val)) (k : Fin 8)
+      (hlk : k.val < 8 - l.val) (f : Zq[X])
+      (hf : f.degree ≤ (2 ^ (8 - l.val) - 1 : ℕ))
+      (j : Fin (2 ^ k.val)) :
+      ntt_butterfly_k l i k hlk f hf j =
+        Ideal.Quotient.mk (Iq ⟨l.val + k.val, by omega⟩ ⟨2 ^ k.val * i.val + j.val, by
+          have hj : j.val < 2 ^ k.val := j.prop
+          have hi : i.val < 2 ^ l.val := i.prop
+          calc 2 ^ k.val * i.val + j.val
+            _ < 2 ^ k.val * i.val + 2 ^ k.val := by omega
+            _ = (i.val + 1) * 2 ^ k.val := by ring
+            _ ≤ 2 ^ l.val * 2 ^ k.val := by apply Nat.mul_le_mul_right; omega
+            _ = 2 ^ (l.val + k.val) := by rw [← Nat.pow_add]⟩)
+          (ntt_butterfly_poly_k l i k hlk f hf j) := by
+    rfl
 
   /-- Two ideals Iq are equal if their level and index Fin values are equal. -/
   lemma Iq_fin_cast (l l' : Fin 8) (i : Fin (2 ^ l.val)) (i' : Fin (2 ^ l'.val))
@@ -1094,7 +1165,179 @@ namespace Poly
     simp [sub_self]
 
 
+  /-- Reindex an Iq ideal: for the first half (j < 2^k'), the flat index
+      `2^(k'+1) * i + j` at level `l + (k'+1)` equals the split index
+      `2^k' * (2*i) + j` at level `(l+1) + k'`. -/
+  lemma Iq_reindex_fst (l : Fin 8) (i : Fin (2 ^ l.val)) (k' : ℕ)
+      (hk : k' + 1 < 8 - l.val) (j : Fin (2 ^ (k' + 1)))
+      (hj : j.val < 2 ^ k') :
+      Iq ⟨l.val + (k' + 1), by omega⟩ ⟨2^(k'+1) * i.val + j.val, by
+            calc 2^(k'+1) * i.val + j.val
+              < 2^(k'+1) * i.val + 2^(k'+1) := Nat.add_lt_add_left j.isLt _
+              _ = 2^(k'+1) * (i.val + 1) := by ring
+              _ ≤ 2^(k'+1) * 2^l.val := Nat.mul_le_mul_left _ i.isLt
+              _ = 2^(l.val + (k' + 1)) := by rw [← Nat.pow_add]; ring_nf⟩ =
+          Iq ⟨(l.val + 1) + k', by omega⟩ ⟨2^k' * (2 * i.val) + j.val, by
+            calc 2^k' * (2 * i.val) + j.val
+              < 2^k' * (2 * i.val) + 2^k' := by omega
+              _ = 2^k' * (2 * i.val + 1) := by ring
+              _ ≤ 2^k' * 2^(l.val + 1) := by apply Nat.mul_le_mul_left; omega
+              _ = 2^((l.val + 1) + k') := by rw [← Nat.pow_add]; ring_nf⟩ := by
+    apply Iq_fin_cast <;> simp <;> ring
+
+  /-- Reindex an Iq ideal: for the second half (j ≥ 2^k'), the flat index
+      `2^(k'+1) * i + j` at level `l + (k'+1)` equals the split index
+      `2^k' * (2*i+1) + (j - 2^k')` at level `(l+1) + k'`. -/
+  lemma Iq_reindex_snd (l : Fin 8) (i : Fin (2 ^ l.val)) (k' : ℕ)
+      (hk : k' + 1 < 8 - l.val) (j : Fin (2 ^ (k' + 1)))
+      (hj : 2 ^ k' ≤ j.val) :
+      have hj_sub : j.val - 2^k' < 2^k' := by
+        have : 2^(k'+1) = 2 * 2^k' := by rw [Nat.pow_succ]; ring
+        omega
+      Iq ⟨l.val + (k' + 1), by omega⟩ ⟨2^(k'+1) * i.val + j.val, by
+            calc 2^(k'+1) * i.val + j.val
+              < 2^(k'+1) * i.val + 2^(k'+1) := Nat.add_lt_add_left j.isLt _
+              _ = 2^(k'+1) * (i.val + 1) := by ring
+              _ ≤ 2^(k'+1) * 2^l.val := Nat.mul_le_mul_left _ i.isLt
+              _ = 2^(l.val + (k' + 1)) := by rw [← Nat.pow_add]; ring_nf⟩ =
+          Iq ⟨(l.val + 1) + k', by omega⟩ ⟨2^k' * (2 * i.val + 1) + (j.val - 2^k'), by
+            calc 2^k' * (2 * i.val + 1) + (j.val - 2^k')
+              < 2^k' * (2 * i.val + 1) + 2^k' := by omega
+              _ = 2^k' * (2 * i.val + 2) := by ring
+              _ ≤ 2^k' * 2^(l.val + 1) := by apply Nat.mul_le_mul_left; omega
+              _ = 2^((l.val + 1) + k') := by rw [← Nat.pow_add]; ring_nf⟩ := by
+    apply Iq_fin_cast
+    · simp; ring
+    · simp
+      have h2k : 2^(k'+1) = 2 * 2^k' := by rw [Nat.pow_succ]; ring
+      simp only [h2k]; zify [hj]; ring
+
+
+  /-! ### Equation lemmas for ntt_butterfly_poly_k
+
+  These capture the result of unfolding the recursive `ntt_butterfly_poly_k` at successor
+  `k'+1` and resolving the `dif` branch. By proving these separately, the main CRT proofs
+  avoid inlining the large unfolded term, keeping kernel proof terms small. -/
+
+  /-- Equation lemma: `ntt_butterfly_poly_k` at `k'+1` for `j < 2^k'` equals the recursive
+      call on the first butterfly component. -/
+  private lemma ntt_butterfly_poly_k_succ_fst (l : Fin 8) (i : Fin (2 ^ l.val))
+      (k' : ℕ) (hk : k' + 1 < 8)
+      (hlk : k' + 1 < 8 - l.val) (f : Zq[X])
+      (hf : f.degree ≤ (2 ^ (8 - l.val) - 1 : ℕ))
+      (hl : l.val < 7) (hlk'_next : k' < 8 - (l.val + 1))
+      (j : Fin (2 ^ (k' + 1))) (hj : j.val < 2 ^ k') :
+      ntt_butterfly_poly_k l i ⟨k' + 1, hk⟩ hlk f hf j =
+        ntt_butterfly_poly_k ⟨l.val + 1, by omega⟩ ⟨2 * i.val, by simp; omega⟩
+          ⟨k', by omega⟩ hlk'_next
+          (ntt_butterfly_poly l i hl f hf).1
+          (ntt_butterfly_poly_fst_degree l i hl f hf)
+          ⟨j.val, by omega⟩ := by
+    conv_lhs => unfold ntt_butterfly_poly_k; dsimp only []
+    rw [dif_pos hj]
+
+  /-- Equation lemma: `ntt_butterfly_poly_k` at `k'+1` for `¬ j < 2^k'` equals the recursive
+      call on the second butterfly component. -/
+  private lemma ntt_butterfly_poly_k_succ_snd (l : Fin 8) (i : Fin (2 ^ l.val))
+      (k' : ℕ) (hk : k' + 1 < 8)
+      (hlk : k' + 1 < 8 - l.val) (f : Zq[X])
+      (hf : f.degree ≤ (2 ^ (8 - l.val) - 1 : ℕ))
+      (hl : l.val < 7) (hlk'_next : k' < 8 - (l.val + 1))
+      (j : Fin (2 ^ (k' + 1))) (hj : ¬ j.val < 2 ^ k') :
+      have hj_sub : j.val - 2^k' < 2^k' := by
+        have : 2^(k'+1) = 2 * 2^k' := by rw [Nat.pow_succ]; ring
+        omega
+      ntt_butterfly_poly_k l i ⟨k' + 1, hk⟩ hlk f hf j =
+        ntt_butterfly_poly_k ⟨l.val + 1, by omega⟩ ⟨2 * i.val + 1, by simp; omega⟩
+          ⟨k', by omega⟩ hlk'_next
+          (ntt_butterfly_poly l i hl f hf).2
+          (ntt_butterfly_poly_snd_degree l i hl f hf)
+          ⟨j.val - 2 ^ k', hj_sub⟩ := by
+    show ntt_butterfly_poly_k l i ⟨k' + 1, hk⟩ hlk f hf j = _
+    conv_lhs => unfold ntt_butterfly_poly_k; dsimp only []
+    rw [dif_neg hj]
+
+
   /-! ### General CRT theorem -/
+
+  /-- Case 1 of the k-fold CRT theorem: first half (j < 2^k'). -/
+  private lemma ntt_butterfly_k_eq_crt_fst (l : Fin 8) (i : Fin (2 ^ l.val))
+      (k' : ℕ) (hk : k' + 1 < 8)
+      (hlk : k' + 1 < 8 - l.val) (f : Zq[X])
+      (hf : f.degree ≤ (2 ^ (8 - l.val) - 1 : ℕ))
+      (hl : l.val < 7) (hlk'_next : k' < 8 - (l.val + 1))
+      (j : Fin (2 ^ (k' + 1))) (hj : j.val < 2 ^ k')
+      -- Induction hypothesis
+      (IH : ntt_butterfly_k ⟨l.val + 1, by omega⟩ ⟨2 * i.val, by simp; omega⟩
+              ⟨k', by omega⟩ hlk'_next
+              (ntt_butterfly_poly l i hl f hf).1
+              (ntt_butterfly_poly_fst_degree l i hl f hf) =
+            crtIq_k ⟨l.val + 1, by omega⟩ ⟨2 * i.val, by simp; omega⟩
+              ⟨k', by omega⟩ hlk'_next
+              (Ideal.Quotient.mk (Iq ⟨l.val + 1, by omega⟩ ⟨2 * i.val, by simp; omega⟩)
+                (ntt_butterfly_poly l i hl f hf).1)) :
+      ntt_butterfly_k l i ⟨k' + 1, hk⟩ hlk f hf j =
+        crtIq_k l i ⟨k' + 1, hk⟩ hlk (Ideal.Quotient.mk (Iq l i) f) j := by
+    have ideal_eq := Iq_reindex_fst l i k' (by omega) j hj
+    -- Prepare IH at the specific index
+    have IH_j := congr_fun IH ⟨j.val, by omega⟩
+    rw [ntt_butterfly_k_eq_mk, crtIq_k_mk_eval] at IH_j
+    -- Unfold LHS and RHS
+    rw [crtIq_k_mk_eval, ntt_butterfly_k_eq_mk,
+        ntt_butterfly_poly_k_succ_fst l i k' hk hlk f hf hl hlk'_next j hj]
+    -- Avoid quotient_mk_ideal_eq transport; decompose membership directly
+    apply Ideal.Quotient.eq.mpr
+    rw [ideal_eq]
+    have hsplit : ∀ (a b c : Zq[X]), a - c = (a - b) + (b - c) := fun a b c => by ring
+    rw [hsplit _ (ntt_butterfly_poly l i hl f hf).1 f]
+    exact Ideal.add_mem _
+      (Ideal.Quotient.eq.mp IH_j)
+      (Iq_le_descendant ⟨l.val + 1, by omega⟩ ⟨2 * i.val, by simp; omega⟩
+        k' (by omega) ⟨j.val, hj⟩
+        (Ideal.Quotient.eq.mp (ntt_butterfly_poly_fst_eq_mod l i hl f hf)))
+
+  /-- Case 2 of the k-fold CRT theorem: second half (j ≥ 2^k'). -/
+  private lemma ntt_butterfly_k_eq_crt_snd (l : Fin 8) (i : Fin (2 ^ l.val))
+      (k' : ℕ) (hk : k' + 1 < 8)
+      (hlk : k' + 1 < 8 - l.val) (f : Zq[X])
+      (hf : f.degree ≤ (2 ^ (8 - l.val) - 1 : ℕ))
+      (hl : l.val < 7) (hlk'_next : k' < 8 - (l.val + 1))
+      (j : Fin (2 ^ (k' + 1))) (hj : ¬ j.val < 2 ^ k')
+      -- Induction hypothesis
+      (IH : ntt_butterfly_k ⟨l.val + 1, by omega⟩ ⟨2 * i.val + 1, by simp; omega⟩
+              ⟨k', by omega⟩ hlk'_next
+              (ntt_butterfly_poly l i hl f hf).2
+              (ntt_butterfly_poly_snd_degree l i hl f hf) =
+            crtIq_k ⟨l.val + 1, by omega⟩ ⟨2 * i.val + 1, by simp; omega⟩
+              ⟨k', by omega⟩ hlk'_next
+              (Ideal.Quotient.mk (Iq ⟨l.val + 1, by omega⟩ ⟨2 * i.val + 1, by simp; omega⟩)
+                (ntt_butterfly_poly l i hl f hf).2)) :
+      ntt_butterfly_k l i ⟨k' + 1, hk⟩ hlk f hf j =
+        crtIq_k l i ⟨k' + 1, hk⟩ hlk (Ideal.Quotient.mk (Iq l i) f) j := by
+    have hj' : 2 ^ k' ≤ j.val := Nat.not_lt.mp hj
+    have hj_sub : j.val - 2^k' < 2^k' := by
+      have : 2^(k'+1) = 2 * 2^k' := by rw [Nat.pow_succ]; ring
+      omega
+    have ideal_eq := Iq_reindex_snd l i k' (by omega) j hj'
+    -- Prepare IH at the specific index
+    have IH_j := congr_fun IH ⟨j.val - 2 ^ k', hj_sub⟩
+    rw [ntt_butterfly_k_eq_mk, crtIq_k_mk_eval] at IH_j
+    -- Unfold LHS and RHS
+    rw [crtIq_k_mk_eval, ntt_butterfly_k_eq_mk,
+        ntt_butterfly_poly_k_succ_snd l i k' hk hlk f hf hl hlk'_next j hj]
+    -- Goal: mk Iq₁ (poly_k ... p2 ... ⟨j-2^k'⟩) = mk Iq₁ f
+    -- Avoid quotient_mk_ideal_eq transport; instead decompose membership directly
+    apply Ideal.Quotient.eq.mpr
+    rw [ideal_eq]
+    -- Goal: (poly_k ...) - f ∈ Iq₂
+    -- Split: (poly_k - p2) + (p2 - f), both in Iq₂
+    have hsplit : ∀ (a b c : Zq[X]), a - c = (a - b) + (b - c) := fun a b c => by ring
+    rw [hsplit _ (ntt_butterfly_poly l i hl f hf).2 f]
+    exact Ideal.add_mem _
+      (Ideal.Quotient.eq.mp IH_j)
+      (Iq_le_descendant ⟨l.val + 1, by omega⟩ ⟨2 * i.val + 1, by simp; omega⟩
+        k' (by omega) ⟨j.val - 2 ^ k', hj_sub⟩
+        (Ideal.Quotient.eq.mp (ntt_butterfly_poly_snd_eq_mod l i hl f hf)))
 
   /-- The k-fold butterfly operation agrees with the k-fold CRT isomorphism.
       This theorem shows that applying k recursive butterfly operations produces the same result
@@ -1103,289 +1346,23 @@ namespace Poly
       (hlk : k.val < 8 - l.val) (f : Zq[X])
       (hf : f.degree ≤ (2 ^ (8 - l.val) - 1 : ℕ)) :
       ntt_butterfly_k l i k hlk f hf = crtIq_k l i k hlk (Ideal.Quotient.mk (Iq l i) f) := by
-    -- Proof by induction on k
     match k with
     | ⟨0, _⟩ =>
-      -- Base case: k = 0
-      -- When k = 0, we have Fin 1 (singleton). Both sides are functions Fin 1 → quotient
-      ext j
-      fin_cases j  -- Only one case: j = 0
-      -- LHS: ntt_butterfly_k l i 0 hlk f hf 0
-      -- RHS: crtIq_k l i 0 hlk (mk (Iq l i) f) 0
+      ext j; fin_cases j
       simp only [ntt_butterfly_k, ntt_butterfly_poly_k]
-      -- Apply crtIq_k_zero_eval (symmetric version)
-      rw [← crtIq_k_zero_eval]
-      -- Now both sides should be equal
-      rfl
+      rw [← crtIq_k_zero_eval]; rfl
     | ⟨k' + 1, hk⟩ =>
-      -- Recursive case: apply butterfly once, then use IH on both results
-      simp at hlk
-      have hlk' : k' < 8 - l.val := by omega
+      have hlk' : k' + 1 < 8 - l.val := hlk
       have hl : l.val < 7 := by omega
       have hlk'_next : k' < 8 - (l.val + 1) := by omega
-
-      -- Recursive case: prove equality pointwise
       ext j
-
-      -- First, simplify LHS by unfolding ntt_butterfly_k
-      simp only [ntt_butterfly_k, ntt_butterfly_poly_k]
-
-      -- Use the general CRT evaluation lemma for the RHS
-      rw [crtIq_k_mk_eval]
-
-      -- The LHS splits into two cases based on j.val
-      split_ifs with hj
-      · -- Case 1: j.val < 2^k' (first half, uses p1 = first butterfly component)
-
-        -- Show the ideals are equal using index arithmetic
-        have ideal_eq : Iq ⟨l.val + (k' + 1), by omega⟩ ⟨2^(k'+1) * i.val + j.val, by
-              calc 2^(k'+1) * i.val + j.val
-                < 2^(k'+1) * i.val + 2^(k'+1) := Nat.add_lt_add_left j.isLt _
-                _ = 2^(k'+1) * (i.val + 1) := by ring
-                _ ≤ 2^(k'+1) * 2^l.val := Nat.mul_le_mul_left _ i.isLt
-                _ = 2^(l.val + (k' + 1)) := by rw [← Nat.pow_add]; ring_nf⟩ =
-            Iq ⟨(l.val + 1) + k', by omega⟩ ⟨2^k' * (2 * i.val) + j.val, by
-              have : j.val < 2^k' := hj
-              calc 2^k' * (2 * i.val) + j.val
-                < 2^k' * (2 * i.val) + 2^k' := by omega
-                _ = 2^k' * (2 * i.val + 1) := by ring
-                _ ≤ 2^k' * 2^(l.val + 1) := by apply Nat.mul_le_mul_left; omega
-                _ = 2^((l.val + 1) + k') := by rw [← Nat.pow_add]; ring_nf⟩ := by
-          apply Iq_fin_cast
-          · simp; ring
-          · simp; ring
-
-        -- Apply the induction hypothesis to the recursive call on p1
-        have IH := ntt_butterfly_k_eq_crt
-          ⟨l.val + 1, by omega⟩
-          ⟨2 * i.val, by simp; omega⟩
-          ⟨k', by omega⟩
-          hlk'_next
-          (ntt_butterfly_poly l i hl f hf).1
-          (ntt_butterfly_poly_fst_degree l i hl f hf)
-
-        have IH_at_j := congr_fun IH ⟨j.val, by omega⟩
-        simp only [ntt_butterfly_k] at IH_at_j
-
-        -- Use crtIq_k_mk_eval to simplify the RHS of IH_at_j
-        rw [crtIq_k_mk_eval] at IH_at_j
-
-        -- Transport LHS to match IH_at_j's ideal
-        rw [quotient_mk_ideal_eq _ _ ideal_eq]
-
-        -- Now we have: ideal_eq ▸ mk (ntt_butterfly_poly_k ... p1 ...) = mk p1
-        -- And IH_at_j: mk (ntt_butterfly_poly_k ... p1 ...) = mk p1
-        rw [IH_at_j]
-
-        -- Now goal is: ideal_eq ▸ mk (Iq ...) p1 = mk (Iq ...) f
-        -- Use ntt_butterfly_eq_crt to connect p1 to f
-        have butterfly_eq := ntt_butterfly_eq_crt l i hl f hf
-        have p1_eq : Ideal.Quotient.mk (Iq ⟨l.val + 1, by omega⟩ ⟨2 * i.val, by simp; omega⟩)
-                       (ntt_butterfly_poly l i hl f hf).1 =
-                     Ideal.Quotient.mk (Iq ⟨l.val + 1, by omega⟩ ⟨2 * i.val, by simp; omega⟩) f := by
-          have := congr_arg (·.1) butterfly_eq
-          simp only [ntt_butterfly] at this
-          rw [crtIq_fst] at this
-          exact this
-
-        -- Use Ideal.Quotient.eq: p1 ≡ f (mod Iq ⟨l+1, 2*i⟩)
-        -- We need: p1 ≡ f (mod Iq ⟨l+k'+1, 2^(k'+1)*i+j⟩)
-        -- Since Iq at level l+k'+1 divides Iq at level l+1, the result follows
-        rw [← quotient_mk_ideal_eq _ _ ideal_eq]
-        apply Ideal.Quotient.eq.mpr
-        have hp1f : (ntt_butterfly_poly l i hl f hf).1 - f ∈
-            Iq ⟨l.val + 1, by omega⟩ ⟨2 * i.val, by simp; omega⟩ :=
-          Ideal.Quotient.eq.mp p1_eq
-
-        -- The ideal at level (l+1)+k' divides the ideal at level l+1
-        -- because the polynomial X^n - ζ^m at level l+k'+1 divides the one at level l+1
-        -- Use the fact that Iq ⟨l+k'+1, ...⟩ ⊇ Iq ⟨l+1, 2*i⟩ (larger ideal at higher level)
-        -- Actually, it's the reverse: the finer ideal is contained in the coarser one
-        -- Iq ⟨l+1, 2*i⟩ ⊇ Iq ⟨l+k'+1, 2^(k'+1)*i+j⟩
-        -- So we need: Iq ⟨l+k'+1, ...⟩ ⊆ Iq ⟨l+1, ...⟩
-        -- This follows from fq_mul_k: fq l+1 (2*i) = ∏ fq (l+1+k') (2^k' * 2*i + j')
-        -- So fq (l+1+k') (2^k'*(2*i)+j) divides fq (l+1) (2*i)
-        -- Hence Ideal.span {fq ...} ⊇ Ideal.span {fq ...}
-        have h_ideal_le : Iq ⟨l.val + 1, by omega⟩ ⟨2 * i.val, by simp; omega⟩ ≤
-            Iq ⟨l.val + (k' + 1), by omega⟩
-              ⟨2^(k'+1) * i.val + j.val, by
-                calc 2^(k'+1) * i.val + j.val
-                  < 2^(k'+1) * i.val + 2^(k'+1) := Nat.add_lt_add_left j.isLt _
-                  _ = 2^(k'+1) * (i.val + 1) := by ring
-                  _ ≤ 2^(k'+1) * 2^l.val := Nat.mul_le_mul_left _ i.isLt
-                  _ = 2^(l.val + (k' + 1)) := by rw [← Nat.pow_add]; ring_nf⟩ := by
-          -- This follows from fq_mul_k: the product of fq's at level l+k'+1 equals fq at level l+1
-          simp only [Iq]
-          apply Ideal.span_singleton_le_span_singleton.mpr
-          -- Need to show fq at level l+k'+1 divides fq at level l+1
-          have h := fq_mul_k ⟨l.val + 1, by omega⟩ ⟨2 * i.val, by simp; omega⟩ ⟨k', by omega⟩
-            (by simp; omega)
-          simp only [Fin.val_mk] at h
-          -- h says ∏ fq ⟨l+1+k', ...⟩ (idx x) = fq ⟨l+1, ...⟩ ⟨2*i, ...⟩
-          -- We need: fq ⟨l+(k'+1), ...⟩ ⟨2^(k'+1)*i+j, ...⟩ ∣ fq ⟨l+1, ...⟩ ⟨2*i, ...⟩
-          rw [← h]
-          -- Now we need: fq ⟨l+(k'+1), ...⟩ ⟨2^(k'+1)*i+j, ...⟩ ∣ ∏ x, fq ⟨l+1+k', ...⟩ ⟨2^k'*(2*i)+x, ...⟩
-          -- The key: l+(k'+1) = l+1+k' and 2^(k'+1)*i+j = 2^k'*(2*i)+j when j < 2^k'
-          -- So fq ⟨l+(k'+1), ...⟩ ⟨2^(k'+1)*i+j, ...⟩ = fq ⟨l+1+k', ...⟩ ⟨2^k'*(2*i)+j, ...⟩
-          have fq_eq : fq ⟨l.val + (k' + 1), by omega⟩
-              ⟨2^(k'+1) * i.val + j.val, by
-                calc 2^(k'+1) * i.val + j.val
-                  < 2^(k'+1) * i.val + 2^(k'+1) := Nat.add_lt_add_left j.isLt _
-                  _ = 2^(k'+1) * (i.val + 1) := by ring
-                  _ ≤ 2^(k'+1) * 2^l.val := Nat.mul_le_mul_left _ i.isLt
-                  _ = 2^(l.val + (k' + 1)) := by rw [← Nat.pow_add]; ring_nf⟩ =
-              fq ⟨l.val + 1 + k', by omega⟩
-              ⟨2^k' * (2 * i.val) + j.val, by
-                calc 2^k' * (2 * i.val) + j.val
-                  < 2^k' * (2 * i.val) + 2^k' := by omega
-                  _ = 2^k' * (2 * i.val + 1) := by ring
-                  _ ≤ 2^k' * 2^(l.val + 1) := by apply Nat.mul_le_mul_left; omega
-                  _ = 2^((l.val + 1) + k') := by rw [← Nat.pow_add]; ring_nf⟩ := by
-            have hlvl : l.val + (k' + 1) = l.val + 1 + k' := by ring
-            have hidx : 2^(k'+1) * i.val + j.val = 2^k' * (2 * i.val) + j.val := by
-              have : 2^(k'+1) = 2 * 2^k' := by rw [Nat.pow_succ]; ring
-              grind
-            simp only [fq, xn, ζ_exp, x_exp, BitRev]
-            congr 2
-            · simp only [hlvl]
-            · simp only [Fin.val_mk, hlvl, hidx]
-              congr 2
-              congr 1
-              · exact congr_arg (2 ^ ·) hlvl
-              · rw [hlvl]
-          rw [fq_eq]
-          have hmem : (⟨j.val, hj⟩ : Fin (2^k')) ∈ Finset.univ := Finset.mem_univ _
-          have hdvd := Finset.dvd_prod_of_mem
-            (fun x : Fin (2^k') => fq ⟨l.val + 1 + k', by omega⟩
-              ⟨2^k' * (2 * i.val) + x.val, by
-                calc 2^k' * (2 * i.val) + x.val
-                  < 2^k' * (2 * i.val) + 2^k' := Nat.add_lt_add_left x.isLt _
-                  _ = 2^k' * (2 * i.val + 1) := by ring
-                  _ ≤ 2^k' * 2^(l.val + 1) := by apply Nat.mul_le_mul_left; omega
-                  _ = 2^((l.val + 1) + k') := by rw [← Nat.pow_add]; ring_nf⟩) hmem
-          exact hdvd
-        exact h_ideal_le hp1f
-
-      · -- Case 2: j.val >= 2^k' (second half, uses p2 = second butterfly component)
-        push_neg at hj
-
-        -- For the second half, the index is: 2^(k'+1) * i + j = 2^k' * (2*i + 1) + (j - 2^k')
-        have hj_lt : j.val < 2^(k'+1) := j.isLt
-        have hj_sub : j.val - 2^k' < 2^k' := by
-          have : 2^(k'+1) = 2 * 2^k' := by rw [Nat.pow_succ]; ring
-          omega
-
-        have ideal_eq : Iq ⟨l.val + (k' + 1), by omega⟩ ⟨2^(k'+1) * i.val + j.val, by
-              calc 2^(k'+1) * i.val + j.val
-                < 2^(k'+1) * i.val + 2^(k'+1) := Nat.add_lt_add_left j.isLt _
-                _ = 2^(k'+1) * (i.val + 1) := by ring
-                _ ≤ 2^(k'+1) * 2^l.val := Nat.mul_le_mul_left _ i.isLt
-                _ = 2^(l.val + (k' + 1)) := by rw [← Nat.pow_add]; ring_nf⟩ =
-            Iq ⟨(l.val + 1) + k', by omega⟩ ⟨2^k' * (2 * i.val + 1) + (j.val - 2^k'), by
-              calc 2^k' * (2 * i.val + 1) + (j.val - 2^k')
-                < 2^k' * (2 * i.val + 1) + 2^k' := by omega
-                _ = 2^k' * (2 * i.val + 2) := by ring
-                _ ≤ 2^k' * 2^(l.val + 1) := by apply Nat.mul_le_mul_left; omega
-                _ = 2^((l.val + 1) + k') := by rw [← Nat.pow_add]; ring_nf⟩ := by
-          apply Iq_fin_cast
-          · simp; ring
-          · simp
-            have h2k : 2^(k'+1) = 2 * 2^k' := by rw [Nat.pow_succ]; ring
-            grind
-
-        -- Apply the induction hypothesis to the recursive call on p2
-        have IH := ntt_butterfly_k_eq_crt
-          ⟨l.val + 1, by omega⟩
-          ⟨2 * i.val + 1, by simp; omega⟩
-          ⟨k', by omega⟩
-          hlk'_next
-          (ntt_butterfly_poly l i hl f hf).2
-          (ntt_butterfly_poly_snd_degree l i hl f hf)
-
-        have IH_at_j := congr_fun IH ⟨j.val - 2^k', hj_sub⟩
-        simp only [ntt_butterfly_k] at IH_at_j
-
-        -- Use crtIq_k_mk_eval to simplify the RHS of IH_at_j
-        rw [crtIq_k_mk_eval] at IH_at_j
-
-        -- Transport LHS to match IH_at_j's ideal
-        rw [quotient_mk_ideal_eq _ _ ideal_eq]
-
-        -- Now we have the equality from IH
-        rw [IH_at_j]
-
-        -- Use ntt_butterfly_eq_crt to connect p2 to f
-        have butterfly_eq := ntt_butterfly_eq_crt l i hl f hf
-        have p2_eq : Ideal.Quotient.mk (Iq ⟨l.val + 1, by omega⟩ ⟨2 * i.val + 1, by simp; omega⟩)
-                       (ntt_butterfly_poly l i hl f hf).2 =
-                     Ideal.Quotient.mk (Iq ⟨l.val + 1, by omega⟩ ⟨2 * i.val + 1, by simp; omega⟩) f := by
-          have := congr_arg (·.2) butterfly_eq
-          simp only [ntt_butterfly] at this
-          rw [crtIq_snd] at this
-          exact this
-
-        -- Use Ideal.Quotient.eq: p2 ≡ f (mod Iq ⟨l+1, 2*i+1⟩)
-        -- We need: p2 ≡ f (mod Iq ⟨l+k'+1, 2^(k'+1)*i+j⟩)
-        rw [← quotient_mk_ideal_eq _ _ ideal_eq]
-        apply Ideal.Quotient.eq.mpr
-        have hp2f : (ntt_butterfly_poly l i hl f hf).2 - f ∈
-            Iq ⟨l.val + 1, by omega⟩ ⟨2 * i.val + 1, by simp; omega⟩ :=
-          Ideal.Quotient.eq.mp p2_eq
-
-        have h_ideal_le : Iq ⟨l.val + 1, by omega⟩ ⟨2 * i.val + 1, by simp; omega⟩ ≤
-            Iq ⟨l.val + (k' + 1), by omega⟩
-              ⟨2^(k'+1) * i.val + j.val, by
-                calc 2^(k'+1) * i.val + j.val
-                  < 2^(k'+1) * i.val + 2^(k'+1) := Nat.add_lt_add_left j.isLt _
-                  _ = 2^(k'+1) * (i.val + 1) := by ring
-                  _ ≤ 2^(k'+1) * 2^l.val := Nat.mul_le_mul_left _ i.isLt
-                  _ = 2^(l.val + (k' + 1)) := by rw [← Nat.pow_add]; ring_nf⟩ := by
-          simp only [Iq]
-          apply Ideal.span_singleton_le_span_singleton.mpr
-          have h := fq_mul_k ⟨l.val + 1, by omega⟩ ⟨2 * i.val + 1, by simp; omega⟩ ⟨k', by omega⟩
-            (by simp only [Fin.val_mk]; omega)
-          simp only [Fin.val_mk] at h
-          rw [← h]
-          -- For Case 2: j >= 2^k', so the index in the product is (j - 2^k')
-          -- 2^(k'+1)*i + j = 2^k'*(2*i+1) + (j - 2^k')
-          have fq_eq : fq ⟨l.val + (k' + 1), by omega⟩
-              ⟨2^(k'+1) * i.val + j.val, by
-                calc 2^(k'+1) * i.val + j.val
-                  < 2^(k'+1) * i.val + 2^(k'+1) := Nat.add_lt_add_left j.isLt _
-                  _ = 2^(k'+1) * (i.val + 1) := by ring
-                  _ ≤ 2^(k'+1) * 2^l.val := Nat.mul_le_mul_left _ i.isLt
-                  _ = 2^(l.val + (k' + 1)) := by rw [← Nat.pow_add]; ring_nf⟩ =
-              fq ⟨l.val + 1 + k', by omega⟩
-              ⟨2^k' * (2 * i.val + 1) + (j.val - 2^k'), by
-                calc 2^k' * (2 * i.val + 1) + (j.val - 2^k')
-                  < 2^k' * (2 * i.val + 1) + 2^k' := by omega
-                  _ = 2^k' * (2 * i.val + 2) := by ring
-                  _ ≤ 2^k' * 2^(l.val + 1) := by apply Nat.mul_le_mul_left; omega
-                  _ = 2^((l.val + 1) + k') := by rw [← Nat.pow_add]; ring_nf⟩ := by
-            have hlvl : l.val + (k' + 1) = l.val + 1 + k' := by ring
-            have hidx : 2^(k'+1) * i.val + j.val = 2^k' * (2 * i.val + 1) + (j.val - 2^k') := by
-              have h2k : 2^(k'+1) = 2 * 2^k' := by rw [Nat.pow_succ]; ring
-              grind
-            simp only [fq, xn, ζ_exp, x_exp, BitRev]
-            congr 2
-            · simp only [hlvl]
-            · simp only [Fin.val_mk, hlvl, hidx]
-              congr 2
-              congr 1
-              · exact congr_arg (2 ^ ·) hlvl
-              · rw [hlvl]
-          rw [fq_eq]
-          have hmem : (⟨j.val - 2^k', hj_sub⟩ : Fin (2^k')) ∈ Finset.univ := Finset.mem_univ _
-          have hdvd := Finset.dvd_prod_of_mem
-            (fun x : Fin (2^k') => fq ⟨l.val + 1 + k', by omega⟩
-              ⟨2^k' * (2 * i.val + 1) + x.val, by
-                calc 2^k' * (2 * i.val + 1) + x.val
-                  < 2^k' * (2 * i.val + 1) + 2^k' := Nat.add_lt_add_left x.isLt _
-                  _ = 2^k' * (2 * i.val + 2) := by ring
-                  _ ≤ 2^k' * 2^(l.val + 1) := by apply Nat.mul_le_mul_left; omega
-                  _ = 2^((l.val + 1) + k') := by rw [← Nat.pow_add]; ring_nf⟩) hmem
-          exact hdvd
-        exact h_ideal_le hp2f
+      by_cases hj : j.val < 2 ^ k'
+      · exact ntt_butterfly_k_eq_crt_fst l i k' hk hlk' f hf hl hlk'_next j hj
+            (ntt_butterfly_k_eq_crt ⟨l.val + 1, by omega⟩ ⟨2 * i.val, by simp; omega⟩
+              ⟨k', by omega⟩ hlk'_next _ _)
+      · exact ntt_butterfly_k_eq_crt_snd l i k' hk hlk' f hf hl hlk'_next j hj
+            (ntt_butterfly_k_eq_crt ⟨l.val + 1, by omega⟩ ⟨2 * i.val + 1, by simp; omega⟩
+              ⟨k', by omega⟩ hlk'_next _ _)
 
 
 /-! # Algorithm 9 from the ML-KEM specification -/
@@ -1403,62 +1380,31 @@ namespace Poly
     pure f
 
 
-  /-! ## Specialized NTT for ML-KEM
+  /-! ## Specialized NTT and CRT for ML-KEM
 
-  We specialize the NTT to the ML-KEM parameters by fixing l=0, i=0, k=7.
-  This gives us a function that takes a polynomial f of degree ≤ 255 and produces
-  128 polynomials, each of degree ≤ 1, representing the images in the 128 quotient rings.
-
-  The structure follows `ntt_butterfly_poly_k` but with explicit parameters.
+  We specialize `ntt_butterfly_poly_k` and `crtIq_k` to the ML-KEM parameters l=0, i=0, k=7.
+  The NTT function takes a polynomial f of degree ≤ 255 and produces 128 polynomials.
+  The CRT isomorphism decomposes Rq into 128 quotient rings.
+  The equivalence theorem follows directly from `ntt_butterfly_k_eq_crt`.
   -/
 
-  /-- Apply NTT butterfly 7 times starting from level l, producing 2^(7-l) polynomials.
-      This is a specialized version of `ntt_butterfly_poly_k` for ML-KEM. -/
+  /-- The NTT for ML-KEM: takes a polynomial of degree ≤ 255 and produces 2^7 polynomials.
+      This is just `ntt_butterfly_poly_k` at l=0, i=0, k=7. -/
   noncomputable
-  def ntt_spec_aux (l : Fin 8) (i : Fin (2 ^ l.val)) (hl7 : l.val ≤ 7) (f : Zq[X])
-      (hf : f.degree ≤ (2 ^ (8 - l.val) - 1 : ℕ)) :
-      Fin (2 ^ (7 - l.val)) → Zq[X] :=
-    if hl : l.val = 7 then
-      -- Base case: l = 7, return single polynomial (2^0 = 1 output)
-      have h1 : 2 ^ (7 - l.val) = 1 := by simp [hl]
-      fun _ => f
-    else
-      -- Recursive case: l < 7, apply butterfly once, then recurse on both results
-      have hl_lt7 : l.val < 7 := Nat.lt_of_le_of_ne hl7 hl
-      have hl7_next : l.val + 1 ≤ 7 := by omega
-      let p1 := (ntt_butterfly_poly l i hl_lt7 f hf).1
-      let p2 := (ntt_butterfly_poly l i hl_lt7 f hf).2
-      have hf1 : p1.degree ≤ (2 ^ (8 - (l.val + 1)) - 1 : ℕ) :=
-        ntt_butterfly_poly_fst_degree l i hl_lt7 f hf
-      have hf2 : p2.degree ≤ (2 ^ (8 - (l.val + 1)) - 1 : ℕ) :=
-        ntt_butterfly_poly_snd_degree l i hl_lt7 f hf
-      let rec1 := ntt_spec_aux ⟨l.val + 1, by omega⟩ ⟨2 * i.val, by simp; omega⟩ hl7_next p1 hf1
-      let rec2 := ntt_spec_aux ⟨l.val + 1, by omega⟩ ⟨2 * i.val + 1, by simp; omega⟩ hl7_next p2 hf2
-      -- Output has 2^(7-l) elements, split into two halves of 2^(7-(l+1)) = 2^(6-l) each
-      have h_half : 2 ^ (7 - (l.val + 1)) = 2 ^ (6 - l.val) := by congr 1; omega
-      have h_total : 2 ^ (7 - l.val) = 2 * 2 ^ (6 - l.val) := by
-        have : 7 - l.val = (6 - l.val) + 1 := by omega
-        rw [this, Nat.pow_succ]; ring
-      fun j => if hj : j.val < 2 ^ (6 - l.val) then
-                 have hj' : j.val < 2 ^ (7 - (l.val + 1)) := by rw [h_half]; exact hj
-                 rec1 ⟨j.val, hj'⟩
-               else
-                 have hj_ge : 2 ^ (6 - l.val) ≤ j.val := Nat.not_lt.mp hj
-                 have hj_lt : j.val < 2 ^ (7 - l.val) := j.isLt
-                 have hj_sub : j.val - 2 ^ (6 - l.val) < 2 ^ (6 - l.val) := by
-                   have : j.val < 2 * 2 ^ (6 - l.val) := by rw [← h_total]; exact hj_lt
-                   omega
-                 have hj' : j.val - 2 ^ (6 - l.val) < 2 ^ (7 - (l.val + 1)) := by
-                   rw [h_half]; exact hj_sub
-                 rec2 ⟨j.val - 2 ^ (6 - l.val), hj'⟩
-  termination_by (7 - l.val)
+  def ntt_MLKEM (f : Zq[X]) (hf : f.degree ≤ 255) : Fin (2^7) → Zq[X] :=
+    have hf' : f.degree ≤ (2 ^ (8 - (0 : Fin 8).val) - 1 : ℕ) := by simp; exact hf
+    ntt_butterfly_poly_k (l := ⟨0, by omega⟩) (i := ⟨0, by simp⟩)
+      (k := ⟨7, by omega⟩) (hlk := by decide) (f := f) (hf := hf')
 
-  /-- The NTT for ML-KEM: takes a polynomial of degree ≤ 255 and produces 128 polynomials.
-      This applies 7 levels of butterfly operations starting from level 0. -/
-  noncomputable
-  def ntt_spec (f : Zq[X]) (hf : f.degree ≤ 255) : Fin 128 → Zq[X] :=
-    have hf' : f.degree ≤ (2^8 - 1 : ℕ) := by simp; exact hf
-    have h128 : 2^7 = 128 := by norm_num
-    h128 ▸ ntt_spec_aux ⟨0, by omega⟩ ⟨0, by simp⟩ (by omega) f hf'
+  /-- The specialized NTT agrees with the CRT decomposition: for any polynomial f of degree ≤ 255,
+      mapping each output polynomial into the appropriate quotient ring gives
+      the same result as applying the CRT isomorphism `crtIq_k 0 0 7` to [f] ∈ Rq.
+      This is a direct corollary of `ntt_butterfly_k_eq_crt`. -/
+  theorem ntt_MLKEM_eq_crt (f : Zq[X]) (hf : f.degree ≤ 255) (j : Fin (2^7)) :
+      ntt_butterfly_k ⟨0, by omega⟩ ⟨0, by simp⟩ ⟨7, by omega⟩ (by decide) f
+        (by simp; exact hf) j =
+      crtIq_k 0 0 7 (by decide) (Ideal.Quotient.mk (Iq 0 0) f) j := by
+    exact congr_fun (ntt_butterfly_k_eq_crt ⟨0, by omega⟩ ⟨0, by simp⟩
+      ⟨7, by omega⟩ (by decide) f (by simp; exact hf)) j
 
 end Poly
