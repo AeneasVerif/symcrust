@@ -3,6 +3,9 @@ import Symcrust.Code.Funs
 import Symcrust.Properties.Basic
 import Symcrust.Brute
 import Symcrust.Properties.SamplePolyCBD.Target2Proof
+/- We need the following import because otherwise a definition `Aeneas.Std.UScalarTy.enumToBitVec` gets
+   defined twice. I had no idea what's going on. -/
+import Symcrust.Properties.Ntt.Ntt
 
 /-!
 This file contains theorems about `Symcrust.Spec.samplePolyCBD` defined in Symcrust.Spec.Spec.lean.
