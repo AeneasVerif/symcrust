@@ -1097,7 +1097,7 @@ section
       fsimp at * -- TODO: remove this
       agrind
     . fsimp at * -- TODO: remove this
-      agrind
+      split_conjs <;> agrind
   termination_by 256 - i.val
   decreasing_by scalar_decr_tac
 
@@ -1195,21 +1195,11 @@ def poly_element_add_loop_spec
     let* ⟨ peDst1, peDst1_post ⟩ ← Array.update_spec -- TODO: by default it is wfArray_update
     let* ⟨ i7, i7_post ⟩ ← Usize.add_spec
     let* ⟨ peDst2, peDst2_post_1, peDst2_post_2, peDst2_post_3 ⟩ ← poly_element_add_loop_spec
-    -- TODO: this should be automated
-    fsimp at *
-    split_conjs
-    . intro j hj
-      simp_lists [peDst2_post_1, peDst1_post, Array.set_val_eq]
-    . intro j hj0 hj1
-      dcases hji : i.val = j
-      . fsimp [*]; scalar_tac
-      . simp_lists [peDst2_post_2]
-    . intro j hj0 hj1
-      dcases hji : i.val = j
-      . fsimp [*]
-      . simp_lists_scalar [peDst2_post_3]
-  . fsimp at *
-    split_conjs <;> intros <;> scalar_tac -- Contradiction
+    -- Post-condition
+    simp at *
+    split_conjs <;> agrind
+  . simp at *
+    split_conjs <;> agrind -- Contradiction
 termination_by 256 - i.val
 decreasing_by scalar_decr_tac
 
@@ -1245,21 +1235,11 @@ def poly_element_sub_loop_spec
     let* ⟨ peDst1, peDst1_post ⟩ ← Array.update_spec -- TODO: by default it is wfArray_update
     let* ⟨ i7, i7_post ⟩ ← Usize.add_spec
     let* ⟨ peDst2, peDst2_post_1, peDst2_post_2, peDst2_post_3 ⟩ ← poly_element_sub_loop_spec
-    -- TODO: this should be automated
-    fsimp at *
-    split_conjs
-    . intro j hj
-      simp_lists [peDst2_post_1, peDst1_post, Array.set_val_eq]
-    . intro j hj0 hj1
-      dcases hji : i.val = j
-      . fsimp [*]; scalar_tac
-      . simp_lists [peDst2_post_2]
-    . intro j hj0 hj1
-      dcases hji : i.val = j
-      . fsimp [*]
-      . simp_lists_scalar [peDst2_post_3]
-  . fsimp at *
-    split_conjs <;> intros <;> scalar_tac -- Contradiction
+    -- Post-condition
+    simp at *
+    split_conjs <;> agrind
+  . simp at *
+    split_conjs <;> agrind -- Contradiction
 termination_by 256 - i.val
 decreasing_by scalar_decr_tac
 
