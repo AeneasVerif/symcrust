@@ -75,31 +75,31 @@ theorem decode_coefficient.early_load_progress_spec (b : Aeneas.Std.Slice U8) (d
   (hn_bits_in_accumulator : n_bits_in_accumulator = 0#u32) :
     (do
           let a ← slice_to_sub_array4 b num_bytes_read
-          let accumulator1 ← ↑(core.num.U32.from_le_bytes a)
+          let accumulator1 ← lift (core.num.U32.from_le_bytes a)
           let cb_src_read1 ← num_bytes_read + 4#usize
           let n_bits_to_decode ← min d 32#u32
           massert (n_bits_to_decode ≤ 32#u32)
           let i ← 1#u32 <<< n_bits_to_decode
           let i1 ← i - 1#u32
-          let bits_to_decode ← ↑(accumulator1 &&& i1)
+          let bits_to_decode ← lift (accumulator1 &&& i1)
           let accumulator2 ← accumulator1 >>> n_bits_to_decode
           let n_bits_in_accumulator1 ← 32#u32 - n_bits_to_decode
-          let coefficient1 : UScalar UScalarTy.U32
-            ← ↑(UScalar.ofNat 0 (by decide : 0 ≤ UScalar.cMax UScalarTy.U32) ||| bits_to_decode)
+          let coefficient1
+            ← lift (UScalar.ofNat 0 (by decide : 0 ≤ UScalar.cMax UScalarTy.U32) ||| bits_to_decode)
           if d > n_bits_to_decode then do
               massert (n_bits_in_accumulator1 = 0#u32)
               let a1 ← slice_to_sub_array4 b cb_src_read1
-              let accumulator3 ← ↑(core.num.U32.from_le_bytes a1)
+              let accumulator3 ← lift (core.num.U32.from_le_bytes a1)
               let cb_src_read2 ← cb_src_read1 + 4#usize
               let n_bits_to_decode1 ← d - n_bits_to_decode
               massert (n_bits_to_decode1 ≤ 32#u32)
               let i2 ← 1#u32 <<< n_bits_to_decode1
               let i3 ← i2 - 1#u32
-              let bits_to_decode1 : UScalar UScalarTy.U32 ← ↑(accumulator3 &&& i3)
+              let bits_to_decode1 : UScalar UScalarTy.U32 ← lift (accumulator3 &&& i3)
               let accumulator4 ← accumulator3 >>> n_bits_to_decode1
               let n_bits_in_accumulator2 ← 32#u32 - n_bits_to_decode1
               let i4 ← bits_to_decode1 <<< n_bits_to_decode
-              let coefficient2 ← ↑(coefficient1 ||| i4)
+              let coefficient2 ← lift (coefficient1 ||| i4)
               ok (cb_src_read2, accumulator4, n_bits_in_accumulator2, coefficient2)
             else ok (cb_src_read1, accumulator2, n_bits_in_accumulator1, coefficient1))
     ⦃ num_bytes_read' acc' n_bits_in_accumulator' coefficient =>
@@ -124,7 +124,7 @@ theorem decode_coefficient.early_load_progress_spec (b : Aeneas.Std.Slice U8) (d
     (∀ j ∈ [n_bits_in_accumulator'.val:32], acc'.val.testBit j = false) ∧
     coefficient < Spec.m d ⦄ := by
   have hnum_bytes_read : ↑num_bytes_read + 3 < b.length := by
-    simp only [SpecAux.Stream.decode.length_inv, hn_bits_in_accumulator, UScalar.ofNat_val_eq,
+    simp only [SpecAux.Stream.decode.length_inv, hn_bits_in_accumulator, UScalar.ofNatCore_val_eq,
       add_zero, Nat.reduceMul, Nat.mod_eq_iff, OfNat.ofNat_ne_zero, mul_eq_zero, false_and,
       Nat.ofNat_pos, true_and, false_or] at hinv
     rcases hinv with ⟨hinv1, hinv2, ⟨k, hk⟩⟩
@@ -153,7 +153,7 @@ theorem decode_coefficient.early_load_progress_spec (b : Aeneas.Std.Slice U8) (d
       simp only [Bvify.UScalar.BitVec_ofNat_setWidth, UScalarTy.U8_numBits_eq, Bvify.U8.UScalar_bv,
         BitVec.setWidth_eq, List.slice_length, List.length_flatMap, List.length_cons,
         List.length_nil, zero_add, List.map_const', List.sum_replicate, smul_eq_mul, mul_one,
-        add_tsub_cancel_left, List.length_map, List.Vector.length_val, UScalar.ofNat_val_eq,
+        add_tsub_cancel_left, List.length_map, List.Vector.length_val, UScalar.ofNatCore_val_eq,
         inf_eq_right, lt_inf_iff, and_imp]
       constructor
       . scalar_tac
@@ -162,7 +162,7 @@ theorem decode_coefficient.early_load_progress_spec (b : Aeneas.Std.Slice U8) (d
         intro i _ hi
         rw [a_post i hi]
         rw [List.getElem!_slice] <;> simp_lists_scalar
-    simp only [Stream.decode.body, UScalar.ofNat_val_eq, BEq.rfl, ↓reduceIte, Nat.reduceMul,
+    simp only [Stream.decode.body, UScalar.ofNatCore_val_eq, BEq.rfl, ↓reduceIte, Nat.reduceMul,
       Stream.decode.pop_bits_from_acc, Stream.decode.load_acc, BitVec.natCast_eq_ofNat,
       List.bind_eq_flatMap, BitVec.setWidth'_eq, BitVec.ofNat_eq_ofNat,
       BitVec.shiftLeft_sub_one_eq_mod, BitVec.toNat_umod, BitVec.toNat_setWidth, Nat.reducePow,
@@ -260,17 +260,17 @@ theorem decode_coefficient.late_load_progress_spec (b : Aeneas.Std.Slice U8) (d 
     (do
           massert (n_bits_in_accumulator1 = 0#u32)
           let a ← slice_to_sub_array4 b num_bytes_read
-          let accumulator2 ← ↑(core.num.U32.from_le_bytes a)
+          let accumulator2 ← lift (core.num.U32.from_le_bytes a)
           let cb_src_read1 ← num_bytes_read + 4#usize
           let n_bits_to_decode1 ← d - n_bits_to_decode
           massert (n_bits_to_decode1 ≤ 32#u32)
           let i2 ← 1#u32 <<< n_bits_to_decode1
           let i3 ← i2 - 1#u32
-          let bits_to_decode1 ← @toResult U32 (accumulator2 &&& i3)
+          let bits_to_decode1 ← lift (accumulator2 &&& i3)
           let accumulator3 ← accumulator2 >>> n_bits_to_decode1
           let n_bits_in_accumulator2 ← 32#u32 - n_bits_to_decode1
           let i4 ← bits_to_decode1 <<< n_bits_to_decode
-          let coefficient2 : U32 ← ↑(coefficient1 ||| i4)
+          let coefficient2 : U32 ← lift (coefficient1 ||| i4)
           ok (cb_src_read1, accumulator3, n_bits_in_accumulator2, coefficient2))
     ⦃ num_bytes_read' acc' n_bits_in_accumulator' coefficient =>
     @SpecAux.Stream.decode.body d.val 4
@@ -318,7 +318,7 @@ theorem decode_coefficient.late_load_progress_spec (b : Aeneas.Std.Slice U8) (d 
     let* ⟨n_bits_in_accumulator2, hn_bits_in_accumulator2⟩ ← U32.sub_bv_spec
     let* ⟨i4, hi4⟩ ← U32.ShiftLeft_spec
     let* ⟨coefficient2, hcoefficient2⟩ ← UScalar.or_spec
-    simp only [UScalar.neq_to_neq_val, UScalar.ofNat_val_eq] at hn_bits_in_accumulator
+    simp only [UScalar.neq_to_neq_val, UScalar.ofNatCore_val_eq] at hn_bits_in_accumulator
     simp only [Array.getElem!_Nat_eq, Slice.getElem!_Nat_eq] at haccumulator1
     have hn_bits_in_accumulator' : ↑n_bits_in_accumulator < d.val := by scalar_tac
     have hmod_u32 : 1 <<< ↑n_bits_in_accumulator % U32.size = 1 <<< n_bits_in_accumulator.val := by
@@ -338,7 +338,7 @@ theorem decode_coefficient.late_load_progress_spec (b : Aeneas.Std.Slice U8) (d 
       simp only [Bvify.UScalar.BitVec_ofNat_setWidth, UScalarTy.U8_numBits_eq, Bvify.U8.UScalar_bv,
         BitVec.setWidth_eq, List.slice_length, List.length_flatMap, List.length_cons,
         List.length_nil, zero_add, List.map_const', List.sum_replicate, smul_eq_mul, mul_one,
-        add_tsub_cancel_left, List.length_map, List.Vector.length_val, UScalar.ofNat_val_eq,
+        add_tsub_cancel_left, List.length_map, List.Vector.length_val, UScalar.ofNatCore_val_eq,
         inf_eq_right, lt_inf_iff, and_imp]
       constructor
       . scalar_tac
@@ -354,7 +354,7 @@ theorem decode_coefficient.late_load_progress_spec (b : Aeneas.Std.Slice U8) (d 
       BitVec.shiftLeft_sub_one_eq_mod, tsub_self, Stream.decode.load_acc, List.bind_eq_flatMap,
       BitVec.setWidth'_eq, BitVec.toNat_or, BitVec.toNat_umod, UScalar.bv_toNat, BitVec.toNat_pow,
       BitVec.toNat_ofNat, Nat.reducePow, Nat.reduceMod, BitVec.toNat_shiftLeft,
-      BitVec.toNat_setWidth, UScalar.val_or, UScalar.ofNat_val_eq, UScalar.val_and, Nat.zero_or,
+      BitVec.toNat_setWidth, UScalar.val_or, UScalar.ofNatCore_val_eq, UScalar.val_and, Nat.zero_or,
       List.length_map, List.Vector.length_val, BitVec.toNat_cast, Vector.set_eq_set!,
       BitVec.ofNat_shiftRight_toNat, _root_.le_refl, BitVec.setWidth_ushiftRight,
       Stream.DecodeState.mk.injEq, and_true, true_and,
@@ -406,7 +406,7 @@ theorem decode_coefficient.late_load_progress_spec (b : Aeneas.Std.Slice U8) (d 
       . simp_lists
     . simp only [BitVec.setWidth, BitVec.setWidth']
       split
-      . simp only [List.length_map, List.Vector.length_val, UScalar.ofNat_val_eq, Nat.reduceMul,
+      . simp only [List.length_map, List.Vector.length_val, UScalar.ofNatCore_val_eq, Nat.reduceMul,
         _root_.le_refl, ↓reduceDIte]
         congr -- Difficult subgoals closed with `h4`
       . scalar_tac -- Derives a contradiction from the most recently introduced hypothesis
@@ -559,14 +559,14 @@ theorem decode_coefficient.no_load_progress_spec (b : Aeneas.Std.Slice U8) (d : 
             (∀ j ∈ [n_bits_in_accumulator'.val: 32], acc'.val.testBit j = false) ∧
               ↑coefficient < Spec.m ↑d ⦄ := by
   replace hd : d = n_bits_to_decode := by scalar_tac
-  simp only [UScalar.neq_to_neq_val, UScalar.ofNat_val_eq] at hn_bits_in_accumulator
+  simp only [UScalar.neq_to_neq_val, UScalar.ofNatCore_val_eq] at hn_bits_in_accumulator
   simp only [hd, left_eq_inf] at hn_bits_to_decode
   simp only [Stream.decode.body, beq_iff_eq, ↓reduceIte, inf_of_le_left, gt_iff_lt,
     lt_self_iff_false, Nat.reduceMul, BitVec.natCast_eq_ofNat, Bvify.UScalar.BitVec_ofNat_setWidth,
     UScalarTy.U32_numBits_eq, Bvify.U32.UScalar_bv, BitVec.setWidth_eq, Vector.set_eq_set!,
     Stream.DecodeState.mk.injEq, Slice.getElem!_Nat_eq, mem_std_range_step_one, and_imp, and_assoc,
     WP.spec_ok, WP.predn_pair, true_and, Nat.testBit_shiftRight, UScalar.val_or,
-    UScalar.ofNat_val_eq, UScalar.val_and, Nat.zero_or, tsub_le_iff_right, hn_bits_in_accumulator,
+    UScalar.ofNatCore_val_eq, UScalar.val_and, Nat.zero_or, tsub_le_iff_right, hn_bits_in_accumulator,
     hd, hn_bits_to_decode, haccumulator1_1, haccumulator1, hcoefficient1, hbits_to_decode, hi1, hi',
     hn_bits_in_accumulator1]
   split_conjs
@@ -634,26 +634,26 @@ theorem decode_coefficient.no_early_load_progress_spec (b : Aeneas.Std.Slice U8)
           massert (n_bits_to_decode ≤ n_bits_in_accumulator)
           let i ← 1#u32 <<< n_bits_to_decode
           let i1 ← i - 1#u32
-          let bits_to_decode : UScalar UScalarTy.U32 ← ↑(acc &&& i1)
+          let bits_to_decode : UScalar UScalarTy.U32 ← lift (acc &&& i1)
           let accumulator1 ← acc >>> n_bits_to_decode
           let n_bits_in_accumulator1 ← n_bits_in_accumulator - n_bits_to_decode
           let coefficient1 : UScalar UScalarTy.U32 ←
-            @HOr.hOr U32 (UScalar UScalarTy.U32) (UScalar UScalarTy.U32) instHOrUScalar
-              (UScalar.ofNat 0 (by decide)) bits_to_decode
+            lift (@HOr.hOr U32 (UScalar UScalarTy.U32) (UScalar UScalarTy.U32) instHOrUScalar
+                  (UScalar.ofNat 0 (by decide)) bits_to_decode)
           if d > n_bits_to_decode then do
               massert (n_bits_in_accumulator1 = 0#u32)
               let a ← slice_to_sub_array4 b num_bytes_read
-              let accumulator2 ← ↑(core.num.U32.from_le_bytes a)
+              let accumulator2 ← lift (core.num.U32.from_le_bytes a)
               let cb_src_read1 ← num_bytes_read + 4#usize
               let n_bits_to_decode1 ← d - n_bits_to_decode
               massert (n_bits_to_decode1 ≤ 32#u32)
               let i2 ← 1#u32 <<< n_bits_to_decode1
               let i3 ← i2 - 1#u32
-              let bits_to_decode1 : UScalar UScalarTy.U32 ← ↑(accumulator2 &&& i3)
+              let bits_to_decode1 : UScalar UScalarTy.U32 ← lift (accumulator2 &&& i3)
               let accumulator3 ← accumulator2 >>> n_bits_to_decode1
               let n_bits_in_accumulator2 ← 32#u32 - n_bits_to_decode1
               let i4 ← bits_to_decode1 <<< n_bits_to_decode
-              let coefficient2 ← ↑(coefficient1 ||| i4)
+              let coefficient2 ← lift (coefficient1 ||| i4)
               ok (cb_src_read1, accumulator3, n_bits_in_accumulator2, coefficient2)
             else ok (num_bytes_read, accumulator1, n_bits_in_accumulator1, coefficient1))
       ⦃ num_bytes_read' acc' n_bits_in_accumulator' coefficient =>
@@ -750,7 +750,7 @@ def decompress_coefficient.progress_spec (i : Usize) (d : U32) (coefficient : U3
   split
   . next hd =>
     let* ⟨i1, hi1⟩ ← U32.mul_spec
-    . simp only [UScalar.lt_equiv, UScalar.ofNat_val_eq] at hd
+    . simp only [UScalar.lt_equiv, UScalar.ofNatCore_val_eq] at hd
       simp only [Spec.m, hd, ↓reduceIte] at hcoefficient
       have : coefficient.val < 2^12 := Nat.lt_trans hcoefficient (by scalar_tac +nonLin)
       simp_scalar
@@ -761,21 +761,21 @@ def decompress_coefficient.progress_spec (i : Usize) (d : U32) (coefficient : U3
         have : i1.val >>> i2.val ≤ i1.val := Nat.shiftRight_le ↑i1 ↑i2
         scalar_tac
       . let* ⟨coefficient4, h4⟩ ← U32.ShiftRight_IScalar_spec
-        simp only [UScalar.lt_equiv, UScalar.ofNat_val_eq] at hd
+        simp only [UScalar.lt_equiv, UScalar.ofNatCore_val_eq] at hd
         have : coefficient4 < Q := by
-          simp only [Q.eq, UScalar.lt_equiv, UScalar.ofNat_val_eq]
+          simp only [Q.eq, UScalar.lt_equiv, UScalar.ofNatCore_val_eq]
           rw [h4, h3, h2, hi1, hi2]
           tlet x := coefficient.val
           tlet y := d.val
           have hx : x < 2^y := by simp_all [Spec.m]
-          simp only [Q.eq, UScalar.ofNat_val_eq, gt_iff_lt]
+          simp only [Q.eq, UScalar.ofNatCore_val_eq, gt_iff_lt]
           have : ∀ y < 12, ∀ x < 2^y, ((x * 3329) >>> (y - 1) + 1) >>> 1 < 3329 := by brute
           exact this y hd x hx
         progress with massert_spec
         let* ⟨i3, hi3⟩ ← UScalar.cast_inBounds_spec
         let* ⟨pe_dst1, hpe_dst1⟩ ← Array.update_spec
         simp only [Spec.Q, exists_and_left, h4, h3, h2, hi1, Q.eq,
-          UScalar.ofNat_val_eq, hi2]
+          UScalar.ofNatCore_val_eq, hi2]
         constructor
         . tlet x := coefficient.val
           tlet y := d.val

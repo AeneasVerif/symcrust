@@ -53,8 +53,8 @@ theorem wfArray_update {n : Usize} (v : Std.Array U16 n) (i : Usize) (x : U16)
   (hWf : wfArray v) :
   v.update i x ⦃ nv => nv = v.set i x ∧ wfArray nv ⦄:= by
   progress as ⟨ nv, hnv ⟩
-  fsimp [wfArray] at *
-  fsimp [hnv, toResult]
+  simp [wfArray] at *
+  simp [hnv]
   intro j hj
   dcases hLt : j = i.val <;> fsimp [*]
 
@@ -73,33 +73,33 @@ theorem wfArray_iff_forAll {n : Usize} (a : Std.Array U16 n) : wfArray a ↔ a.v
     List.getElem?_eq_getElem, Option.getD_some, List.all_eq_true, decide_eq_true_eq, ←
     List.forall_getElem]
 
-@[simp, scalar_tac_simps, bvify_simps, grind =] theorem Q.eq : Q = 3329#u32 := by simp [global_simps]
-@[simp, scalar_tac_simps, bvify_simps, grind =] theorem NEG_Q_INV_MOD_R.eq : NEG_Q_INV_MOD_R = 3327#u32 := by simp [global_simps]
-@[simp, scalar_tac_simps, bvify_simps, grind =] theorem RMASK.eq : RMASK = 65535#u32 := by simp [global_simps]
-@[simp, scalar_tac_simps, bvify_simps, grind =] theorem RLOG2.eq : RLOG2 = 16#u32 := by simp [global_simps]
-@[simp, scalar_tac_simps, bvify_simps, grind =] theorem RSQR.eq : RSQR = 1353#u32 := by simp [global_simps]
-@[simp, scalar_tac_simps, bvify_simps, grind =] theorem RSQR_TIMES_NEG_Q_INV_MOD_R.eq : RSQR_TIMES_NEG_Q_INV_MOD_R = 44983#u32 := by simp [global_simps]
+@[simp, scalar_tac_simps, bvify_simps, grind =, agrind =] theorem Q.eq : Q = 3329#u32 := by simp [global_simps]
+@[simp, scalar_tac_simps, bvify_simps, grind =, agrind =] theorem NEG_Q_INV_MOD_R.eq : NEG_Q_INV_MOD_R = 3327#u32 := by simp [global_simps]
+@[simp, scalar_tac_simps, bvify_simps, grind =, agrind =] theorem RMASK.eq : RMASK = 65535#u32 := by simp [global_simps]
+@[simp, scalar_tac_simps, bvify_simps, grind =, agrind =] theorem RLOG2.eq : RLOG2 = 16#u32 := by simp [global_simps]
+@[simp, scalar_tac_simps, bvify_simps, grind =, agrind =] theorem RSQR.eq : RSQR = 1353#u32 := by simp [global_simps]
+@[simp, scalar_tac_simps, bvify_simps, grind =, agrind =] theorem RSQR_TIMES_NEG_Q_INV_MOD_R.eq : RSQR_TIMES_NEG_Q_INV_MOD_R = 44983#u32 := by simp [global_simps]
 
-@[simp, scalar_tac_simps, bvify_simps, grind =]
+@[simp, scalar_tac_simps, bvify_simps, grind =, agrind =]
 theorem key.MLWE_POLYNOMIAL_COEFFICIENTS_eq : key.MLWE_POLYNOMIAL_COEFFICIENTS.val = 256 := by simp [global_simps]
 
-@[simp, grind =] theorem NEG_Q_INV_MOD_R.bv_eq : NEG_Q_INV_MOD_R.bv = 3327#32 := by simp [global_simps]
-@[simp, grind =] theorem RMASK.bv_eq : RMASK.bv = 65535#32 := by simp [global_simps]
-@[simp, grind =] theorem RLOG2.bv_eq : RLOG2.bv = 16#32 := by simp [global_simps]
-@[simp, grind =] theorem RSQR.bv_eq : RSQR.bv = 1353#32 := by simp [global_simps]
-@[simp, grind =] theorem RSQR_TIMES_NEG_Q_INV_MOD_R.bv_eq : RSQR_TIMES_NEG_Q_INV_MOD_R.bv = 44983#32 := by simp [global_simps]
-@[simp, grind =] theorem INTT_FIXUP_TIMES_RSQR.eq : INTT_FIXUP_TIMES_RSQR.val = 1441 := by simp [global_simps]
-@[simp, grind =] theorem INTT_FIXUP_TIMES_RSQR.bv_eq : INTT_FIXUP_TIMES_RSQR.bv = 1441#32 := by simp [global_simps]
+@[simp, grind =, agrind =] theorem NEG_Q_INV_MOD_R.bv_eq : NEG_Q_INV_MOD_R.bv = 3327#32 := by simp [global_simps]
+@[simp, grind =, agrind =] theorem RMASK.bv_eq : RMASK.bv = 65535#32 := by simp [global_simps]
+@[simp, grind =, agrind =] theorem RLOG2.bv_eq : RLOG2.bv = 16#32 := by simp [global_simps]
+@[simp, grind =, agrind =] theorem RSQR.bv_eq : RSQR.bv = 1353#32 := by simp [global_simps]
+@[simp, grind =, agrind =] theorem RSQR_TIMES_NEG_Q_INV_MOD_R.bv_eq : RSQR_TIMES_NEG_Q_INV_MOD_R.bv = 44983#32 := by simp [global_simps]
+@[simp, grind =, agrind =] theorem INTT_FIXUP_TIMES_RSQR.eq : INTT_FIXUP_TIMES_RSQR.val = 1441 := by simp [global_simps]
+@[simp, grind =, agrind =] theorem INTT_FIXUP_TIMES_RSQR.bv_eq : INTT_FIXUP_TIMES_RSQR.bv = 1441#32 := by simp [global_simps]
 
-@[simp, grind =] theorem INTT_FIXUP_TIMES_RSQR_TIMES_NEQ_Q_INV_MOD_R.bv_eq : INTT_FIXUP_TIMES_RSQR_TIMES_NEQ_Q_INV_MOD_R.bv = 10079#32 := by simp [global_simps]
+@[simp, grind =, agrind =] theorem INTT_FIXUP_TIMES_RSQR_TIMES_NEQ_Q_INV_MOD_R.bv_eq : INTT_FIXUP_TIMES_RSQR_TIMES_NEQ_Q_INV_MOD_R.bv = 10079#32 := by simp [global_simps]
 
-attribute [simp, scalar_tac_simps, bvify_simps, grind] Spec.Q
+attribute [simp, scalar_tac_simps, bvify_simps, grind, agrind] Spec.Q
 
 -- TODO: macro for this
-@[simp, scalar_tac_simps, bvify_simps, grind =]
+@[simp, scalar_tac_simps, bvify_simps, grind =, agrind =]
 theorem COMPRESS_MULCONSTANT.spec : COMPRESS_MULCONSTANT.val = 10321339 := by prove_eval_global
 
-@[simp, scalar_tac_simps, bvify_simps, grind =]
+@[simp, scalar_tac_simps, bvify_simps, grind =, agrind =]
 theorem COMPRESS_SHIFTCONSTANT.spec : COMPRESS_SHIFTCONSTANT.val = 35 := by prove_eval_global
 
 def to_bytes (b : Slice U8) : List Byte :=
@@ -124,6 +124,7 @@ theorem to_bytes_length (b : Slice U8) : (to_bytes b).length = b.length := by
   simp only [to_bytes, List.length_map, Slice.length]
 
 grind_pattern to_bytes_length => to_bytes b
+grind_pattern [agrind] to_bytes_length => to_bytes b
 
 @[simp, simp_lists_simps]
 theorem to_bytes_setSlice! {b : Slice U8} (i : Usize) (s : List U8) :

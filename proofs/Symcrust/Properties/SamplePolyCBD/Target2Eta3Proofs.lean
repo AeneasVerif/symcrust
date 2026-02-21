@@ -165,7 +165,7 @@ theorem Target2.samplePolyCBD.eta3_loop.spec.aux0 (s : samplePolyCBDState)
     hBytesToBits 3 (by omega), hBytesToBits 4 (by omega), Nat.add_assoc,
     hBytesToBits 5 (by omega)]
   unfold inner_loop.next_coefficient
-  simp only [BitVec.ofNat_eq_ofNat, ntt.Q.eq, UScalar.ofNat_val_eq, Nat.cast_ofNat,
+  simp only [BitVec.ofNat_eq_ofNat, ntt.Q.eq, UScalar.ofNatCore_val_eq, Nat.cast_ofNat,
     BitVec.toNat_add, BitVec.toNat_sub, Nat.reducePow, BitVec.toNat_ushiftRight,
     BitVec.toNat_and, BitVec.toNat_setWidth, BitVec.toNat_ofNat, Nat.reduceMod,
     Nat.mod_add_mod]
@@ -323,7 +323,7 @@ theorem Target2.samplePolyCBD.eta3_loop.spec.aux1 {s : samplePolyCBDState}
       hBytesToBits (s.src_i + 1) (by scalar_tac) 2 (by omega),
       hBytesToBits (s.src_i + 1) (by scalar_tac) 3 (by omega)]
   unfold inner_loop.next_coefficient
-  simp only [BitVec.ofNat_eq_ofNat, ntt.Q.eq, UScalar.ofNat_val_eq, Nat.cast_ofNat,
+  simp only [BitVec.ofNat_eq_ofNat, ntt.Q.eq, UScalar.ofNatCore_val_eq, Nat.cast_ofNat,
     BitVec.toNat_add, BitVec.toNat_sub, Nat.reducePow, BitVec.toNat_ushiftRight,
     BitVec.toNat_and, BitVec.toNat_setWidth, BitVec.toNat_ofNat, Nat.reduceMod,
     Nat.mod_add_mod]
@@ -518,7 +518,7 @@ theorem Target2.samplePolyCBD.eta3_loop.spec.aux2 {s : samplePolyCBDState}
       hBytesToBits (s.src_i + 2) (by scalar_tac) 0 (by omega),
       hBytesToBits (s.src_i + 2) (by scalar_tac) 1 (by omega)]
   unfold inner_loop.next_coefficient
-  simp only [BitVec.ofNat_eq_ofNat, ntt.Q.eq, UScalar.ofNat_val_eq, Nat.cast_ofNat,
+  simp only [BitVec.ofNat_eq_ofNat, ntt.Q.eq, UScalar.ofNatCore_val_eq, Nat.cast_ofNat,
     BitVec.toNat_add, BitVec.toNat_sub, Nat.reducePow, BitVec.toNat_ushiftRight,
     BitVec.toNat_and, BitVec.toNat_setWidth, BitVec.toNat_ofNat, Nat.reduceMod,
     Nat.mod_add_mod]
@@ -719,7 +719,7 @@ theorem Target2.samplePolyCBD.eta3_loop.spec.aux3 {s : samplePolyCBDState}
       hBytesToBits (s.src_i + 2) (by scalar_tac) 6 (by omega),
       hBytesToBits (s.src_i + 2) (by scalar_tac) 7 (by omega)]
   unfold inner_loop.next_coefficient
-  simp only [BitVec.ofNat_eq_ofNat, ntt.Q.eq, UScalar.ofNat_val_eq, Nat.cast_ofNat,
+  simp only [BitVec.ofNat_eq_ofNat, ntt.Q.eq, UScalar.ofNatCore_val_eq, Nat.cast_ofNat,
     BitVec.toNat_add, BitVec.toNat_sub, Nat.reducePow, BitVec.toNat_ushiftRight,
     BitVec.toNat_and, BitVec.toNat_setWidth, BitVec.toNat_ofNat, Nat.reduceMod,
     Nat.mod_add_mod]
@@ -847,7 +847,7 @@ def Target2.samplePolyCBD.eta3_loop.spec {s : Target2.samplePolyCBDState}
   (i : ℕ) (hi : i < 256) (hη : s.η.1 = 3) : (eta3_loop s)[i]! = (Target.samplePolyCBD BVector)[i]! := by
   unfold eta3_loop
   split
-  . simp only [UScalar.ofNat_val_eq, Nat.cast_ofNat, BitVec.ofNat_eq_ofNat, BitVec.setWidth'_eq]
+  . simp only [UScalar.ofNatCore_val_eq, Nat.cast_ofNat, BitVec.ofNat_eq_ofNat, BitVec.setWidth'_eq]
     apply eta3_loop.spec
     . simp only [hBVector]
     . intro j hj1
@@ -896,7 +896,7 @@ def Target2.samplePolyCBD.eta3_loop.spec {s : Target2.samplePolyCBDState}
     . simp [hη]
   . next hi2 =>
     simp only [key.MLWE_POLYNOMIAL_COEFFICIENTS, eval_global, key.MLWE_POLYNOMIAL_COEFFICIENTS_body,
-      UScalar.ofNat_val_eq, not_lt] at hi2
+      UScalar.ofNatCore_val_eq, not_lt] at hi2
     exact hs1 i (by omega)
 termination_by ↑key.MLWE_POLYNOMIAL_COEFFICIENTS - s.i
 decreasing_by scalar_tac

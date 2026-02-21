@@ -18,9 +18,9 @@ set_option maxHeartbeats 10000000
 set_option maxRecDepth 2048
 set_option linter.dupNamespace false -- This option is needed because `Ntt.lean` is in an `Ntt` directory
 
-@[local simp, local grind =] theorem bv_and_65535_eq_mod (x : BitVec 32) : x &&& 65535#32 = x % 65536#32 := by bv_decide
-@[local simp, local grind =] theorem bv_shift_16_eq_div (x : BitVec 32) : x >>> 16 = x / 65536#32 := by bv_decide
-@[local simp, local grind =] theorem nat_and_65535_eq_mod (x : Nat) : x &&& 65535 = x % 65536 := by apply Nat.and_two_pow_sub_one_eq_mod x 16
+@[local simp, local grind =, agrind =] theorem bv_and_65535_eq_mod (x : BitVec 32) : x &&& 65535#32 = x % 65536#32 := by bv_decide
+@[local simp, local grind =, agrind =] theorem bv_shift_16_eq_div (x : BitVec 32) : x >>> 16 = x / 65536#32 := by bv_decide
+@[local simp, local grind =, agrind =] theorem nat_and_65535_eq_mod (x : Nat) : x &&& 65535 = x % 65536 := by apply Nat.and_two_pow_sub_one_eq_mod x 16
 
 -- TODO: remove those simps
 @[local simp]
@@ -72,11 +72,11 @@ namespace ntt
 def mod_reduce' (a : U32) : Result U32 := do
   let i ← 2#u32 * ntt.Q
   massert (a < i)
-  let res ← (↑(core.num.U32.wrapping_sub a ntt.Q) : Result U32)
+  let res ← lift (core.num.U32.wrapping_sub a ntt.Q)
   let i1 ← res >>> 16#i32
   massert (i1 = 0#u32 || i1 = 65535#u32)
-  let i2 ← (↑(ntt.Q &&& i1) : Result U32)
-  let res1 ← (↑(core.num.U32.wrapping_add res i2) : Result U32)
+  let i2 ← lift (ntt.Q &&& i1)
+  let res1 ← lift (core.num.U32.wrapping_add res i2)
   massert (res1 < ntt.Q)
   ok res1
 
@@ -113,11 +113,11 @@ theorem mod_add_spec (a : U32) (b : U32)
 def mod_sub' (a : U32) (b : U32) : Result U32 := do
   massert (a < ntt.Q)
   massert (b < ntt.Q)
-  let res ← (↑(core.num.U32.wrapping_sub a b) : Result U32)
+  let res ← lift (core.num.U32.wrapping_sub a b)
   let i ← res >>> 16#i32
   massert (i = 0#u32 || i = 65535#u32)
-  let i1 ← (↑(ntt.Q &&& i) : Result U32)
-  let res1 ← (↑(core.num.U32.wrapping_add res i1) : Result U32)
+  let i1 ← lift (ntt.Q &&& i)
+  let res1 ← lift (core.num.U32.wrapping_add res i1)
   massert (res1 < ntt.Q)
   ok res1
 
@@ -256,6 +256,7 @@ theorem mont_mul_twiddle_spec (k : Usize) (c : U32) (twiddleFactor : U32) (twidd
   mont_mul c twiddleFactor twiddleFactorMont ⦃ d =>
     (d.val : Spec.Zq) = (c.val : Spec.Zq) * (Spec.ζ^(bitRev 7 k.val)) ∧ d.val < Spec.Q ⦄ := by
   progress with mont_mul_spec as ⟨ d, hEq, hLt ⟩
+
   fsimp at htfMont
   natify at htf; fsimp at htf
   natify at htfMont; fsimp at htfMont
@@ -541,7 +542,7 @@ theorem poly_element_intt_layer_c_loop_spec
       ring_nf
       fsimp [hStart', hTwoLen, hStart]
       ring_nf
-    progress as ⟨ peSrc2, hPeSrc2 ⟩ -- TODO: progress by
+    progress as ⟨ peSrc2, hPeSrc2 ⟩ by scalar_tac
 
     -- Proving the post-condition
     unfold SpecAux.invNttLayer
@@ -670,6 +671,7 @@ private theorem and_RMASK (x : U32) : x.val &&& 65535 ≤ 65535 := by
   assumption
 
 local grind_pattern and_RMASK => x.val &&& (65535 : ℕ)
+local grind_pattern [agrind] and_RMASK => x.val &&& (65535 : ℕ)
 
 section
   -- TODO: failure cases of scalar_tac +nonLin
@@ -683,26 +685,26 @@ section
       red(a1b1) *
    -/
   private def mul_acc_mont_reduce (i : Usize) (a1b1 : U32) : Result U32 := do
-    let i12 ← ((core.num.U32.wrapping_mul a1b1 NEG_Q_INV_MOD_R) : Result U32)
-    let inv ← (↑(i12 &&& RMASK) : Result U32)
+    let i12 ← lift (core.num.U32.wrapping_mul a1b1 NEG_Q_INV_MOD_R)
+    let inv ← lift (i12 &&& RMASK)
     let i13 ← inv * Q
     let i14 ← a1b1 + i13
     let a1b11 ← i14 >>> RLOG2
     let i15 ← ZETA_TO_TIMES_BIT_REV_PLUS_1_TIMES_R.index_usize i
-    let i16 ← (↑(UScalar.cast UScalarTy.U32 i15) : Result U32)
+    let i16 ← lift (UScalar.cast UScalarTy.U32 i15)
     let a1b1zetapow ← a1b11 * i16
     pure a1b1zetapow
 
   -- TODO: automate the refold
   private theorem fold_mul_acc_mont_reduce (i : Usize) (a1b1 : U32) (f : U32 → Result α) :
     (do
-      let i12 ← ((core.num.U32.wrapping_mul a1b1 NEG_Q_INV_MOD_R) : Result U32)
-      let inv ← (↑(i12 &&& RMASK) : Result U32)
+      let i12 ← lift (core.num.U32.wrapping_mul a1b1 NEG_Q_INV_MOD_R)
+      let inv ← lift (i12 &&& RMASK)
       let i13 ← inv * Q
       let i14 ← a1b1 + i13
       let a1b11 ← i14 >>> RLOG2
       let i15 ← ZETA_TO_TIMES_BIT_REV_PLUS_1_TIMES_R.index_usize i
-      let i16 ← (↑(UScalar.cast UScalarTy.U32 i15) : Result U32)
+      let i16 ← lift (UScalar.cast UScalarTy.U32 i15)
       let a1b1zetapow ← a1b11 * i16
       f a1b1zetapow) =
     (do
@@ -805,7 +807,7 @@ section
     fsimp [wfAcc] at *
     apply h
 
-  @[local grind .]
+  @[local grind ., local agrind .]
   theorem wfAcc_128 {f g : Array U16 256#usize} {B0 B1 : Nat} {i : Nat} {acc0 acc : Array U32 256#usize}
     (h : wfAcc f g B0 B1 i acc0 acc) (hi : 128 ≤ i) :
     wfAcc f g B0 B1 128 acc0 acc := by
@@ -866,7 +868,7 @@ section
     . intro hj'
       simp_lists [*]
 
-  @[simp, scalar_tac_simps, grind]
+  @[simp, scalar_tac_simps, grind, agrind]
   abbrev montMulStepBound : Nat := 3328 * 3328 + 3328 * 3498
 
   theorem poly_element_mul_and_accumulate_loop_spec
@@ -913,8 +915,8 @@ theorem poly_element_mul_and_accumulate_spec
 # Reduce and Add
 -/
 
-@[scalar_tac_simps, bvify_simps, grind] abbrev reduceAddInputBound : Nat := 4*3328*3328 + 4*3494*3312
-@[scalar_tac_simps, bvify_simps, grind] abbrev reduceAddStepBound : Nat := 4711
+@[scalar_tac_simps, bvify_simps, grind, agrind] abbrev reduceAddInputBound : Nat := 4*3328*3328 + 4*3494*3312
+@[scalar_tac_simps, bvify_simps, grind, agrind] abbrev reduceAddStepBound : Nat := 4711
 
 
 section
@@ -924,8 +926,8 @@ section
       red(a1b1) *
    -/
   private def reduce_add_mont_reduce (a : U32) : Result U32 := do
-    let i2 ← core.num.U32.wrapping_mul a ntt.NEG_Q_INV_MOD_R
-    let inv ← (↑(i2 &&& ntt.RMASK) : Result U32)
+    let i2 ← lift (core.num.U32.wrapping_mul a ntt.NEG_Q_INV_MOD_R)
+    let inv ← lift (i2 &&& ntt.RMASK)
     let i3 ← inv * ntt.Q
     let i4 ← a + i3
     let a1 ← i4 >>> ntt.RLOG2
@@ -934,8 +936,8 @@ section
   -- TODO: automate the refold
   private theorem fold_reduce_add_mont_reduce (a : U32) (f : U32 → Result α) :
     (do
-      let i2 ← core.num.U32.wrapping_mul a ntt.NEG_Q_INV_MOD_R
-      let inv ← (↑(i2 &&& ntt.RMASK) : Result U32)
+      let i2 ← lift (core.num.U32.wrapping_mul a ntt.NEG_Q_INV_MOD_R)
+      let inv ← lift (i2 &&& ntt.RMASK)
       let i3 ← inv * ntt.Q
       let i4 ← a + i3
       let a1 ← i4 >>> ntt.RLOG2
@@ -989,26 +991,26 @@ section
 
   private def reduce_add_normalize (c1 : U32) : Result U32 := do
     let i5 ← 2#u32 * ntt.Q
-    let c2 ← (↑(core.num.U32.wrapping_sub c1 i5) : Result U32)
+    let c2 ← lift (core.num.U32.wrapping_sub c1 i5)
     let i6 ← c2 >>> 16#i32
-    let i7 ← (↑(ntt.Q &&& i6) : Result U32)
-    let c3 ← (↑(core.num.U32.wrapping_add c2 i7) : Result U32)
+    let i7 ← lift (ntt.Q &&& i6)
+    let c3 ← lift (core.num.U32.wrapping_add c2 i7)
     let i8 ← c3 >>> 16#i32
-    let i9 ← (↑(ntt.Q &&& i8) : Result U32)
-    let c4 ← (↑(core.num.U32.wrapping_add c3 i9) : Result U32)
+    let i9 ← lift (ntt.Q &&& i8)
+    let c4 ← lift (core.num.U32.wrapping_add c3 i9)
     pure c4
 
   -- TODO: automate the refold
   private theorem fold_reduce_add_normalize (a : U32) (f : U32 → Result α) :
     (do
       let i5 ← 2#u32 * ntt.Q
-      let c2 ← (↑(core.num.U32.wrapping_sub a i5) : Result U32)
+      let c2 ← lift (core.num.U32.wrapping_sub a i5)
       let i6 ← c2 >>> 16#i32
-      let i7 ← (↑(ntt.Q &&& i6) : Result U32)
-      let c3 ← (↑(core.num.U32.wrapping_add c2 i7) : Result U32)
+      let i7 ← lift (ntt.Q &&& i6)
+      let c3 ← lift (core.num.U32.wrapping_add c2 i7)
       let i8 ← c3 >>> 16#i32
-      let i9 ← (↑(ntt.Q &&& i8) : Result U32)
-      let c4 ← (↑(core.num.U32.wrapping_add c3 i9) : Result U32)
+      let i9 ← lift (ntt.Q &&& i8)
+      let c4 ← lift (core.num.U32.wrapping_add c3 i9)
       f c4) =
     (do
       let c4 ← reduce_add_normalize a
@@ -1060,15 +1062,13 @@ section
         (∀ j < 256, (paDst1[j]!.val : Spec.Zq) = (paDst0[j]!.val : Spec.Zq) + (paSrc0[j]!.val : Spec.Zq) * 169) ⦄
     := by
     unfold montgomery_reduce_and_add_poly_element_accumulator_to_poly_element_loop
-    fsimp only [fold_reduce_add_mont_reduce, fold_reduce_add_normalize]
-    fsimp
+    simp only [fold_reduce_add_mont_reduce, fold_reduce_add_normalize]
+    simp
 
     split
     . let* ⟨ a, a_post ⟩ ← Array.index_usize_spec
-      have : a.val ≤ reduceAddInputBound := by simp_lists_scalar [*]
       let* ⟨ paSrc1, paSrc1_post ⟩ ← Array.update_spec
       let* ⟨ i1, i1_post_1 ⟩ ← Array.index_usize_spec
-      have : i1.val ≤ 3328 := by simp_lists_scalar [*]
       let* ⟨ a1, a1_post_1, a1_post_2 ⟩ ← reduce_add_mont_reduce_spec
       let* ⟨ c1, c1_post_1, c1_post_2 ⟩ ← U32.add_bv_spec
       let* ⟨ c4, c4_post_1, c4_post_2 ⟩ ← reduce_add_normalize_spec
@@ -1077,45 +1077,27 @@ section
       let* ⟨ i11, i11_post ⟩ ← Usize.add_spec
 
       -- TODO: this should be automated
-      have : ∀ j < i11.val, paSrc1[j]! = 0#u32 := by
-        intro j hj; dcases hji : j = i.val <;> grind
-
-      have : ∀ j ≥ i11.val, j < 256 → paSrc1[j]! = paSrc0[j]! := by
-        intro j hj0 hj1
-        dcases hji : j = i.val + 1 <;> simp_lists [*]
-
-      have : ∀ j ≥ i11.val, j < 256 → paSrc0[j]!.val ≤ reduceAddInputBound := by
-        intro j hj0 hj1
-        dcases hji : j = i.val + 1 <;> grind
+      have : ∀ j < i11.val, paSrc1[j]! = 0#u32 := by grind
+      have : ∀ j ≥ i11.val, j < 256 → paSrc1[j]! = paSrc0[j]! := by grind
+      have : ∀ j ≥ i11.val, j < 256 → paSrc0[j]!.val ≤ reduceAddInputBound := by grind
 
       have : ∀ j < i11.val, paDst1[j]!.val ≤ 3328 := by
         intro j hj0
-        dcases hji : j = i.val <;> grind
+        grind
 
       have : ∀ j < i11.val, (paDst1[j]!.val : Spec.Zq) = ↑↑paDst0[j]! + ↑↑paSrc0[j]! * 169 := by
         intro j hj
         dcases hji : j = i.val <;> simp_lists_scalar [*]
 
-      have : ∀ j ≥ i11.val, j < 256 → paDst0[j]!.val ≤ 3328 := by
-        intro j hj0 hj1
-        dcases hji : j = i.val + 1 <;> grind
-
-      have : ∀ j ≥ i11.val, j < 256 → paDst1[j]!.val = ↑paDst0[j]! := by
-        intro j hj0 hj1
-        dcases hji : j = i.val + 1 <;> simp_lists [*]
+      have : ∀ j ≥ i11.val, j < 256 → paDst0[j]!.val ≤ 3328 := by grind
+      have : ∀ j ≥ i11.val, j < 256 → paDst1[j]!.val = ↑paDst0[j]! := by grind
 
       let* ⟨ res_1, res_2, res_post_1, res_post_2, res_post_3 ⟩ ←
         montgomery_reduce_and_add_poly_element_accumulator_to_poly_element_loop_spec paSrc0 paSrc1 paDst0 paDst1
-      fsimp at *
-      split_conjs
-      . apply res_post_1
-      . apply res_post_2
-      . apply res_post_3
-    . fsimp at *
-      split_conjs <;> intros j hj
-      . apply hsrcBeg; scalar_tac
-      . apply hdstBegIneq; scalar_tac
-      . apply hdstBegEq; scalar_tac
+      fsimp at * -- TODO: remove this
+      agrind
+    . fsimp at * -- TODO: remove this
+      agrind
   termination_by 256 - i.val
   decreasing_by scalar_decr_tac
 
@@ -1141,7 +1123,7 @@ theorem montgomery_reduce_and_add_poly_element_accumulator_to_poly_element_spec
 
     -- TODO: progress by
     progress with montgomery_reduce_and_add_poly_element_accumulator_to_poly_element_loop_spec paSrc paSrc paDst paDst as ⟨ paSrc1, paDst1 ⟩
-    grind
+    agrind
 
 /-
 # MulR
@@ -1161,12 +1143,12 @@ theorem poly_element_mul_r_loop_spec
   unfold poly_element_mul_r_loop
   split
   . let* ⟨ i1, i1_post_1, i1_post_2 ⟩ ← wfArray_index
-    let* ⟨ i3, i3_post_1, i3_post_2 ⟩ ← mont_mul_spec by (fsimp [*])
+    let* ⟨ i3, i3_post_1, i3_post_2 ⟩ ← mont_mul_spec
     let* ⟨ i4, i4_post ⟩ ← UScalar.cast_inBounds_spec
     let* ⟨ peDst1, peDst1_post ⟩ ← Array.update_spec
     let* ⟨ i5, i5_post ⟩ ← Usize.add_spec
     let* ⟨ peDest2, res_post_1, res_post_2 ⟩ ← poly_element_mul_r_loop_spec
-    -- TODO: this hould be automated
+    -- TODO: this should be automated
     split_conjs
     . intros j hj
       fsimp at *
@@ -1179,10 +1161,7 @@ theorem poly_element_mul_r_loop_spec
         ring_nf
         fsimp
       . simp_lists_scalar [res_post_2]
-  . fsimp
-    intro j hj0 hj1
-    -- Contradiction
-    scalar_tac
+  . agrind
 termination_by 256 - i.val
 decreasing_by scalar_decr_tac
 
@@ -1193,10 +1172,7 @@ theorem poly_element_mul_r_spec
   poly_element_mul_r peSrc peDst ⦃ peDst1 =>
     ∀ j < 256, (peDst1[j]!.val : Spec.Zq) = peSrc[j]!.val * 2^16 ⦄ := by
   unfold poly_element_mul_r
-  progress as ⟨ peDst1 ⟩
-  -- TODO: this should be automated
-  fsimp at *
-  grind
+  progress*
 
 /-!
 # Add
@@ -1246,10 +1222,7 @@ def poly_element_add_spec
     (∀ j < 256, peDst1[j]!.val ≤ 3328) ∧
     (∀ j < 256, (peDst1[j]!.val : Spec.Zq) = peSrc1[j]!.val + peSrc2[j]!.val) ⦄ := by
   unfold poly_element_add
-  progress
-  -- TODO: this should be automated
-  fsimp at *
-  split_conjs <;> assumption
+  progress*
 
 /-!
 # Sub
@@ -1299,10 +1272,7 @@ def poly_element_sub_spec
     (∀ j < 256, peDst1[j]!.val ≤ 3328) ∧
     (∀ j < 256, (peDst1[j]!.val : Spec.Zq) = peSrc1[j]!.val - peSrc2[j]!.val) ⦄ := by
   unfold poly_element_sub
-  progress
-  -- TODO: this should be automated
-  fsimp at *
-  split_conjs <;> assumption
+  progress*
 
 end ntt
 

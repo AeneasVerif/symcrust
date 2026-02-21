@@ -140,9 +140,6 @@ theorem encode_coefficient.progress_spec_aux
   . simp [Stream.encode.body]
     simp_ifs
     simp only [*]
-    /- This call to grind also triggers the timeout, but I don't manage to have it if I isolate
-       the goal into an auxiliary lemma -/
-    grind
     simp_scalar
 
 @[progress]
@@ -273,7 +270,7 @@ theorem poly_element_compress_and_encode.spec (f : Array U16 256#usize) (d : U32
     to_bytes b1 = Stream.compressOpt_encode d.val 4 (to_poly f) ⦄ := by
   unfold poly_element_compress_and_encode
   progress*
-  . simp only [Stream.encode.length_inv, to_bytes_length, Slice.length, UScalar.ofNat_val_eq,
+  . simp only [Stream.encode.length_inv, to_bytes_length, Slice.length, UScalar.ofNatCore_val_eq,
     zero_le, mul_zero, Nat.reduceMul, Nat.zero_div, Nat.zero_mod, and_self, hb2]
   . have : to_bytes b = List.replicate (32 * ↑d) 0#8 := by
       rw [List.eq_iff_forall_eq_getElem!]
