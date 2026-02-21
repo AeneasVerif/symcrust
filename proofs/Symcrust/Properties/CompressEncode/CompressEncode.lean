@@ -38,8 +38,8 @@ set_option maxHeartbeats 2000000
 
 -- TODO: attribute local progress for name with namespaces
 theorem compress_coeff.spec_aux (d coeff : U32) (hd : d.val ≤ 12) (hc: coeff.val < Spec.Q) :
-  ∃ coeff', compress_coefficient d coeff = ok coeff' ∧
-  coeff'.val = SpecAux.compressOpt d.val coeff.val
+  compress_coefficient d coeff ⦃ coeff' =>
+    coeff'.val = SpecAux.compressOpt d.val coeff.val ⦄
   := by
   unfold compress_coefficient
   split
@@ -89,14 +89,14 @@ theorem compress_coeff.spec_aux (d coeff : U32) (hd : d.val ≤ 12) (hc: coeff.v
     simp only [← this, SpecAux.compress, Nat.reduceSubDiff, Nat.cast_inj]
 
     simp only [COMPRESS_MULCONSTANT.spec, Nat.reduceSubDiff, *]
-  · simp only [ok.injEq, SpecAux.compressOpt, Nat.cast_ofNat, exists_eq_left']
-    simp_ifs
+  · simp only [compressOpt, Spec.Q, Nat.cast_ofNat, WP.spec_ok, right_eq_ite_iff]
+    scalar_tac
 
 @[progress]
 theorem compress_coeff.spec (d coeff : U32) (hd : d.val ≤ 12) (hc: coeff.val < Spec.Q) :
-  ∃ coeff', compress_coefficient d coeff = ok coeff' ∧
-  (coeff'.val : ZMod (Spec.m d.val)) = (SpecAux.compressOpt d.val coeff.val : ZMod (Spec.m d.val)) ∧
-  coeff'.val < Spec.m d.val
+  compress_coefficient d coeff ⦃ coeff' =>
+    (coeff'.val : ZMod (Spec.m d.val)) = (SpecAux.compressOpt d.val coeff.val : ZMod (Spec.m d.val)) ∧
+    coeff'.val < Spec.m d.val ⦄
   := by
   progress with compress_coeff.spec_aux as ⟨ coeff', h1 ⟩
   have : NeZero (Spec.m d.val) := by constructor; simp [Spec.m]; split <;> simp
@@ -105,24 +105,6 @@ theorem compress_coeff.spec (d coeff : U32) (hd : d.val ≤ 12) (hc: coeff.val <
   zify
   simp_scalar
 
--- TODO: use the Std min in Rust
-@[progress]
-theorem min_spec (x y : U32) :
-  ∃ z, ntt.min x y = ok z ∧ -- TODO: simp lemmas for `... = toResult ...`
-  z.val = Min.min x.val y.val := by
-  unfold ntt.min
-  progress*
-
-/-
-There is a: "timeout at `isDefEq`", but I don't manage to understand where it
-happens (and `progress*?` manages to generate a proof script, which when expanded
-allows proving the theorem - the problem may be linked to the auxiliary theorems
-introduced by `progress*`).
-
-I reduced the number of heart beats to that the error happens faster, but it
-occurs with a really high number as well (2M heartbeats).
--/
-set_option maxHeartbeats 200000 in
 theorem encode_coefficient.progress_spec_aux
   (x : U32) (d : U32) (dst : Aeneas.Std.Slice U8)
   (bi : Usize) (acc : U32) (acci : U32)
@@ -132,18 +114,17 @@ theorem encode_coefficient.progress_spec_aux
   (hbi : bi.val + 4 ≤ dst.length)
   (hacci : acci.val < 32)
   :
-  ∃ dst1 bi1 acc1 acci1,
-  encode_coefficient x d dst bi acc acci =
-    ok (dst1, bi1, acc1, acci1) ∧
-  let s0 : Stream.EncodeState 4 := {
-    b := to_bytes dst
-    bi := bi.val
-    acc := acc.bv
-    acci := acci.val
-  }
-  dst1.length = dst.length ∧
-  -- It is actually more natural to write the equality in this direction
-  Stream.encode.body d.val x.val s0 = { b := to_bytes dst1, bi := bi1.val, acc := acc1.bv, acci := acci1.val }
+  encode_coefficient x d dst bi acc acci ⦃ dst1 bi1 acc1 acci1 =>
+    let s0 : Stream.EncodeState 4 := {
+      b := to_bytes dst
+      bi := bi.val
+      acc := acc.bv
+      acci := acci.val
+    }
+    dst1.length = dst.length ∧
+    -- It is actually more natural to write the equality in this direction
+    Stream.encode.body d.val x.val s0 = { b := to_bytes dst1, bi := bi1.val, acc := acc1.bv, acci := acci1.val }
+    ⦄
   := by
   have : 1 ≤ 2 ^ Min.min d.val (32 - acci.val) % U32.size := by
     have : 2 ^ Min.min d.val (32 - acci.val) < 2^U32.numBits := by simp_scalar
@@ -151,7 +132,7 @@ theorem encode_coefficient.progress_spec_aux
   unfold Symcrust.ntt.encode_coefficient
   progress*
   . simp only [Slice.length, Stream.encode.body, Nat.reduceMul, ZMod.val_natCast,
-      BitVec.shiftLeft_sub_one_eq_mod, BitVec.ofNat_eq_ofNat, exists_and_left, exists_eq_left']
+      BitVec.shiftLeft_sub_one_eq_mod, BitVec.ofNat_eq_ofNat]
     simp only [*]
     simp_scalar
     simp_lists [*]
@@ -174,18 +155,17 @@ theorem encode_coefficient.progress_spec
   (hi : i.val < 256)
   (hinv : Stream.encode.length_inv d.val 4 (to_bytes dst) bi.val acci.val i.val)
   :
-  ∃ dst1 bi1 acc1 acci1,
-  encode_coefficient x d dst bi acc acci =
-    ok (dst1, bi1, acc1, acci1) ∧
-  let s0 : Stream.EncodeState 4 := {
-    b := to_bytes dst
-    bi := bi.val
-    acc := acc.bv
-    acci := acci.val
-  }
-  dst1.length = dst.length ∧
-  Stream.encode.body d.val x.val s0 = { b := to_bytes dst1, bi := bi1.val, acc := acc1.bv, acci := acci1.val} ∧
-  Stream.encode.length_inv d.val 4 (to_bytes dst1) bi1.val acci1.val (i + 1)
+  encode_coefficient x d dst bi acc acci ⦃ dst1 bi1 acc1 acci1 =>
+    let s0 : Stream.EncodeState 4 := {
+      b := to_bytes dst
+      bi := bi.val
+      acc := acc.bv
+      acci := acci.val
+    }
+    dst1.length = dst.length ∧
+    Stream.encode.body d.val x.val s0 = { b := to_bytes dst1, bi := bi1.val, acc := acc1.bv, acci := acci1.val} ∧
+    Stream.encode.length_inv d.val 4 (to_bytes dst1) bi1.val acci1.val (i + 1)
+    ⦄
   := by
   -- The length invariant is preserved
   let s0 : Stream.EncodeState 4 := {
@@ -221,7 +201,7 @@ theorem encode_coefficient.progress_spec
 
   progress with encode_coefficient.progress_spec_aux as ⟨ dst1, bi1, acc1, acci1, _, h ⟩
   -- The following is annoying - note that it is proven by `grind`
-  simp only [Slice.length, exists_and_left, exists_eq_left']
+  simp only [Slice.length]
   split_conjs <;> try tauto
   simp_all +zetaDelta only
 
@@ -237,18 +217,18 @@ theorem poly_element_compress_and_encode_loop.progress_spec
   (hinv : Stream.encode.length_inv d.val 4 (to_bytes b) bi.val acci.val i.val)
   (hd : 0 < d.val ∧ d.val ≤ 12)
   :
-  ∃ b1, poly_element_compress_and_encode_loop f d b bi acc acci i = ok b1 ∧
-  let s0 : Stream.EncodeState 4 := {
-    b := to_bytes b
-    bi := bi.val
-    acc := acc.bv
-    acci := acci.val
-  }
-  let s1 := Stream.compressOpt_encode.recBody d.val (to_poly f) s0 i.val
-  b1.length = b.length ∧
-  s1.b = to_bytes b1 ∧
-  s1.bi = b.length ∧
-  s1.acci = 0
+  poly_element_compress_and_encode_loop f d b bi acc acci i ⦃ b1 =>
+    let s0 : Stream.EncodeState 4 := {
+      b := to_bytes b
+      bi := bi.val
+      acc := acc.bv
+      acci := acci.val
+    }
+    let s1 := Stream.compressOpt_encode.recBody d.val (to_poly f) s0 i.val
+    b1.length = b.length ∧
+    s1.b = to_bytes b1 ∧
+    s1.bi = b.length ∧
+    s1.acci = 0 ⦄
   := by
   unfold poly_element_compress_and_encode_loop
   simp only
@@ -289,8 +269,8 @@ theorem poly_element_compress_and_encode.spec (f : Array U16 256#usize) (d : U32
   (hb1 : ∀ i < b.length, b[i]! = 0#u8)
   (hb2 : b.length = 32 * d.val)
   :
-  ∃ b1, poly_element_compress_and_encode f d b = ok b1 ∧
-  to_bytes b1 = Stream.compressOpt_encode d.val 4 (to_poly f) := by
+  poly_element_compress_and_encode f d b ⦃ b1 =>
+    to_bytes b1 = Stream.compressOpt_encode d.val 4 (to_poly f) ⦄ := by
   unfold poly_element_compress_and_encode
   progress*
   . simp only [Stream.encode.length_inv, to_bytes_length, Slice.length, UScalar.ofNat_val_eq,

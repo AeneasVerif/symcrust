@@ -91,9 +91,7 @@ def mod_reduce_eq (a : U32) :
 @[local progress]
 theorem mod_reduce'_spec (a : U32)
   (ha : a.val < 2 * Spec.Q) :
-  ∃ (a' : U32), mod_reduce' a = ok a' ∧
-  (a'.val : Spec.Zq) = (a.val : Spec.Zq) ∧
-  a'.val < Spec.Q := by
+  mod_reduce' a ⦃ a' => (a'.val : Spec.Zq) = (a.val : Spec.Zq) ∧ a'.val < Spec.Q ⦄ := by
   unfold mod_reduce'
   progress* <;> bv_tac 32
 
@@ -103,9 +101,7 @@ theorem mod_reduce'_spec (a : U32)
 @[local progress]
 theorem mod_add_spec (a : U32) (b : U32)
   (ha : a.val < Spec.Q) (hb : b.val < Spec.Q) :
-  ∃ (c : U32), mod_add a b = ok c ∧
-  (c.val : Spec.Zq) = (a.val : Spec.Zq) + (b.val : Spec.Zq) ∧
-  c.val < Spec.Q := by
+  mod_add a b ⦃ c => (c.val : Spec.Zq) = (a.val : Spec.Zq) + (b.val : Spec.Zq) ∧ c.val < Spec.Q ⦄ := by
   unfold mod_add
   progress*
   simp [*] -- TODO: `grind` should solve this
@@ -137,9 +133,9 @@ def mod_sub_eq (a : U32) (b : U32) :
 theorem mod_sub'_spec (a : U32) (b : U32)
   (_ : a.val < 3329)
   (_ : b.val < 3329) :
-  ∃ (c : U32), mod_sub' a b = ok c ∧
-  (c.val : Spec.Zq) = (a.val : Spec.Zq) - (b.val : Spec.Zq) ∧
-  c.val < Spec.Q := by
+  mod_sub' a b ⦃ c =>
+    (c.val : Spec.Zq) = (a.val : Spec.Zq) - (b.val : Spec.Zq) ∧
+    c.val < Spec.Q ⦄ := by
   unfold mod_sub'
   progress* <;> bv_tac 32
 
@@ -185,9 +181,9 @@ theorem mont_reduce_bv_spec (a b bMont tR t : U32)
 theorem mont_mul_spec (a : U32) (b : U32) (bMont : U32)
   (ha : a.val < Spec.Q) (hb : b.val < Spec.Q)
   (hbMont : bMont.bv = (b.bv * NEG_Q_INV_MOD_R.bv) &&& RMASK.bv) :
-  ∃ (c : U32), mont_mul a b bMont = ok c ∧
-  (c.val : Spec.Zq) = (a.val : Spec.Zq) * (b.val : Spec.Zq) * (2^16)⁻¹ ∧
-  c.val < Spec.Q := by
+  mont_mul a b bMont ⦃ c =>
+    (c.val : Spec.Zq) = (a.val : Spec.Zq) * (b.val : Spec.Zq) * (2^16)⁻¹ ∧
+    c.val < Spec.Q ⦄ := by
   unfold mont_mul
   fsimp at *
   progress
@@ -257,9 +253,8 @@ theorem mont_mul_twiddle_spec (k : Usize) (c : U32) (twiddleFactor : U32) (twidd
   (hc : c.val < Spec.Q) (hb : twiddleFactor.val < Spec.Q)
   (htf : twiddleFactor.bv = BitVec.ofNat _ ((17^(bitRev 7 k.val) * 65536) % 3329))
   (htfMont : twiddleFactorMont.bv = (twiddleFactor.bv * 3327#32) &&& 65535#32) :
-  ∃ (d : U32), mont_mul c twiddleFactor twiddleFactorMont = ok d ∧
-  (d.val : Spec.Zq) = (c.val : Spec.Zq) * (Spec.ζ^(bitRev 7 k.val)) ∧
-  d.val < Spec.Q := by
+  mont_mul c twiddleFactor twiddleFactorMont ⦃ d =>
+    (d.val : Spec.Zq) = (c.val : Spec.Zq) * (Spec.ζ^(bitRev 7 k.val)) ∧ d.val < Spec.Q ⦄ := by
   progress with mont_mul_spec as ⟨ d, hEq, hLt ⟩
   fsimp at htfMont
   natify at htf; fsimp at htf
@@ -288,9 +283,9 @@ def poly_element_ntt_layer_c.inner_loop_loop_spec
   (htfMont : twiddleFactorMont.bv = (BitVec.ofNat _ ((17^(bitRev 7 k.val) * 65536) % 3329) * 3327#32) &&& 65535#32)
   (hBounds : wfArray peSrc)
   :
-  ∃ peSrc', inner_loop_loop peSrc len start twiddleFactor twiddleFactorMont j = ok peSrc' ∧
-  to_poly peSrc' = SpecAux.nttLayerInner (to_poly peSrc) k.val len.val start.val j.val ∧
-  wfArray peSrc' := by
+  inner_loop_loop peSrc len start twiddleFactor twiddleFactorMont j ⦃ peSrc' =>
+    to_poly peSrc' = SpecAux.nttLayerInner (to_poly peSrc) k.val len.val start.val j.val ∧
+    wfArray peSrc' ⦄ := by
   unfold inner_loop_loop
   progress* <;> unfold SpecAux.nttLayerInner <;> simp_ifs <;> simp [*]
 termination_by len.val - j.val
@@ -310,9 +305,9 @@ theorem poly_element_ntt_layer_c_loop_spec
   (hStart : start.val = 2 * len.val * step)
   (hLen : len.val = 2^(7-layer))
   :
-  ∃ peSrc', poly_element_ntt_layer_c_loop peSrc k len start = ok peSrc' ∧
-  to_poly peSrc' = SpecAux.nttLayer (to_poly peSrc) k.val len.val start.val (by fsimp [hLen]) ∧
-  wfArray peSrc'
+  poly_element_ntt_layer_c_loop peSrc k len start ⦃ peSrc' =>
+    to_poly peSrc' = SpecAux.nttLayer (to_poly peSrc) k.val len.val start.val (by fsimp [hLen]) ∧
+    wfArray peSrc' ⦄
   := by
   unfold poly_element_ntt_layer_c_loop
   by_cases hLt: start < 256#usize <;> fsimp only [hLt] <;> fsimp
@@ -399,9 +394,8 @@ theorem poly_element_ntt_layer_spec
   (hLen : len.val = 128 / k.val)
   (hLenPos : 0 < len.val)
   :
-  ∃ peSrc', poly_element_ntt_layer peSrc k len = ok peSrc' ∧
-  to_poly peSrc' = SpecAux.nttLayer (to_poly peSrc) k.val len.val 0 hLenPos ∧
-  wfArray peSrc'
+  poly_element_ntt_layer peSrc k len ⦃ peSrc' =>
+    to_poly peSrc' = SpecAux.nttLayer (to_poly peSrc) k.val len.val 0 hLenPos ∧ wfArray peSrc' ⦄
   := by
   let step := k.val.log2
   have : len.val = 2 ^ (7 - step) := by
@@ -419,11 +413,10 @@ theorem poly_element_ntt_layer_spec
 @[progress]
 theorem poly_element_ntt_spec (peSrc : Std.Array U16 256#usize)
   (hWf : wfArray peSrc) :
-  ∃ peSrc1, poly_element_ntt peSrc = ok peSrc1 ∧
-  to_poly peSrc1 = Spec.ntt (to_poly peSrc) ∧ wfArray peSrc1
+  poly_element_ntt peSrc ⦃ peSrc1 => to_poly peSrc1 = Spec.ntt (to_poly peSrc) ∧ wfArray peSrc1 ⦄
   := by
   unfold poly_element_ntt
-  progress* by fsimp [Nat.log2_def]
+  progress*
   rw [← SpecAux.ntt_eq]
   unfold SpecAux.ntt
   fsimp [*]
@@ -441,9 +434,9 @@ def poly_element_intt_layer_c.inner_loop_loop_spec
   (htfMont : twiddleFactorMont.bv = (BitVec.ofNat _ ((17^(bitRev 7 k.val) * 65536) % 3329) * 3327#32) &&& 65535#32)
   (hBounds : wfArray peSrc)
   :
-  ∃ peSrc', inner_loop_loop peSrc len start twiddleFactor twiddleFactorMont j = ok peSrc' ∧
-  to_poly peSrc' = SpecAux.invNttLayerInner (to_poly peSrc) k.val len.val start.val j.val ∧
-  wfArray peSrc' := by
+  inner_loop_loop peSrc len start twiddleFactor twiddleFactorMont j ⦃ peSrc' =>
+    to_poly peSrc' = SpecAux.invNttLayerInner (to_poly peSrc) k.val len.val start.val j.val ∧
+    wfArray peSrc' ⦄ := by
   unfold inner_loop_loop
   progress*
   . unfold SpecAux.invNttLayerInner
@@ -470,9 +463,9 @@ theorem poly_element_intt_layer_c_loop_spec
   (hStart : start.val = 2 * len.val * step)
   (hLen : len.val = 2^(layer + 1))
   :
-  ∃ peSrc', poly_element_intt_layer_c_loop peSrc k len start = ok peSrc' ∧
-  to_poly peSrc' = SpecAux.invNttLayer (to_poly peSrc) k.val len.val start.val (by fsimp [hLen]) ∧
-  wfArray peSrc'
+  poly_element_intt_layer_c_loop peSrc k len start ⦃ peSrc' =>
+    to_poly peSrc' = SpecAux.invNttLayer (to_poly peSrc) k.val len.val start.val (by fsimp [hLen]) ∧
+    wfArray peSrc' ⦄
   := by
   unfold poly_element_intt_layer_c_loop
   dcases hLt: start < 256#usize <;> fsimp only [hLt] <;> fsimp
@@ -568,9 +561,9 @@ theorem poly_element_intt_layer_spec
   (hk : k.val + 1 = 256 / len.val)
   (hLenPos : 0 < len.val)
   :
-  ∃ peSrc', poly_element_intt_layer peSrc k len = ok peSrc' ∧
-  to_poly peSrc' = SpecAux.invNttLayer (to_poly peSrc) k.val len.val 0 hLenPos ∧
-  wfArray peSrc'
+  poly_element_intt_layer peSrc k len ⦃ peSrc' =>
+    to_poly peSrc' = SpecAux.invNttLayer (to_poly peSrc) k.val len.val 0 hLenPos ∧
+    wfArray peSrc' ⦄
   := by
   let step := len.val.log2 - 1
   have hk' : k.val + 1 = 2 ^ (7 - step) := by
@@ -595,11 +588,11 @@ theorem poly_element_intt_layer_spec
 theorem poly_element_intt_and_mul_r_loop_spec_aux
   (peSrc : Std.Array U16 256#usize) (i : Usize)
   (hi : i.val ≤ 256) (hWf : wfArray peSrc) :
-  ∃ peSrc', poly_element_intt_and_mul_r_loop peSrc i = ok peSrc' ∧
-  (∀ (j : Nat), j < i.val → (to_poly peSrc')[j]! = (to_poly peSrc)[j]!) ∧
-  (∀ (j : Nat), i.val ≤ j → j < 256 →
-    (to_poly peSrc')[j]! = (to_poly peSrc)[j]! * (3303 : Spec.Zq) * 2^16) ∧
-  wfArray peSrc' := by
+  poly_element_intt_and_mul_r_loop peSrc i ⦃ peSrc' =>
+    (∀ (j : Nat), j < i.val → (to_poly peSrc')[j]! = (to_poly peSrc)[j]!) ∧
+    (∀ (j : Nat), i.val ≤ j → j < 256 →
+      (to_poly peSrc')[j]! = (to_poly peSrc)[j]! * (3303 : Spec.Zq) * 2^16) ∧
+    wfArray peSrc' ⦄ := by
   unfold poly_element_intt_and_mul_r_loop
   fsimp
   split <;> rename_i h
@@ -633,9 +626,9 @@ decreasing_by scalar_decr_tac
 @[local progress]
 theorem poly_element_intt_and_mul_r_loop_spec (peSrc : Std.Array U16 256#usize)
   (hWf : wfArray peSrc) :
-  ∃ peSrc', poly_element_intt_and_mul_r_loop peSrc 0#usize = ok peSrc' ∧
-  to_poly peSrc' = (to_poly peSrc) * (3303 : Spec.Zq) * (2^16 : Spec.Zq) ∧
-  wfArray peSrc' := by
+  poly_element_intt_and_mul_r_loop peSrc 0#usize ⦃ peSrc' =>
+    to_poly peSrc' = (to_poly peSrc) * (3303 : Spec.Zq) * (2^16 : Spec.Zq) ∧
+    wfArray peSrc' ⦄ := by
   progress as ⟨ peSrc', _, h ⟩
   split_conjs
   . fsimp [Spec.Polynomial.eq_iff]
@@ -647,11 +640,12 @@ theorem poly_element_intt_and_mul_r_loop_spec (peSrc : Std.Array U16 256#usize)
 @[progress]
 theorem poly_element_intt_and_mul_r_spec (peSrc : Std.Array U16 256#usize)
   (hWf : wfArray peSrc) :
-  ∃ peSrc1, poly_element_intt_and_mul_r peSrc = ok peSrc1 ∧
-  to_poly peSrc1 = Spec.invNtt (to_poly peSrc) * (2^16 : Spec.Zq) ∧ wfArray peSrc1
+  poly_element_intt_and_mul_r peSrc ⦃ peSrc1 =>
+    to_poly peSrc1 = Spec.invNtt (to_poly peSrc) * (2^16 : Spec.Zq) ∧
+    wfArray peSrc1 ⦄
   := by
   unfold poly_element_intt_and_mul_r
-  progress* by fsimp [Nat.log2_def]
+  progress*
   rw [← SpecAux.invNtt_eq]
   unfold SpecAux.invNtt
   fsimp [*]
@@ -726,9 +720,9 @@ section
   @[local progress]
   theorem mul_acc_mont_reduce_spec (i : Usize) (a1b1 : U32)
     (hi : i.val < 128) (h1 : a1b1.val ≤ 3328 * 3328) :
-    ∃ a1b1zetapow, mul_acc_mont_reduce i a1b1 = ok a1b1zetapow ∧
-    a1b1zetapow.val ≤ 3498 * 3328 ∧
-    (a1b1zetapow.val : Spec.Zq) = (a1b1.val : Spec.Zq) * Spec.ζ ^ (2 * bitRev 7 i.val + 1)
+    mul_acc_mont_reduce i a1b1 ⦃ a1b1zetapow =>
+      a1b1zetapow.val ≤ 3498 * 3328 ∧
+      (a1b1zetapow.val : Spec.Zq) = (a1b1.val : Spec.Zq) * Spec.ζ ^ (2 * bitRev 7 i.val + 1) ⦄
     := by
     unfold mul_acc_mont_reduce
     /- First step: reduce a1b1 -/
@@ -825,7 +819,7 @@ section
     {acc0 acc : Array U32 256#usize}
     (hWf : wfAcc f g B0 B1 i0 acc0 acc)
     (hi0 : 2 * i0 ≤ i.val) (hi : i.val < 256) :
-    ∃ x, acc.index_usize i = ok x ∧ x = acc0.val[i.val]! ∧ x.val ≤ B0 := by
+    acc.index_usize i ⦃ x => x = acc0.val[i.val]! ∧ x.val ≤ B0 ⦄ := by
     progress as ⟨ x ⟩
     unfold wfAcc at hWf
     -- TODO: this should be automated
@@ -834,7 +828,7 @@ section
     replace h1 := h1 (i.val / 2) (by omega) (by omega)
     have heq : 2 * (i.val / 2) = i ∨ 2 * (i.val / 2) + 1 = i := by omega
     cases heq <;> rename_i heq <;>
-    fsimp [heq] at h0 h1 <;>
+    simp [heq] at h0 h1 <;>
     scalar_tac
 
   @[progress] -- TODO: `local` doesn't work
@@ -850,8 +844,7 @@ section
     (hc0 : c0.val = paDst0[i.val]! + f[i.val]! * g[i.val]! + f[i.val + 1]! * g[i.val + 1]! * Spec.ζ ^ (2 * bitRev 7 i0 + 1))
     (hc1 : c1.val = paDst0[i.val + 1]! + f[i.val]! * g[i.val + 1]! + f[i.val + 1]! * g[i.val]!)
     (hi : i.val = 2 * i0) :
-    ∃ paDst', update_acc i c0 c1 paDst = ok paDst' ∧
-    wfAcc f g B0 B1 (i0 + 1) paDst0 paDst' := by
+    update_acc i c0 c1 paDst ⦃ paDst' => wfAcc f g B0 B1 (i0 + 1) paDst0 paDst' ⦄ := by
     rw [update_acc]
     progress*
     unfold wfAcc at *
@@ -885,8 +878,8 @@ section
     (hwf3 : wfAcc peSrc1 peSrc2 B0 montMulStepBound i0 paDst0 paDst)
     (hi : i0 = i.val)
     :
-    ∃ paDst', poly_element_mul_and_accumulate_loop peSrc1 peSrc2 paDst i = ok paDst' ∧
-    wfAcc peSrc1 peSrc2 B0 montMulStepBound 128 paDst0 paDst'
+    poly_element_mul_and_accumulate_loop peSrc1 peSrc2 paDst i ⦃ paDst' =>
+      wfAcc peSrc1 peSrc2 B0 montMulStepBound 128 paDst0 paDst' ⦄
     := by
     unfold poly_element_mul_and_accumulate_loop
     fsimp only [fold_mul_acc_mont_reduce, fold_update_acc]
@@ -908,8 +901,8 @@ theorem poly_element_mul_and_accumulate_spec
   (hb0 : B0 + montMulStepBound ≤ U32.max)
   (hwf1 : wfArray peSrc1) (hwf2 : wfArray peSrc2)
   :
-  ∃ paDst', poly_element_mul_and_accumulate peSrc1 peSrc2 paDst = ok paDst' ∧
-  wfAcc peSrc1 peSrc2 B0 montMulStepBound 128 paDst paDst'
+  poly_element_mul_and_accumulate peSrc1 peSrc2 paDst ⦃ paDst' =>
+    wfAcc peSrc1 peSrc2 B0 montMulStepBound 128 paDst paDst' ⦄
   := by
   unfold poly_element_mul_and_accumulate
   have hwf := wfAcc_zero peSrc1 peSrc2 B0 montMulStepBound paDst hBounds
@@ -961,9 +954,9 @@ section
 
   @[local progress]
   theorem reduce_add_mont_reduce_spec (a : U32) (h1 : a.val ≤ reduceAddInputBound) :
-    ∃ a1, reduce_add_mont_reduce a = ok a1 ∧
-    a1.val ≤ reduceAddStepBound ∧
-    (a1.val : Spec.Zq) = (a.val : Spec.Zq) * 169
+    reduce_add_mont_reduce a ⦃ a1 =>
+      a1.val ≤ reduceAddStepBound ∧
+      (a1.val : Spec.Zq) = (a.val : Spec.Zq) * 169 ⦄
     := by
     unfold reduce_add_mont_reduce
     let* ⟨ amul, amul_post ⟩ ← core.num.U32.wrapping_mul.progress_spec
@@ -1025,9 +1018,9 @@ section
 
   @[local progress]
   theorem reduce_add_normalize_spec (a : U32) (h1 : a.val ≤ 3328 + reduceAddStepBound) :
-    ∃ a1, reduce_add_normalize a = .ok a1 ∧
-    a1.val ≤ 3328 ∧
-    (a1.val : Spec.Zq) = (a.val : Spec.Zq) := by
+    reduce_add_normalize a ⦃ a1 =>
+      a1.val ≤ 3328 ∧
+      (a1.val : Spec.Zq) = (a.val : Spec.Zq) ⦄ := by
     unfold reduce_add_normalize
     let* ⟨ i5, i5_post_1, i5_post_2 ⟩ ← U32.mul_bv_spec
     let* ⟨ c2, c2_post ⟩ ← core.num.U32.wrapping_sub.progress_spec
@@ -1060,11 +1053,11 @@ section
     (hdstEndEq : ∀ j ≥ i.val, j < 256 → paDst[j]!.val = paDst0[j]!)
     --
     :
-    ∃ paSrc1 paDst1, montgomery_reduce_and_add_poly_element_accumulator_to_poly_element_loop paSrc paDst i = ok (paSrc1, paDst1) ∧
-    --
-    (∀ j < 256, paSrc1[j]! = 0#u32) ∧
-    (∀ j < 256, paDst1[j]!.val ≤ 3328) ∧
-    (∀ j < 256, (paDst1[j]!.val : Spec.Zq) = (paDst0[j]!.val : Spec.Zq) + (paSrc0[j]!.val : Spec.Zq) * 169)
+    montgomery_reduce_and_add_poly_element_accumulator_to_poly_element_loop paSrc paDst i
+      ⦃ paSrc1 paDst1 =>
+        (∀ j < 256, paSrc1[j]! = 0#u32) ∧
+        (∀ j < 256, paDst1[j]!.val ≤ 3328) ∧
+        (∀ j < 256, (paDst1[j]!.val : Spec.Zq) = (paDst0[j]!.val : Spec.Zq) + (paSrc0[j]!.val : Spec.Zq) * 169) ⦄
     := by
     unfold montgomery_reduce_and_add_poly_element_accumulator_to_poly_element_loop
     fsimp only [fold_reduce_add_mont_reduce, fold_reduce_add_normalize]
@@ -1140,11 +1133,10 @@ theorem montgomery_reduce_and_add_poly_element_accumulator_to_poly_element_spec
     (hdst : ∀ j < 256, paDst[j]!.val ≤ 3328)
     --
     :
-    ∃ paSrc1 paDst1, montgomery_reduce_and_add_poly_element_accumulator_to_poly_element paSrc paDst = ok (paSrc1, paDst1) ∧
-    --
-    (∀ j < 256, paSrc1[j]! = 0#u32) ∧
-    (∀ j < 256, paDst1[j]!.val ≤ 3328) ∧
-    (∀ j < 256, (paDst1[j]!.val : Spec.Zq) = (paDst[j]!.val : Spec.Zq) + (paSrc[j]!.val : Spec.Zq) * 169) := by
+    montgomery_reduce_and_add_poly_element_accumulator_to_poly_element paSrc paDst ⦃ paSrc1 paDst1 =>
+      (∀ j < 256, paSrc1[j]! = 0#u32) ∧
+      (∀ j < 256, paDst1[j]!.val ≤ 3328) ∧
+      (∀ j < 256, (paDst1[j]!.val : Spec.Zq) = (paDst[j]!.val : Spec.Zq) + (paSrc[j]!.val : Spec.Zq) * 169) ⦄ := by
     unfold montgomery_reduce_and_add_poly_element_accumulator_to_poly_element
 
     -- TODO: progress by
@@ -1163,9 +1155,9 @@ theorem poly_element_mul_r_loop_spec
   (peSrc : Array U16 256#usize) (peDst : Array U16 256#usize) (i : Usize)
   (hwf : wfArray peSrc)
   :
-  ∃ peDst1, poly_element_mul_r_loop peSrc peDst i = ok peDst1 ∧
-  (∀ j < i.val, peDst1[j]! = peDst[j]!) ∧
-  (∀ j ≥ i.val, j < 256 → (peDst1[j]! : Spec.Zq) = peSrc[j]! * 2^16) := by
+  poly_element_mul_r_loop peSrc peDst i ⦃ peDst1 =>
+    (∀ j < i.val, peDst1[j]! = peDst[j]!) ∧
+    (∀ j ≥ i.val, j < 256 → (peDst1[j]! : Spec.Zq) = peSrc[j]! * 2^16) ⦄ := by
   unfold poly_element_mul_r_loop
   split
   . let* ⟨ i1, i1_post_1, i1_post_2 ⟩ ← wfArray_index
@@ -1198,13 +1190,13 @@ decreasing_by scalar_decr_tac
 theorem poly_element_mul_r_spec
   (peSrc : Array U16 256#usize) (peDst : Array U16 256#usize)
   (hwf : wfArray peSrc) :
-  ∃ peDst1, poly_element_mul_r peSrc peDst = ok peDst1 ∧
-  (∀ j < 256, (peDst1[j]!.val : Spec.Zq) = peSrc[j]!.val * 2^16) := by
+  poly_element_mul_r peSrc peDst ⦃ peDst1 =>
+    ∀ j < 256, (peDst1[j]!.val : Spec.Zq) = peSrc[j]!.val * 2^16 ⦄ := by
   unfold poly_element_mul_r
   progress as ⟨ peDst1 ⟩
   -- TODO: this should be automated
   fsimp at *
-  assumption
+  grind
 
 /-!
 # Add
@@ -1214,10 +1206,10 @@ def poly_element_add_loop_spec
   (peSrc1 : Array U16 256#usize) (peSrc2 : Array U16 256#usize)
   (peDst : Array U16 256#usize) (i : Usize)
   (hwf1 : wfArray peSrc1) (hwf2 : wfArray peSrc2) :
-  ∃ peDst1, poly_element_add_loop peSrc1 peSrc2 peDst i = ok peDst1 ∧
-  (∀ j < i.val, peDst1[j]!.val = peDst[j]!.val) ∧
-  (∀ j ≥ i.val, j < 256 → peDst1[j]!.val ≤ 3328) ∧
-  (∀ j ≥ i.val, j < 256 → (peDst1[j]!.val : Spec.Zq) = peSrc1[j]! + peSrc2[j]!) := by
+  poly_element_add_loop peSrc1 peSrc2 peDst i ⦃ peDst1 =>
+    (∀ j < i.val, peDst1[j]!.val = peDst[j]!.val) ∧
+    (∀ j ≥ i.val, j < 256 → peDst1[j]!.val ≤ 3328) ∧
+    (∀ j ≥ i.val, j < 256 → (peDst1[j]!.val : Spec.Zq) = peSrc1[j]! + peSrc2[j]!) ⦄ := by
   unfold poly_element_add_loop
   split
   . let* ⟨ i1, i1_post_1, i1_post_2 ⟩ ← wfArray_index
@@ -1250,9 +1242,9 @@ def poly_element_add_spec
   (peSrc1 : Array U16 256#usize) (peSrc2 : Array U16 256#usize)
   (peDst : Array U16 256#usize)
   (hwf1 : wfArray peSrc1) (hwf2 : wfArray peSrc2) :
-  ∃ peDst1, poly_element_add peSrc1 peSrc2 peDst = ok peDst1 ∧
-  (∀ j < 256, peDst1[j]!.val ≤ 3328) ∧
-  (∀ j < 256, (peDst1[j]!.val : Spec.Zq) = peSrc1[j]!.val + peSrc2[j]!.val) := by
+  poly_element_add peSrc1 peSrc2 peDst ⦃ peDst1 =>
+    (∀ j < 256, peDst1[j]!.val ≤ 3328) ∧
+    (∀ j < 256, (peDst1[j]!.val : Spec.Zq) = peSrc1[j]!.val + peSrc2[j]!.val) ⦄ := by
   unfold poly_element_add
   progress
   -- TODO: this should be automated
@@ -1267,10 +1259,10 @@ def poly_element_sub_loop_spec
   (peSrc1 : Array U16 256#usize) (peSrc2 : Array U16 256#usize)
   (peDst : Array U16 256#usize) (i : Usize)
   (hwf1 : wfArray peSrc1) (hwf2 : wfArray peSrc2) :
-  ∃ peDst1, poly_element_sub_loop peSrc1 peSrc2 peDst i = ok peDst1 ∧
-  (∀ j < i.val, peDst1[j]!.val = peDst[j]!.val) ∧
-  (∀ j ≥ i.val, j < 256 → peDst1[j]!.val ≤ 3328) ∧
-  (∀ j ≥ i.val, j < 256 → (peDst1[j]!.val : Spec.Zq) = peSrc1[j]! - peSrc2[j]!) := by
+  poly_element_sub_loop peSrc1 peSrc2 peDst i ⦃ peDst1 =>
+    (∀ j < i.val, peDst1[j]!.val = peDst[j]!.val) ∧
+    (∀ j ≥ i.val, j < 256 → peDst1[j]!.val ≤ 3328) ∧
+    (∀ j ≥ i.val, j < 256 → (peDst1[j]!.val : Spec.Zq) = peSrc1[j]! - peSrc2[j]!) ⦄ := by
   unfold poly_element_sub_loop
   split
   . let* ⟨ i1, i1_post_1, i1_post_2 ⟩ ← wfArray_index
@@ -1303,9 +1295,9 @@ def poly_element_sub_spec
   (peSrc1 : Array U16 256#usize) (peSrc2 : Array U16 256#usize)
   (peDst : Array U16 256#usize)
   (hwf1 : wfArray peSrc1) (hwf2 : wfArray peSrc2) :
-  ∃ peDst1, poly_element_sub peSrc1 peSrc2 peDst = ok peDst1 ∧
-  (∀ j < 256, peDst1[j]!.val ≤ 3328) ∧
-  (∀ j < 256, (peDst1[j]!.val : Spec.Zq) = peSrc1[j]!.val - peSrc2[j]!.val) := by
+  poly_element_sub peSrc1 peSrc2 peDst ⦃ peDst1 =>
+    (∀ j < 256, peDst1[j]!.val ≤ 3328) ∧
+    (∀ j < 256, (peDst1[j]!.val : Spec.Zq) = peSrc1[j]!.val - peSrc2[j]!.val) ⦄ := by
   unfold poly_element_sub
   progress
   -- TODO: this should be automated

@@ -151,7 +151,6 @@ def Target.byteEncode.encodeElem.recBody.spec
     simp only [this] at hinv2
     apply hinv2
 termination_by d - j
-decreasing_by simp_wf; omega
 
 /- Remark: we're using the fact that b[.]! is defined and equal to false even if the index is out of bounds
    (this makes the property true even if `i + 1 = 256`) -/
@@ -282,7 +281,7 @@ def Target.byteEncode.spec (d : ℕ) (F : Polynomial (m d)) (hd : 0 < d := by om
 
   refold_let ij
 
-  have : ij = i' * d + j' := by
+  have : i' * d + j' = ij := by
     have := Nat.mod_add_div ij d
     simp +zetaDelta only at *
     ring_nf at *

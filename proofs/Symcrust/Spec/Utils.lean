@@ -64,7 +64,7 @@ def Vector.toHex {n} (v : Bytes n) (trunc : Option Nat := .some 96): String :=
       s := s.push (Byte.toHex (b / 16))
       s := s.push (Byte.toHex (b % 16))
     match trunc with
-    | .some ℓ => s :=  (s.take (ℓ - 13)).str ++ "..." ++ s.drop (n * 2 - 13)
+    | .some ℓ => s :=  (s.take (ℓ - 13)).toString ++ "..." ++ s.drop (n * 2 - 13)
     | .none => ()
     pure s
 
