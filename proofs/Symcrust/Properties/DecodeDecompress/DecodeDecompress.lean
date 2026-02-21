@@ -161,7 +161,6 @@ theorem decode_coefficient.early_load_progress_spec (b : Aeneas.Std.Slice U8) (d
         simp_lists_scalar
         intro i _ hi
         rw [a_post i hi]
-        rw [List.getElem!_slice] <;> simp_lists_scalar
     simp only [Stream.decode.body, UScalar.ofNatCore_val_eq, BEq.rfl, ↓reduceIte, Nat.reduceMul,
       Stream.decode.pop_bits_from_acc, Stream.decode.load_acc, BitVec.natCast_eq_ofNat,
       List.bind_eq_flatMap, BitVec.setWidth'_eq, BitVec.ofNat_eq_ofNat,
@@ -344,8 +343,6 @@ theorem decode_coefficient.late_load_progress_spec (b : Aeneas.Std.Slice U8) (d 
       . scalar_tac
       . -- **TODO** Recursive calls in `simp_lists_scalar`
         simp_lists_scalar [haccumulator1]
-        intro i _ hi
-        rw [List.getElem!_slice] <;> simp_lists_scalar
     have h5 : 2 ^ (d.val - n_bits_in_accumulator.val) % 4294967296 = 2 ^ (d.val - n_bits_in_accumulator.val) := by
       simp_scalar
     simp only [Stream.decode.body, beq_iff_eq, ↓reduceIte, gt_iff_lt, Nat.reduceMul,
