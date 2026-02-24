@@ -776,7 +776,7 @@ def key.PreKey2SliceArrayU16256.atranspose
   do
   let m_len ← key.PreKey2SliceArrayU16256.matrix_len self
   core.slice.index.Slice.index (core.slice.index.SliceIndexRangeUsizeSlice
-    (Array U16 256#usize)) self.data { start := 0#usize, end_ := m_len }
+    (Array U16 256#usize)) self.data { start := 0#usize, «end» := m_len }
 
 /- [symcrust::key::{symcrust::key::PreKey2<@Slice<@Array<u16, 256: usize>>>}::t]:
    Source: 'src/key.rs', lines 263:4-266:5 -/
@@ -788,7 +788,7 @@ def key.PreKey2SliceArrayU16256.t
   let m_len ← key.PreKey2SliceArrayU16256.matrix_len self
   let i ← m_len + self.n_rows
   core.slice.index.Slice.index (core.slice.index.SliceIndexRangeUsizeSlice
-    (Array U16 256#usize)) self.data { start := m_len, end_ := i }
+    (Array U16 256#usize)) self.data { start := m_len, «end» := i }
 
 /- [symcrust::key::{symcrust::key::PreKey2<@Slice<@Array<u16, 256: usize>>>}::s]:
    Source: 'src/key.rs', lines 267:4-270:5 -/
@@ -802,7 +802,7 @@ def key.PreKey2SliceArrayU16256.s
   let i1 ← 2#usize * self.n_rows
   let i2 ← m_len + i1
   core.slice.index.Slice.index (core.slice.index.SliceIndexRangeUsizeSlice
-    (Array U16 256#usize)) self.data { start := i, end_ := i2 }
+    (Array U16 256#usize)) self.data { start := i, «end» := i2 }
 
 /- [symcrust::key::{symcrust::key::PreKey2<@Slice<@Array<u16, 256: usize>>>}::atranspose_mut]:
    Source: 'src/key.rs', lines 271:4-274:5 -/
@@ -816,7 +816,7 @@ def key.PreKey2SliceArrayU16256.atranspose_mut
   let (s, index_mut_back) ←
     core.slice.index.Slice.index_mut
       (core.slice.index.SliceIndexRangeUsizeSlice (Array U16 256#usize))
-      self.data { start := 0#usize, end_ := m_len }
+      self.data { start := 0#usize, «end» := m_len }
   let back := fun ret => let s1 := index_mut_back ret
                          { self with data := s1 }
   ok (s, back)
@@ -834,7 +834,7 @@ def key.PreKey2SliceArrayU16256.t_mut
   let (s, index_mut_back) ←
     core.slice.index.Slice.index_mut
       (core.slice.index.SliceIndexRangeUsizeSlice (Array U16 256#usize))
-      self.data { start := m_len, end_ := i }
+      self.data { start := m_len, «end» := i }
   let back := fun ret => let s1 := index_mut_back ret
                          { self with data := s1 }
   ok (s, back)
@@ -854,7 +854,7 @@ def key.PreKey2SliceArrayU16256.s_mut
   let (s, index_mut_back) ←
     core.slice.index.Slice.index_mut
       (core.slice.index.SliceIndexRangeUsizeSlice (Array U16 256#usize))
-      self.data { start := i, end_ := i2 }
+      self.data { start := i, «end» := i2 }
   let back := fun ret => let s1 := index_mut_back ret
                          { self with data := s1 }
   ok (s, back)
@@ -896,7 +896,7 @@ def key.PreKey2SliceArrayU16256.t_encoded_t_mut
   let (s, index_mut_back) ←
     core.slice.index.Slice.index_mut
       (core.slice.index.SliceIndexRangeUsizeSlice (Array U16 256#usize))
-      self.data { start := m_len, end_ := i }
+      self.data { start := m_len, «end» := i }
   let back :=
     fun ret =>
       let (s1, a) := ret
@@ -1205,20 +1205,20 @@ def ntt.mod_reduce (a : U32) : Result U32 :=
   do
   let i ← 2#u32 * ntt.Q
   massert (a < i)
-  let res ← (↑(core.num.U32.wrapping_sub a ntt.Q) : Result U32)
+  let res ← lift (core.num.U32.wrapping_sub a ntt.Q)
   let i1 ← res >>> 16#i32
   if i1 = 0#u32
   then
     do
-    let i2 ← (↑(ntt.Q &&& i1) : Result U32)
-    let res1 ← (↑(core.num.U32.wrapping_add res i2) : Result U32)
+    let i2 ← lift (ntt.Q &&& i1)
+    let res1 ← lift (core.num.U32.wrapping_add res i2)
     massert (res1 < ntt.Q)
     ok res1
   else
     do
     massert (i1 = 65535#u32)
-    let i2 ← (↑(ntt.Q &&& i1) : Result U32)
-    let res1 ← (↑(core.num.U32.wrapping_add res i2) : Result U32)
+    let i2 ← lift (ntt.Q &&& i1)
+    let res1 ← lift (core.num.U32.wrapping_add res i2)
     massert (res1 < ntt.Q)
     ok res1
 
@@ -1237,20 +1237,20 @@ def ntt.mod_sub (a : U32) (b : U32) : Result U32 :=
   do
   massert (a < ntt.Q)
   massert (b < ntt.Q)
-  let res ← (↑(core.num.U32.wrapping_sub a b) : Result U32)
+  let res ← lift (core.num.U32.wrapping_sub a b)
   let i ← res >>> 16#i32
   if i = 0#u32
   then
     do
-    let i1 ← (↑(ntt.Q &&& i) : Result U32)
-    let res1 ← (↑(core.num.U32.wrapping_add res i1) : Result U32)
+    let i1 ← lift (ntt.Q &&& i)
+    let res1 ← lift (core.num.U32.wrapping_add res i1)
     massert (res1 < ntt.Q)
     ok res1
   else
     do
     massert (i = 65535#u32)
-    let i1 ← (↑(ntt.Q &&& i) : Result U32)
-    let res1 ← (↑(core.num.U32.wrapping_add res i1) : Result U32)
+    let i1 ← lift (ntt.Q &&& i)
+    let res1 ← lift (core.num.U32.wrapping_add res i1)
     massert (res1 < ntt.Q)
     ok res1
 
@@ -1262,11 +1262,11 @@ def ntt.mont_mul (a : U32) (b : U32) (b_mont : U32) : Result U32 :=
   massert (b < ntt.Q)
   massert (b_mont <= ntt.RMASK)
   let i ← b * ntt.NEG_Q_INV_MOD_R
-  let i1 ← (↑(i &&& ntt.RMASK) : Result U32)
+  let i1 ← lift (i &&& ntt.RMASK)
   massert (b_mont = i1)
   let res ← a * b
   let i2 ← a * b_mont
-  let inv ← (↑(i2 &&& ntt.RMASK) : Result U32)
+  let inv ← lift (i2 &&& ntt.RMASK)
   let i3 ← inv * ntt.Q
   let res1 ← res + i3
   let res2 ← res1 >>> ntt.RLOG2
@@ -1293,10 +1293,10 @@ def ntt.poly_element_ntt_layer_c.inner_loop_loop
     let c1_times_twiddle ← ntt.mont_mul c1 twiddle_factor twiddle_factor_mont
     let c11 ← ntt.mod_sub c0 c1_times_twiddle
     let c01 ← ntt.mod_add c0 c1_times_twiddle
-    let i4 ← (↑(UScalar.cast .U16 c01) : Result U16)
+    let i4 ← lift (UScalar.cast .U16 c01)
     let pe_src1 ← Array.update pe_src i i4
     let i5 ← i + len
-    let i6 ← (↑(UScalar.cast .U16 c11) : Result U16)
+    let i6 ← lift (UScalar.cast .U16 c11)
     let pe_src2 ← Array.update pe_src1 i5 i6
     let j1 ← j + 1#usize
     ntt.poly_element_ntt_layer_c.inner_loop_loop pe_src2 len start
@@ -1370,10 +1370,10 @@ def ntt.poly_element_intt_layer_c.inner_loop_loop
     let tmp ← ntt.mod_add c0 c1
     let c11 ← ntt.mod_sub c1 c0
     let c12 ← ntt.mont_mul c11 twiddle_factor twiddle_factor_mont
-    let i4 ← (↑(UScalar.cast .U16 tmp) : Result U16)
+    let i4 ← lift (UScalar.cast .U16 tmp)
     let pe_src1 ← Array.update pe_src i i4
     let i5 ← i + len
-    let i6 ← (↑(UScalar.cast .U16 c12) : Result U16)
+    let i6 ← lift (UScalar.cast .U16 c12)
     let pe_src2 ← Array.update pe_src1 i5 i6
     let j1 ← j + 1#usize
     ntt.poly_element_intt_layer_c.inner_loop_loop pe_src2 len start
@@ -1473,13 +1473,13 @@ def ntt.poly_element_mul_and_accumulate_loop
     let a0b1 ← a0 * b1
     let a1b0 ← a1 * b0
     let i10 ←
-      (↑(core.num.U32.wrapping_mul a1b1 ntt.NEG_Q_INV_MOD_R) : Result U32)
-    let inv ← (↑(i10 &&& ntt.RMASK) : Result U32)
+      lift (core.num.U32.wrapping_mul a1b1 ntt.NEG_Q_INV_MOD_R)
+    let inv ← lift (i10 &&& ntt.RMASK)
     let i11 ← inv * ntt.Q
     let i12 ← a1b1 + i11
     let a1b11 ← i12 >>> ntt.RLOG2
     let i13 ← Array.index_usize ntt.ZETA_TO_TIMES_BIT_REV_PLUS_1_TIMES_R i
-    let i14 ← (↑(UScalar.cast .U32 i13) : Result U32)
+    let i14 ← lift (UScalar.cast .U32 i13)
     let a1b1zetapow ← a1b11 * i14
     let a0b01 ← a0b0 + a1b1zetapow
     let a0b11 ← a0b1 + a1b0
@@ -1517,21 +1517,21 @@ def ntt.montgomery_reduce_and_add_poly_element_accumulator_to_poly_element_loop
     let i1 ← Array.index_usize pe_dst i
     let c ← core.convert.IntoFrom.into core.convert.FromU32U16 i1
     let i2 ←
-      (↑(core.num.U32.wrapping_mul a ntt.NEG_Q_INV_MOD_R) : Result U32)
-    let inv ← (↑(i2 &&& ntt.RMASK) : Result U32)
+      lift (core.num.U32.wrapping_mul a ntt.NEG_Q_INV_MOD_R)
+    let inv ← lift (i2 &&& ntt.RMASK)
     let i3 ← inv * ntt.Q
     let i4 ← a + i3
     let a1 ← i4 >>> ntt.RLOG2
     let c1 ← c + a1
     let i5 ← 2#u32 * ntt.Q
-    let c2 ← (↑(core.num.U32.wrapping_sub c1 i5) : Result U32)
+    let c2 ← (lift (core.num.U32.wrapping_sub c1 i5) : Result U32)
     let i6 ← c2 >>> 16#i32
-    let i7 ← (↑(ntt.Q &&& i6) : Result U32)
-    let c3 ← (↑(core.num.U32.wrapping_add c2 i7) : Result U32)
+    let i7 ← (lift (ntt.Q &&& i6) : Result U32)
+    let c3 ← (lift (core.num.U32.wrapping_add c2 i7) : Result U32)
     let i8 ← c3 >>> 16#i32
-    let i9 ← (↑(ntt.Q &&& i8) : Result U32)
-    let c4 ← (↑(core.num.U32.wrapping_add c3 i9) : Result U32)
-    let i10 ← (↑(UScalar.cast .U16 c4) : Result U16)
+    let i9 ← (lift (ntt.Q &&& i8) : Result U32)
+    let c4 ← (lift (core.num.U32.wrapping_add c3 i9) : Result U32)
+    let i10 ← (lift (UScalar.cast .U16 c4) : Result U16)
     let pe_dst1 ← Array.update pe_dst i i10
     let i11 ← i + 1#usize
     ntt.montgomery_reduce_and_add_poly_element_accumulator_to_poly_element_loop
@@ -1561,7 +1561,7 @@ def ntt.poly_element_mul_r_loop
     let i1 ← Array.index_usize pe_src i
     let i2 ← core.convert.IntoFrom.into core.convert.FromU32U16 i1
     let i3 ← ntt.mont_mul i2 ntt.RSQR ntt.RSQR_TIMES_NEG_Q_INV_MOD_R
-    let i4 ← (↑(UScalar.cast .U16 i3) : Result U16)
+    let i4 ← (lift (UScalar.cast .U16 i3) : Result U16)
     let pe_dst1 ← Array.update pe_dst i i4
     let i5 ← i + 1#usize
     ntt.poly_element_mul_r_loop pe_src pe_dst1 i5
@@ -1592,7 +1592,7 @@ def ntt.poly_element_add_loop
     let i3 ← Array.index_usize pe_src2 i
     let i4 ← core.convert.IntoFrom.into core.convert.FromU32U16 i3
     let i5 ← ntt.mod_add i2 i4
-    let i6 ← (↑(UScalar.cast .U16 i5) : Result U16)
+    let i6 ← (lift (UScalar.cast .U16 i5) : Result U16)
     let pe_dst1 ← Array.update pe_dst i i6
     let i7 ← i + 1#usize
     ntt.poly_element_add_loop pe_src1 pe_src2 pe_dst1 i7
@@ -1624,7 +1624,7 @@ def ntt.poly_element_sub_loop
     let i3 ← Array.index_usize pe_src2 i
     let i4 ← core.convert.IntoFrom.into core.convert.FromU32U16 i3
     let i5 ← ntt.mod_sub i2 i4
-    let i6 ← (↑(UScalar.cast .U16 i5) : Result U16)
+    let i6 ← (lift (UScalar.cast .U16 i5) : Result U16)
     let pe_dst1 ← Array.update pe_dst i i6
     let i7 ← i + 1#usize
     ntt.poly_element_sub_loop pe_src1 pe_src2 pe_dst1 i7
@@ -1682,7 +1682,7 @@ def ntt.poly_element_intt_and_mul_r_loop
     let i3 ←
       ntt.mont_mul i2 ntt.INTT_FIXUP_TIMES_RSQR
         ntt.INTT_FIXUP_TIMES_RSQR_TIMES_NEQ_Q_INV_MOD_R
-    let i4 ← (↑(UScalar.cast .U16 i3) : Result U16)
+    let i4 ← (lift (UScalar.cast .U16 i3) : Result U16)
     let pe_src1 ← Array.update pe_src i i4
     let i5 ← i + 1#usize
     ntt.poly_element_intt_and_mul_r_loop pe_src1 i5
@@ -1731,13 +1731,13 @@ def ntt.compress_coefficient
   if n_bits_per_coefficient < 12#u32
   then
     do
-    let i ← (↑(UScalar.cast .U64 coefficient) : Result U64)
-    let i1 ← (↑(UScalar.cast .U64 ntt.COMPRESS_MULCONSTANT) : Result U64)
+    let i ← (lift (UScalar.cast .U64 coefficient) : Result U64)
+    let i1 ← (lift (UScalar.cast .U64 ntt.COMPRESS_MULCONSTANT) : Result U64)
     let multiplication ← i * i1
     let i2 ← n_bits_per_coefficient + 1#u32
     let i3 ← ntt.COMPRESS_SHIFTCONSTANT - i2
     let i4 ← multiplication >>> i3
-    let coefficient1 ← (↑(UScalar.cast .U32 i4) : Result U32)
+    let coefficient1 ← (lift (UScalar.cast .U32 i4) : Result U32)
     let coefficient2 ← coefficient1 + 1#u32
     let coefficient3 ← coefficient2 >>> 1#i32
     let i5 ← 1#u32 <<< n_bits_per_coefficient
@@ -1757,10 +1757,10 @@ def ntt.encode_coefficient
   let n_bits_to_encode ← ntt.min n_bits_in_coefficient i
   let i1 ← 1#u32 <<< n_bits_to_encode
   let i2 ← i1 - 1#u32
-  let bits_to_encode ← (↑(coefficient &&& i2) : Result U32)
+  let bits_to_encode ← lift (coefficient &&& i2)
   let n_bits_in_coefficient1 ← n_bits_in_coefficient - n_bits_to_encode
   let i3 ← bits_to_encode <<< n_bits_in_accumulator
-  let accumulator1 ← (↑(accumulator ||| i3) : Result U32)
+  let accumulator1 ← lift (accumulator ||| i3)
   let n_bits_in_accumulator1 ← n_bits_in_accumulator + n_bits_to_encode
   if n_bits_in_accumulator1 = 32#u32
   then
@@ -1769,10 +1769,10 @@ def ntt.encode_coefficient
     let (s, index_mut_back) ←
       core.slice.index.Slice.index_mut
         (core.slice.index.SliceIndexRangeUsizeSlice U8) pb_dst
-        { start := cb_dst_written, end_ := i4 }
+        { start := cb_dst_written, «end» := i4 }
     let a ←
-      (↑(core.num.U32.to_le_bytes accumulator1) : Result (Array U8 4#usize))
-    let s1 ← (↑(Array.to_slice a) : Result (Slice U8))
+      (lift (core.num.U32.to_le_bytes accumulator1) : Result (Array U8 4#usize))
+    let s1 ← (lift (Array.to_slice a) : Result (Slice U8))
     let s2 ← core.slice.Slice.copy_from_slice core.marker.CopyU8 s s1
     let accumulator2 ← coefficient >>> n_bits_to_encode
     let pb_dst1 := index_mut_back s2
@@ -1854,32 +1854,32 @@ def ntt.decode_coefficient
   then
     do
     let a ← ntt.slice_to_sub_array4 pb_src cb_src_read
-    let accumulator1 ← (↑(core.num.U32.from_le_bytes a) : Result U32)
+    let accumulator1 ← (lift (core.num.U32.from_le_bytes a) : Result U32)
     let cb_src_read1 ← cb_src_read + 4#usize
     let n_bits_to_decode ← ntt.min n_bits_per_coefficient 32#u32
     massert (n_bits_to_decode <= 32#u32)
     let i ← 1#u32 <<< n_bits_to_decode
     let i1 ← i - 1#u32
-    let bits_to_decode ← (↑(accumulator1 &&& i1) : Result U32)
+    let bits_to_decode ← (lift (accumulator1 &&& i1) : Result U32)
     let accumulator2 ← accumulator1 >>> n_bits_to_decode
     let n_bits_in_accumulator1 ← 32#u32 - n_bits_to_decode
-    let coefficient1 ← (↑(coefficient ||| bits_to_decode) : Result U32)
+    let coefficient1 ← (lift (coefficient ||| bits_to_decode) : Result U32)
     if n_bits_per_coefficient > n_bits_to_decode
     then
       do
       massert (n_bits_in_accumulator1 = 0#u32)
       let a1 ← ntt.slice_to_sub_array4 pb_src cb_src_read1
-      let accumulator3 ← (↑(core.num.U32.from_le_bytes a1) : Result U32)
+      let accumulator3 ← (lift (core.num.U32.from_le_bytes a1) : Result U32)
       let cb_src_read2 ← cb_src_read1 + 4#usize
       let n_bits_to_decode1 ← n_bits_per_coefficient - n_bits_to_decode
       massert (n_bits_to_decode1 <= 32#u32)
       let i2 ← 1#u32 <<< n_bits_to_decode1
       let i3 ← i2 - 1#u32
-      let bits_to_decode1 ← (↑(accumulator3 &&& i3) : Result U32)
+      let bits_to_decode1 ← (lift (accumulator3 &&& i3) : Result U32)
       let accumulator4 ← accumulator3 >>> n_bits_to_decode1
       let n_bits_in_accumulator2 ← 32#u32 - n_bits_to_decode1
       let i4 ← bits_to_decode1 <<< n_bits_to_decode
-      let coefficient2 ← (↑(coefficient1 ||| i4) : Result U32)
+      let coefficient2 ← (lift (coefficient1 ||| i4) : Result U32)
       ok (cb_src_read2, accumulator4, n_bits_in_accumulator2, coefficient2)
     else ok (cb_src_read1, accumulator2, n_bits_in_accumulator1, coefficient1)
   else
@@ -1889,26 +1889,26 @@ def ntt.decode_coefficient
     massert (n_bits_to_decode <= n_bits_in_accumulator)
     let i ← 1#u32 <<< n_bits_to_decode
     let i1 ← i - 1#u32
-    let bits_to_decode ← (↑(accumulator &&& i1) : Result U32)
+    let bits_to_decode ← (lift (accumulator &&& i1) : Result U32)
     let accumulator1 ← accumulator >>> n_bits_to_decode
     let n_bits_in_accumulator1 ← n_bits_in_accumulator - n_bits_to_decode
-    let coefficient1 ← (↑(coefficient ||| bits_to_decode) : Result U32)
+    let coefficient1 ← (lift (coefficient ||| bits_to_decode) : Result U32)
     if n_bits_per_coefficient > n_bits_to_decode
     then
       do
       massert (n_bits_in_accumulator1 = 0#u32)
       let a ← ntt.slice_to_sub_array4 pb_src cb_src_read
-      let accumulator2 ← (↑(core.num.U32.from_le_bytes a) : Result U32)
+      let accumulator2 ← (lift (core.num.U32.from_le_bytes a) : Result U32)
       let cb_src_read1 ← cb_src_read + 4#usize
       let n_bits_to_decode1 ← n_bits_per_coefficient - n_bits_to_decode
       massert (n_bits_to_decode1 <= 32#u32)
       let i2 ← 1#u32 <<< n_bits_to_decode1
       let i3 ← i2 - 1#u32
-      let bits_to_decode1 ← (↑(accumulator2 &&& i3) : Result U32)
+      let bits_to_decode1 ← (lift (accumulator2 &&& i3) : Result U32)
       let accumulator3 ← accumulator2 >>> n_bits_to_decode1
       let n_bits_in_accumulator2 ← 32#u32 - n_bits_to_decode1
       let i4 ← bits_to_decode1 <<< n_bits_to_decode
-      let coefficient2 ← (↑(coefficient1 ||| i4) : Result U32)
+      let coefficient2 ← (lift (coefficient1 ||| i4) : Result U32)
       ok (cb_src_read1, accumulator3, n_bits_in_accumulator2, coefficient2)
     else ok (cb_src_read, accumulator1, n_bits_in_accumulator1, coefficient1)
 
@@ -1928,7 +1928,7 @@ def ntt.decompress_coefficient
     let coefficient3 ← coefficient2 + 1#u32
     let coefficient4 ← coefficient3 >>> 1#i32
     massert (coefficient4 < ntt.Q)
-    let i2 ← (↑(UScalar.cast .U16 coefficient4) : Result U16)
+    let i2 ← (lift (UScalar.cast .U16 coefficient4) : Result U16)
     let pe_dst1 ← Array.update pe_dst i i2
     ok (common.Error.NoError, coefficient4, pe_dst1)
   else
@@ -1936,7 +1936,7 @@ def ntt.decompress_coefficient
     then ok (common.Error.InvalidBlob, coefficient, pe_dst)
     else
       do
-      let i1 ← (↑(UScalar.cast .U16 coefficient) : Result U16)
+      let i1 ← (lift (UScalar.cast .U16 coefficient) : Result U16)
       let pe_dst1 ← Array.update pe_dst i i1
       ok (common.Error.NoError, coefficient, pe_dst1)
 
@@ -1985,41 +1985,41 @@ def ntt.poly_element_sample_ntt_from_shake128_loop
   if i < key.MLWE_POLYNOMIAL_COEFFICIENTS
   then
     do
-    let s ← (↑(Array.to_slice shake_output_buf) : Result (Slice U8))
+    let s ← (lift (Array.to_slice shake_output_buf) : Result (Slice U8))
     let i1 := Slice.len s
     massert (curr_buf_index <= i1)
-    let s1 ← (↑(Array.to_slice shake_output_buf) : Result (Slice U8))
+    let s1 ← (lift (Array.to_slice shake_output_buf) : Result (Slice U8))
     let i2 := Slice.len s1
     if curr_buf_index = i2
     then
       do
       let (s2, to_slice_mut_back) ←
-        (↑(Array.to_slice_mut shake_output_buf) : Result ((Slice U8) ×
+        (lift (Array.to_slice_mut shake_output_buf) : Result ((Slice U8) ×
           (Slice U8 → Array U8 24#usize)))
       let (p_state1, s3) ← hash.shake128_extract p_state s2 false
       let shake_output_buf1 := to_slice_mut_back s3
-      let s4 ← (↑(Array.to_slice shake_output_buf1) : Result (Slice U8))
+      let s4 ← (lift (Array.to_slice shake_output_buf1) : Result (Slice U8))
       let a ← ntt.slice_to_sub_array2 s4 0#usize
-      let i3 ← (↑(core.num.U16.from_le_bytes a) : Result U16)
-      let sample0 ← (↑(i3 &&& 4095#u16) : Result U16)
-      let s5 ← (↑(Array.to_slice shake_output_buf1) : Result (Slice U8))
+      let i3 ← (lift (core.num.U16.from_le_bytes a) : Result U16)
+      let sample0 ← (lift (i3 &&& 4095#u16) : Result U16)
+      let s5 ← (lift (Array.to_slice shake_output_buf1) : Result (Slice U8))
       let i4 ← 0#usize + 1#usize
       let a1 ← ntt.slice_to_sub_array2 s5 i4
-      let i5 ← (↑(core.num.U16.from_le_bytes a1) : Result U16)
+      let i5 ← (lift (core.num.U16.from_le_bytes a1) : Result U16)
       let sample1 ← i5 >>> 4#i32
       let curr_buf_index1 ← 0#usize + 3#usize
-      let i6 ← (↑(UScalar.cast .U32 sample0) : Result U32)
+      let i6 ← (lift (UScalar.cast .U32 sample0) : Result U32)
       let i7 ←
-        (↑(UScalar.cast_fromBool .Usize (i6 < ntt.Q)) : Result Usize)
+        (lift (UScalar.cast_fromBool .Usize (i6 < ntt.Q)) : Result Usize)
       let i8 ← i + i7
       if i8 < key.MLWE_POLYNOMIAL_COEFFICIENTS
       then
         do
         let pe_dst1 ← Array.update pe_dst i sample0
         let pe_dst2 ← Array.update pe_dst1 i8 sample1
-        let i9 ← (↑(UScalar.cast .U32 sample1) : Result U32)
+        let i9 ← (lift (UScalar.cast .U32 sample1) : Result U32)
         let i10 ←
-          (↑(UScalar.cast_fromBool .Usize (i9 < ntt.Q)) : Result Usize)
+          (lift (UScalar.cast_fromBool .Usize (i9 < ntt.Q)) : Result Usize)
         let i11 ← i8 + i10
         ntt.poly_element_sample_ntt_from_shake128_loop p_state1 pe_dst2 i11
           shake_output_buf1 curr_buf_index1
@@ -2030,28 +2030,28 @@ def ntt.poly_element_sample_ntt_from_shake128_loop
           shake_output_buf1 curr_buf_index1
     else
       do
-      let s2 ← (↑(Array.to_slice shake_output_buf) : Result (Slice U8))
+      let s2 ← (lift (Array.to_slice shake_output_buf) : Result (Slice U8))
       let a ← ntt.slice_to_sub_array2 s2 curr_buf_index
-      let i3 ← (↑(core.num.U16.from_le_bytes a) : Result U16)
-      let sample0 ← (↑(i3 &&& 4095#u16) : Result U16)
-      let s3 ← (↑(Array.to_slice shake_output_buf) : Result (Slice U8))
+      let i3 ← (lift (core.num.U16.from_le_bytes a) : Result U16)
+      let sample0 ← (lift (i3 &&& 4095#u16) : Result U16)
+      let s3 ← (lift (Array.to_slice shake_output_buf) : Result (Slice U8))
       let i4 ← curr_buf_index + 1#usize
       let a1 ← ntt.slice_to_sub_array2 s3 i4
-      let i5 ← (↑(core.num.U16.from_le_bytes a1) : Result U16)
+      let i5 ← (lift (core.num.U16.from_le_bytes a1) : Result U16)
       let sample1 ← i5 >>> 4#i32
       let curr_buf_index1 ← curr_buf_index + 3#usize
-      let i6 ← (↑(UScalar.cast .U32 sample0) : Result U32)
+      let i6 ← (lift (UScalar.cast .U32 sample0) : Result U32)
       let i7 ←
-        (↑(UScalar.cast_fromBool .Usize (i6 < ntt.Q)) : Result Usize)
+        (lift (UScalar.cast_fromBool .Usize (i6 < ntt.Q)) : Result Usize)
       let i8 ← i + i7
       if i8 < key.MLWE_POLYNOMIAL_COEFFICIENTS
       then
         do
         let pe_dst1 ← Array.update pe_dst i sample0
         let pe_dst2 ← Array.update pe_dst1 i8 sample1
-        let i9 ← (↑(UScalar.cast .U32 sample1) : Result U32)
+        let i9 ← (lift (UScalar.cast .U32 sample1) : Result U32)
         let i10 ←
-          (↑(UScalar.cast_fromBool .Usize (i9 < ntt.Q)) : Result Usize)
+          (lift (UScalar.cast_fromBool .Usize (i9 < ntt.Q)) : Result Usize)
         let i11 ← i8 + i10
         ntt.poly_element_sample_ntt_from_shake128_loop p_state pe_dst2 i11
           shake_output_buf curr_buf_index1
@@ -2071,7 +2071,7 @@ def ntt.poly_element_sample_ntt_from_shake128
   :=
   do
   let shake_output_buf := Array.repeat 24#usize 0#u8
-  let s ← (↑(Array.to_slice shake_output_buf) : Result (Slice U8))
+  let s ← (lift (Array.to_slice shake_output_buf) : Result (Slice U8))
   let curr_buf_index := Slice.len s
   ntt.poly_element_sample_ntt_from_shake128_loop p_state pe_dst 0#usize
     shake_output_buf curr_buf_index
@@ -2085,18 +2085,18 @@ def ntt.poly_element_sample_cbd_from_bytes_eta3_inner_loop_loop
   if j < 4#usize
   then
     do
-    let coefficient ← (↑(sample_bits &&& 63#u32) : Result U32)
+    let coefficient ← (lift (sample_bits &&& 63#u32) : Result U32)
     let sample_bits1 ← sample_bits >>> 6#i32
-    let i1 ← (↑(coefficient &&& 3#u32) : Result U32)
+    let i1 ← (lift (coefficient &&& 3#u32) : Result U32)
     let i2 ← coefficient >>> 3#i32
-    let coefficient1 ← (↑(core.num.U32.wrapping_sub i1 i2) : Result U32)
+    let coefficient1 ← (lift (core.num.U32.wrapping_sub i1 i2) : Result U32)
     let i3 ← coefficient1 >>> 16#i32
-    let i4 ← (↑(ntt.Q &&& i3) : Result U32)
+    let i4 ← (lift (ntt.Q &&& i3) : Result U32)
     let coefficient2 ←
-      (↑(core.num.U32.wrapping_add coefficient1 i4) : Result U32)
+      (lift (core.num.U32.wrapping_add coefficient1 i4) : Result U32)
     massert (coefficient2 < ntt.Q)
     let i5 ← i + j
-    let i6 ← (↑(UScalar.cast .U16 coefficient2) : Result U16)
+    let i6 ← (lift (UScalar.cast .U16 coefficient2) : Result U16)
     let pe_dst1 ← Array.update pe_dst i5 i6
     let j1 ← j + 1#usize
     ntt.poly_element_sample_cbd_from_bytes_eta3_inner_loop_loop pe_dst1 i
@@ -2125,14 +2125,14 @@ def ntt.poly_element_sample_cbd_from_bytes_eta3_loop_loop
   then
     do
     let a ← ntt.slice_to_sub_array4 pb_src src_i
-    let sample_bits ← (↑(core.num.U32.from_le_bytes a) : Result U32)
+    let sample_bits ← (lift (core.num.U32.from_le_bytes a) : Result U32)
     let src_i1 ← src_i + 3#usize
-    let i1 ← (↑(sample_bits &&& 2396745#u32) : Result U32)
+    let i1 ← (lift (sample_bits &&& 2396745#u32) : Result U32)
     let i2 ← sample_bits >>> 1#i32
-    let i3 ← (↑(i2 &&& 2396745#u32) : Result U32)
+    let i3 ← (lift (i2 &&& 2396745#u32) : Result U32)
     let i4 ← i1 + i3
     let i5 ← sample_bits >>> 2#i32
-    let i6 ← (↑(i5 &&& 2396745#u32) : Result U32)
+    let i6 ← (lift (i5 &&& 2396745#u32) : Result U32)
     let sample_bits1 ← i4 + i6
     let (pe_dst1, _) ←
       ntt.poly_element_sample_cbd_from_bytes_eta3_inner_loop pe_dst i
@@ -2162,18 +2162,18 @@ def ntt.poly_element_sample_cbd_from_bytes_eta2_inner_loop_loop
   if j < 8#usize
   then
     do
-    let coefficient ← (↑(sample_bits &&& 15#u32) : Result U32)
+    let coefficient ← (lift (sample_bits &&& 15#u32) : Result U32)
     let sample_bits1 ← sample_bits >>> 4#i32
-    let i1 ← (↑(coefficient &&& 3#u32) : Result U32)
+    let i1 ← (lift (coefficient &&& 3#u32) : Result U32)
     let i2 ← coefficient >>> 2#i32
-    let coefficient1 ← (↑(core.num.U32.wrapping_sub i1 i2) : Result U32)
+    let coefficient1 ← (lift (core.num.U32.wrapping_sub i1 i2) : Result U32)
     let i3 ← coefficient1 >>> 16#i32
-    let i4 ← (↑(ntt.Q &&& i3) : Result U32)
+    let i4 ← (lift (ntt.Q &&& i3) : Result U32)
     let coefficient2 ←
-      (↑(core.num.U32.wrapping_add coefficient1 i4) : Result U32)
+      (lift (core.num.U32.wrapping_add coefficient1 i4) : Result U32)
     massert (coefficient2 < ntt.Q)
     let i5 ← i + j
-    let i6 ← (↑(UScalar.cast .U16 coefficient2) : Result U16)
+    let i6 ← (lift (UScalar.cast .U16 coefficient2) : Result U16)
     let pe_dst1 ← Array.update pe_dst i5 i6
     let j1 ← j + 1#usize
     ntt.poly_element_sample_cbd_from_bytes_eta2_inner_loop_loop pe_dst1 i
@@ -2202,11 +2202,11 @@ def ntt.poly_element_sample_cbd_from_bytes_eta2_loop_loop
   then
     do
     let a ← ntt.slice_to_sub_array4 pb_src src_i
-    let sample_bits ← (↑(core.num.U32.from_le_bytes a) : Result U32)
+    let sample_bits ← (lift (core.num.U32.from_le_bytes a) : Result U32)
     let src_i1 ← src_i + 4#usize
-    let i1 ← (↑(sample_bits &&& 1431655765#u32) : Result U32)
+    let i1 ← (lift (sample_bits &&& 1431655765#u32) : Result U32)
     let i2 ← sample_bits >>> 1#i32
-    let i3 ← (↑(i2 &&& 1431655765#u32) : Result U32)
+    let i3 ← (lift (i2 &&& 1431655765#u32) : Result U32)
     let sample_bits1 ← i1 + i3
     let (pe_dst1, _) ←
       ntt.poly_element_sample_cbd_from_bytes_eta2_inner_loop pe_dst i
@@ -2289,7 +2289,7 @@ def ntt.matrix_transpose
   Result (Slice (Array U16 256#usize))
   :=
   do
-  let n_rows1 ← (↑(UScalar.cast .Usize n_rows) : Result Usize)
+  let n_rows1 ← (lift (UScalar.cast .Usize n_rows) : Result Usize)
   massert (n_rows1 > 0#usize)
   massert (n_rows1 <= ntt.MATRIX_MAX_NROWS)
   ntt.matrix_transpose_loop pm_src n_rows1 0#usize
@@ -2378,7 +2378,7 @@ def ntt.matrix_vector_mont_mul_and_add
     (Array U32 256#usize))
   :=
   do
-  let n_rows1 ← (↑(UScalar.cast .Usize n_rows) : Result Usize)
+  let n_rows1 ← (lift (UScalar.cast .Usize n_rows) : Result Usize)
   massert (n_rows1 > 0#usize)
   massert (n_rows1 <= ntt.MATRIX_MAX_NROWS)
   let left_val := Slice.len pv_src2
@@ -2386,7 +2386,7 @@ def ntt.matrix_vector_mont_mul_and_add
   let left_val1 := Slice.len pv_dst
   massert (left_val1 = n_rows1)
   let (s, to_slice_mut_back) ←
-    (↑(Array.to_slice_mut pa_tmp) : Result ((Slice U32) × (Slice U32 →
+    (lift (Array.to_slice_mut pa_tmp) : Result ((Slice U32) × (Slice U32 →
       Array U32 256#usize)))
   let s1 ← common.wipe_slice s
   let pa_tmp1 := to_slice_mut_back s1
@@ -2433,11 +2433,11 @@ def ntt.vector_mont_dot_product
   let i := Slice.len pv_src2
   massert (i = n_rows)
   let (s, to_slice_mut_back) ←
-    (↑(Array.to_slice_mut pa_tmp) : Result ((Slice U32) × (Slice U32 →
+    (lift (Array.to_slice_mut pa_tmp) : Result ((Slice U32) × (Slice U32 →
       Array U32 256#usize)))
   let s1 ← common.wipe_slice s
   let (s2, to_slice_mut_back1) ←
-    (↑(Array.to_slice_mut pe_dst) : Result ((Slice U16) × (Slice U16 →
+    (lift (Array.to_slice_mut pe_dst) : Result ((Slice U16) × (Slice U16 →
       Array U16 256#usize)))
   let s3 ← common.wipe_slice s2
   let pe_dst1 := to_slice_mut_back1 s3
@@ -2458,7 +2458,7 @@ def ntt.vector_set_zero_loop
     do
     let (a, index_mut_back) ← Slice.index_mut_usize pv_src i
     let (s, to_slice_mut_back) ←
-      (↑(Array.to_slice_mut a) : Result ((Slice U16) × (Slice U16 → Array
+      (lift (Array.to_slice_mut a) : Result ((Slice U16) × (Slice U16 → Array
         U16 256#usize)))
     let s1 ← common.wipe_slice s
     let i1 ← i + 1#usize
@@ -2660,7 +2660,7 @@ def ntt.vector_compress_and_encode_loop
   if i < n_rows
   then
     do
-    let i1 ← (↑(UScalar.cast .Usize n_bits_per_coefficient) : Result Usize)
+    let i1 ← (lift (UScalar.cast .Usize n_bits_per_coefficient) : Result Usize)
     let i2 ← i * i1
     let i3 ← key.MLWE_POLYNOMIAL_COEFFICIENTS / 8#usize
     let pb_dst_index ← i2 * i3
@@ -2692,10 +2692,10 @@ def ntt.vector_compress_and_encode
   massert (n_bits_per_coefficient <= 12#u32)
   let i := Slice.len pb_dst
   let i1 ←
-    (↑(UScalar.cast .U32 key.MLWE_POLYNOMIAL_COEFFICIENTS) : Result U32)
+    (lift (UScalar.cast .U32 key.MLWE_POLYNOMIAL_COEFFICIENTS) : Result U32)
   let i2 ← i1 / 8#u32
   let i3 ← n_bits_per_coefficient * i2
-  let i4 ← (↑(UScalar.cast .Usize i3) : Result Usize)
+  let i4 ← (lift (UScalar.cast .Usize i3) : Result Usize)
   let i5 ← n_rows * i4
   massert (i = i5)
   ntt.vector_compress_and_encode_loop pv_src n_bits_per_coefficient pb_dst
@@ -2711,7 +2711,7 @@ def ntt.vector_decode_and_decompress_loop
   if i < n_rows
   then
     do
-    let i1 ← (↑(UScalar.cast .Usize n_bits_per_coefficient) : Result Usize)
+    let i1 ← (lift (UScalar.cast .Usize n_bits_per_coefficient) : Result Usize)
     let i2 ← i * i1
     let i3 ← key.MLWE_POLYNOMIAL_COEFFICIENTS / 8#usize
     let pb_src_index ← i2 * i3
@@ -2812,7 +2812,7 @@ def ntt.vector_decode_and_decompress
   massert (n_bits_per_coefficient > 0#u32)
   massert (n_bits_per_coefficient <= 12#u32)
   let i := Slice.len pb_src
-  let i1 ← (↑(UScalar.cast .Usize n_bits_per_coefficient) : Result Usize)
+  let i1 ← (lift (UScalar.cast .Usize n_bits_per_coefficient) : Result Usize)
   let i2 ← n_rows * i1
   let i3 ← key.MLWE_POLYNOMIAL_COEFFICIENTS / 8#usize
   let i4 ← i2 * i3
