@@ -22,7 +22,6 @@ lemma testBitMod256 (a k : ℕ) (hk : k < 6) : (a % 256).testBit k = a.testBit k
   rw [← Bool.and_true (a.testBit k), ← hk2, ← Nat.testBit_and, (by decide : 256 = 2^8),
     Nat.testBit_mod_two_pow]
   simp_scalar
-  simp [hk2]
 
 lemma BitVec.getElem!_eq_mask_ne_zero {x : BitVec 64} (k : ℕ) (hk : k < 64) :
   x[k]! = ((x &&& BitVec.ofNat 64 (2^k)) != 0#64) := by

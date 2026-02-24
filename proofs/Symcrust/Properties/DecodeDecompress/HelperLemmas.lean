@@ -1,4 +1,4 @@
-import Symcrust.Properties.CompressEncode.CompressEncode
+import Symcrust.Spec.Spec
 import Mathlib.Algebra.BigOperators.Fin
 import Symcrust.Brute
 

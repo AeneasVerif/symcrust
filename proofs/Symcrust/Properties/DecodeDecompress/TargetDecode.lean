@@ -1,6 +1,7 @@
-import Symcrust.Properties.CompressEncode.CompressEncode
 import Mathlib.Algebra.BigOperators.Fin
 import Symcrust.Properties.DecodeDecompress.HelperLemmas
+import Symcrust.Properties.BitsAndBytes.BytesToBits
+import Symcrust.Properties.Polynomials
 import Symcrust.Brute
 
 /-!

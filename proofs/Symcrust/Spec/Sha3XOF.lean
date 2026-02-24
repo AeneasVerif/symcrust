@@ -56,9 +56,9 @@ def sponge.squeeze_r (s : state n r) :=
   { s with Z, S, hx }
 
 -- squeezes extra bits only on demand
-def sponge.squeeze1 (s : state n r) d : state n r × Bitstring d :=
+def sponge.squeeze1 (hr  : 0 < r ∧ r < n := by decide) (s : state n r) d : state n r × Bitstring d :=
   if hd : s.Z.size + r < s.x + d then
-    squeeze1 (squeeze_r n f r hr s) d
+    squeeze1 hr (squeeze_r n f r s) d
   else
     -- returns available bits without internal squeezing
     let A := s.Z ++ (s.S.setWidth r).toArray
@@ -72,16 +72,16 @@ def sponge.squeeze1 (s : state n r) d : state n r × Bitstring d :=
 
 -- towards lemmas for squeezing at different strides
 lemma sponge.squeeze3 (s: state n r) d :
-  let t := squeeze_r n f r hr s
+  let t := squeeze_r n f r s
   let u := squeeze1 n f r hr s d
   let v := squeeze1 n f r hr t d
   if s.Z.size + r < s.x + d then
     v = u -- u squeezes at least once, catching up on v
   else
-    v = (squeeze_r n f r hr u.1, u.2) -- v is still ahead by one round
+    v = (squeeze_r n f r u.1, u.2) -- v is still ahead by one round
   := by
     intro t u v
-    have ht : t = squeeze_r n f r hr s := rfl
+    have ht : t = squeeze_r n f r s := rfl
     have hu : u = squeeze1 n f r hr s d := rfl
     have hv : v = squeeze1 n f r hr t d := rfl
     unfold squeeze1 at hu
@@ -119,11 +119,11 @@ def sponge.lookup (s : state n r) m (hm : s.x + m ≤ s.Z.size := by grind) : st
   (s', B.toVector.cast (size_extract s.Z hm))
 
 lemma sponge.squeeze_unrolled (s: state n r) d :
-  let t := squeeze_r n f r hr (squeeze_r n f r hr s)
+  let t := squeeze_r n f r (squeeze_r n f r s)
   (squeeze1 n f r hr t d).2 = (squeeze1 n f r hr s d).2 := by
     have h1 := squeeze3 n f r hr s d
     simp at h1
-    have h2 := squeeze3 n f r hr (squeeze_r n f r hr s) d
+    have h2 := squeeze3 n f r hr (squeeze_r n f r s) d
     simp at h2
     split_ifs at h1 h2 with h0 h3 <;> grind
 

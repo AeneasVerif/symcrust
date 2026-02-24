@@ -64,7 +64,7 @@ def Vector.toHex {n} (v : Bytes n) (trunc : Option Nat := .some 96): String :=
       s := s.push (Byte.toHex (b / 16))
       s := s.push (Byte.toHex (b % 16))
     match trunc with
-    | .some ℓ => s :=  s.take (ℓ - 13) ++ "..." ++ s.drop (n * 2 - 13)
+    | .some ℓ => s :=  (s.take (ℓ - 13)).toString ++ "..." ++ s.drop (n * 2 - 13)
     | .none => ()
     pure s
 
@@ -85,7 +85,7 @@ def Hex.toBytes? (s : String) : Option (Array Byte) :=
         go rest (acc.push (16 * hi + lo))
     | [], acc => some acc
     | _, _ => none
-  go s.data #[]
+  go s.toList #[]
 
 def Hex.toVector? (s : String) (n : Nat) : Option (Bytes n) := do
   let arr ← Hex.toBytes? s

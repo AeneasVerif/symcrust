@@ -228,8 +228,10 @@ private theorem nttLayer_eq_fst_arith
   (255 / (2 * len) + 1) * (2 * len) = 256 := by
   -- We simply brute force the proof by making a case disjunction on k
   -- TODO: the proof is quite simple but the theorem must be generalized (and the proof is then by induction)
-  replace ⟨ k, hLen ⟩ := hLen
-  repeat (cases k <;> simp_all <;> rename_i k <;> try omega)
+  replace ⟨ k, hk, hLen ⟩ := hLen
+  simp only [hLen]; clear hLen len
+  revert k
+  decide
 
 private theorem nttLayer_eq_fst (f : Polynomial) (i len : Nat)
   (hLen : 0 < len) (hkLen : ∃ k, k ≤ 7 ∧ len = 2 ^ k) :
@@ -359,8 +361,9 @@ private theorem invNttLayer_eq_fst_arith
   (255 / (2 * len) + 1) * (2 * len) = 256 := by
   -- We simply brute force the proof by making a case disjunction on k
   -- TODO: the proof is quite simple but the theorem must be generalized (and the proof is then by induction)
-  replace ⟨ k, hLen ⟩ := hLen
-  repeat (cases k <;> simp_all <;> rename_i k <;> try omega)
+  replace ⟨ k, hk, hLen ⟩ := hLen
+  simp only [hLen]
+  clear hLen len; revert k; decide
 
 private theorem invNttLayer_eq_fst (f : Polynomial) (i len : Nat)
   (hLen : 0 < len) (hkLen : ∃ k, k ≤ 7 ∧ len = 2 ^ k) :
@@ -552,11 +555,10 @@ Linking `Target.multiplyNTTs` to `Spec.multiplyNTTs`
 private theorem Target.multiplyNTTs_inner_eq_spec (f g : Polynomial) :
   Target.multiplyNTTs_inner f g Polynomial.zero 0 = Spec.multiplyNTTs f g := by
   unfold Target.multiplyNTTs_inner Spec.multiplyNTTs
-  simp only
-  simp only [bind_pure_comp, map_pure, Std.Range.forIn_eq_forIn_range', Std.Range.size, tsub_zero,
-    Nat.reduceAdd, Nat.add_one_sub_one, Nat.div_one, List.forIn_pure_yield_eq_foldl, bind_pure,
-    Id.run_pure, Vector.Inhabited_getElem_eq_getElem!, Vector.set_eq_set!, forIn'_eq_forIn,
-    forIn_eq_forIn_range', size]
+  simp only [bind_pure_comp, map_pure, Std.Legacy.Range.forIn_eq_forIn_range',
+    Std.Legacy.Range.size, tsub_zero, Nat.reduceAdd, Nat.add_one_sub_one, Nat.div_one,
+    List.forIn_pure_yield_eq_foldl, bind_pure, Id.run_pure, Vector.Inhabited_getElem_eq_getElem!,
+    Vector.set_eq_set!, forIn'_eq_forIn, forIn_eq_forIn_range', size]
 
 /--
 Linking `Target.multiplyNTTs` to `multiplyNTTs_pure`
@@ -564,9 +566,9 @@ Linking `Target.multiplyNTTs` to `multiplyNTTs_pure`
 private theorem Target.multiplyNTTs_inner_eq (f g : Polynomial) :
   Target.multiplyNTTs_inner f g Polynomial.zero 0 = multiplyNTTs_pure f g Polynomial.zero 0 := by
   unfold Target.multiplyNTTs_inner
-  simp only [bind_pure_comp, map_pure, Std.Range.forIn_eq_forIn_range', Std.Range.size, tsub_zero,
-    Nat.reduceAdd, Nat.add_one_sub_one, Nat.div_one, List.forIn_pure_yield_eq_foldl, bind_pure,
-    Id.run_pure]
+  simp only [bind_pure_comp, map_pure, Std.Legacy.Range.forIn_eq_forIn_range',
+    Std.Legacy.Range.size, tsub_zero, Nat.reduceAdd, Nat.add_one_sub_one, Nat.div_one,
+    List.forIn_pure_yield_eq_foldl, bind_pure, Id.run_pure]
   simp only [zero_lt_one, foldl_range'_eq_foldWhile, mul_one, zero_add]
   -- Using a useful equation satisfied by `foldWhile`
   rw [← eq_foldWhile]

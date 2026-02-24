@@ -106,7 +106,7 @@ theorem ofMkFold1UpperBoundedEqTrue {t : Type} [h : IsNatLike t] (b : t) (f f' :
     induction (cast ht b) generalizing acc
     . simp
     . next b' ih =>
-      simp only [Fin.foldr_succ_last, Fin.coe_castSucc, Fin.val_last]
+      simp only [Fin.foldr_succ_last, Fin.val_castSucc, Fin.val_last]
       intro h hb'
       let h' : ∀ (x : t), cast ht x < b' → f' x = true → f x = true := by
         intro x hx hf
@@ -129,7 +129,7 @@ theorem ofMkFold1UpperBoundedEqTrue {t : Type} [h : IsNatLike t] (b : t) (f f' :
     induction (cast ht.2 b).toNat generalizing acc
     . simp
     . next b' ih =>
-      simp only [Fin.foldr_succ_last, Fin.coe_castSucc, Fin.val_last]
+      simp only [Fin.foldr_succ_last, Fin.val_castSucc, Fin.val_last]
       intro h hb'
       let h' : ∀ (x : t), (cast ht.2 x).toNat < b' → f' x = true → f x = true := by
         intro x hx hf
@@ -152,7 +152,7 @@ theorem ofMkFold1UpperBoundedEqTrue {t : Type} [h : IsNatLike t] (b : t) (f f' :
     induction (cast ht.2.2 b).val generalizing acc
     . simp
     . next b' ih =>
-      simp only [Fin.foldr_succ_last, Fin.coe_castSucc, Fin.val_last]
+      simp only [Fin.foldr_succ_last, Fin.val_castSucc, Fin.val_last]
       intro h hb'
       let h' : ∀ (x : t), (cast ht.2.2 x).val < b' → f' x = true → f x = true := by
         intro x hx hf
@@ -187,7 +187,7 @@ theorem ofMkFold1NoneEqTrue {t : Type} [h : IsNatLike t] (f f' : t → Bool)
     . simp
     . next b ih =>
       intro h
-      simp only [Fin.foldr_succ_last, Fin.coe_castSucc, Fin.val_last] at h
+      simp only [Fin.foldr_succ_last, Fin.val_castSucc, Fin.val_last] at h
       specialize ih (acc && f' (cast ht.2.symm (BitVec.ofNat ht.fst b))) h
       simp only [Bool.and_eq_true, and_assoc] at ih
       simp only [ih, true_and]
@@ -205,7 +205,7 @@ theorem ofMkFold1NoneEqTrue {t : Type} [h : IsNatLike t] (f f' : t → Bool)
     . simp
     . next b ih =>
       intro h
-      simp only [Fin.foldr_succ_last, Fin.coe_castSucc, Fin.val_last] at h
+      simp only [Fin.foldr_succ_last, Fin.val_castSucc, Fin.val_last] at h
       specialize ih (acc && f' (cast ht.2.2.symm (UScalar.ofNat' b))) h
       simp only [ne_eq, Bool.and_eq_true, and_assoc] at ih
       simp only [ih, ne_eq, true_and]
@@ -225,7 +225,7 @@ theorem ofMkFold1NoneEqTrue {t : Type} [h : IsNatLike t] (f f' : t → Bool)
             . rw [Nat.lt_succ_iff]
               exact UScalar.hrBounds (cast ht.snd.right x)
           )]
-        simp only [UScalar.ofNat_val, cast_cast, cast_eq] at ih
+        simp only [UScalar.ofNat_self_val, cast_cast, cast_eq] at ih
         exact hf x ih.2.1
 
 theorem ofMkFold1None {t : Type} [h : IsNatLike t] (f f' : t → Bool) :
@@ -264,7 +264,7 @@ lemma le_iff_lt_natLikeSucc_some {t : Type} [ht : IsNatLike t] {x b b' : t} (hb 
       BitVec.toNat_ofNat, Nat.add_mod_mod]
     rw [Nat.mod_eq_of_lt] <;> omega
   . simp only [ne_eq, UScalar.le_equiv, ge_iff_le, UScalar.lt_equiv, gt_iff_lt]
-    simp only [heq, ne_eq, beq_iff_eq, UScalar.ofNat_val_eq, Nat.cast_add, BitVec.natCast_eq_ofNat,
+    simp only [heq, ne_eq, beq_iff_eq, UScalar.ofNatCore_val_eq, Nat.cast_add, BitVec.natCast_eq_ofNat,
       Bvify.UScalar.BitVec_ofNat_setWidth, BitVec.setWidth_eq, Nat.cast_one, BitVec.ofNat_eq_ofNat,
       dite_eq_ite, Option.ite_none_left_eq_some, Option.some.injEq, UScalar.max] at hb
     rw [← hb.2]
@@ -292,7 +292,7 @@ lemma le_iff_lt_natLikeSucc_none {t : Type} [ht : IsNatLike t] {x b : t} (hb : n
     simp only [Nat.ofNat_pos, SimpScalar.one_le_pow, Nat.sub_add_cancel]
     exact BitVec.isLt (cast (instLTOfIsNatLike._proof_1 t ht) x)
   . simp only [ne_eq, UScalar.le_equiv, ge_iff_le]
-    simp only [heq, ne_eq, beq_iff_eq, UScalar.ofNat_val_eq, Nat.cast_add, BitVec.natCast_eq_ofNat,
+    simp only [heq, ne_eq, beq_iff_eq, UScalar.ofNatCore_val_eq, Nat.cast_add, BitVec.natCast_eq_ofNat,
       Bvify.UScalar.BitVec_ofNat_setWidth, BitVec.setWidth_eq, Nat.cast_one, BitVec.ofNat_eq_ofNat,
       dite_eq_ite, ite_eq_left_iff, reduceCtorEq, imp_false, Decidable.not_not] at hb
     rw [hb]

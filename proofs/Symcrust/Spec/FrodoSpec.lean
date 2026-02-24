@@ -678,7 +678,7 @@ def mkBits (seed : Nat := 42): Bitstring ℓ :=
   let input := Vector.ofFn (fun i => seed.testBit i) (n := 64)
   Spec.SHAKE128 input.toArray ℓ
 
-def sampling := do
+def sampling : IO Unit := do
   for p in parameterSet.all do
     let mut h := Array.replicate (2 * d p + 1) 0
     for i in [0:2^16] do
@@ -693,7 +693,7 @@ def sampling := do
     for i in [0:2 * d p + 1] do
       IO.println s!"{(i : ℤ) - d p} : \t{h[i]!}"
 
-def all := do
+def all : IO Unit := do
   for gen in GenSelection.all do
     for p in parameterSet.all do
       IO.println s!"Testing {parameterSet.tag p}/{GenSelection.tag gen}"
